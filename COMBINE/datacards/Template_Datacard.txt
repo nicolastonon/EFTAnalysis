@@ -1,0 +1,23 @@
+imax	1	number of categories
+jmax	*	number of backgrounds
+kmax	*	number of nuisance parameters (sources of systematic uncertainties)
+---------------------------------------------------
+shapes * var_chan filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC
+---------------------------------------------------
+bin        	var_chan
+observation	-1
+---------------------------------------------------
+bin    	var_chan	var_chan	var_chan	var_chan
+process	tZq	ttZ	ttW	ttH
+process	0	1	2	3
+rate 	-1	-1	-1	-1
+---------------------------------------------------
+Lumi	lnN	1.023	1.023	1.023	1.023
+---------------------------------------------------
+ttZ_rate	lnN	-	1.15	-	-
+ttW_rate	lnN	-	-	1.15	-
+ttH_rate	lnN	-	-	-	1.15
+---------------------------------------------------
+---------------------------------------------------
+---------------------------------------------------
+[STAT]	*	autoMCStats	10

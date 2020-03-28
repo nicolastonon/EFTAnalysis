@@ -1,0 +1,8 @@
+[ myLib.so ]
+# List of selected classes
+class TH1EFT
+class WCFit
+class WCPoint
+header Utils/TH1EFT.h
+header Utils/WCFit.h
+header Utils/WCPoint.h
