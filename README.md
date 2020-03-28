@@ -32,31 +32,37 @@ CODE EXAMPLE
 :put_litter_in_its_place:
 :new:
 
-
 :construction: **README UNDER CONSTRUCTION**
+
+#HOW TO HIDE CONTENTS (which can be viewed by cliking icon) :
+<details>
+<summary>[NameOfHiddenContent]:</summary>
+[theHiddenContent]
+</details>
 -------------------------------------------->
 
 
 > Codes and instructions to :
-> * train TMVA BDTs (soon also DNNs)
+> * train BDTs (TMVA) and DNNs (Keras)
 > * create MVA templates
 > * create control plots
+> * perform analysis-specific studies
 > * generate and run COMBINE datacards
 
 
 #### Table Of Contents
 
-* [Setup](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#Setup)
+* [Setup]https://github.com/nicolastonon/EFTAnalysis#Setup)
 
-* [Analysis](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#Analysis)
-  * [Configuration](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#Configuration)
+* [Analysis]https://github.com/nicolastonon/EFTAnalysis#Analysis)
+  * [Configuration]https://github.com/nicolastonon/EFTAnalysis#Configuration)
 
-* [Event yields](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#Event-yields)
+* [Event yields]https://github.com/nicolastonon/EFTAnalysis#Event-yields)
 
-* [ROCS](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#ROCS)
+* [ROCS]https://github.com/nicolastonon/EFTAnalysis#ROCS)
 
 
-* [Combine](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis#Combine)
+* [Combine]https://github.com/nicolastonon/EFTAnalysis#Combine)
 
 # Setup
 
@@ -64,30 +70,30 @@ The analysis of Ntuples does not require CMSSW, and can be run locally offline.
 
 However, running `Combine` requires a CMSSW environment *(e.g. CMSSW_10_2_20)*.
 
-Instructions for setting up `Combine` properly are given in the dedicated [directory](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis/COMBINE).
+Instructions for setting up `Combine` properly are given in the dedicated [directory]https://github.com/nicolastonon/EFTAnalysis/COMBINE).
 
 ## Input ntuples
 
-The directory [input_ntuples](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis/input_ntuples) must contain the ntuples to analyze, produced via the [PoTATo](https://gitlab.cern.ch/joknolle/potato) framework.
+The directory [input_ntuples]https://github.com/nicolastonon/EFTAnalysis/input_ntuples) must contain the ntuples to analyze, produced via the [PoTATo](https://gitlab.cern.ch/joknolle/potato) framework.
 They must be organized into sub-directories corresponding to their years of data-taking (2016/2017/2018).
 
 # Analysis
 
 The basic workflow is the following :
 
-* The [Makefile](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/Makefile) compiles all the codes.
+* The [Makefile](https://github.com/nicolastonon/EFTAnalysis/Makefile) compiles all the codes.
 
-* The [TopEFT_analysis](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/TopEFT_analysis.cxx) class contains all the main analysis functions.
+* The [TopEFT_analysis](https://github.com/nicolastonon/EFTAnalysis/TopEFT_analysis.cxx) class contains all the main analysis functions.
 
-* The [Helper](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/Helper.cxx) code contains additional, helper functions.
+* The [Helper](https://github.com/nicolastonon/EFTAnalysis/Helper.cxx) code contains additional, helper functions.
 
-* The [analysis_main.cxx](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/analysis_main.cxx) code contains the *main()* which runs the function calls.
+* The [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/analysis_main.cxx) code contains the *main()* which runs the function calls.
 
-**The user should only modify the [analysis_main.cxx](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/analysis_main.cxx) code, compile, and run it.**
+**The user should only modify the [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/analysis_main.cxx) code, compile, and run it.**
 
 ## Configuration
 
-Modify the [analysis_main.cxx](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/analysis_main.cxx) code to configure the analysis.
+Modify the [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/analysis_main.cxx) code to configure the analysis.
 
 The configuration interface relies heavily on the use of vectors, and is intended to be self-explanatory.
 
@@ -113,13 +119,13 @@ make
 ./analysis_main.exe 2016
 ```
 
-:arrow_right: Output root files (containing templates, control histograms, TMVA control file, ...) are stored in the [outputs](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/outputs) directory.
+:arrow_right: Output root files (containing templates, control histograms, TMVA control file, ...) are stored in the [outputs](https://github.com/nicolastonon/EFTAnalysis/outputs) directory.
 
-:arrow_right: Output plots are stored in the [plots](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/plots) directory.
+:arrow_right: Output plots are stored in the [plots](https://github.com/nicolastonon/EFTAnalysis/plots) directory.
 
 # Event yields
 
-The code [Produce_Cutflow.cxx](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/Produce_Cutflow.cxx) will read the input ntuples, and automatically compute the event yields for all processes.
+The code [Produce_Cutflow.cxx](https://github.com/nicolastonon/EFTAnalysis/Produce_Cutflow.cxx) will read the input ntuples, and automatically compute the event yields for all processes.
 Modify the *main()* options to select the data-taking year, processes, etc.
 
 ```
@@ -128,9 +134,9 @@ make
 ```
 # ROCS
 
-Move to the [ROCS](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/ROCS) directory.
+Move to the [ROCS](https://github.com/nicolastonon/EFTAnalysis/ROCS) directory.
 
-The code [Compare_ROC_curves.cxx](https://github.com/nicolastonon/EFT-Simu-Pheno/blob/master/myAnalysis/ROCS/Compare_ROC_curves.cxx) will read TMVA control files to plot the corresponding ROC curves.
+The code [Compare_ROC_curves.cxx](https://github.com/nicolastonon/EFTAnalysis/ROCS/Compare_ROC_curves.cxx) will read TMVA control files to plot the corresponding ROC curves.
 It makes it easy to superimpose and compare several ROCS.
 
 Modify the *main()* options to define the paths of the input rootfiles, etc.
@@ -141,4 +147,4 @@ Modify the *main()* options to define the paths of the input rootfiles, etc.
 
 # Combine
 
-See the dedicated [README](https://github.com/nicolastonon/EFT-Simu-Pheno/tree/master/myAnalysis/COMBINE).
+See the dedicated [README]https://github.com/nicolastonon/EFTAnalysis/COMBINE).
