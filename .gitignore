@@ -4,10 +4,10 @@
 # Directories #
 ############
 
-./myAnalysis/weights/**
+./weights/*
 
-./myAnalysis/myDict*
-./myAnalysis/myLib*
+./myDict*
+./myLib*
 
 ############
 # Backup copies #
