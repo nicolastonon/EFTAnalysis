@@ -803,7 +803,7 @@ int main(int argc, char **argv)
     v_processes.push_back("ttZ");
     v_processes.push_back("Backgrounds");
 
-    TString lumiYear = "2016"; //'2016,'2017','2018','Run2'
+    TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
 
     bool superimpose_allNodes_DNN = false; //true <-> will plot 1 ROC per process class (for DNN only)
 
@@ -825,9 +825,9 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
 //--------------------------------------------
-    v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
-    v_Filelabel.push_back("BDT "+lumiYear);
-    v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
+    // v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
+    // v_Filelabel.push_back("BDT "+lumiYear);
+    // v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
 
     v_filepath.push_back("../outputs/DNN_"+v_processes[0]+"_"+lumiYear+".root");
     v_Filelabel.push_back("DNN "+lumiYear);

@@ -100,12 +100,22 @@ def normalize(val, m, dev):
 # //--------------------------------------------
 # //--------------------------------------------
 
+#Alternative normalization
 def normalize2(x_train, x_test):
     mu = np.mean(x_train, axis=0)
     std = np.std(x_train, axis=0)
     x_train_normalized = (x_train - mu) / std
     x_test_normalized = (x_test - mu) / std
     return x_train_normalized, x_test_normalized
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Printout the output of the first (=input) layer here for N events, e.g. to verify that the normalization layer works properly
+def Printout_Outputs_FirstLayer(model, ilayer, xx):
+    get_layer_output = keras.backend.function([model.layers[0].input], [model.layers[ilayer].output])
+    layer_output = get_layer_output([xx])[0]
+    print("\n", layer_output)
 
 # //--------------------------------------------
 # //--------------------------------------------

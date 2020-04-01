@@ -171,14 +171,12 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
         #Get ROC curve using test data -- different for nof_outputs>1, should fix it
         #Uses predict() function, which generates (output) given (input + model)
         lw = 2 #linewidth
-        if nof_outputs == 1 and i == 0:
+        if nof_outputs == 1:
+            print('test')
             fpr, tpr, _ = roc_curve(y_test, model.predict(x_test)) #Need '_' to read all the return values
             roc_auc = auc(fpr, tpr)
             fpr_train, tpr_train, _ = roc_curve(y_train, model.predict(x_train)) #Need '_' to read all the return values
             roc_auc_train = auc(fpr_train, tpr_train)
-
-            plt.plot(tpr, 1-fpr, color='darkorange', lw=lw, label='ROC DNN (test) (AUC = {0:0.2f})' ''.format(roc_auc))
-            plt.plot(tpr_train, 1-fpr_train, color='cornflowerblue', lw=lw, label='ROC DNN (train) (AUC = {0:0.2f})' ''.format(roc_auc_train))
 
         else: #different for multiclass
             # Compute ROC curve and ROC area for each class
@@ -213,7 +211,7 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
         timer = fig1.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
         timer.add_callback(close_event)
 
-        if nof_outputs == 1 and i == 0: #only 1 node
+        if nof_outputs == 1: #only 1 node
             plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC DNN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train))
             plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC DNN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
         else: #for each node

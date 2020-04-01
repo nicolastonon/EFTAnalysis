@@ -43,7 +43,8 @@ from Utils.Helper import normalize
 #Define here the Keras DNN model
 def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
 
-    use_normInputLayer = False #True <-> add normalization layer to automatically rescale all input values (gaussian scaling) #FIXME -- True : wrong test performance... why ?
+    #FIXME
+    use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
     use_dropout = True #True <-> Activate dropout for each dense layer by amount 'droprate' to mitigate overtraining
     droprate = 0.5
@@ -62,7 +63,7 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
     #Regularizers
     #NB : "In practice, if you are not concerned with explicit feature selection, L2 regularization can be expected to give superior performance over L1."
     # my_regul = regularizers.l1(0.001)
-    my_regul = regularizers.l2(0.001) #Default 0.001
+    # my_regul = regularizers.l2(0.001) #Default 0.001
     # my_regul = regularizers.l1_l2(l1=0.01, l2=0.01)
 
     #Examples of advanced activations (should be added as layers, after dense layers)
@@ -70,9 +71,25 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
     # model.add(PReLU(alpha_initializer=my_init))
     # model.add(Activation('selu'))
 
-    model_choice = 1 #FIXME check use_bias, batchnorm --> works as expected ?
+    model_choice = 2 #FIXME check use_bias, batchnorm --> works as expected ?
 
     #-- List different models, by order of complexity
+
+ #####  ###### #####  #    #  ####
+ #    # #      #    # #    # #    #
+ #    # #####  #####  #    # #
+ #    # #      #    # #    # #  ###
+ #    # #      #    # #    # #    #
+ #####  ###### #####   ####   ####
+
+    #Model 0 -- debugging
+    if model_choice == 0:
+
+       # //--------------------------------------------
+        if use_normInputLayer == True : # Add first a normalization layer
+            model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
+            model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
+            model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
 
                                          #
  #    #  ####  #####  ###### #          ##
@@ -85,30 +102,29 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
     #Model 1 -- simple
     if model_choice == 1:
 
-        #Define 'dense' layer type
-        dense = Dense(64, kernel_initializer=my_init, use_bias=not use_batchNorm, activation='relu')
+        #Define some layer types
+        myDense = Dense(50, kernel_initializer=my_init, activation='relu')
 
        # //--------------------------------------------
-        if use_normInputLayer == True :
+        if use_normInputLayer == True : # Add first a normalization layer
             model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
             model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
-            model.add(dense) #First dense layer
-        else :
-            model.add(Dense(64, kernel_initializer=my_init, activation='tanh', use_bias=not use_batchNorm, input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+            # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
+            model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
+        else:
+            model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
         if use_batchNorm==True:
             model.add(BatchNormalization())
         if use_dropout==True:
             model.add(Dropout(droprate))
 
-        model.add(dense)
-        # model.add(Dense(64, kernel_initializer=my_init, use_bias=not use_batchNorm, activation='relu'))
+        model.add(myDense)
         if use_batchNorm==True:
             model.add(BatchNormalization())
         if use_dropout==True:
             model.add(Dropout(droprate))
 
-        model.add(dense)
-        # model.add(Dense(64, kernel_initializer=my_init, use_bias=not use_batchNorm, activation='relu'))
+        model.add(myDense) #FIXME -- better without ?
         if use_batchNorm==True:
             model.add(BatchNormalization())
         if use_dropout==True:
@@ -134,15 +150,15 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
         if use_normInputLayer == True :
             model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
             model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
-            model.add(Dense(100, kernel_initializer=my_init, activation='relu', use_bias=not use_batchNorm) ) #First dense layer
+            model.add(Dense(100, kernel_initializer=my_init, activation='relu') ) #First dense layer
         else :
-            model.add(Dense(100, kernel_initializer=my_init, activation='tanh', use_bias=not use_batchNorm, input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+            model.add(Dense(100, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
         if use_batchNorm==True:
             model.add(BatchNormalization())
         if use_dropout==True:
             model.add(Dropout(droprate))
 
-        model.add(Dense(100, input_dim=num_input_variables, activation='tanh', kernel_initializer=my_init, name="MYINPUT") ) #Input layer
+        model.add(Dense(100, activation='relu', kernel_initializer=my_init) )
         if use_batchNorm==True:
             model.add(BatchNormalization())
         if use_dropout==True:

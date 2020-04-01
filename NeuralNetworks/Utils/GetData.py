@@ -152,10 +152,11 @@ def Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, v
                 # print(colors.fg.lightgrey, '* Opening file:', colors.reset, ' ', filepath)
                 file = TFile.Open(filepath)
                 tree = file.Get('result')
-                print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )')
+                print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
 
                 list_x_proc.append(tree2array(tree, branches=var_list, selection=cuts))
-                list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
+                list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
+                # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
                 # if procname contains privprod inly
                 # list_EFTreweights_proc.append(tree2array(tree, branches="mc_EFTweights", selection=cuts))
 
@@ -339,9 +340,10 @@ def Transform_Inputs(weight_dir, x, var_list, lumiName):
     scaler = StandardScaler().fit(x)
     means = scaler.mean_
     stddev = scaler.scale_ # = np.sqrt(var_)
-    # vars = scaler.var_
-    # nsamples = scaler.n_samples_seen_
-    # x = scaler.transform(x)
+
+    # x = scaler.transform(x) #Rescale the data
+
+    # vars = scaler.var_; nsamples = scaler.n_samples_seen_
     # print('means', means); print('vars', vars); print('stddev', stddev); print('nsamples = ', nsamples)
 
     text_file = open(weight_dir + "DNN_infos.txt", "w")
@@ -362,6 +364,6 @@ def Transform_Inputs(weight_dir, x, var_list, lumiName):
     text_file.close()
     print(colors.fg.lightgrey, '\n===> Saved DNN infos (input/output nodes names, rescaling values, etc.) in : ', weight_dir + "DNN_infos.txt \n", colors.reset)
 
-    # print('After transformation :', x[0:5,:])
+    # print('After transformation :', x[0:10,:])
 
     return x, means, stddev

@@ -47,12 +47,12 @@ public:
         {
             if(i+1 >= words.size()) {std::cout<<"Error : i > words.size() ! Full string : "<<_str<<std::endl; return;} //NT
 
-            //NT -- FIXME : alternate naming convention of the type "min2p5"... slower
+            //NT -- FIXME : alternate naming convention of the type "min2p5"... slower, remove soon
             TString ts = words.at(i+1);
             ts.ReplaceAll("min", '-');
             ts.ReplaceAll("p", '.');
 
-            this->setStrength(words.at(i),std::stod((std::string) ts));
+            this->setStrength(words.at(i), std::stod((std::string) ts));
             // this->setStrength(words.at(i),std::stod(words.at(i+1)));
         }
     }

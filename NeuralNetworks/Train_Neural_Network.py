@@ -37,8 +37,8 @@ _processClasses_list = [
                 # ["PrivMC_tZq"],
                 ["tZq"],
                 # ["ttZ"]]
-                ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "DY", "TTbar_DiLep"]]
-                # ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "DY", "TTbar_DiLep",]]
+                ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"]]
+                # ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
 
 _labels_list =  ["tZq",
                 "ttZ", "Backgrounds"]
@@ -49,11 +49,10 @@ cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 
 #--- Training options
 # //--------------------------------------------
-_nepochs = 5 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-_batchSize = 512 #Batch size (<-> nof events fed to the network before its parameter get updated)
-# _nof_output_nodes = 3 #1 (binary) or N (multiclass)
+_nepochs = 20 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+_batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
 
-_maxEvents_perClass = -1 #max nof events to be used for each process ; -1 <-> all events
+_maxEvents_perClass = 40000 #max nof events to be used for each process ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -104,7 +103,7 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score
 from tensorflow.keras.models import load_model
 
 from Utils.FreezeSession import freeze_session
-from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters
+from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters, Printout_Outputs_FirstLayer
 from Utils.Model import Create_Model
 from Utils.Callbacks import Get_Callbacks
 from Utils.GetData import Get_Data_For_DNN_Training
@@ -212,6 +211,10 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
     #Get model and compile it
     print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
     model = Create_Model(weight_dir, "DNN", _nof_output_nodes, var_list, means, stddev) #-- add default args
+
+    #Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
+    # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
+
     print('\n'); print(colors.fg.lightblue, "--- Compile the Keras model...", colors.reset); print('\n')
     model.compile(loss=_loss, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
 
@@ -408,6 +411,11 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(savedModelName)
 
+    #--- Printout : check the outputs of each layer for 2 events
+    # print(x_train[0:1])
+    # for ilayer in range(0, len(model.layers)):
+    #     Printout_Outputs_FirstLayer(model, ilayer, x_train[0:1])
+
     #Application (can also use : predict_classes, predict_proba)
     list_predictions_train_allNodes_allClasses = []
     list_predictions_test_allNodes_allClasses = []
@@ -424,21 +432,22 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
 
     # -- Printout of some predictions
     # np.set_printoptions(threshold=5) #If activated, will print full numpy arrays
-    print("-------------- FEW EXAMPLES... --------------")
-    for i in range(10):
-        if nof_output_nodes == 1:
-            if y_test[i]==1:
-                true_label = "signal"
-            else:
-                true_label = "background"
-            print("===> Prediction for %s event : %s" % (true_label, (list_predictions_test_allClasses[0])[i]))
-
-        else:
-            for j in range(len(processClasses_list)):
-                if y_test[i][j]==1:
-                    true_label = labels_list[j]
-        print("===> Outputs nodes predictions for %s event : %s" % (true_label, (list_predictions_test_allClasses[j])[i]) )
-    print("--------------\n")
+    # print("\n-------------- FEW EXAMPLES... --------------")
+    # for i in range(10):
+    #     if nof_output_nodes == 1:
+    #         if y_test[i]==1:
+    #             true_label = "signal"
+    #         else:
+    #             true_label = "background"
+    #         print("===> Prediction for %s event : %s" % (true_label, (list_predictions_test_allClasses[0])[i]))
+    #
+    #     else:
+    #         true_label = ''
+    #         for j in range(len(processClasses_list)):
+    #             if y_test[i][j]==1:
+    #                 true_label = labels_list[j]
+    #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
+    # print("--------------\n")
 
     #-- Print predictions for first few events of first process => can compare with predictions obtained for same DNN/events using another code
     # for j in range(x_control_firstNEvents.shape[0]):

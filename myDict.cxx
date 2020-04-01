@@ -672,7 +672,7 @@ namespace {
     };
     static const char* includePaths[] = {
 "/home/ntonon/Documents/Programmes/myBuild_root-6.18.04/include",
-"/home/ntonon/Postdoc/EFTSimulations/myAnalysis/",
+"/home/ntonon/Postdoc/TopEFT/Analysis/",
 0
     };
     static const char* fwdDeclCode = R"DICTFWDDCLS(

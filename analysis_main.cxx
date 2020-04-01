@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     bool use_systematics = false; //true <-> will compute/store systematics selected below
 
     //-- MVA
-    TString classifier_name = "DNN"; //'BDT' or 'DNN'
+    TString classifier_name = "BDT"; //'BDT' or 'DNN'
 
     //--- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
@@ -46,8 +46,8 @@ int main(int argc, char **argv)
 
 	vector<TString> set_lumi_years;
     // set_lumi_years.push_back("2016");
-    // set_lumi_years.push_back("2017");
-    set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2017");
+    // set_lumi_years.push_back("2018");
 
 //-----------------------------------------------------------------------------------------
 //   ######  ##     ## ########  ######
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
+    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
 
     //Signal(s)
@@ -262,13 +262,13 @@ int main(int argc, char **argv)
 //*** CHOOSE HERE FROM BOOLEANS WHAT YOU WANT TO DO !
 
 //-----------------    TRAINING
-    bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
+    bool train_BDT = true; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
     bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
@@ -277,7 +277,7 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;

@@ -21,29 +21,33 @@ using namespace std;
 class WCFit
 {
 private:
-    // Using vectors here instead of map to ensure ordering
-    std::vector<std::string> names; // Note: Includes 'sm'
-    std::vector<std::pair<int,int>> pairs;  // The pair dublets are the indicies of the 'names' vector
+    // Use vectors instead of maps to ensure correct ordering
+    std::vector<std::string> names; // NB : includes 'sm'
+    std::vector<std::pair<int,int>> pairs;  // The pair doublets are the indices of the 'names' vector
     std::vector<double> coeffs; // The fit structure constants
 
     std::vector<std::pair<int,int>> err_pairs;  // The pair dublets are the indicies of the 'pairs' vector
     std::vector<double> err_coeffs; // The error fit structure constants
 
-    std::vector<WCPoint> points;    // The WCPoints used to generate the fit
-    std::string tag;    // Names the fit, for id
+    // std::vector<WCPoint> points;    // The WCPoints used to generate the fit
+    std::string tag;    // WCFit identifier
     WCPoint start_pt;   // The starting point used by MadGraph to generate the sample
 
-    int kPad = 12;
+    int kPad = 12; //Printout padding
 
 public:
-    WCFit(){
-        this->tag = "";
-    }
 
-    WCFit(std::vector<WCPoint> pts,std::string _tag) {
+    std::vector<WCPoint> points; // The WCPoints used to generate the fit -- make it public so that can add points directly, no need to use tmp vector of WCPoints
+
+    WCFit() {this->tag = "";}
+
+    WCFit(std::vector<WCPoint> pts,std::string _tag)
+    {
         this->fitPoints(pts);
         this->setTag(_tag);
     }
+
+    WCFit(std::string _tag) {this->setTag(_tag);} //FIXME -- NT -- overloaded construction : assumes that WCPoints members will be read/stored directly when looping on events (not copied)
 
     ~WCFit(){
         this->clear();
@@ -315,13 +319,12 @@ public:
         return this->evalPointError(&pt);
     }
 
-    //TODO: Change this to pass by reference
-    void addFit(WCFit added_fit) {
+    void addFit(WCFit& added_fit)
+    {
+        if (added_fit.size() == 0) {return;}
 
-        if (added_fit.size() == 0) return;
-
-        if (this->size() == 0) {
-            // We are an empty fit, set all values to those of the added fit
+        if (this->size() == 0) // Set all values of current (empty) fit to those of the added fit
+        {
             this->names = added_fit.getNames();
             this->pairs = added_fit.getPairs();
             this->coeffs = added_fit.getCoefficients();
@@ -334,14 +337,19 @@ public:
             return;
         }
 
-        if (this->size() != added_fit.size()) {
+        //Protections
+        if (this->size() != added_fit.size())
+        {
             std::cout << "[ERROR] WCFit mismatch in pairs! (addFit), this->size(): " << this->size() << ", added_fit.size(): " << added_fit.size() << std::endl;
             return;
-        } else if (this->errSize() != added_fit.errSize()) {
+        }
+        else if (this->errSize() != added_fit.errSize())
+        {
             std::cout << "[ERROR] WCFit mismatch in error pairs! (addFit)" << std::endl;
             return;
         }
 
+        //Add fits
         for (uint i = 0; i < this->errSize(); i++) {
             if (i < this->size()) {
                 this->coeffs.at(i) += added_fit.getCoefficient(i);
@@ -407,7 +415,9 @@ public:
         this->dump(append);
     }
 
-    void dump(bool append=false,uint max_cols=30) {
+    //Dump fit infos
+    void dump(bool append=false,uint max_cols=30)
+    {
         std::stringstream ss1,ss2;  // Header,row info
         std::string n1,n2;
         std::pair<int,int> idx_pair;
@@ -455,8 +465,10 @@ public:
 
         this->names.push_back(new_name);
         new_idx1 = this->names.size() - 1;
+
         // Extend the pairs and coeffs vectors
-        for (i = 0; i <= new_idx1; i++) {
+        for (i = 0; i <= new_idx1; i++)
+        {
             idx_pair1 = std::make_pair(new_idx1,i);
             this->pairs.push_back(idx_pair1);
             this->coeffs.push_back(0.0);   // Extending makes no assumptions about the fit coefficients
@@ -471,25 +483,21 @@ public:
     }
 
     // Extract a n-Dim quadratic fit from a collection of WC phase space points
-    void fitPoints(std::vector<WCPoint> pts) {
+    void fitPoints(std::vector<WCPoint> pts)
+    {
+        if(pts.size() == 0) {return;} // No points to fit!
+
         this->clear();
         this->points = pts;
 
-        if (this->points.size() == 0) {
-            // No points to fit!
-            return;
-        }
-
         //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in extend())
         this->extend(kSMstr);   // The SM term is always first
-        for (auto& kv: this->points.at(0).inputs) { // Assumes that all WCPoints have exact same list of WC names
-            this->extend(kv.first);
-        }
+        for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
 
         uint nCols,nRows,row_idx,col_idx;
-        double x1,x2;
-        std::string n1,n2;
-        std::pair<int,int> idx_pair;
+        // double x1,x2;
+        // std::string n1,n2;
+        // std::pair<int,int> idx_pair;
 
         nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
         nRows = pts.size();
@@ -498,15 +506,17 @@ public:
         TMatrixD A(nRows,nCols); //Matrix encoding the strengths of the WC pairs, for all pairs of all WCPoints (correspond to the values which will get multiplied by the corresponding fit coeffs) -- rows = WCPoints ; cols = unique pairs of WCs
         TVectorD b(nRows); //Vector of event weights -- 1 row per MG reweight
 
-        for (row_idx = 0; row_idx < nRows; row_idx++) { //For each WCPoint
-            for (col_idx = 0; col_idx < nCols; col_idx++) { //For each pair of WC coeffs
-                idx_pair = this->pairs.at(col_idx);
-                n1 = this->names.at(idx_pair.first);
-                n2 = this->names.at(idx_pair.second);
+        for (row_idx = 0; row_idx < nRows; row_idx++) //For each WCPoint
+        {
+            for (col_idx = 0; col_idx < nCols; col_idx++) //For each pair of WC coeffs
+            {
+                // idx_pair = this->pairs.at(col_idx);
+                std::string n1 = this->names.at(this->pairs.at(col_idx).first);
+                std::string n2 = this->names.at(this->pairs.at(col_idx).second);
 
                 //Get values of corresponding WCs
-                x1 = ((n1 == kSMstr) ? 1.0 : pts.at(row_idx).inputs[n1]);  // Hard set SM value to 1.0
-                x2 = ((n2 == kSMstr) ? 1.0 : pts.at(row_idx).inputs[n2]);  // Hard set SM value to 1.0
+                double x1 = ((n1 == kSMstr) ? 1.0 : pts.at(row_idx).inputs[n1]);  // Hard set SM value to 1.0
+                double x2 = ((n2 == kSMstr) ? 1.0 : pts.at(row_idx).inputs[n2]);  // Hard set SM value to 1.0
 
                 A(row_idx,col_idx) = x1*x2; //Store 'strength' of the considered coeff pair (that gets multiplied by corresponding fit coeff.)
                 b(row_idx) = pts.at(row_idx).wgt; //Store reweight value, i.e. the result
@@ -519,18 +529,77 @@ public:
         // Solve Ax=b assuming the SVD form of A is stored
         // Solution returned in b. If A is of size (m x n), input vector b should be of size (m), however, the solution, returned in b, will be in the first (n) elements .
         // For m > n , x is the least-squares solution of min(A . x - b) <-> Quadratic polynomial regression with the Least Square method
-        const TVectorD c_x = svd.Solve(b,ok); //--> Solve for the fit parameters
-        for (uint i = 0; i < this->errSize(); i++) {
-            if (i < this->size()) {
-                this->coeffs.at(i) = c_x(i);
-            }
-            idx_pair = this->err_pairs.at(i);
+        const TVectorD c_x = svd.Solve(b, ok); //--> Solve for the fit parameters
+        for (uint i = 0; i < this->errSize(); i++)
+        {
+            if (i < this->size()) {this->coeffs.at(i) = c_x(i);}
+
+            // idx_pair = this->err_pairs.at(i);
             //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);
-            this->err_coeffs.at(i) = c_x(idx_pair.first)*c_x(idx_pair.second);
+            this->err_coeffs.at(i) = c_x(this->err_pairs.at(i).first)*c_x(this->err_pairs.at(i).second);
         }
-        //for (uint i = 0; i < this->size(); i++) {
-        //    this->coeffs.at(i) = c_x(i);
-        //}
+
+        return;
+    }
+
+    // Extract a n-Dim quadratic fit from a collection of WC phase space points //FIXME -- new
+    void fitPoints()
+    {
+        if(this->points.size() == 0) {return;} // No points to fit!
+
+        // this->clear();
+        // this->points = pts;
+
+        //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in extend())
+        this->extend(kSMstr);   // The SM term is always first
+        for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
+
+        uint nCols,nRows,row_idx,col_idx;
+        // double x1,x2;
+        // std::string n1,n2;
+        // std::pair<int,int> idx_pair;
+
+        nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
+        nRows = this->points.size();
+
+        //Basic idea : solve x * y = z -- x are the fit coeffs to determine, y are the strengths of the coeff pairs (for all considered WCPoints, known), z are the values of the reweighted points (<-> weights of the WCPoints, known)
+        TMatrixD A(nRows,nCols); //Matrix encoding the strengths of the WC pairs, for all pairs of all WCPoints (correspond to the values which will get multiplied by the corresponding fit coeffs) -- rows = WCPoints ; cols = unique pairs of WCs
+        TVectorD b(nRows); //Vector of event weights -- 1 row per MG reweight
+
+        for (row_idx = 0; row_idx < nRows; row_idx++) //For each WCPoint
+        {
+            for (col_idx = 0; col_idx < nCols; col_idx++) //For each pair of WC coeffs
+            {
+                // idx_pair = this->pairs.at(col_idx);
+                std::string n1 = this->names.at(this->pairs.at(col_idx).first);
+                std::string n2 = this->names.at(this->pairs.at(col_idx).second);
+
+                //Get values of corresponding WCs
+                double x1 = ((n1 == kSMstr) ? 1.0 : this->points.at(row_idx).inputs[n1]);  // Hard set SM value to 1.0
+                double x2 = ((n2 == kSMstr) ? 1.0 : this->points.at(row_idx).inputs[n2]);  // Hard set SM value to 1.0
+
+                A(row_idx,col_idx) = x1*x2; //Store 'strength' of the considered coeff pair (that gets multiplied by corresponding fit coeff.)
+                b(row_idx) = this->points.at(row_idx).wgt; //Store reweight value, i.e. the result
+            }
+        }
+
+        TDecompSVD svd(A); //'Single Value Decomposition'
+        bool ok;
+
+        // Solve Ax=b assuming the SVD form of A is stored
+        // Solution returned in b. If A is of size (m x n), input vector b should be of size (m), however, the solution, returned in b, will be in the first (n) elements .
+        // For m > n , x is the least-squares solution of min(A . x - b) <-> Quadratic polynomial regression with the Least Square method
+        const TVectorD c_x = svd.Solve(b, ok); //--> Solve for the fit parameters
+        for (uint i = 0; i < this->errSize(); i++)
+        {
+            if (i < this->size()) {this->coeffs.at(i) = c_x(i);}
+
+            // idx_pair = this->err_pairs.at(i);
+            //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);
+            this->err_coeffs.at(i) = c_x(this->err_pairs.at(i).first)*c_x(this->err_pairs.at(i).second);
+        }
+
+        return;
     }
 };
 

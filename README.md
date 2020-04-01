@@ -32,7 +32,6 @@ CODE EXAMPLE
 :put_litter_in_its_place:
 :new:
 
-:construction: **README UNDER CONSTRUCTION**
 
 #HOW TO HIDE CONTENTS (which can be viewed by cliking icon) :
 <details>
@@ -40,6 +39,7 @@ CODE EXAMPLE
 [theHiddenContent]
 </details>
 -------------------------------------------->
+:construction: **README UNDER CONSTRUCTION**
 
 
 > Codes and instructions to :

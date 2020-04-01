@@ -277,8 +277,15 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 //Private MC sample : need to do some rescaling
                 if(v_samples[isample].Contains("Priv"))
                 {
+                    cout<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
+                    cout<<"weight "<<weight<<endl;
+                    cout<<"weightMENominal "<<weightMENominal<<endl;
+                    cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
+                    cout<<"v_SWE[0] "<<v_SWE[0]<<endl;
+
                     //SM reweight //Need to divide by corresponding SWE, because was not done at Potato level // Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
-                    weight = v_reweights_floats->at(idx_sm) * (weight / weightMENominal) / v_SWE[idx_sm];
+                    weight = v_reweights_floats->at(idx_sm) * (weight / weightMENominal) * v_SWE[0] / v_SWE[idx_sm]; //FIXME
+                    // weight = v_reweights_floats->at(idx_sm) * (weight / weightMENominal) / v_SWE[idx_sm];
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -424,7 +431,7 @@ int main(int argc, char **argv)
     v_samples.push_back("ttZ"); v_label.push_back("ttZ");
 
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
-    // v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+    v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
 
     v_samples.push_back("ttH"); v_label.push_back("ttX");
     v_samples.push_back("ttW"); v_label.push_back("ttX");
