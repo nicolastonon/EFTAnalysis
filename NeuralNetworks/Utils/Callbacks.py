@@ -3,6 +3,7 @@
 # //--------------------------------------------
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LambdaCallback, LearningRateScheduler, ReduceLROnPlateau, Callback, ModelCheckpoint
 import datetime
+import math
 from Utils.Helper import TimeHistory
 import os # mkdir
 # //--------------------------------------------
@@ -11,7 +12,7 @@ import os # mkdir
 def step_decay(epoch):
     initial_lrate = 0.05
     drop = 0.5
-    epochs_drop = 20
+    epochs_drop = 10
     lrate = initial_lrate * math.pow(drop, math.floor((1+epoch)/epochs_drop))
     print("== Epoch "+str(epoch+1)+" : learning rate = "+str(lrate) )
 
@@ -81,13 +82,12 @@ def Get_Callbacks(weight_dir):
 
     #Reduce learning rate when reach metrics plateau
     lrate_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, mode='auto', min_delta=1e-4, cooldown=0, min_lr=1e-6)
-    # lrate_plateau = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, mode='auto', min_delta=1e-4, cooldown=0, min_lr=1e-6)
 
     # keras.callbacks.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
 
     #NB : ES takes place when monitored quantity has not improved **WRT BEST VALUE YET** for a number 'patience' of epochs
     # ES = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=100, verbose=1, restore_best_weights=True, mode='auto') #Try early stopping after N epochs without metrics update # monitor='val_loss'
-    ES = EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=100, verbose=1, restore_best_weights=True, mode='auto') #Try early stopping after N epochs without metrics update # monitor='val_loss'
+    ES = EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=50, verbose=1, restore_best_weights=True, mode='auto') #Try early stopping after N epochs without metrics update # monitor='val_loss'
 
     #Reduce learning rate when a metric has stopped improving
     #NB : Do not manually set learning rate (ex: model.optimizer.lr = 3e-4) when using ReduceLROnPlateau().
@@ -99,7 +99,9 @@ def Get_Callbacks(weight_dir):
     # cp_callback, ckpt_path = Checkpoints(weight_dir) #Not used for now
 
     # callbacks_list = [tensorboard, ES]
-    list = [tensorboard, lrate_plateau, time_callback]
+    # list = [tensorboard, lrate_plateau, time_callback, ES]
+    # list = [tensorboard, lrate_plateau, time_callback]
+    list = [tensorboard, lrate_plateau, time_callback, ES]
     # list = [tensorboard, lrate_plateau, time_callback, cp_callback]
     # list = [tensorboard, lrate_plateau, time_callback, MyCustomCallback()]
 

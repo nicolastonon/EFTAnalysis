@@ -317,10 +317,6 @@ def Transform_Inputs(weight_dir, x, var_list, lumiName):
 
     # print('Before transformation :', x[0:5,:])
 
-    for i in range(x.shape[0]):
-        if x[i,8] < 0:
-            print('x = ', x[i,8])
-
     #--- RANGE SCALING
     # scalerMinMax = MinMaxScaler(feature_range=(-1, 1)).fit(x) #Conpute macro parameters
     # mins = scalerMinMax.min_

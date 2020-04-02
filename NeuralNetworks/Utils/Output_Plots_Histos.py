@@ -1,5 +1,6 @@
 #Create control plots, ROC histos, etc.
 
+import os
 import ROOT
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import numpy as np
@@ -12,8 +13,10 @@ from root_numpy import fill_hist
 from Utils.Helper import close_event
 from Utils.ColoredPrintout import colors
 
-
-
+import pandas as pd
+from pandas.plotting import scatter_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -98,30 +101,41 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
  #      #    # #    # #    #
  ######  ####   ####   ####
 
+    # NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
+
     # Plotting the loss with the number of iterations
     fig2 = plt.figure(2)
     ax1 = fig2.gca()
     timer = fig2.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
     timer.add_callback(close_event)
 
-    plt.plot(history.history['loss'], color='darkorange')
-    plt.plot(history.history['val_loss'], color='cornflowerblue')
-    # plt.plot(history.history['lr'], color='dimgrey')
     plt.title('Loss VS Epoch')
-    plt.ylabel('Loss')
+    plt.ylabel('Training loss', color='darkorange')
     plt.xlabel('Epoch')
-    plt.legend(['Train', 'Test', 'lr'], loc='upper right')
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-    ax2.set_ylabel('lr')  # we already handled the x-label with ax1
-    ax2.tick_params(axis='y', color='dimgrey')
-    ax2.plot(history.history['lr'], color='dimgrey', linestyle='--')
+    lns1 = plt.plot(history.history['loss'], color='darkorange', label='Train') #Training loss
+
+    ax2 = ax1.twinx()  # instantiate a second axis that shares the same x-axis
+    ax2.set_ylabel('Test loss', color='cornflowerblue')  # we already handled the x-label with ax1
+    ax2.tick_params(axis='y', color='cornflowerblue')
+    lns2 = ax2.plot(history.history['val_loss'], color='cornflowerblue', label='Test')
+    #Validation loss starts usually at much larger values (because no regularization, different event weights, etc.) --> Modify the range of y-axis, zoom on converging part
+    # ax2_ymin, ax2_ymax = ax2.get_ylim()
+    # ax2.set_ylim(bottom=0, top=1)
+
+    ax3 = ax1.twinx()  # instantiate a 3rd axis that shares the same x-axis
+    lns3 = ax3.plot(history.history['lr'], color='dimgrey', linestyle='--', label='lr')
+    ax3.get_yaxis().set_ticks([]) #invisible y axis (not important)
+
+    #Legend
+    lns = lns1+lns2+lns3
+    labs = [l.get_label() for l in lns]
+    plt.legend(lns, labs, loc='upper right')
 
     timer.start()
     plt.show()
 
     plotname = weight_dir + 'Loss_DNN.png'
     fig2.savefig(plotname, bbox_inches='tight') #bbox_inches='tight' ensures that second y-axis is visible
-    # print("Saved Loss plot as : " + plotname)
     print(colors.fg.lightgrey, "Saved Loss plot as :", colors.reset, plotname)
     fig2.clear()
 
@@ -138,16 +152,25 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
     timer = fig3.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
     timer.add_callback(close_event)
 
-    plt.plot(history.history[metrics], color='darkorange') #metrics name
-    plt.plot(history.history['val_'+metrics], color='cornflowerblue')
+    # plt.plot(history.history['val_'+metrics], color='cornflowerblue')
     plt.title('Accuracy VS Epoch')
-    plt.ylabel('Accuracy')
+    plt.ylabel('Train '+metrics, color='darkorange')
     plt.xlabel('Epoch')
-    plt.legend(['Train', 'Test', 'lr'], loc='lower right')
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-    ax2.set_ylabel('lr')  # we already handled the x-label with ax1
-    ax2.tick_params(axis='y', color='dimgrey')
-    ax2.plot(history.history['lr'], color='dimgrey', linestyle='--')
+    lns1 = plt.plot(history.history[metrics], color='darkorange', label='Train') #metrics name
+
+    ax2 = ax1.twinx()  # instantiate a second axis that shares the same x-axis
+    ax2.set_ylabel('Test '+metrics, color='cornflowerblue')  # we already handled the x-label with ax1
+    ax2.tick_params(axis='y', color='cornflowerblue')
+    lns2 = ax2.plot(history.history['val_'+metrics], color='cornflowerblue', label='Test')
+
+    ax3 = ax1.twinx()  # instantiate a 3rd axis that shares the same x-axis
+    ax3.get_yaxis().set_ticks([]) #invisible y axis (not important)
+    lns3 = ax3.plot(history.history['lr'], color='dimgrey', linestyle='--', label='lr')
+
+    #Legend
+    lns = lns1+lns2+lns3
+    labs = [l.get_label() for l in lns]
+    plt.legend(lns, labs, loc='lower center')
 
     timer.start()
     plt.show()
@@ -172,7 +195,6 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
         #Uses predict() function, which generates (output) given (input + model)
         lw = 2 #linewidth
         if nof_outputs == 1:
-            print('test')
             fpr, tpr, _ = roc_curve(y_test, model.predict(x_test)) #Need '_' to read all the return values
             roc_auc = auc(fpr, tpr)
             fpr_train, tpr_train, _ = roc_curve(y_train, model.predict(x_train)) #Need '_' to read all the return values
@@ -344,3 +366,131 @@ def Create_Control_Plots(nof_output_nodes, labels_list, list_predictions_train_a
         # print("Saved Overtraining plot as : " + plotname)
         print(colors.fg.lightgrey, "Saved Overtraining plot as :", colors.reset, plotname)
         fig4.clear()
+
+
+
+
+
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+ ######   #######  ########  ########  ######## ##
+##    ## ##     ## ##     ## ##     ## ##       ##
+##       ##     ## ##     ## ##     ## ##       ##
+##       ##     ## ########  ########  ######   ##
+##       ##     ## ##   ##   ##   ##   ##       ##
+##    ## ##     ## ##    ##  ##    ##  ##       ##
+ ######   #######  ##     ## ##     ## ######## ########
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Create_Correlation_Plot(x, var_list, weight_dir):
+
+    #-- Convert np array to pd dataframe
+    df = pd.DataFrame(data=x[0:,0:], columns=var_list[:]) #x = (events, vars) ; colums names are var names
+    # print(df)
+    # print(df.describe())
+
+    #-- Get correlation matrix
+    corr = df.corr()
+
+    mask = np.triu(np.ones_like(corr, dtype=np.bool)) #Mask upper right triangle
+    # mask = np.tril(np.ones_like(corr, dtype=np.bool)) #Mask bottom left triangle
+
+    #-- Take abs(values)
+    # corr = abs(corr)
+
+    #Set small values to 0
+    corr[np.abs(corr)<.01] = 0
+
+    #-- Color palette
+    # palette = sns.diverging_palette(240, 10, n=9)
+    # palette = sns.diverging_palette(20, 220, n=256)
+    palette = 'coolwarm'
+
+    # fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 10))
+    # plt.title('Input features correlations', y=-0.01)
+    ax.set_title('Input features correlations',fontsize=30)
+
+    # Draw the heatmap -- see : https://seaborn.pydata.org/generated/seaborn.heatmap.html
+    hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
+    sns.set(font_scale=1.4) #Scale up label font size
+    hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
+    # ax.set_ylim(bottom=-0.5, top=len(var_list)+0.5)
+    # ax.set_xlim(left=-0.5, right=len(var_list)+0.5)
+    # ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False) # x labels appear on top
+    # hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='left', va='bottom', fontsize = 16)
+    ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True) # x labels appear at bottom
+    hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 16) #bottom labels
+    fig.tight_layout()
+
+    plotname = weight_dir + 'CorrelMatrix.png'
+    plt.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved correlation matrix plot as :", colors.reset, plotname)
+
+
+
+
+
+
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+######## ########    ###    ######## ##     ## ########  ########  ######
+##       ##         ## ##      ##    ##     ## ##     ## ##       ##    ##
+##       ##        ##   ##     ##    ##     ## ##     ## ##       ##
+######   ######   ##     ##    ##    ##     ## ########  ######    ######
+##       ##       #########    ##    ##     ## ##   ##   ##             ##
+##       ##       ##     ##    ##    ##     ## ##    ##  ##       ##    ##
+##       ######## ##     ##    ##     #######  ##     ## ########  ######
+# //--------------------------------------------
+# //--------------------------------------------
+
+
+def Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes):
+
+    #-- Convert np array to pd dataframe
+    df = pd.DataFrame(data=x[0:,0:], columns=var_list[:]) #x = (events, vars) ; colums names are var names
+
+    #-- Insert a first column corresponding to the class label
+    if _nof_output_nodes == 1:
+        df.insert(loc=0, column='class', value=y[:], allow_duplicates=False)
+    elif _nof_output_nodes > 1:
+        df.insert(loc=0, column='class', value=y[:,0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
+
+    # print(df)
+    # print(df.describe())
+
+    fig, axes = plt.subplots()
+
+    df[df['class']<0.5].hist(figsize=(15,15), column=var_list[:], bins=10, alpha=0.4, density=True, color='r') #Consider first process as signal
+    df[df['class']>0.5].hist(figsize=(15,15), column=var_list[:], bins=10, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(var_list)]) #All other processes are backgrounds
+
+    plotname = weight_dir + 'InputFeatures.png'
+    plt.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
+
+    #-- Also create individual plots
+    for feature in var_list:
+        # fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10,10))
+        plt.ylabel("normalized", fontsize=20)
+        plt.xlabel(feature, fontsize=20)
+
+        xx = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
+        # plt.hist(xx, label=['Signal', 'Background'], color=['r', 'b'], density=True, histtype='stepfilled', linewidth=2, bins=15)
+        plt.hist(xx[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=15, alpha=0.4)
+        plt.hist(xx[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=15, alpha=0.4)
+        plt.legend(loc="upper center")
+
+        os.makedirs(weight_dir + 'features/', exist_ok=True)
+        plotname = weight_dir + 'features/'+feature+'.png'
+        plt.savefig(plotname)
+        print(colors.fg.lightgrey, "Saved input features plot as :", colors.reset, plotname)
+
+
+
+# //--------------------------------------------

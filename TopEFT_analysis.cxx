@@ -543,7 +543,7 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
             //Can hardcode here the backgrounds against which to train, instead of considering full list of samples
             if(signal_process == "tZq")
             {
-                if(!samplename_tmp.Contains("tZq") && !samplename_tmp.EndsWith("ttZ") && !samplename_tmp.Contains("ttH") && samplename_tmp.Contains("ttW") && samplename_tmp.Contains("WZ") && samplename_tmp.Contains("ZZ4l") && samplename_tmp.Contains("DY") && samplename_tmp.Contains("TTbar_DiLep") ) {continue;}
+                if(!samplename_tmp.Contains("tZq") && !samplename_tmp.EndsWith("ttZ") && !samplename_tmp.Contains("ttH") && samplename_tmp.Contains("ttW") && samplename_tmp.Contains("WZ") && samplename_tmp.Contains("ZZ4l") && samplename_tmp.Contains("TTbar_DiLep") ) {continue;}
             }
 
     		cout<<endl<<"-- Sample : "<<sample_list[isample]<<endl;

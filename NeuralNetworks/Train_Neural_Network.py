@@ -37,22 +37,22 @@ _processClasses_list = [
                 # ["PrivMC_tZq"],
                 ["tZq"],
                 # ["ttZ"]]
-                ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"]]
-                # ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
+                # ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"]]
+                ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
 
 _labels_list =  ["tZq",
-                "ttZ", "Backgrounds"]
-                # "Backgrounds"]
+                # "ttZ", "Backgrounds"]
+                "Backgrounds"]
 
 cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 # //--------------------------------------------
 
 #--- Training options
 # //--------------------------------------------
-_nepochs = 20 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-_batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
+_nepochs = 50 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+_batchSize = 250 #Batch size (<-> nof events fed to the network before its parameter get updated)
 
-_maxEvents_perClass = 40000 #max nof events to be used for each process ; -1 <-> all events
+_maxEvents_perClass = -1 #max nof events to be used for each process ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -109,7 +109,7 @@ from Utils.Callbacks import Get_Callbacks
 from Utils.GetData import Get_Data_For_DNN_Training
 from Utils.Optimizer import Get_Loss_Optim_Metrics
 from Utils.ColoredPrintout import colors
-from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Control_Plots
+from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Control_Plots, Create_Correlation_Plot, Plot_Input_Features
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -335,6 +335,10 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
         Create_TrainTest_ROC_Histos(lumiName, _nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
 
         Create_Control_Plots(_nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, x_train, y_train, y_test, x_test, model, _metrics, _nof_output_nodes, weight_dir, history)
+
+        Create_Correlation_Plot(x, var_list, weight_dir)
+
+        Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes)
 
     #End [with ... as sess]
 # //--------------------------------------------

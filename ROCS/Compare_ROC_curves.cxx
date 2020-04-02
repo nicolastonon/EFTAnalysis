@@ -528,7 +528,7 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
 		cout<<endl<<endl<<endl<<UNDL("* Open file "<<v_filepath[ifile]<<" :")<<endl;
         if(v_isTMVA_file[ifile] != "TMVA" && v_isTMVA_file[ifile] != "Keras" && v_isTMVA_file[ifile] != "Custom") {cout<<FRED("ERROR ! Wrong file type...")<<endl; return;}
 
-        //-- For each sig & bkg process, get corresponding histogram
+        //-- For each signal (DNN : 1 different signal for each node), get signal histo and bkg histos (i.e. all processes which are not signal for this node)
         for(int isig=0; isig<v_processes.size(); isig++)
 		{
             if(v_isTMVA_file[ifile] == "TMVA" && isig > 0) {break;} //TMVA file : don't support multiclass yet ; only consider first process (can define signal/bkg from there)
@@ -561,6 +561,9 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
                 if(!Get_Histogram_From_CustomFile(v_h_sig[0], v_filepath[ifile], hname_tmp)) {return;}
             }
 
+            int idx_bkg = 0; //Even if process is second in process list, if it is the first bkg we want its index in vector to be 0, etc.
+
+            //Get bkg histos (all processes which are not signal)
             for(int ibkg=0; ibkg<v_processes.size(); ibkg++)
     		{
                 if(v_isTMVA_file[ifile] == "TMVA" && ibkg > 0) {continue;} //TMVA file : don't support multiclass yet ; only consider first process (can define signal/bkg from there)
@@ -568,18 +571,20 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
 
                 if(v_isTMVA_file[ifile] == "TMVA") //Produce histo from TMVA TTree
     			{
-                    if(!Create_Histogram_From_TMVA_Tree(true, v_h_bkg[ibkg], v_filepath[ifile], v_processes[isig], v_isTrainSample[ifile], cuts) ) {return;}
+                    if(!Create_Histogram_From_TMVA_Tree(true, v_h_bkg[idx_bkg], v_filepath[ifile], v_processes[isig], v_isTrainSample[ifile], cuts) ) {return;}
     			}
     			else if(v_isTMVA_file[ifile] == "Keras") //Retrieve directly histogram from file produced by DNN training python script
     			{
                     TString hname_tmp = "hist_test_NODE_" + v_processes[isig] + "_CLASS_" + v_processes[ibkg]; //Performance for class A in node B
-    				if(!Get_Histogram_From_KerasFile(v_h_bkg[ibkg], v_filepath[ifile], hname_tmp)) {return;} //Check naming convention used in pure-Keras NN
+    				if(!Get_Histogram_From_KerasFile(v_h_bkg[idx_bkg], v_filepath[ifile], hname_tmp)) {return;} //Check naming convention used in pure-Keras NN
                 }
                 else if(v_isTMVA_file[ifile] == "Custom") //Retrieve directly histogram from custom user file
                 {
                 	TString hname_tmp = "DNN" + Convert_Number_To_TString(isig) + "_" + region + "_" + lumiYear + "__" + v_processes[ibkg]; //hardcode as needed
-                	if(!Get_Histogram_From_CustomFile(v_h_bkg[ibkg], v_filepath[ifile], hname_tmp)) {return;}
+                	if(!Get_Histogram_From_CustomFile(v_h_bkg[idx_bkg], v_filepath[ifile], hname_tmp)) {return;}
                 }
+
+                idx_bkg++; //Increment bkg vector index
             }
 
             //Sum histograms (many processes --> signal/bkg)
@@ -800,7 +805,7 @@ int main(int argc, char **argv)
 //--------------------------------------------
 	vector<TString> v_processes; //For DNNs, must declare all process classes to define 'background' properly //Not used for BDT (signal vs bkg)
     v_processes.push_back("tZq");
-    v_processes.push_back("ttZ");
+    // v_processes.push_back("ttZ");
     v_processes.push_back("Backgrounds");
 
     TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
@@ -825,9 +830,9 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
 //--------------------------------------------
-    // v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
-    // v_Filelabel.push_back("BDT "+lumiYear);
-    // v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
+    v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
+    v_Filelabel.push_back("BDT "+lumiYear);
+    v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
 
     v_filepath.push_back("../outputs/DNN_"+v_processes[0]+"_"+lumiYear+".root");
     v_Filelabel.push_back("DNN "+lumiYear);
