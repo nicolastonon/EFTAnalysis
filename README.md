@@ -66,6 +66,7 @@ CODE EXAMPLE
 
 
 ![Mining gold](https://images.deepai.org/converted-papers/1805.00013/x1.png)
+
 *[Credit : 10.1103/PhysRevLett.121.111801]*
 
 # Setup
