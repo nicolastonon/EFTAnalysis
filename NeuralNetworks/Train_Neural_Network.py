@@ -2,12 +2,6 @@
 # Train fully-connected neural networks with Keras (tensorflow back-end)
 # //--------------------------------------------
 
-'''
-#TODO#
-- argparse (model, ...)
-- Very long to load full Run2 dataset into RAM... load by batches ?
-'''
-
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -203,14 +197,17 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
 
     #Get data
     print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
-    x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, means, stddev, x_control_firstNEvents = Get_Data_For_DNN_Training(weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName)
+    x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data_For_DNN_Training(weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, 'quantile')
+
+    #-- Plot input features distributions, after applying to train data same rescaling as will be done by first DNN layer (-> check rescaling)
+    Plot_Input_Features(xTrainRescaled, y_train, var_list, weight_dir, _nof_output_nodes, True)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
     _loss, _optim, _metrics = Get_Loss_Optim_Metrics(_nof_output_nodes)
 
     #Get model and compile it
     print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
-    model = Create_Model(weight_dir, "DNN", _nof_output_nodes, var_list, means, stddev) #-- add default args
+    model = Create_Model(weight_dir, "DNN", _nof_output_nodes, var_list, shifts, scales) #-- add default args
 
     #Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
     # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
@@ -338,7 +335,7 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
 
         Create_Correlation_Plot(x, var_list, weight_dir)
 
-        Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes)
+        Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes, False)
 
     #End [with ... as sess]
 # //--------------------------------------------

@@ -24,6 +24,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from tensorflow.keras import utils
 
 from Utils.ColoredPrintout import colors
+from Utils.Helper import get_normalization_iqr
 
 np.set_printoptions(threshold=np.inf) #If activated, will print full numpy arrays
 # //--------------------------------------------
@@ -56,17 +57,13 @@ np.set_printoptions(threshold=np.inf) #If activated, will print full numpy array
 # //--------------------------------------------
 
 #Call sub-function to read/store/shape the data
-def Get_Data_For_DNN_Training(weight_dir, lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts, nof_output_nodes, maxEvents_perClass, splitTrainEventFrac, nEventsTot_train, nEventsTot_test, lumiName):
+def Get_Data_For_DNN_Training(weight_dir, lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts, nof_output_nodes, maxEvents_perClass, splitTrainEventFrac, nEventsTot_train, nEventsTot_test, lumiName, transfType='quantile'):
 
     #Get data from TFiles
     list_x_allClasses, list_weights_allClasses = Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts)
 
     #Shape the data arrays properly #Also read arguments which are modified by the function
     x, y, list_weights_allClasses = Shape_Data(list_x_allClasses, list_weights_allClasses, maxEvents_perClass, nof_output_nodes)
-
-    #Transform the input features
-    #FIXME -- should transform inputs *after* split_train_test (the means and variances should be derived from training set only !)
-    x, means, stddev = Transform_Inputs(weight_dir, x, var_list, lumiName)
 
     #Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
     x_control_firstNEvents = x[0:10,:]
@@ -87,12 +84,16 @@ def Get_Data_For_DNN_Training(weight_dir, lumi_years, ntuples_dir, processClasse
     else: #Specify train/test relative proportions
         x_train, x_test, y_train, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, test_size=1-splitTrainEventFrac, shuffle=True) #X% train, Y% test
 
+
+    #Get rescaling parameters for each input feature, given to first DNN layer to normalize features -- derived from train data alone
+    xTrainRescaled, shifts, scales = Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType)
+
     print(colors.fg.lightblue, "===========", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
     print(colors.fg.lightblue, "===========\n", colors.reset)
 
-    return x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, means, stddev, x_control_firstNEvents
+    return x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -309,57 +310,50 @@ def Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses
 # //--------------------------------------------
 # //--------------------------------------------
 
-#-- Transform the input features
-#-- Use it to access and store macro parameters related to input features and use them to define a normalization input layer in the DNN model
-def Transform_Inputs(weight_dir, x, var_list, lumiName):
+#-- Get normalization parameters from training data. Give these parameters to DNN input layers to directly normalize all inputs
+def Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType='quantile'):
 
     np.set_printoptions(precision=3)
+    # print('Before transformation :', x_train[0:5,:])
 
-    # print('Before transformation :', x[0:5,:])
+    if transfType not in ['quantile', 'range', 'gauss']:
+        print('\n', colors.fg.red, 'Warning : transfType', colors.reset, transfType, colors.fg.red, 'not known ! Using default [quantile]', colors.reset)
+        transfType = 'quantile'
+
+    #--- QUANTILE RESCALING
+    # a = median ; b = scale
+    if transfType == 'quantile':
+        shift_, scale_ = get_normalization_iqr(x_train, 0.95)
+        xTrainRescaled = (x_train - shift_) / scale_ #Apply transformation on train events -- for control
 
     #--- RANGE SCALING
-    # scalerMinMax = MinMaxScaler(feature_range=(-1, 1)).fit(x) #Conpute macro parameters
-    # mins = scalerMinMax.min_
-    # scales = scalerMinMax.scale_
-    # x = scalerMinMax.transform(x) #Apply transformation
-    # x = scalerMinMax.fit_transform(x)
-
-    #-- Example to save the parameters and use them to rescale other inputs later
-    # scaler_data_ = np.array([scalerMinMax.data_min_, scalerMinMax.data_max_])
-    # np.save("my_scaler.npy", scaler_data_)
-    # scaler_data_ = np.load("my_scaler.npy")
-    # Xmin, Xmax = scaler_data_[0], scaler_data_[1]
-    # Xscaled = (Xreal - Xmin) / (Xmax-Xmin)
+    # a = min ; b = scale
+    elif transfType == 'range':
+        scaler = MinMaxScaler(feature_range=(-1, 1)).fit(x_train) #Conpute macro parameters
+        shift_ = scaler.min_
+        scale_ = scaler.scale_
+        x_train = scaler.fit(x_train) #Get params
+        xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
 
     #--- RESCALE TO UNIT GAUSSIAN -- https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
-    #NB : only use this function to store the means and variance of all input features ; given to input layer for automatic rescaling of any data
-    scaler = StandardScaler().fit(x)
-    means = scaler.mean_
-    stddev = scaler.scale_ # = np.sqrt(var_)
-
-    # x = scaler.transform(x) #Rescale the data
-
-    # vars = scaler.var_; nsamples = scaler.n_samples_seen_
-    # print('means', means); print('vars', vars); print('stddev', stddev); print('nsamples = ', nsamples)
+    # a = mean ; b = stddev
+    if transfType == 'quantile':
+        scaler = StandardScaler().fit(x_train) #Get params
+        shift_ = scaler.mean_
+        scale_ = scaler.scale_ # = np.sqrt(var_)
+        xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
 
     text_file = open(weight_dir + "DNN_infos.txt", "w")
 
-    # Scaling in range [min;max]
-    # for ivar in range(len(var_list)):
-    #     text_file.write(var_list[ivar]); text_file.write(' ')
-    #     text_file.write(str(mins[ivar])); text_file.write(' ')
-    #     # text_file.write(str(means[ivar])); text_file.write(' ')
-    #     text_file.write(str(scales[ivar])); text_file.write('\n')
-
-    #Standard scaling
+    #Dump shift_ and scale_ params into txtfile
     for ivar in range(len(var_list)):
         text_file.write(var_list[ivar]); text_file.write(' ')
-        text_file.write(str(means[ivar])); text_file.write(' ')
-        text_file.write(str(stddev[ivar])); text_file.write('\n')
+        text_file.write(str(shift_[ivar])); text_file.write(' ')
+        text_file.write(str(scale_[ivar])); text_file.write('\n')
 
     text_file.close()
     print(colors.fg.lightgrey, '\n===> Saved DNN infos (input/output nodes names, rescaling values, etc.) in : ', weight_dir + "DNN_infos.txt \n", colors.reset)
 
-    # print('After transformation :', x[0:10,:])
+    # print('After transformation :', x_train[0:5,:])
 
-    return x, means, stddev
+    return xTrainRescaled, shift_, scale_

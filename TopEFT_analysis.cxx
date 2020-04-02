@@ -3278,55 +3278,45 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
 
-
+//FIXME -- check weight, ...
 void TopEFT_analysis::Fill_TH1EFT(TH1EFT*& h, float x, vector<string>* v_ids, vector<float>* v_wgts, vector<float> v_SWE, float wgt_nominal)
 {
     bool debug = false;
 
-    float sm_wgt = 0.;
-    std::vector<WCPoint> wc_pts;
+    WCFit eft_fit("myfit");
 
-    for(int iwgt=0; iwgt<v_ids->size(); iwgt++)
+    //May only loop on minimal required number of points for WCFit (depends on n.of WCs) -- will get fit warning otherwise
+    //=== WARNING : ASSUMES THAT FIRST WEIGHT is 'rwgt_1', and second is 'rwgt_sm' ===
+    for(int iwgt=2; iwgt<25; iwgt++) //just the necessary nof weights to overconstrain fit with 5 WCs
+    // for(int iwgt=2; iwgt<v_ids->size(); iwgt++)
     {
-        // cout<<"v_ids->at(iwgt) "<<v_ids->at(iwgt)<<endl;
-
-        TString ts = v_ids->at(iwgt);
-        //Logic : first store the SM weight (first element of reweight list) --> Then compute ratio of each reweight w.r.t. SM reweight, and use it to rescale nominal event weight accordingly
-        if(!ts.CompareTo("rwgt_sm", TString::kIgnoreCase)) //Store SM weight manually
-        {
-            sm_wgt = v_wgts->at(iwgt);
-            // sm_wgt = v_wgts->at(iwgt)/(originalXWGTUP * v_SWE[iwgt]);
-        }
-        else if(ts.Contains("rwgt_") && ts != "rwgt_1") //Other reweights
-        {
-            WCPoint wc_pt(v_ids->at(iwgt), wgt_nominal*v_wgts->at(iwgt)/sm_wgt); //(nominal event weight) * (EFT reweight/SM reweight) ... ? Need to account for different SWEs ?
-            wc_pts.push_back(wc_pt);
-        }
+        WCPoint wc_pt(v_ids->at(iwgt), wgt_nominal*v_wgts->at(iwgt)/v_wgts->at(1));
+        eft_fit.points.push_back(wc_pt);
     }
 
-    //-- Include 'manually' the SM WCPoint as first element (not included automatically because named 'SM' and not via its operator values)
-    wc_pts.insert(wc_pts.begin(), wc_pts[0]); //Duplicate the first element
-    wc_pts[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
-    wc_pts[0].wgt = sm_wgt; //Set (new) first element to SM weight
+    //-- Include 'manually' the SM point as first element (not included automatically because named 'SM' and not via its operator values)
+    eft_fit.points.insert(eft_fit.points.begin(), eft_fit.points[0]); //Duplicate the first element
+    eft_fit.points[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
+    eft_fit.points[0].wgt = v_wgts->at(1); //Set (new) first element to SM weight
 
-    WCFit eft_fit(wc_pts, "");
+    eft_fit.fitPoints();
 
     if(debug) //Printout WC values, compare true weight to corresponding fit result
     {
-        cout<<"eft_fit.size() "<<eft_fit.size()<<endl;
-        eft_fit.dump();
-
-        for (uint i=0; i < wc_pts.size(); i++)
+        cout<<"//-------------------------------------------- "<<endl;
+        eft_fit.dump(); //Printout all names and coefficients of WC pairs
+        for (uint i=0; i < eft_fit.points.size(); i++)
         {
-            WCPoint wc_pt = wc_pts.at(i);
-            double pt_wgt = wc_pt.wgt;
+            WCPoint wc_pt = eft_fit.points.at(i);
             double fit_val = eft_fit.evalPoint(&wc_pt);
-            wc_pt.dump();
-            std::cout << std::setw(3) << i << ": " << std::setw(12) << pt_wgt << " | " << std::setw(12) << fit_val << " | " << std::setw(12) << (pt_wgt-fit_val) << std::endl;
+            wc_pt.dump(); //Printout names and values of all WCs for this point
+            std::cout << "===> " << std::setw(3) << i << ": " << std::setw(12) << wc_pt.wgt << " | " << std::setw(12) << fit_val << " | " << std::setw(12) << (wc_pt.wgt-fit_val) << std::endl; //Printout : i / true weight / evaluated weight / diff
         }
+        cout<<endl<<endl<<endl;
     }
 
-    h->Fill(x, wgt_nominal , eft_fit); //default = SM
+    //Fill TH1EFT with SM weight by default
+    h->Fill(x, wgt_nominal , eft_fit);
 
     return;
 }

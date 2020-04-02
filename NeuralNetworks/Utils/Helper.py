@@ -7,6 +7,7 @@ import numpy as np
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import tensorflow
 import keras
+import pandas as pd
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
 
@@ -95,18 +96,46 @@ def SanityChecks_Parameters(processClasses_list, labels_list):
 # //--------------------------------------------
 
 #Normalize input features
-def normalize(val, m, dev):
-    return (val-m)/dev
+def normalize(val, shift, scale):
+    return (val-shift)/scale
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Alternative normalization
+#Alternative normalization #Separate train/test
 def normalize2(x_train, x_test):
     mu = np.mean(x_train, axis=0)
     std = np.std(x_train, axis=0)
     x_train_normalized = (x_train - mu) / std
     x_test_normalized = (x_test - mu) / std
     return x_train_normalized, x_test_normalized
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Implementation from David's DeepPotato ; cf. Jonas' master thesis
+#Using median and stddev from quantile is more robust against distributions with large tails
+def get_normalization_iqr(np_array, q):
+    """ Get shift and scale for events
+    :param df: pandas DataFrame with events
+    :param q: fraction of events that should be in the interval [-1, 1]
+    :return: (shift, scale)
+    """
+
+    df = pd.DataFrame(data=np_array[0:,0:]) #Convert to panda DF
+
+    q = (1 + q) / 2  # Tranform q so it works with quantile
+    newDF = pd.DataFrame()
+    for key in df.keys():
+        newDF[key] = df[key].apply(lambda x: np.mean(x[np.nonzero(x)]) if hasattr(x, "__len__") else x)
+    median = newDF.median()
+    l = abs(newDF.quantile(1 - q) - median)
+    r = abs(newDF.quantile(q) - median)
+    for i, (il, ir) in enumerate(zip(l,r)):
+        if il == ir:
+            print(f"[WARNING] feature {df.keys()[i]} has no width")
+            l[i] = 1.
+            r[i] = 1.
+    return median.values, np.maximum(l, r).values
 
 # //--------------------------------------------
 # //--------------------------------------------

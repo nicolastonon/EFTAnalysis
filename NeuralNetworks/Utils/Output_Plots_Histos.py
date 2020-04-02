@@ -450,7 +450,7 @@ def Create_Correlation_Plot(x, var_list, weight_dir):
 # //--------------------------------------------
 
 
-def Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes):
+def Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes, isControlNorm=False):
 
     #-- Convert np array to pd dataframe
     df = pd.DataFrame(data=x[0:,0:], columns=var_list[:]) #x = (events, vars) ; colums names are var names
@@ -468,6 +468,12 @@ def Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes):
 
     df[df['class']<0.5].hist(figsize=(15,15), column=var_list[:], bins=10, alpha=0.4, density=True, color='r') #Consider first process as signal
     df[df['class']>0.5].hist(figsize=(15,15), column=var_list[:], bins=10, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(var_list)]) #All other processes are backgrounds
+
+    if isControlNorm == True: #Control plot, different name, general plot only
+        plotname = weight_dir + 'InputFeatures_normTrain.png'
+        plt.savefig(plotname)
+        print(colors.fg.lightgrey, "\nSaved input features plot [using normalized training set] as :", colors.reset, plotname)
+        return
 
     plotname = weight_dir + 'InputFeatures.png'
     plt.savefig(plotname)

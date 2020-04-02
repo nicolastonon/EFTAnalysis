@@ -64,6 +64,9 @@ CODE EXAMPLE
 
 * [Combine](https://github.com/nicolastonon/EFTAnalysis#Combine)
 
+
+![Mining gold](https://images.deepai.org/converted-papers/1805.00013/x1.png)
+
 # Setup
 
 The analysis of Ntuples does not require CMSSW, and can be run locally offline.

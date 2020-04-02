@@ -41,7 +41,7 @@ from Utils.Helper import normalize
 #Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
 
 #Define here the Keras DNN model
-def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
+def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
 
     use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
@@ -87,7 +87,7 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
        # //--------------------------------------------
         if use_normInputLayer == True : # Add first a normalization layer
             model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
+            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
             model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
 
                                          #
@@ -107,7 +107,7 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
        # //--------------------------------------------
         if use_normInputLayer == True : # Add first a normalization layer
             model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
+            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
             # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
             model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
         else:
@@ -151,7 +151,7 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, means, stddev):
        # //--------------------------------------------
         if use_normInputLayer == True :
             model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'m': means, 'dev': stddev}, name="normalization")) #Normalization
+            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
             model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh') ) #First dense layer
             # model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu') ) #First dense layer
         else :
