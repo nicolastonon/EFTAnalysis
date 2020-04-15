@@ -1042,7 +1042,7 @@ TString Get_Modified_SystName(TString systname, TString lumiYear)
 void Get_Pointer_GENHisto(TH1F*& h, TString variable)
 {
     TString input_file_name = "../Pheno/Plotter/GENhisto.root";
-    if(!Check_File_Existence(input_file_name)) {cout<<BOLD(FRED("Input histo file "<<input_file_name<<" not found ! Abort"))<<endl; return;}
+    if(!Check_File_Existence(input_file_name)) {cout<<BOLD(FRED("Input histo file "<<input_file_name<<" not found ! Can't superimpose GEN-level EFT histo..."))<<endl; return;}
 
     TFile* f = TFile::Open(input_file_name);
 

@@ -17,7 +17,7 @@ from tensorflow.keras.optimizers import SGD, Adam, RMSprop
 # //--------------------------------------------
 
 #Define here the loss function / optimizer / metrics to be used to train the model
-def Get_Loss_Optim_Metrics(nof_outputs):
+def Get_Loss_Optim_Metrics(regress, nof_outputs):
 
     #The bigger the LR, the bigger the changes of weights in-between epochs. Too low -> weights don't update. Too large -> Instability
     _lr = 0.001
@@ -42,20 +42,21 @@ def Get_Loss_Optim_Metrics(nof_outputs):
     # metrics = 'mean_absolute_error' #Calculates the mean absolute error (mae) rate between predicted and target values.
     # metrics = 'hinge' #Calculates the hinge loss, which is defined as max(1 - y_true * y_pred, 0).
     # metrics = 'binary_crossentropy' #Calculates the cross-entropy value for binary classification problems.
-    if nof_outputs > 1:
-        loss = 'categorical_crossentropy'
-        metrics = 'categorical_accuracy'
-    elif nof_outputs == 1:
-        loss = 'binary_crossentropy'
-        metrics = 'binary_accuracy'
-    else:
-        print("Wrong value for nof_outputs!")
-        exit(1)
+    # metrics = 'AUC' #tf.metrics.AUC #Computes the approximate AUC (Area under the curve) via a Riemann sum.
 
-    #Automatically set within Keras
-    # loss = 'mean_squared_error'
-    # loss = 'categorical_crossentropy'
-    metrics = 'accuracy'
+    if regress==False: #Classification
+        if nof_outputs > 1:
+            loss = 'categorical_crossentropy'
+            metrics = 'categorical_accuracy'
+            # metrics = 'AUC'
+        elif nof_outputs == 1:
+            loss = 'binary_crossentropy'
+            metrics = 'binary_accuracy'
+            # metrics = 'AUC'
+            
+    else: #Regression
+        loss = 'mean_squared_error'
+        metrics = 'mean_squared_error'
 
     #Return the one you want to use
     return loss, optim, metrics

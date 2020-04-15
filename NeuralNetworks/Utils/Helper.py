@@ -23,7 +23,10 @@ from Utils.ColoredPrintout import colors
 
 #-- Automatically close matplotlib plot after some time
 def close_event():
+
     plt.close() #timer calls this function after 3 seconds and closes the window
+
+    return
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -32,11 +35,14 @@ def batchOutput(batch, logs):
 
     print("Finished batch: " + str(batch))
     print(logs)
+
+    return
 # //--------------------------------------------
 # //--------------------------------------------
 
 #-- Write DNN input variables to a .txt file
 def Write_Variables_To_TextFile(weight_dir, var_list):
+
     text_file = open(weight_dir + "ListVariables.txt", "w")
     for var in var_list:
         text_file.write(var)
@@ -44,6 +50,8 @@ def Write_Variables_To_TextFile(weight_dir, var_list):
     text_file.close()
     # print("\n===> Saved list of variables in : " + weight_dir + "ListVariables.txt\n\n")
     print(colors.fg.lightgrey, '===> Saved list of variables in : ' + weight_dir + 'ListVariables.txt', colors.reset)
+
+    return
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -92,6 +100,8 @@ def SanityChecks_Parameters(processClasses_list, labels_list):
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
     elif len(processClasses_list) is not len(labels_list):
         print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
+
+    return
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -102,13 +112,14 @@ def normalize(val, shift, scale):
 # //--------------------------------------------
 
 #Alternative normalization #Separate train/test
+'''
 def normalize2(x_train, x_test):
     mu = np.mean(x_train, axis=0)
     std = np.std(x_train, axis=0)
     x_train_normalized = (x_train - mu) / std
     x_test_normalized = (x_test - mu) / std
     return x_train_normalized, x_test_normalized
-
+'''
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -135,6 +146,7 @@ def get_normalization_iqr(np_array, q):
             print(f"[WARNING] feature {df.keys()[i]} has no width")
             l[i] = 1.
             r[i] = 1.
+
     return median.values, np.maximum(l, r).values
 
 # //--------------------------------------------

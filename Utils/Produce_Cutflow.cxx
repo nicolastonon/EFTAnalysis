@@ -210,14 +210,6 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             //For private MC samples, read and store sums of weights (SWE), and read rese
             if(v_samples[isample].Contains("Priv"))
             {
-                h_SWE = (TH1F*) f->Get("EFT_SumWeights");
-                if(!h_SWE) {cout<<FRED("EFT_SumWeights not found ! ")<<endl;}
-                for(int ibin=0; ibin<h_SWE->GetNbinsX(); ibin++)
-                {
-                    v_SWE.push_back(h_SWE->GetBinContent(ibin+1)); //1 SWE stored for each stored weight
-                    // cout<<"v_SWE[ibin] = "<<v_SWE[ibin]<<endl;
-                }
-
                 //Read branches
                 v_reweights_floats = new vector<float>();
                 v_reweights_ids = new vector<string>();
@@ -231,13 +223,24 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 for(int iwgt=0; iwgt<v_reweights_ids->size(); iwgt++)
                 {
                     TString ts = v_reweights_ids->at(iwgt);
+                    // cout<<"ts "<<ts<<endl;
                     if(ts.Contains("_sm", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //Found relevant index, no need to read this branch anymore
                 }
                 if(idx_sm == -1) {cout<<FRED("SM point not found !")<<endl;}
+                // cout<<"idx_sm "<<idx_sm<<endl;
+
+                h_SWE = (TH1F*) f->Get("EFT_SumWeights");
+                if(!h_SWE) {cout<<FRED("EFT_SumWeights not found ! ")<<endl;}
+                for(int ibin=1; ibin<=h_SWE->GetNbinsX(); ibin++)
+                {
+                    v_SWE.push_back(h_SWE->GetBinContent(ibin)); //1 SWE stored for each stored weight
+                    // v_SWE.push_back(h_SWE->GetBinContent(ibin+1));
+                    // cout<<"v_SWE["<<ibin<<"] = "<<v_SWE[ibin]<<endl;
+                }
             }
 
     		Double_t weight = 1., weight_avg = 0.; //Event weight (gen-level weight, smeared by systematics)
-            Float_t eventMCFactor ,weightMENominal; //Sample-dependent factor computed at Potato-level (lumi*xsec/SWE)
+            Float_t eventMCFactor, weightMENominal; //Sample-dependent factor computed at Potato-level (lumi*xsec/SWE)
             t->SetBranchStatus("eventWeight", 1);
     		t->SetBranchAddress("eventWeight", &weight);
             t->SetBranchStatus("eventMCFactor", 1);
@@ -245,7 +248,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             t->SetBranchStatus("weightMENominal", 1);
     		t->SetBranchAddress("weightMENominal", &weightMENominal);
 
-            bool passedBJets;
+            bool passedBJets;//--------------------------------------------
             t->SetBranchStatus("passedBJets", 1);
     		t->SetBranchAddress("passedBJets", &passedBJets);
 
@@ -277,15 +280,19 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 //Private MC sample : need to do some rescaling
                 if(v_samples[isample].Contains("Priv"))
                 {
-                    cout<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
-                    cout<<"weight "<<weight<<endl;
-                    cout<<"weightMENominal "<<weightMENominal<<endl;
-                    cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
-                    cout<<"v_SWE[0] "<<v_SWE[0]<<endl;
+                    // cout<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
+                    // cout<<"weight "<<weight<<endl;
+                    // cout<<"weightMENominal "<<weightMENominal<<endl;
+                    // cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
 
-                    //SM reweight //Need to divide by corresponding SWE, because was not done at Potato level // Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
-                    weight = v_reweights_floats->at(idx_sm) * (weight / weightMENominal) * v_SWE[0] / v_SWE[idx_sm]; //FIXME
-                    // weight = v_reweights_floats->at(idx_sm) * (weight / weightMENominal) / v_SWE[idx_sm];
+                    //--- SM reweight //FIXME
+                    //Need to divide by corresponding SWE, because was not done at Potato level
+                    //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
+                    {
+                        // weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+
+                        weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];
+                    }
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))

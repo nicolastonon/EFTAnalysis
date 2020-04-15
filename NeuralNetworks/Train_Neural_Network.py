@@ -1,7 +1,6 @@
 # Nicolas TONON (DESY)
-# Train fully-connected neural networks with Keras (tensorflow back-end)
+# Train fully-connected neural networks with Keras (tensorflow back-end) for classification and regression
 # //--------------------------------------------
-
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -28,25 +27,28 @@ _lumi_years.append("2017")
 
 #Signal process must be first
 _processClasses_list = [
-                # ["PrivMC_tZq"],
                 ["tZq"],
+                # ["PrivMC_tZq"],
+                ["PrivMC_tZq_ctz"]]
                 # ["ttZ"]]
                 # ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"]]
-                ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
+                # ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
 
 _labels_list =  ["tZq",
-                # "ttZ", "Backgrounds"]
                 "Backgrounds"]
+                # "ttZ", "Backgrounds"]
 
 cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 # //--------------------------------------------
 
 #--- Training options
 # //--------------------------------------------
-_nepochs = 50 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-_batchSize = 250 #Batch size (<-> nof events fed to the network before its parameter get updated)
+_regress = False #True <-> DNN used for regression ; False <-> classification
 
-_maxEvents_perClass = -1 #max nof events to be used for each process ; -1 <-> all events
+_nepochs = 20 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+_batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
+
+_maxEvents_perClass = 20000 #max nof events to be used for each process ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -100,7 +102,7 @@ from Utils.FreezeSession import freeze_session
 from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters, Printout_Outputs_FirstLayer
 from Utils.Model import Create_Model
 from Utils.Callbacks import Get_Callbacks
-from Utils.GetData import Get_Data_For_DNN_Training
+from Utils.GetData import Get_Data
 from Utils.Optimizer import Get_Loss_Optim_Metrics
 from Utils.ColoredPrintout import colors
 from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Control_Plots, Create_Correlation_Plot, Plot_Input_Features
@@ -152,7 +154,7 @@ from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Contro
 # //--------------------------------------------
 
 #Main function, calling sub-functions to perform all necessary actions
-def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test):
+def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test):
 
  # #    # # #####
  # ##   # #   #
@@ -179,7 +181,7 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
 
     #Determine/store number of process classes
     _nof_output_nodes = len(_processClasses_list) #1 output node per class
-    if _nof_output_nodes == 2: #Special case : 2 classes -> binary classification -> 1 output node only
+    if _regress or _nof_output_nodes == 2: #Special case : 2 classes -> binary classification -> 1 output node only
         _nof_output_nodes = 1
 
                                        #
@@ -197,17 +199,18 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
 
     #Get data
     print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
-    x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data_For_DNN_Training(weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, 'quantile')
+    _transfType = 'quantile' #Feature norm. method -- 'range', 'gauss', 'quantile'
+    x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first DNN layer (-> check rescaling)
-    Plot_Input_Features(xTrainRescaled, y_train, var_list, weight_dir, _nof_output_nodes, True)
+    Plot_Input_Features(xTrainRescaled, y_process_train, PhysicalWeights_train, var_list, weight_dir, _nof_output_nodes, True)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
-    _loss, _optim, _metrics = Get_Loss_Optim_Metrics(_nof_output_nodes)
+    _loss, _optim, _metrics = Get_Loss_Optim_Metrics(_regress, _nof_output_nodes)
 
     #Get model and compile it
     print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
-    model = Create_Model(weight_dir, "DNN", _nof_output_nodes, var_list, shifts, scales) #-- add default args
+    model = Create_Model(_regress, weight_dir, "DNN", _nof_output_nodes, var_list, shifts, scales) #-- add default args
 
     #Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
     # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
@@ -316,8 +319,8 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
         if _nof_output_nodes == 1:
             loss = score[0]
             accuracy = score[1]
-            print(colors.fg.lightgrey, '** Accuracy :', str(accuracy), colors.reset)
-            print(colors.fg.lightgrey, '** Loss', str(loss), colors.reset)
+            print(colors.fg.lightgrey, '** Loss :', str(loss), colors.reset)
+            print(colors.fg.lightgrey, '** Metrics :', str(accuracy), colors.reset)
 
         # if len(np.unique(y_train)) > 1: # prevent bug in roc_auc_score, need >=2 unique values (at least sig+bkg classes)
         #     auc_score = roc_auc_score(y_test, model.predict(x_test))
@@ -327,15 +330,15 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
         #     print(colors.fg.lightgrey, "-- TRAIN `SAMPLE \t==> " + str(auc_score_train), colors.reset); print('\n')
 
         #Get control results
-        list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses = Apply_Model_toTrainTestData(_nof_output_nodes, _processClasses_list, _labels_list, x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, h5model_outname, x_control_firstNEvents)
+        list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses = Apply_Model_toTrainTestData(_nof_output_nodes, _processClasses_list, _labels_list, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, h5model_outname, x_control_firstNEvents)
 
         Create_TrainTest_ROC_Histos(lumiName, _nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
 
-        Create_Control_Plots(_nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, x_train, y_train, y_test, x_test, model, _metrics, _nof_output_nodes, weight_dir, history)
+        Create_Control_Plots(_regress, _nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, model, _metrics, _nof_output_nodes, weight_dir, history)
 
         Create_Correlation_Plot(x, var_list, weight_dir)
 
-        Plot_Input_Features(x, y, var_list, weight_dir, _nof_output_nodes, False)
+        Plot_Input_Features(x, y_process, PhysicalWeights_allClasses, var_list, weight_dir, _nof_output_nodes, False)
 
     #End [with ... as sess]
 # //--------------------------------------------
@@ -377,7 +380,7 @@ def Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, v
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_list, x_train, y_train, x_test, y_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName, x_control_firstNEvents):
+def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_list, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName, x_control_firstNEvents):
 
     print('\n', colors.fg.lightblue, "--- Apply model to train & test data...", colors.reset, " (may take a while)\n")
 
@@ -391,14 +394,14 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
     list_PhysicalWeightsTest_allClasses = []
 
     if nof_output_nodes == 1: #Binary
-        list_xTrain_allClasses.append(x_train[y_train==1]); list_yTrain_allClasses.append(y_train[y_train==1]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_train==1])
-        list_xTrain_allClasses.append(x_train[y_train==0]); list_yTrain_allClasses.append(y_train[y_train==0]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_train==0])
-        list_xTest_allClasses.append(x_test[y_test==1]); list_yTest_allClasses.append(y_test[y_test==1]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_test==1])
-        list_xTest_allClasses.append(x_test[y_test==0]); list_yTest_allClasses.append(y_test[y_test==0]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_test==0])
+        list_xTrain_allClasses.append(x_train[y_process_train==1]); list_yTrain_allClasses.append(y_train[y_process_train==1]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1])
+        list_xTrain_allClasses.append(x_train[y_process_train==0]); list_yTrain_allClasses.append(y_train[y_process_train==0]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==0])
+        list_xTest_allClasses.append(x_test[y_process_test==1]); list_yTest_allClasses.append(y_test[y_process_test==1]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==1])
+        list_xTest_allClasses.append(x_test[y_process_test==0]); list_yTest_allClasses.append(y_test[y_process_test==0]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==0])
     else: #Multiclass
         for i in range(len(_processClasses_list)):
-            list_xTrain_allClasses.append(x_train[y_train[:,i]==1]); list_yTrain_allClasses.append(y_train[:,i]==1); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_train[:,i]==1])
-            list_xTest_allClasses.append(x_test[y_test[:,i]==1]); list_yTest_allClasses.append(y_test[:,i]==1); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_test[:,i]==1])
+            list_xTrain_allClasses.append(x_train[y_process_train[:,i]==1]); list_yTrain_allClasses.append(y_train[y_process_train[:,i]==1]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train[:,i]==1])
+            list_xTest_allClasses.append(x_test[y_process_test[:,i]==1]); list_yTest_allClasses.append(y_test[y_process_test[:,i]==1]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,i]==1])
 
 
  #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
@@ -413,9 +416,11 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
     model = load_model(savedModelName)
 
     #--- Printout : check the outputs of each layer for 2 events
-    # print(x_train[0:1])
-    # for ilayer in range(0, len(model.layers)):
-    #     Printout_Outputs_FirstLayer(model, ilayer, x_train[0:1])
+    check_outputs_eachLayer = False
+    if check_outputs_eachLayer == True:
+        print(x_train[0:1])
+        for ilayer in range(0, len(model.layers)):
+            Printout_Outputs_FirstLayer(model, ilayer, x_train[0:1])
 
     #Application (can also use : predict_classes, predict_proba)
     list_predictions_train_allNodes_allClasses = []
@@ -503,4 +508,4 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
     # nLep = "3l" if sys.argv[1] == True else False
 
 #----------  Manual call to DNN training function
-Train_Test_Eval_PureKeras(_lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test)
+Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test)

@@ -84,7 +84,8 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void Merge_Templates_ByProcess(TString, TString, vector<TString>, bool=false);
 
-    void Fill_TH1EFT(TH1EFT*&, float, vector<string>*, vector<float>*, vector<float>, float);
+    void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float);
+    // void Fill_TH1EFT(TH1EFT*&, float, vector<string>*, vector<float>*, vector<float>, float);
     void Test_TH1EFT();
 
 //--- MEMBERS

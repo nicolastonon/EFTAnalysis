@@ -47,7 +47,7 @@ public:
         this->setTag(_tag);
     }
 
-    WCFit(std::string _tag) {this->setTag(_tag);} //FIXME -- NT -- overloaded construction : assumes that WCPoints members will be read/stored directly when looping on events (not copied)
+    WCFit(std::string _tag) {this->setTag(_tag);} //NT -- overloaded construction : assumes that WCPoints members will be read/stored directly when looping on events (not copied)
 
     ~WCFit(){
         this->clear();
@@ -350,10 +350,10 @@ public:
         }
 
         //Add fits
-        for (uint i = 0; i < this->errSize(); i++) {
-            if (i < this->size()) {
-                this->coeffs.at(i) += added_fit.getCoefficient(i);
-            }
+        for (uint i = 0; i < this->errSize(); i++)
+        {
+            if (i < this->size()) {this->coeffs.at(i) += added_fit.getCoefficient(i);}
+
             // It is *very* important that we keep track of the err fit coeffs separately, since Sum(f^2) != (Sum(f))^2
             this->err_coeffs.at(i) += added_fit.getErrorCoefficient(i);
         }
@@ -542,7 +542,7 @@ public:
         return;
     }
 
-    // Extract a n-Dim quadratic fit from a collection of WC phase space points //FIXME -- new
+    // Extract a n-Dim quadratic fit from a collection of WC phase space points //NT -- overloaded
     void fitPoints()
     {
         if(this->points.size() == 0) {return;} // No points to fit!

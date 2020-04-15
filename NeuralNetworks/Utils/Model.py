@@ -41,7 +41,7 @@ from Utils.Helper import normalize
 #Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
 
 #Define here the Keras DNN model
-def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
+def Create_Model(regress, outdir, DNN_name, nof_outputs, var_list, shifts, scales):
 
     use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
@@ -72,7 +72,9 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
 
     model_choice = 2
 
-    #-- List different models, by order of complexity
+    if regress==False: #Classification
+
+#-- List different models, by order of complexity
 
  #####  ###### #####  #    #  ####
  #    # #      #    # #    # #    #
@@ -82,13 +84,13 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
  #####  ###### #####   ####   ####
 
     #Model 0 -- debugging
-    if model_choice == 0:
+        if model_choice == 0:
 
-       # //--------------------------------------------
-        if use_normInputLayer == True : # Add first a normalization layer
-            model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-            model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+           # //--------------------------------------------
+            if use_normInputLayer == True : # Add first a normalization layer
+                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
+                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
+                model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
 
                                          #
  #    #  ####  #####  ###### #          ##
@@ -98,42 +100,42 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
  #    # #    # #    # #      #           #
  #    #  ####  #####  ###### ######    #####
 
-    #Model 1 -- simple
-    if model_choice == 1:
+        #Model 1 -- simple
+        if model_choice == 1:
 
-        #Define some layer types
-        myDense = Dense(50, kernel_initializer=my_init, activation='relu')
+            #Define some layer types
+            myDense = Dense(50, kernel_initializer=my_init, activation='relu')
 
-       # //--------------------------------------------
-        if use_normInputLayer == True : # Add first a normalization layer
-            model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-            # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
-            model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
-        else:
-            model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate))
+           # //--------------------------------------------
+            if use_normInputLayer == True : # Add first a normalization layer
+                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
+                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
+                # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
+                model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
+            else:
+                model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate))
 
-        model.add(myDense)
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
+            model.add(myDense)
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
 
-        model.add(myDense)
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate)) #No dropout before output layer ?
+            model.add(myDense)
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate)) #No dropout before output layer ?
 
-        if nof_outputs == 1 :
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-        else:
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
-       # //--------------------------------------------
+            if nof_outputs == 1 :
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
+            else:
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
+           # //--------------------------------------------
 
                                         #####
  #    #  ####  #####  ###### #         #     #
@@ -143,8 +145,116 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
  #    # #    # #    # #      #         #
  #    #  ####  #####  ###### ######    #######
 
-    #Model 2
-    elif model_choice == 2:
+        #Model 2
+        elif model_choice == 2:
+
+            nNeurons = 150
+
+           # //--------------------------------------------
+            if use_normInputLayer == True :
+                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
+                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
+                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh') ) #First dense layer
+                # model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu') ) #First dense layer
+            else :
+                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate))
+
+            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) )
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate)) #No dropout before output layer ?
+
+            if nof_outputs == 1 :
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
+            else:
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
+           # //--------------------------------------------
+                                        #####
+ #    #  ####  #####  ###### #         #     #
+ ##  ## #    # #    # #      #               #
+ # ## # #    # #    # #####  #          #####
+ #    # #    # #    # #      #               #
+ #    # #    # #    # #      #         #     #
+ #    #  ####  #####  ###### ######     #####
+
+        #Model 3
+        elif model_choice == 3:
+            # //--------------------------------------------
+            model.add(Dense(150, input_dim=num_input_variables, activation='tanh', kernel_initializer=my_init) ) #Input layer
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate))
+
+            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            model.add(LeakyReLU(alpha=0.1))
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            # model.add(LeakyReLU(alpha=0.1))
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            # model.add(LeakyReLU(alpha=0.1))
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            if use_dropout==True:
+                model.add(Dropout(droprate))
+
+            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            if use_batchNorm==True:
+                model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate))
+
+            # model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
+            # if use_batchNorm==True:
+            #     model.add(BatchNormalization())
+            # if use_dropout==True:
+            #     model.add(Dropout(droprate))
+
+            if nof_outputs == 1 :
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
+            else:
+                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
+                # //--------------------------------------------
+
+        else:
+            print("\n-- ERROR : wrong model_choice value !\n")
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+    elif regress==True: #Regression
 
         nNeurons = 150
 
@@ -185,69 +295,9 @@ def Create_Model(outdir, DNN_name, nof_outputs, var_list, shifts, scales):
         # if use_dropout==True:
         #     model.add(Dropout(droprate)) #No dropout before output layer ?
 
-        if nof_outputs == 1 :
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-        else:
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
+        model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='linear', name="MYOUTPUT")) #Need linear (or exp.) activation for regression
        # //--------------------------------------------
-                                        #####
- #    #  ####  #####  ###### #         #     #
- ##  ## #    # #    # #      #               #
- # ## # #    # #    # #####  #          #####
- #    # #    # #    # #      #               #
- #    # #    # #    # #      #         #     #
- #    #  ####  #####  ###### ######     #####
 
-    #Model 3
-    elif model_choice == 3:
-        # //--------------------------------------------
-        model.add(Dense(150, input_dim=num_input_variables, activation='tanh', kernel_initializer=my_init) ) #Input layer
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate))
-
-        model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        model.add(LeakyReLU(alpha=0.1))
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        # model.add(LeakyReLU(alpha=0.1))
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        # model.add(LeakyReLU(alpha=0.1))
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate))
-
-        # model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        # if use_batchNorm==True:
-        #     model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate))
-
-        if nof_outputs == 1 :
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-        else:
-            model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
-# //--------------------------------------------
-
-    else:
-        print("\n-- ERROR : wrong model_choice value !\n")
 
     #Model visualization
     print(model.summary())
