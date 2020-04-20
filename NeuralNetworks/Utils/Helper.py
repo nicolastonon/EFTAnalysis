@@ -9,6 +9,7 @@ from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import tensorflow
 import keras
 import pandas as pd
+import re
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
@@ -218,6 +219,20 @@ def ChiSquare_test(obs, exp):
     print('p-value =', pval)
 
     return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def CheckName_EFTpoint_ID(old):
+
+    new = re.sub('p(\d+)', r'.\1', old)
+    new = re.sub('min(\d+)', r'-\1', new)
+
+    # print(old, ' --> ', new)
+    return new
+
+# //--------------------------------------------
+# //--------------------------------------------
 
 # //--------------------------------------------
 # //--------------------------------------------

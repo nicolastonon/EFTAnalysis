@@ -10,14 +10,18 @@ _lumi_years.append("2017")
 #Signal process must be first
 _processClasses_list = []
 _processClasses_list.append(["tZq"])
-_processClasses_list.append(["PrivMC_tZq_ctz"])
+_processClasses_list.append(["PrivMC_tZq"])
+# _processClasses_list.append(["PrivMC_tZq_ctz"])
+# _processClasses_list.append(["PrivMC_tZq_ctw"])
 # _processClasses_list.append(["ttZ"])
 # _processClasses_list.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _processClasses_list.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
 _labels_list = []
 _labels_list.append("tZq")
-_labels_list.append("PrivMC_tZq_ctz")
+_labels_list.append("PrivMC_tZq")
+# _labels_list.append("PrivMC_tZq_ctz")
+# _labels_list.append("PrivMC_tZq_ctw")
 # _labels_list.append("ttZ")
 # _labels_list.append("Backgrounds")
 
@@ -31,7 +35,7 @@ _regress = False #True <-> DNN used for regression ; False <-> classification
 _nepochs = 5 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 _batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
 
-_maxEvents_perClass = 10000 #max nof events to be used for each process ; -1 <-> all events
+_maxEvents_perClass = 10 #max nof events to be used for each process ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -123,9 +127,18 @@ def TEST():
         #Get data
         print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
         _transfType = 'quantile' #Feature norm. method -- 'range', 'gauss', 'quantile'
-        x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_allClasses_train, EFTweights_allClasses_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
+        x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
 
 # //--------------------------------------------
+
+    # EFTweights_train
+    # n_components, components = Find_Components(list_op)
+    # effWC_eachComponent = Get_EffectiveWC_eachComponents(n_components, components, list_WC)
+    # effWC_eachComponent = np.random.random_sample((6,6))
+    # benchmark_weights = np.array([0.5, 1, 2, 3, 4, 5])
+    # fit_coeffs = Get_FitCoefficients(effWC_eachComponent, benchmark_weights)
+    # str='rwgt_ctZ_5_ctW_7'
+    # w = Get_Extrapolated_EFTweight(n_components, components, fit_coeffs, str)
 
 
 # //--------------------------------------------
@@ -136,12 +149,12 @@ def TEST():
 # //--------------------------------------------
 # //--------------------------------------------
 
-# TEST()
+TEST()
 
 # str='rwgt_ctZ_3.27_ctW_3.61_cpQM_-4.04_cpQ3_-1.85_cpt_-0.52'
 # str=['rwgt_ctZ_5_ctW_3']
-str=['rwgt_ctZ_5_ctW_3', 'rwgt_ctZ_3.27_ctW_3.61']
-list_op, list_WC = Parse_EFTpoint_IDs(str)
+# str=['rwgt_ctZ_5_ctW_3', 'rwgt_ctZ_3.27_ctW_3.61']
+# list_op, list_WC = Parse_EFTpoint_IDs(str)
 
 # n_components, components = Find_Components(list_op)
 # effWC_eachComponent = Get_EffectiveWC_eachComponents(n_components, components, list_WC)
