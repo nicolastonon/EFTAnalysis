@@ -289,9 +289,9 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     //Need to divide by corresponding SWE, because was not done at Potato level
                     //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
                     {
-                        // weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+                        weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
 
-                        weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];
+                        // weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];
                     }
                 }
 
@@ -439,6 +439,9 @@ int main(int argc, char **argv)
 
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
     v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+
+    v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
+    v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
 
     v_samples.push_back("ttH"); v_label.push_back("ttX");
     v_samples.push_back("ttW"); v_label.push_back("ttX");

@@ -4,10 +4,12 @@
 import time   # time accounting
 import ROOT
 import numpy as np
+from numpy import random
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import tensorflow
 import keras
 import pandas as pd
+from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
 
@@ -89,7 +91,6 @@ def Get_LumiName(lumi_years):
 
     return lumiName
 
-
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -100,6 +101,10 @@ def SanityChecks_Parameters(processClasses_list, labels_list):
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
     elif len(processClasses_list) is not len(labels_list):
         print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
+
+    for procClass, label in zip(processClasses_list, labels_list):
+        if "PrivMC" in label and len(procClass) > 1:
+            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset); exit(1)
 
     return
 # //--------------------------------------------
@@ -157,6 +162,62 @@ def Printout_Outputs_FirstLayer(model, ilayer, xx):
     get_layer_output = keras.backend.function([model.layers[0].input], [model.layers[ilayer].output])
     layer_output = get_layer_output([xx])[0]
     print("\n", layer_output)
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Shuffles coherently the elements of 2 arrays of identical shapes
+def unison_shuffled_copies(a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+# See : https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.stats.ks_2samp.html
+# Computes the Kolmogorov-Smirnov statistic on 2 samples. This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution
+# Returns (KS,pval). If the K-S statistic is small or the p-value is high, then we cannot reject the hypothesis that the distributions of the two samples are the same
+def KS_test(values1, values2):
+
+    # calculate the significance
+    value, pvalue = ks_2samp(values1, values2)
+
+    print('=== K-S test : KS statistics =', float('%.4g' % value), ' / p-value =', pvalue)
+    if pvalue > 0.05:
+    	print('Samples are likely drawn from the same distributions (fail to reject H0)')
+    else:
+    	print('Samples are likely drawn from different distributions (reject H0)')
+    print('\n')
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#See : https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.anderson_ksamp.html
+#The k-sample Anderson-Darling test is a modification of the one-sample Anderson-Darling test. It tests the null hypothesis that k-samples are drawn from the same population without having to specify the distribution function of that population. The critical values depend on the number of samples.
+#stat=Normalized k-sample Anderson-Darling test statistic ; critical_values=The critical values for significance levels 25%, 10%, 5%, 2.5%, 1%, 0.5%, 0.1% ; significance_level=An approximate significance level at which the null hypothesis for the provided samples can be rejected. The value is floored / capped at 0.1% / 25%.
+def Anderson_Darling_test(sample1, sample2):
+
+    stat, critical_values, significance_level = anderson_ksamp(samples=[sample1,sample2])
+
+    print('== A-D statistics =', stat)
+    # print('critical_values =', critical_values)
+    print('Approx. signif. level for rejecting hypothesis that both samples are drawn from same distrib. =', significance_level)
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def ChiSquare_test(obs, exp):
+
+    chi2, pval = chisquare(obs, exp)
+    print('== Chi-2 =', chi2)
+    print('p-value =', pval)
+
+    return
 
 # //--------------------------------------------
 # //--------------------------------------------

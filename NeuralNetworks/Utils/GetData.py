@@ -12,12 +12,12 @@ import ROOT
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import numpy as np
 from numpy import random
-from root_numpy import root2array, tree2array, array2root
+from root_numpy import root2array, tree2array, array2root, hist2array
 import pandas as pd
 import tensorflow
 import keras
 from pathlib import Path
-from sklearn.utils import class_weight
+from sklearn.utils import class_weight, shuffle
 from sklearn.feature_selection import RFE, SelectKBest, chi2
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, Normalizer, StandardScaler
@@ -61,32 +61,28 @@ np.set_printoptions(threshold=np.inf) #If activated, will print full numpy array
 def Get_Data(regress, weight_dir, lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts, nof_output_nodes, maxEvents_perClass, splitTrainEventFrac, nEventsTot_train, nEventsTot_test, lumiName, transfType='quantile'):
 
     #Get data from TFiles
-    list_x_allClasses, list_weights_allClasses = Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts)
+    list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses = Read_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts)
 
-    #Shape the data arrays properly (also read arguments which get modified by the function)
-    x, list_weights_allClasses, list_nrows_class = Shape_Data(list_x_allClasses, list_weights_allClasses, maxEvents_perClass, nof_output_nodes)
+    #Shape the data arrays properly
+    x, list_weights_allClasses, EFTweights_allClasses, list_nrows_class = Shape_Data(list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, maxEvents_perClass, nof_output_nodes)
 
     y, y_process = Get_Targets(regress, nof_output_nodes, list_nrows_class)
+
+    #Get event-per-event reweights (for training phase)
+    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses)
 
     #Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
     x_control_firstNEvents = x[0:10,:]
 
-    #Compute event weights considering only abs(weights) => duplicate weight arrays to hold absolute values
-    list_weights_allClasses_abs = []
-    for weights_class in list_weights_allClasses:
-        list_weights_allClasses_abs.append(np.absolute(weights_class))
-
-    #Get event-per-event reweights (for training phase)
-    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses_abs, list_weights_allClasses)
-
     #-- Define training & testing subsamples (takes care of splitting + shuffling)
-    #-- http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
-    #-- Default args : shuffle=True <-> shuffle events ; random_state=None <-> random seed ; could also use stratify=y so that the final splitting respects the class proportions of the array y, if desired (else : random)
+    #http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
+    #Default args : shuffle=True <-> shuffle events ; random_state=None <-> random seed ; could also use stratify=y so that the final splitting respects the class proportions of the array y, if desired (else : random)
     if (nEventsTot_train is not -1) and (nEventsTot_test is not -1): #Specify nof train/test events
-        x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=nEventsTot_train, test_size=nEventsTot_test, shuffle=True)
+        _trainsize=nEventsTot_train; _testsize=nEventsTot_test
     else: #Specify train/test relative proportions
-        x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, test_size=1-splitTrainEventFrac, shuffle=True) #X% train, Y% test
+        _trainsize=splitTrainEventFrac; _testsize=1-splitTrainEventFrac
 
+    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_allClasses_train, EFTweights_allClasses_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
     #Get rescaling parameters for each input feature, given to first DNN layer to normalize features -- derived from train data alone
     xTrainRescaled, shifts, scales = Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType)
@@ -96,7 +92,7 @@ def Get_Data(regress, weight_dir, lumi_years, ntuples_dir, processClasses_list, 
     print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
     print(colors.fg.lightblue, "===========\n", colors.reset)
 
-    return x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
+    return x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_allClasses_train, EFTweights_allClasses_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -123,33 +119,41 @@ def Get_Data(regress, weight_dir, lumi_years, ntuples_dir, processClasses_list, 
 # //--------------------------------------------
 
 #Read the data from ROOT files and store it in np arrays
-def Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts):
+def Read_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts):
 
     testdirpath = Path(ntuples_dir)
     if not testdirpath.is_dir():
         print('Ntuple dir. '+ntuples_dir+' not found ! Abort !')
         exit(1)
 
-    list_x_allClasses = [] #List of x-arrays storing the values of input variables for all events, for all considered years
-    list_weights_allClasses = [] #Idem to store central event weights
-    list_EFTreweights_allClasses = [] #Idem to store EFT reweights
-
-    for procClass, label in zip(processClasses_list, labels_list): #NB : can not use keyword 'class'
+    list_x_allClasses = [] #List of x-arrays storing the values of input features (for all events, all considered years, all physics processes in a given class) -- 1 array per process class
+    list_weights_allClasses = [] #Idem for event weights
+    list_EFTweights_allClasses = [] #Idem for EFT reweights
+    list_EFTweightIDs_allClasses = [] #Idem for EFT reweights IDs
+    for procClass, label in zip(processClasses_list, labels_list): #Loop on classes of physics processes (e.g. 'Signal','Backgrounds') #NB: can not use predefined keyword 'class'
 
         print('\n', colors.fg.purple, colors.underline, '* Class :', label, colors.reset)
 
-        list_x_proc = []
-        list_weights_proc = []
-        list_EFTreweights_proc = []
-        for process in procClass:
+        list_x_proc = [] #List of x-arrays storing the values of input features for all events, for all considered years -- 1 array per physics process (sample)
+        list_weights_proc = [] #Idem for central event weights
+        list_EFTweights_proc = [] #Idem for EFT reweights
+        # list_EFT_SWE_proc = [] #For each EFT reweight, store the corresponding Sum of Weight (SWE) for proper rescaling
+        for process in procClass: #Loop on physics processes (samples)
+
+            isPrivMCsample = False
+            if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process): #Avoid ambiguities
+                print('\n', colors.fg.red, 'Error : keyword \'PrivMC\' must be present both in process and class names, or not at all', colors.reset)
+
+            elif "PrivMC" in process and "PrivMC" in label: #Check whether EFT reweights should be looked for
+                isPrivMCsample = True
+                # print('process', process, ', label', label, ' --> isPrivMCsample')
 
             print('\n', colors.fg.pink, '* Process :', colors.reset, process)
 
-            for year in lumi_years:
+            for iyear in range(len(lumi_years)): #Concatenate data (input features, event weights) for all considered years
 
-                filepath = ntuples_dir + year + '/' + process + '.root'
-                testfilepath = Path(filepath)
-                if not testfilepath.is_file():
+                filepath = ntuples_dir + lumi_years[iyear] + '/' + process + '.root'
+                if not Path(filepath).is_file():
                     print('File '+filepath+' not found ! Abort !')
                     exit(1)
 
@@ -158,19 +162,77 @@ def Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, v
                 tree = file.Get('result')
                 print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
 
-                list_x_proc.append(tree2array(tree, branches=var_list, selection=cuts))
+                list_x_proc.append(tree2array(tree, branches=var_list, selection=cuts)) #Store values of input features into array, append to list
+
+                #-- Store event weights into array, append to list
                 list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
                 # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
-                # if procname contains privprod inly
-                # list_EFTreweights_proc.append(tree2array(tree, branches="mc_EFTweights", selection=cuts))
 
+            if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
+                list_EFTweights_proc, array_EFTweightIDs_proc = Read_Data_EFT_File(lumi_years, ntuples_dir, process, cuts)
+
+        #Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 array per process class
         list_x_allClasses.append(np.concatenate(list_x_proc))
-        list_weights_allClasses.append(np.concatenate(list_weights_proc))
-        # list_EFTreweights_allClasses.append(np.concatenate(list_EFTreweights_proc))
+        # list_weights_allClasses.append(np.concatenate(list_weights_proc))
+
+        if "PrivMC" in label:
+            list_weights_allClasses.append(np.concatenate(list_EFTweights_proc)[:,0]) #For private EFT samples, only the weights in 'list_EFTweights_proc' make sense (not those in 'list_weights_proc') ; but need single value per event --> use element corresponding to baseline (first column)
+            list_EFTweights_allClasses.append(np.concatenate(list_EFTweights_proc))
+            list_EFTweightIDs_allClasses.append(array_EFTweightIDs_proc)
+        else:
+            list_weights_allClasses.append(np.concatenate(list_weights_proc))
+            # list_EFTweights_allClasses.append(np.array(np.concatenate(list_weights_proc).shape[0])); list_EFTweightIDs_allClasses.append(np.array(['0']) ) #Append empty objects for ordering
+            list_EFTweights_allClasses.append(np.empty(np.concatenate(list_weights_proc).shape[0])); list_EFTweightIDs_allClasses.append(np.empty(np.concatenate(list_weights_proc).shape[0])) #Append empty arrays (1 row per event) for proper ordering
 
     print('\n\n')
 
-    return list_x_allClasses, list_weights_allClasses
+    return list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+
+#For private MC (EFT) samples, retrieve the EFT reweights and their IDs. Directly normalize properly the EFT weights
+def Read_Data_EFT_File(lumi_years, ntuples_dir, process, cuts):
+
+    list_EFTweights_proc = []
+    for iyear in range(len(lumi_years)):
+
+        filepath = ntuples_dir + lumi_years[iyear] + '/' + process + '.root'
+        if not Path(filepath).is_file():
+            print('File '+filepath+' not found ! Abort !')
+            exit(1)
+
+        file = TFile.Open(filepath)
+        tree = file.Get('result')
+        print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
+
+        #NB: don't want to store EFT reweights IDs for all events (always same names)
+        #NB : assume that EFT reweights IDs are exactly the same, in the same order, for all considered years !
+        #Only read a single event, store IDs once per private MC process (<-> single process class)
+        if iyear==0:
+            array_EFTweightIDs_proc = tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs", selection=cuts)
+            array_EFTweightIDs_proc = array_EFTweightIDs_proc[0] #Reshape array
+
+        elif np.array_equal(array_EFTweightIDs_proc, tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs", selection=cuts)) == False: #If IDs are already stored, simply verify that IDs for other years match
+            print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
+            exit(1)
+
+        #For each year, get the EFT reweights and directly divide their values by the corresponding SWEs
+        array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts)) #stack : array of arrays -> 2d array
+        hist = file.Get("EFT_SumWeights") #Sums of weights for each EFT reweight is stored in histogram
+        array_EFT_SWE_proc = hist2array(hist)
+        array_EFT_SWE_proc = array_EFT_SWE_proc[0:array_EFTweights_proc.shape[1]] #Only need the SWE values for the considered reweight points
+        array_EFTweights_proc = np.divide(array_EFTweights_proc, array_EFT_SWE_proc)
+        # print(array_EFTweights_proc[:2,:])
+
+        normWeight_proc = tree2array(tree, start=0, stop=1, branches="eventWeight*eventMCFactor/weightMENominal", selection=cuts)[0] #Normalization factor
+        array_EFTweights_proc = np.multiply(array_EFTweights_proc, normWeight_proc)
+
+    list_EFTweights_proc.append(array_EFTweights_proc) #Append array of EFT reweights (for given year) to list
+
+    return list_EFTweights_proc, array_EFTweightIDs_proc
 
 
 
@@ -195,36 +257,61 @@ def Read_Store_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, v
 # //--------------------------------------------
 
 #Shape the data into arrays (per process, lumiYear, etc.)
-def Shape_Data(list_x_allClasses, list_weights_allClasses, maxEvents_perClass, nof_output_nodes):
+def Shape_Data(list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, maxEvents_perClass, nof_output_nodes):
 
     #Reshape as normal arrays (root_numpy uses different format) : 1 column per variable, 1 line per event
     list_x_arrays_allClasses = []
     for x_class in list_x_allClasses:
-        list_x_arrays_allClasses.append(x_class.view(np.float32).reshape(x_class.shape + (-1,)) )
+        list_x_arrays_allClasses.append(x_class.view(np.float32).reshape(x_class.shape + (-1,)) ) #could also use 'np.stack' ?
 
     #--- Get nof entries for each class
     list_nrows_class = []
-    total_rows = 0
+    # total_rows = 0
     for i in range(len(list_x_arrays_allClasses)):
         list_nrows_class.append(list_x_arrays_allClasses[i].shape[0])
-        total_rows+= list_x_arrays_allClasses[i].shape[0]
+        # total_rows+= list_x_arrays_allClasses[i].shape[0]
     # print(total_rows)
 
 #--- Max nof events for train.test phases
-
     if maxEvents_perClass is not -1:
 
         #Skim each process class (keep only maxEvents_perClass events) ; skim all relevant arrays coherently
         for i in range(len(list_x_arrays_allClasses)):
             if list_nrows_class[i] > maxEvents_perClass:
+
+                #FIXME -- shuffles all arrays fine ?
+                #-- If only consider part of the process class data, shuffle events, so that the resulting dataset is representative of the event proportions of each process within the class (else, it could happen that e.g. only events from the first process get considered)
+                # unison_shuffled_copies(list_x_arrays_allClasses[i], list_weights_allClasses[i])
+                indices = np.arange(list_x_arrays_allClasses[i].shape[0])
+                np.random.shuffle(indices) #Get shuffled indices
+                list_x_arrays_allClasses[i] = list_x_arrays_allClasses[i][indices] #Shuffle input features according to indices
+                list_weights_allClasses[i] = list_weights_allClasses[i][indices] #Shuffle event weights according to indices
+                if list_EFTweights_allClasses[i].shape[0] is not 1: #If private sample, also shuffle EFT weights according to indices
+                    list_EFTweights_allClasses[i] = list_EFTweights_allClasses[i][indices]
+
                 list_nrows_class[i] = maxEvents_perClass
                 list_x_arrays_allClasses[i] = list_x_arrays_allClasses[i][0:maxEvents_perClass]
-                list_x_allClasses[i] = list_x_allClasses[i][0:maxEvents_perClass] #Don't forget to also skim this list, used again later
                 list_weights_allClasses[i] = list_weights_allClasses[i][0:maxEvents_perClass]
+                # list_x_allClasses[i] = list_x_allClasses[i][0:maxEvents_perClass] #Not needed anymore ?
+                list_EFTweights_allClasses[i] = list_EFTweights_allClasses[i][0:maxEvents_perClass]
 
+            #For central samples (dummy array of EFT weights is 1D instead of 2D), reshape to same nof columns (<-> reweights) as EFT samples, so that this array could be manipulated identically for all classes
+            #Also, different EFT samples may have different numbers of benchmark reweights (columns) --> Force them to have same nof columns, for manipulation
+            for j in range(len(list_x_arrays_allClasses)):
+                if i is not j:
+                    if list_EFTweights_allClasses[i].ndim is 2 and list_EFTweights_allClasses[j].ndim is 1:
+                        list_EFTweights_allClasses[j] = np.full(shape=(list_EFTweights_allClasses[i].shape[0],list_EFTweights_allClasses[i].shape[1]), fill_value=0.)
+                    elif list_EFTweights_allClasses[i].ndim is 2 and list_EFTweights_allClasses[j].ndim is 2 and list_EFTweights_allClasses[i].shape[1] > list_EFTweights_allClasses[j].shape[1]:
+                        tmp = np.zeros((list_EFTweights_allClasses[j].shape[0],list_EFTweights_allClasses[i].shape[1]))
+                        tmp[:,:-1] = list_EFTweights_allClasses[j]
+                        list_EFTweights_allClasses[j] = tmp
+                        # list_EFTweights_allClasses[j] = np.full(shape=(list_EFTweights_allClasses[i].shape[0],list_EFTweights_allClasses[i].shape[1]), fill_value=0.)
+
+    #List of arrays --> single concatenated array
     x = np.concatenate(list_x_arrays_allClasses, 0)
+    EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0)
 
-    return x, list_weights_allClasses, list_nrows_class
+    return x, list_weights_allClasses, EFTweights_allClasses, list_nrows_class
 
 
 
@@ -308,7 +395,12 @@ def Get_Targets(regress, nof_output_nodes, list_nrows_class):
 # //--------------------------------------------
 
 #Compute and apply weights to training dataset to balance the training
-def Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses_abs, list_weights_allClasses):
+def Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses):
+
+    #Dupplicate list of weight arrays, storing absolute weights (can't handle negative weights in training)
+    list_weights_allClasses_abs = []
+    for weights_class in list_weights_allClasses:
+        list_weights_allClasses_abs.append(np.absolute(weights_class))
 
     #Compute 'yields' (from *absolute* weights) to reweight classes
     list_yields_abs_allClasses = []
@@ -323,7 +415,11 @@ def Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses
         list_SFs_allClasses.append(100. / list_yields_abs_allClasses[i]) #Compute SF for each process so that its total yield equals N (arbitrary)
         # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[i])
 
-        print('Class', labels_list[i], ' / Yield = ', float('%.4g' % list_yields_abs_allClasses[i]), ' / Scale factor = ', float('%.3g' % list_SFs_allClasses[i]), '===> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[i]*list_SFs_allClasses[i])) )
+        print('* Class', labels_list[i], ' :')
+        print('-- Default yield = ', float('%.4g' % list_yields_abs_allClasses[i]))
+        print('-- Rescaling factor = ', float('%.3g' % list_SFs_allClasses[i]))
+        print('===> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[i]*list_SFs_allClasses[i])), '\n')
+        # print('Class', labels_list[i], ' / Yield = ', float('%.4g' % list_yields_abs_allClasses[i]), ' / Scale factor = ', float('%.3g' % list_SFs_allClasses[i]), '===> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[i]*list_SFs_allClasses[i])) )
     print('\n')
 
     #Get array of reweighted 'training' weights, i.e. used for training only and which are not physical

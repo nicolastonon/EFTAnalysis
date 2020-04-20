@@ -53,8 +53,7 @@ public:
         this->clear();
     }
 
-    // std::string kSMstr = "sm";    // Need to figure out how to make this a global constant...
-    std::string kSMstr = "rwgt_SM"; //NT -- CHANGED
+    std::string kSMstr = "SM"; //Arbitrary name
 
     void setTag(std::string _tag) {
         this->tag = _tag;
@@ -117,16 +116,21 @@ public:
     }
 
     // Returns a (ordered) pair of indicies corresponding to a particular quadratic term
-    std::pair<int,int> getIndexPair(std::string n1, std::string n2) {
-        // Convention note: idx1 <= idx2 always!
+    // Convention note: idx1 <= idx2 always!
+    std::pair<int,int> getIndexPair(std::string n1, std::string n2)
+    {
         int idx1 = -1;
         int idx2 = -1;
         int which = -1;
-        for (uint i = 0; i < this->names.size(); i++) {
+        for (uint i = 0; i < this->names.size(); i++)
+        {
+            // std::cout<<"this->names.at(i) "<<this->names.at(i)<<std::endl;
+
             if (which == -1 && n1 == this->names.at(i)) {
                 idx1 = i;
                 which = 1;
-            } else if (which == -1 && n2 == this->names.at(i)) {
+            }
+            else if (which == -1 && n2 == this->names.at(i)) {
                 idx1 = i;
                 which = 2;
             }
@@ -139,7 +143,8 @@ public:
             if (which == 1 && n2 == this->names.at(i)) {
                 idx2 = i;
                 break;
-            } else if (which == 2 && n1 == this->names.at(i)) {
+            }
+            else if (which == 2 && n1 == this->names.at(i)) {
                 idx2 = i;
                 break;
             }
@@ -159,12 +164,13 @@ public:
     }
 
     // Returns a particular structure constant from the fit function
-    double getCoefficient(std::string n1, std::string n2) {
-        // Note: This is a very brute force method of finding the corresponding coefficient,
-        //       the overloaded function method should be used whenever possible
+    //NB: use overloaded function whenever possible (faster)
+    double getCoefficient(std::string n1, std::string n2)
+    {
         auto idx_pair = this->getIndexPair(n1,n2);
         if (idx_pair.first == -1 || idx_pair.second == -1) {
             // We don't have the fit parameter pair, assume 0 (i.e. SM value)
+            std::cout << "[ERROR] Coefficients not found ! (getCoefficient)" << std::endl;
             return 0.0;
         }
 
@@ -551,8 +557,8 @@ public:
         // this->points = pts;
 
         //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in extend())
-        this->extend(kSMstr);   // The SM term is always first
-        for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
+        this->extend(kSMstr); // The SM term is always first
+        for(auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} //NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
 
         uint nCols,nRows,row_idx,col_idx;
         // double x1,x2;
@@ -562,13 +568,13 @@ public:
         nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
         nRows = this->points.size();
 
-        //Basic idea : solve x * y = z -- x are the fit coeffs to determine, y are the strengths of the coeff pairs (for all considered WCPoints, known), z are the values of the reweighted points (<-> weights of the WCPoints, known)
+        //Basic idea : solve x * y = z ; x are the fit coeffs to determine, y are the strengths of the coeff pairs (for all considered WCPoints, known), z are the values of the reweighted points (<-> weights of the WCPoints, known)
         TMatrixD A(nRows,nCols); //Matrix encoding the strengths of the WC pairs, for all pairs of all WCPoints (correspond to the values which will get multiplied by the corresponding fit coeffs) -- rows = WCPoints ; cols = unique pairs of WCs
         TVectorD b(nRows); //Vector of event weights -- 1 row per MG reweight
 
-        for (row_idx = 0; row_idx < nRows; row_idx++) //For each WCPoint
+        for(row_idx = 0; row_idx < nRows; row_idx++) //For each WCPoint
         {
-            for (col_idx = 0; col_idx < nCols; col_idx++) //For each pair of WC coeffs
+            for(col_idx = 0; col_idx < nCols; col_idx++) //For each pair of WC coeffs
             {
                 // idx_pair = this->pairs.at(col_idx);
                 std::string n1 = this->names.at(this->pairs.at(col_idx).first);
@@ -580,6 +586,9 @@ public:
 
                 A(row_idx,col_idx) = x1*x2; //Store 'strength' of the considered coeff pair (that gets multiplied by corresponding fit coeff.)
                 b(row_idx) = this->points.at(row_idx).wgt; //Store reweight value, i.e. the result
+
+                //-- Debug
+                // std::cout<<"n1="<<n1<<", n2="<<n2<<", x1="<<x1<<", x2="<<x2<<", x1*x2="<<x1*x2<<" => "<<this->points.at(row_idx).wgt<<std::endl;
             }
         }
 
@@ -590,9 +599,9 @@ public:
         // Solution returned in b. If A is of size (m x n), input vector b should be of size (m), however, the solution, returned in b, will be in the first (n) elements .
         // For m > n , x is the least-squares solution of min(A . x - b) <-> Quadratic polynomial regression with the Least Square method
         const TVectorD c_x = svd.Solve(b, ok); //--> Solve for the fit parameters
-        for (uint i = 0; i < this->errSize(); i++)
+        for(uint i = 0; i < this->errSize(); i++)
         {
-            if (i < this->size()) {this->coeffs.at(i) = c_x(i);}
+            if(i < this->size()) {this->coeffs.at(i) = c_x(i);}
 
             // idx_pair = this->err_pairs.at(i);
             //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);

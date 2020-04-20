@@ -26,17 +26,20 @@ _lumi_years.append("2017")
 # _lumi_years.append("2018")
 
 #Signal process must be first
-_processClasses_list = [
-                ["tZq"],
-                # ["PrivMC_tZq"],
-                ["PrivMC_tZq_ctz"]]
-                # ["ttZ"]]
-                # ["ttZ"], ["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"]]
-                # ["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",]]
+_processClasses_list = []
+_processClasses_list.append(["tZq"])
+_processClasses_list.append(["PrivMC_tZq_ctz"])
+# _processClasses_list.append(["PrivMC_tZq_ctw"])
+# _processClasses_list.append(["ttZ"])
+# _processClasses_list.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
+# _processClasses_list.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
-_labels_list =  ["tZq",
-                "Backgrounds"]
-                # "ttZ", "Backgrounds"]
+_labels_list = []
+_labels_list.append("tZq")
+_labels_list.append("PrivMC_tZq_ctz")
+# _labels_list.append("PrivMC_tZq_ctw")
+# _labels_list.append("ttZ")
+# _labels_list.append("Backgrounds")
 
 cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 # //--------------------------------------------
@@ -45,10 +48,10 @@ cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 # //--------------------------------------------
 _regress = False #True <-> DNN used for regression ; False <-> classification
 
-_nepochs = 20 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+_nepochs = 5 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 _batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
 
-_maxEvents_perClass = 20000 #max nof events to be used for each process ; -1 <-> all events
+_maxEvents_perClass = 1000 #max nof events to be used for each process ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -99,7 +102,8 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score
 from tensorflow.keras.models import load_model
 
 from Utils.FreezeSession import freeze_session
-from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters, Printout_Outputs_FirstLayer
+# from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters, Printout_Outputs_FirstLayer, KS_test, Anderson_Darling_test, ChiSquare_test
+from Utils.Helper import *
 from Utils.Model import Create_Model
 from Utils.Callbacks import Get_Callbacks
 from Utils.GetData import Get_Data
@@ -200,7 +204,7 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
     #Get data
     print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
     _transfType = 'quantile' #Feature norm. method -- 'range', 'gauss', 'quantile'
-    x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
+    x_train, y_train, x_test, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_allClasses_train, EFTweights_allClasses_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first DNN layer (-> check rescaling)
     Plot_Input_Features(xTrainRescaled, y_process_train, PhysicalWeights_train, var_list, weight_dir, _nof_output_nodes, True)
@@ -319,8 +323,8 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
         if _nof_output_nodes == 1:
             loss = score[0]
             accuracy = score[1]
-            print(colors.fg.lightgrey, '** Loss :', str(loss), colors.reset)
-            print(colors.fg.lightgrey, '** Metrics :', str(accuracy), colors.reset)
+            print(colors.fg.lightgrey, '** Loss :', float('%.4g' % loss), colors.reset)
+            print(colors.fg.lightgrey, '** Metrics :', float('%.4g' % accuracy), colors.reset)
 
         # if len(np.unique(y_train)) > 1: # prevent bug in roc_auc_score, need >=2 unique values (at least sig+bkg classes)
         #     auc_score = roc_auc_score(y_test, model.predict(x_test))
@@ -460,7 +464,13 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
     #     print(x_control_firstNEvents[j])
     #     print("===> Prediction for event", j," :", model.predict(x_control_firstNEvents)[j][0], '\n')
 
-    # return list_predictions_train_allClasses, list_predictions_test_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses
+    #Apply 2-sided KS test to train/test distributions, for first node / first process class
+    KS_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
+
+    #Other tests : Anderson-Darling, Chi-2, ...
+    # Anderson_Darling_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
+    # ChiSquare_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
+
     return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses
 
 
