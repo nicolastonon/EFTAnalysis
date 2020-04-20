@@ -131,15 +131,15 @@ def TEST():
 
 # //--------------------------------------------
 
-    # EFTweights_train
-    # n_components, components = Find_Components(list_op)
-    # effWC_eachComponent = Get_EffectiveWC_eachComponents(n_components, components, list_WC)
-    # effWC_eachComponent = np.random.random_sample((6,6))
-    # benchmark_weights = np.array([0.5, 1, 2, 3, 4, 5])
-    # fit_coeffs = Get_FitCoefficients(effWC_eachComponent, benchmark_weights)
-    # str='rwgt_ctZ_5_ctW_7'
-    # w = Get_Extrapolated_EFTweight(n_components, components, fit_coeffs, str)
+    test_points = ['rwgt_ctz_3p15_ctw_min4p3_cpqm_4p62_cpq3_5p83_cpt_min3p48', 'rwgt_ctz_4p15_ctw_min2p3_cpqm_1p62_cpq3_0p83_cpt_min3p48']
+    operatorNames, operatorWCs = Parse_EFTpoint_IDs(test_points) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process
+    n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
+    effWC_components = Get_EffectiveWC_eachComponents(n_components, components, operatorWCs) #Determine the 'effective WC' values associated with each component, for each benchmark point
+    # fit_coeffs = Get_FitCoefficients(effWC_components, benchmark_weights=list_EFTweights_allClasses[iclass]) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
 
+    newWeights = Get_Extrapolated_EFTweight(effWC_components, EFT_FitCoeffs_allClasses)
+
+    print(newWeights)
 
 # //--------------------------------------------
 # # //--------------------------------------------
