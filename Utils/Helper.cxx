@@ -617,17 +617,17 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 {
 	if(argc >= 2)
 	{
-        v_lumiYear.resize(0);
+        if(!strcmp(argv[1],"2016") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
+        else if(!strcmp(argv[1],"2017") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
+        else if(!strcmp(argv[1],"2018") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
+        else if(!strcmp(argv[1],"201617") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
+        else if(!strcmp(argv[1],"201618") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
+        else if(!strcmp(argv[1],"201718") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+        else if(!strcmp(argv[1],"Run2") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
 
-        if(!strcmp(argv[1],"2016") ) {v_lumiYear.push_back("2016");}
-        else if(!strcmp(argv[1],"2017") ) {v_lumiYear.push_back("2017");}
-        else if(!strcmp(argv[1],"2018") ) {v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"201617") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
-        else if(!strcmp(argv[1],"201618") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"201718") ) {v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"Run2") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-
-        else if(!strcmp(argv[1],"SR")) {region_choice = "SR";}
+        else if(!strcmp(argv[1],"tZq")) {region_choice = "tZq";}
+        else if(!strcmp(argv[1],"ttZ")) {region_choice = "ttZ";}
+        else if(!strcmp(argv[1],"tWZ")) {region_choice = "tWZ";}
 
         else
         {
@@ -643,16 +643,17 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
 		if(argc >= 3)
 		{
-            if(!strcmp(argv[2],"SR")) {region_choice = "SR";}
+            if(!strcmp(argv[2],"tZq")) {region_choice = "tZq";}
+            else if(!strcmp(argv[2],"ttZ")) {region_choice = "ttZ";}
+            else if(!strcmp(argv[2],"tWZ")) {region_choice = "tWZ";}
 
-            else if(!strcmp(argv[2],"2016") ) {v_lumiYear.push_back("2016");}
-            else if(!strcmp(argv[2],"2017") ) {v_lumiYear.push_back("2017");}
-            else if(!strcmp(argv[2],"2018") ) {v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"201617") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
-            else if(!strcmp(argv[2],"201618") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"201718") ) {v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"Run2") ) {v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-
+            else if(!strcmp(argv[2],"2016") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
+            else if(!strcmp(argv[2],"2017") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
+            else if(!strcmp(argv[2],"2018") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
+            else if(!strcmp(argv[2],"201617") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
+            else if(!strcmp(argv[2],"201618") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
+            else if(!strcmp(argv[2],"201718") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+            else if(!strcmp(argv[2],"Run2") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
 
 			else
 			{
@@ -712,6 +713,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //tX
             else if(v_samples[isample] == "tHq") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
             else if(v_samples[isample] == "tHW") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
+            else if(v_samples[isample] == "tWZ") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
             else if(v_samples[isample] == "tGJets") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
             else if(v_samples[isample] == "ST") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
 
@@ -756,6 +758,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //tX
             else if(v_samples[isample] == "tHq") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "tHW") {v_colors[isample] = kSpring+2;}
+            else if(v_samples[isample] == "tWZ") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "tGJets") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "ST") {v_colors[isample] = kSpring+2;}
 
@@ -922,12 +925,14 @@ TString Get_Variable_Name(TString var)
     return var;
 }
 
-//Get name of category, depending on desired region, sample, etc.
-TString Get_Category_Boolean_Name()
+//Get var name corresponding to category
+TString Get_Category_Boolean_Name(TString region)
 {
-    TString categ_bool_name = "";
+    if(region=="tZq") {return "is_tZq_3l_SR";}
+    else if(region=="ttZ") {return "is_ttZ_3l_SR";}
+    else if(region=="tWZ") {return "is_tWZ_3l_SR";}
 
-    return categ_bool_name;
+    return "";
 }
 
 //Computes total nof entries which will be processed by the Produce_Templates() function, so that the Timebar is correct

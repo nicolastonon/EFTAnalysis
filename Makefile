@@ -32,12 +32,12 @@ LIB = myLib.so
 
 MY_ANALYSIS = analysis_main.exe #Name of executable file
 ROCS = ROCS/Compare_ROC_curves.exe
-PRODUCE_CUTFLOW = Produce_Cutflow.exe
+YIELD = Yield_Table.exe
 
 # .PHONY : $(wildcard *.o)  #Force to always recompile object
 
 #Instructions
-all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(PRODUCE_CUTFLOW)
+all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD)
 
 #Create dictionnary (contains custom classes def.) and rootmap --> Necessary so that ROOT recognizes custom classes
 $(LIB): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
@@ -64,9 +64,9 @@ $(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o
 	@echo "###################################"
 	@echo ""
 
-$(PRODUCE_CUTFLOW):	Utils/Produce_Cutflow.o Utils/Helper.o
+$(YIELD):	Utils/Yield_Table.o Utils/Helper.o
 	@echo "###################################""#"
-	@echo "-- Creating executable ./$(PRODUCE_CUTFLOW) --"
+	@echo "-- Creating executable ./$(YIELD) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)
 	@echo "-- Done --"
 	@echo "###################################""#"

@@ -96,7 +96,7 @@ def Get_LumiName(lumi_years):
 # //--------------------------------------------
 
 #Sanity checks of input args
-def SanityChecks_Parameters(processClasses_list, labels_list):
+def SanityChecks_Parameters(processClasses_list, labels_list, regress, target, parameterizedDNN, listOperatorsParam):
 
     if len(processClasses_list) == 0:
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
@@ -107,7 +107,28 @@ def SanityChecks_Parameters(processClasses_list, labels_list):
         if "PrivMC" in label and len(procClass) > 1:
             print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset); exit(1)
 
-    return
+    onlyCentralSample=False #Check whether all training samples are central samples
+    centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
+    onlySMEFT=False #Check whether all training samples are SM/EFT private samples
+    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0
+    for label in labels_list:
+        if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
+        elif("PrivMC" in label): nSMEFTSamples+=1 #E.g. 'PrivMC_tZq'
+        else: ncentralSamples+=1 #E.g. 'tZq'
+
+    if nSMEFTSamples == len(labels_list): onlySMEFT=True
+    elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
+    elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
+    else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
+
+    if parameterizedDNN==True and onlySMEFT==False:
+        print(colors.bold, colors.fg.red, 'Parameterized DNN supported for SM/EFT samples only ! Setting parameterizedDNN to False', colors.reset);
+        parameterizedDNN=False;
+
+    if regress==True:
+        if target != "class": print(colors.fg.red, 'ERROR : target name not available for regression yet', colors.reset); exit(1)
+
+    return parameterizedDNN
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -167,11 +188,16 @@ def Printout_Outputs_FirstLayer(model, ilayer, xx):
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Shuffles coherently the elements of 2 arrays of identical shapes
-def unison_shuffled_copies(a, b):
-    assert len(a) == len(b)
-    p = np.random.permutation(len(a))
-    return a[p], b[p]
+#Shuffles coherently the rows of N arrays of same length
+def unison_shuffled_copies(*arr):
+    assert all(len(a) for a in arr)
+    p = np.random.permutation(len(arr[0]))
+    return (a[p] for a in arr)
+
+#-- Alternative example :
+# indices = np.arange(list_x_arrays_allClasses[i].shape[0])
+# np.random.shuffle(indices) #Get shuffled indices
+# list_x_arrays_allClasses[i] = list_x_arrays_allClasses[i][indices]
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -230,6 +256,32 @@ def CheckName_EFTpoint_ID(old):
 
     # print(old, ' --> ', new)
     return new
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def my_training_batch_generator(features, labels, batch_size): # Create empty arrays to contain batch of features and labels
+
+    batch_features = np.zeros((batch_size, features.shape[1]))
+    batch_labels = np.zeros((batch_size, labels.shape[1]))
+
+    while True:
+        # choose random index in features
+        for i in range(batch_size):
+            index = random.choice(len(features),1)
+            batch_features[i] = features[index]
+            batch_labels[i] = labels[index]
+
+        yield batch_features, batch_labels #'Yield' keyword returns a generator. It suspends the function, which resumes at next call ; allows to produce a series of objects over time, instead of computing/returning everything at once
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+# //--------------------------------------------
+# //--------------------------------------------
 
 # //--------------------------------------------
 # //--------------------------------------------

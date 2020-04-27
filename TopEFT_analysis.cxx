@@ -78,7 +78,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     {
         if(sample_groups[i] != sample_groups[i-1]) {nSampleGroups++;}
     }
-
+    if(region=="tWZ") {nSampleGroups++;} //In tWZ region, single out tWZ process from tX
 
  // #      #    # #    # #
  // #      #    # ##  ## #
@@ -272,29 +272,33 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     if(classifier_name == "DNN")
     {
         TString file_var_path = "./weights/DNN/"+lumiName+"/DNN_infos.txt";
-        if(!Check_File_Existence(file_var_path) ) {cout<<BOLD(FRED("Error ! DNN infos not found ("<<file_var_path<<")"))<<endl; return;}
-        else{cout<<"Reading list of DNN input variables from : "<<file_var_path<<endl;}
-        ifstream file_in(file_var_path);
-        string line;
-        while(!file_in.eof( ))
+        if(!Check_File_Existence(file_var_path) ) {cout<<DIM("DNN infos not found ("<<file_var_path<<")")<<endl;}
+        else
         {
-            getline(file_in, line);
-            // TString ts_line(line);
-            stringstream ss(line);
-            TString varname; float tmp1, tmp2; //Values tmp1 and tmp2 could be the mean and variance, or min and max, etc. depending on the rescaling
-            ss >> varname >> tmp1 >> tmp2;
-            if(varname != "") //Last line may be empty
+            cout<<DIM("Reading list of DNN input variables from : "<<file_var_path<<"")<<endl;
+
+            ifstream file_in(file_var_path);
+            string line;
+            while(!file_in.eof( ))
             {
-                if(tmp1 == -1 && tmp2 == -1) {DNN_inputLayerName = varname;} //Name of input layer
-                else if(tmp1 == -2 && tmp2 == -2) {DNN_outputLayerName = varname;} //Name of output layer
-                else if(tmp1 == -3 && tmp2 == -3) {nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
-                else
+                getline(file_in, line);
+                // TString ts_line(line);
+                stringstream ss(line);
+                TString varname; float tmp1, tmp2; //Values tmp1 and tmp2 could be the mean and variance, or min and max, etc. depending on the rescaling
+                ss >> varname >> tmp1 >> tmp2;
+                if(varname != "") //Last line may be empty
                 {
-                    var_list_DNN.push_back(varname);
-                    std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
-                    v_inputs_rescaling.push_back(pair_tmp);
+                    if(tmp1 == -1 && tmp2 == -1) {DNN_inputLayerName = varname;} //Name of input layer
+                    else if(tmp1 == -2 && tmp2 == -2) {DNN_outputLayerName = varname;} //Name of output layer
+                    else if(tmp1 == -3 && tmp2 == -3) {nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
+                    else
+                    {
+                        var_list_DNN.push_back(varname);
+                        std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
+                        v_inputs_rescaling.push_back(pair_tmp);
+                    }
+                    // cout<<"-->  "<<varname<<endl;
                 }
-                // cout<<"-->  "<<varname<<endl;
             }
         }
         // cout<<"-->  "<<DNN_inputLayerName<<endl;
@@ -416,8 +420,8 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 	TString tmp = "";
 
 	//--- CHOOSE TRAINING EVENTS <--> cut on corresponding category
-	// TString cat_tmp = "";
-	// cat_tmp = Get_Category_Boolean_Name(nLep_cat, region, analysis_type, "", scheme);
+	TString cat_tmp = "";
+	cat_tmp = Get_Category_Boolean_Name(region);
 
 	//Even if ask templates in the SR, need to use training (looser) category for training !
 	// if(cat_tmp.Contains("_SR") )
@@ -425,7 +429,8 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 	// 	int i = cat_tmp.Index("_SR"); //Find index of substring
 	// 	cat_tmp.Remove(i); //Remove substring
 	// }
-    // tmp+= cat_tmp + "==1";
+
+    tmp+= cat_tmp + "==1";
 
 	//--- Define additionnal cuts
 	for(int ivar=0; ivar<v_cut_name.size(); ivar++)
@@ -855,10 +860,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 	//Output file name
 	//-- For BDT templates
-	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_" + lumiName + filename_suffix + ".root";
+    TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
+	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 
 	//-- For input vars
-	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";}
+	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix +".root";}
 
     //Create output file
 	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
@@ -1106,10 +1112,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			//--- Cut on relevant event selection (e.g. 3l SR, ttZ CR, etc.) -- stored as Char_t
     			Char_t is_goodCategory; //Categ. of event
-    			// TString cat_name = Get_Category_Boolean_Name(nLep_cat, region, analysis_type, sample_list[isample], scheme);
-    			// tree->SetBranchStatus(cat_name, 1);
-    			// tree->SetBranchAddress(cat_name, &is_goodCategory);
-    			// cout<<"Categ <=> "<<cat_name<<endl;
+                if(region != "")
+                {
+                    TString cat_name = Get_Category_Boolean_Name(region);
+                    tree->SetBranchStatus(cat_name, 1);
+                    tree->SetBranchAddress(cat_name, &is_goodCategory);
+                    // cout<<"Categ <=> "<<cat_name<<endl;
+                }
 
     			//--- Cut on relevant categorization (lepton flavour, btagging, charge)
     			float channel;
@@ -1227,7 +1236,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				}
 
     				//--- Cut on category value
-    				// if(!is_goodCategory) {continue;}
+    				if(region != "" && !is_goodCategory) {continue;}
 
 //---- APPLY CUTS HERE (defined in main)  ----
     				bool pass_all_cuts = true;
@@ -1389,24 +1398,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
     					{
     						TString output_histo_name;
-    						// if(makeHisto_inputVars)
-    						{
-    							output_histo_name = total_var_list[ivar] + "_" + region;
-    							if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
-                                output_histo_name+= "_" + v_lumiYears[iyear];
-    							output_histo_name+= "__" + samplename;
-    							if(syst_list[isyst] != "") {output_histo_name+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
-    							else if(systTree_list[itree] != "") {output_histo_name+= "__" + systTree_list[itree];}
-    						}
-    						// else
-    						// {
-    						// 	output_histo_name = classifier_name + template_name + "_" + region;
-    						// 	if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
-                            //     output_histo_name+= "_" + v_lumiYears[iyear];
-    						// 	output_histo_name+= "__" + samplename;
-    						// 	if(syst_list[isyst] != "") {output_histo_name+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
-    						// 	else if(systTree_list[itree] != "") {output_histo_name+= "__" + systTree_list[itree];}
-    						// }
+
+							output_histo_name = total_var_list[ivar];
+							if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
+                            output_histo_name+= "_" + v_lumiYears[iyear];
+							output_histo_name+= "__" + samplename;
+							if(syst_list[isyst] != "") {output_histo_name+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
+							else if(systTree_list[itree] != "") {output_histo_name+= "__" + systTree_list[itree];}
 
     						file_output->cd();
 
@@ -1572,12 +1570,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	}
 
 	TString input_name = "";
+    TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
 
 	if(use_combine_file)
 	{
         //TRY 1 : look for Combine file
 		input_name = "./outputs/fitDiagnostics_";
-		input_name+= classifier_name + template_name + "_" + region + filename_suffix + ".root";
+		input_name+= classifier_name + template_name + "_" + cat_tmp + filename_suffix + ".root";
 		if(!Check_File_Existence(input_name)) {input_name = "./outputs/fitDiagnostics.root";} //Try another name
 
         //Combine file not found !
@@ -1588,16 +1587,16 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 			use_combine_file = false;
 
             //TRY 2 : look for my own file containing prefit templates/control histos
-			if(drawInputVars) {input_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix + ".root";}
-			else {input_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_" + lumiName + filename_suffix + ".root";} //Templates
+			if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";}
+			else {input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";} //Templates
 
             cout<<DIM("Trying file "<<input_name<<"...")<<endl;
             if(!Check_File_Existence(input_name) && lumiName != "Run2") //If did not find year-specific file, also try to look for full Run 2 file (contains contributions from each year)
             {
-                if(drawInputVars) {input_name = "outputs/ControlHistograms_" + region + "_Run2" + filename_suffix + ".root";}
+                if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_Run2" + filename_suffix + ".root";}
     			else //Templates
     			{
-    				input_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_Run2" + filename_suffix + ".root";
+    				input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
     			}
 
                 cout<<DIM("Trying file "<<input_name<<"...")<<endl;
@@ -1614,19 +1613,19 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 	else //Using my own template file
 	{
-		if(drawInputVars) {input_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix + ".root";}
+		if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";}
 		else //Templates
 		{
-			input_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_" + lumiName + filename_suffix + ".root";
+			input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 		}
 
         cout<<DIM("Trying file "<<input_name<<"...")<<endl;
         if(!Check_File_Existence(input_name) && lumiName != "Run2") //If did not find year-specific file, also try to look for full Run 2 file (contains contributions from each year)
         {
-            if(drawInputVars) {input_name = "outputs/ControlHistograms_" + region + "_Run2" + filename_suffix + ".root";}
+            if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_Run2" + filename_suffix + ".root";}
             else //Templates
             {
-                input_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_Run2" + filename_suffix + ".root";
+                input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
             }
 
             cout<<DIM("Trying file "<<input_name<<"...")<<endl;
@@ -1738,7 +1737,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     			TString dir_hist = "";
     			if(prefit) {dir_hist = "shapes_prefit/";}
     			else {dir_hist = "shapes_fit_s/";}
-    			dir_hist+= classifier_name + template_name + "_" + region;
+    			dir_hist+= classifier_name + template_name + "_" + cat_tmp;
     			if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan];} //for combine file
                 dir_hist+= "_" + v_lumiYears[iyear] + "/";
     			if(use_combine_file && !file_input->GetDirectory(dir_hist)) {cout<<FRED("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
@@ -1780,7 +1779,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				if(use_combine_file) {histo_name = dir_hist + samplename;}
     				else
     				{
-    					histo_name = total_var_list[ivar] + "_" + region;
+    					histo_name = total_var_list[ivar];
     					if(channel != "") {histo_name+= "_" + channel;}
     					histo_name+= + "_" + v_lumiYears[iyear];
                         histo_name+= + "__" + samplename;
@@ -1875,8 +1874,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				if(!samplename.Contains("DATA") )
     				{
     					if(v_MC_histo.size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
-    					// MC_samples_legend.push_back(samplename); //Fill vector containing existing MC samples names
-    					// cout<<"ADD samplename "<<samplename<<endl;
     					// cout<<"MC_samples_legend.size() "<<MC_samples_legend.size()<<endl;
     				}
 
@@ -1909,10 +1906,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     					if(isample - k >= 0)
     					{
     						if(v_isSkippedSample[isample-k]) {continue;}
-    						else if(color_list[isample] == color_list[isample-k]) {h_tmp->SetLineColor(color_list[isample]); break;}
+    						else if(color_list[isample] == color_list[isample-k]) {h_tmp->SetLineColor(color_list[isample]); break;} //If previous sample had same color, don't draw line
     					}
     					else {break;}
     				}
+
+                    if(region == "tWZ" && samplename == "tWZ") {h_tmp->SetFillColor(kBlue);} //Different color
 
     				// v_MC_histo.push_back((TH1F*) h_tmp->Clone());
     				if(v_MC_histo.size() <=  index_MC_sample) {v_MC_histo.push_back((TH1F*) h_tmp->Clone());}
@@ -1962,8 +1961,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     		if(use_combine_file) {data_histo_name = "data";}
     		else
     		{
-                // data_histo_name = classifier_name + total_var_list[ivar] + "_" + region;
-                data_histo_name = total_var_list[ivar] + "_" + region;
+                data_histo_name = total_var_list[ivar];
     			if(channel != "") {data_histo_name+= "_" + channel;}
     			data_histo_name+= "_" + v_lumiYears[iyear];
                 data_histo_name+= "__data_obs";
@@ -1979,7 +1977,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				TString dir_hist = "";
     				if(prefit) {dir_hist = "shapes_prefit/";}
     				else {dir_hist = "shapes_fit_s/";}
-    				dir_hist+= classifier_name + template_name + "_" + region;
+    				dir_hist+= classifier_name + template_name + "_" + cat_tmp;
     				if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan] + "/";} //for combine file
                     dir_hist+= v_lumiYears[iyear] + "/";
     				if(!file_input->GetDirectory(dir_hist)) {cout<<ITAL("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
@@ -2081,9 +2079,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		TH1F* histo_total_MC = 0; //Sum of all MC samples
 
 		//Indices of important samples, for specific treatment
-		int index_tZq_sample = -99;
-		int index_ttZ_sample = -99;
-		int index_NPL_sample = -99;
+		int index_tZq_sample = -9;
+        int index_ttZ_sample = -9;
+        int index_tWZ_sample = -9;
+		int index_NPL_sample = -9;
 
 		// cout<<"v_MC_histo.size() "<<v_MC_histo.size()<<endl;
 		// cout<<"MC_samples_legend.size() "<<MC_samples_legend.size()<<endl;
@@ -2109,6 +2108,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 				else {h_ttz->Add((TH1F*) v_MC_histo[i]->Clone());}
 				// if(doNot_stack_signal) continue; //don't stack
 			}
+            else if(MC_samples_legend[i] == "tWZ") {index_tWZ_sample = i;}
 
 			// cout<<"Adding sample "<<MC_samples_legend[i]<<" to histo_total_MC"<<endl;
 
@@ -2169,6 +2169,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             else if(MC_samples_legend[i] == "GammaConv") {qw->AddEntry(v_MC_histo[i], "#gamma-conv.", "f");}
             else if(MC_samples_legend[i] == "DY" ) {qw->AddEntry(v_MC_histo[i], "V+jets", "f");}
             else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "TTbar") {qw->AddEntry(v_MC_histo[i], "t#bar{t}", "f");}
+            else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
 
             //group names
             else if(MC_samples_legend[i] == "ttX" ) {qw->AddEntry(v_MC_histo[i], "t#bar{t}X", "f");}
@@ -2192,9 +2193,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		{
 			if(!v_MC_histo[i]) {continue;} //Some templates may be null
 
+            if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
+
 			stack_MC->Add(v_MC_histo[i]);
 			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
 		}
+        if(region=="tWZ") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
 
 		//Set Yaxis maximum & minimum
 		if(use_combine_file && data_notEmpty)
@@ -2644,16 +2648,16 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		if(drawInputVars)
 		{
 			mkdir("plots/input_vars", 0777);
-            mkdir(("plots/input_vars/"+region).Data(), 0777);
-            mkdir(("plots/input_vars/"+region+"/"+lumiName).Data(), 0777);
+            mkdir(("plots/input_vars/"+cat_tmp).Data(), 0777);
+            mkdir(("plots/input_vars/"+cat_tmp+"/"+lumiName).Data(), 0777);
 		}
 		else
 		{
 			mkdir("plots/templates", 0777);
-            mkdir( ("plots/templates/"+region).Data(), 0777);
-            mkdir( ("plots/templates/"+region+"/"+lumiName).Data(), 0777);
-			if(prefit) {mkdir( ("plots/templates/"+region+"/"+lumiName+"/prefit").Data(), 0777);}
-			else {mkdir( ("plots/templates/"+region+"/"+lumiName+"/postfit").Data(), 0777);}
+            mkdir( ("plots/templates/"+cat_tmp).Data(), 0777);
+            mkdir( ("plots/templates/"+cat_tmp+"/"+lumiName).Data(), 0777);
+			if(prefit) {mkdir( ("plots/templates/"+cat_tmp+"/"+lumiName+"/prefit").Data(), 0777);}
+			else {mkdir( ("plots/templates/"+cat_tmp+"/"+lumiName+"/postfit").Data(), 0777);}
 		}
 
 		//Output
@@ -2661,11 +2665,11 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 		if(drawInputVars)
 		{
-			output_plot_name = "plots/input_vars/" + region + "/" + lumiName + "/" + total_var_list[ivar];
+			output_plot_name = "plots/input_vars/" + cat_tmp + "/" + lumiName + "/" + total_var_list[ivar];
 		}
 		else
 		{
-			output_plot_name = "plots/templates/" + region + "/" + lumiName;
+			output_plot_name = "plots/templates/" + cat_tmp + "/" + lumiName;
 			if(prefit) {output_plot_name+= "/prefit/";}
 			else {output_plot_name+= "/postfit/";}
             // output_plot_name+= classifier_name + template_name + "_template_" + signal_process;
@@ -2854,13 +2858,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
                     h_tmp = 0;
 
-        			// TString histo_name = "";
-        			// histo_name = classifier_name + template_name + "_" + region;
-        			// if(channel != "") {histo_name+= "_" + channel;}
-        			// histo_name+= + "__" + samplename;
-                    // if(v_syst[isyst] != "") {histo_name+= "__" + v_syst[isyst];}
-
-                    TString histo_name = total_var_list[ivar] + "_" + region;
+                    TString histo_name = total_var_list[ivar];
                     if(channel_list[ichan] != "") {histo_name+= "_" + channel_list[ichan];}
                     // histo_name+= "_" + v_lumiYears[iyear];
                     histo_name+= "_" + theyear;
@@ -3272,7 +3270,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
         					TString samplename = sample_list[isample];
         					if(samplename == "DATA") {samplename = "data_obs";}
 
-        					TString histoname = total_var_list[ivar] + "_" + region;
+        					TString histoname = total_var_list[ivar];
         					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
                             histoname+= "_" + v_lumiYears[iyear];
                             histoname+= "__" + samplename;
@@ -3320,7 +3318,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
         						// }
         						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
-        						TString histoname_new = total_var_list[ivar] + "_" + region;
+        						TString histoname_new = total_var_list[ivar];
         						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
                                 histoname_new+= "_" + v_lumiYears[iyear];
         						histoname_new+= "__" + sample_groups[isample];

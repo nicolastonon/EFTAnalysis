@@ -93,7 +93,7 @@
     // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
     bool Get_Variable_Range(TString, int&, double&, double&);
     TString Get_Variable_Name(TString);
-    TString Get_Category_Boolean_Name();
+    TString Get_Category_Boolean_Name(TString);
     float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
     TString Get_Modified_SystName(TString, TString);
     void Get_Pointer_GENHisto(TH1F*&, TString);

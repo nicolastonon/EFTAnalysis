@@ -27,16 +27,18 @@ _lumi_years.append("2017")
 
 #Signal process must be first
 _processClasses_list = []
-_processClasses_list.append(["tZq"])
-_processClasses_list.append(["PrivMC_tZq_ctz"])
+# _processClasses_list.append(["tZq"])
+_processClasses_list.append(["PrivMC_tZq"])
+# _processClasses_list.append(["PrivMC_tZq_ctz"])
 # _processClasses_list.append(["PrivMC_tZq_ctw"])
 # _processClasses_list.append(["ttZ"])
 # _processClasses_list.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _processClasses_list.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
 _labels_list = []
-_labels_list.append("tZq")
-_labels_list.append("PrivMC_tZq_ctz")
+# _labels_list.append("tZq")
+_labels_list.append("PrivMC_tZq")
+# _labels_list.append("PrivMC_tZq_ctz")
 # _labels_list.append("PrivMC_tZq_ctw")
 # _labels_list.append("ttZ")
 # _labels_list.append("Backgrounds")
@@ -47,11 +49,16 @@ cuts = "passedBJets==1" #Event selection, both for train/test ; "1" <-> no cut
 #--- Training options
 # //--------------------------------------------
 _regress = False #True <-> DNN used for regression ; False <-> classification
+_target = "class"
 
-_nepochs = 5 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-_batchSize = 500 #Batch size (<-> nof events fed to the network before its parameter get updated)
+_parameterizedDNN = True #True <-> DNN is parameterized on the Wilson coefficients of the EFT operators
+_listOperatorsParam = ['ctZ','ctW'] #None <-> parameterize on all possible operators
+# _listOperatorsParam = ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'] #None <-> parameterize on all possible operators
 
-_maxEvents_perClass = 1000 #max nof events to be used for each process ; -1 <-> all events
+_nepochs = 1 #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+_batchSize = 50000 #Batch size (<-> nof events fed to the network before its parameter get updated)
+
+_maxEvents_perClass = -1 #max nof events to be used for each process class ; -1 <-> all events
 _nEventsTot_train = -1; _nEventsTot_test = -1  #nof events to be used for training & testing ; -1 <-> use _maxEvents_perClass & _splitTrainEventFrac params instead
 _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> use all requested events for training)
 
@@ -60,20 +67,20 @@ _splitTrainEventFrac = 0.8 #Fraction of events to be used for training (1 <-> us
 
 # Define list of input variables
 # //--------------------------------------------
-var_list = []
-var_list.append("maxDijetDelR")
-var_list.append("dEtaFwdJetBJet")
-var_list.append("dEtaFwdJetClosestLep")
-var_list.append("mHT")
-var_list.append("mTW")
-var_list.append("Mass_3l")
-var_list.append("forwardJetAbsEta")
-var_list.append("jPrimeAbsEta")
-var_list.append("maxDeepCSV")
-var_list.append("delRljPrime")
-var_list.append("lAsymmetry")
-var_list.append("maxDijetMass")
-var_list.append("maxDelPhiLL")
+_var_list = []
+_var_list.append("maxDijetDelR")
+_var_list.append("dEtaFwdJetBJet")
+_var_list.append("dEtaFwdJetClosestLep")
+_var_list.append("mHT")
+_var_list.append("mTW")
+_var_list.append("Mass_3l")
+_var_list.append("forwardJetAbsEta")
+_var_list.append("jPrimeAbsEta")
+_var_list.append("maxDeepCSV")
+_var_list.append("delRljPrime")
+_var_list.append("lAsymmetry")
+_var_list.append("maxDijetMass")
+_var_list.append("maxDelPhiLL")
 
 
 
@@ -94,6 +101,7 @@ import sys    # exit
 import time   # time accounting
 import getopt # command line parser
 import os
+import argparse
 # //--------------------------------------------
 import tensorflow
 import keras
@@ -102,26 +110,17 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score
 from tensorflow.keras.models import load_model
 
 from Utils.FreezeSession import freeze_session
-# from Utils.Helper import batchOutput, Write_Variables_To_TextFile, TimeHistory, Get_LumiName, SanityChecks_Parameters, Printout_Outputs_FirstLayer, KS_test, Anderson_Darling_test, ChiSquare_test
 from Utils.Helper import *
 from Utils.Model import Create_Model
 from Utils.Callbacks import Get_Callbacks
 from Utils.GetData import Get_Data
 from Utils.Optimizer import Get_Loss_Optim_Metrics
 from Utils.ColoredPrintout import colors
-from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Control_Plots, Create_Correlation_Plot, Plot_Input_Features
+from Utils.Validation_Control import *
+from Utils.Predictions import *
+from Utils.DataGenerator import *
 # //--------------------------------------------
 # //--------------------------------------------
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -158,7 +157,7 @@ from Utils.Output_Plots_Histos import Create_TrainTest_ROC_Histos, Create_Contro
 # //--------------------------------------------
 
 #Main function, calling sub-functions to perform all necessary actions
-def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test):
+def Train_Test_Eval_DNN(_regress, _target, _parameterizedDNN, _listOperatorsParam, _lumi_years, _processClasses_list, _labels_list, _var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test):
 
  # #    # # #####
  # ##   # #   #
@@ -168,7 +167,7 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
  # #    # #   #
 
     #Sanity chek of input args
-    SanityChecks_Parameters(_processClasses_list, _labels_list)
+    _parameterizedDNN = SanityChecks_Parameters(_processClasses_list, _labels_list, _regress, _target, _parameterizedDNN, _listOperatorsParam)
 
     #Read luminosity choice
     lumiName = Get_LumiName(_lumi_years)
@@ -187,6 +186,8 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
     _nof_output_nodes = len(_processClasses_list) #1 output node per class
     if _regress or _nof_output_nodes == 2: #Special case : 2 classes -> binary classification -> 1 output node only
         _nof_output_nodes = 1
+    if _parameterizedDNN:
+        _nof_output_nodes = len(_listOperatorsParam)+1 #1 output node for SM and each EFT operator
 
                                        #
  ##### #####    ##   # #    #         #     ##### ######  ####  #####
@@ -201,50 +202,63 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
     print('\t', colors.fg.orange, colors.bold, "DNN Training", colors.reset)
     print(colors.bg.orange, colors.bold, "=====================================", colors.reset, '\n\n')
 
-    #Get data
+    #-- Get data
     print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
     _transfType = 'quantile' #Feature norm. method -- 'range', 'gauss', 'quantile'
-    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _transfType)
+    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(_regress, weight_dir, _lumi_years, _ntuples_dir, _processClasses_list, _labels_list, _var_list, cuts, _nof_output_nodes, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test, lumiName, _parameterizedDNN, _listOperatorsParam, _transfType)
+
+    # From there, for parameterized DNN, the different 'classes' correspond to different operators, and must include their WCs as inputs
+    if _parameterizedDNN==True :
+        _labels_list = _listOperatorsParam[:]; _labels_list.insert(0, "SM") #Specify '[:]' to create a copy, not a reference
+        _var_list = np.append(_var_list, _listOperatorsParam)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first DNN layer (-> check rescaling)
-    Plot_Input_Features(xTrainRescaled, y_process_train, PhysicalWeights_train, var_list, weight_dir, _nof_output_nodes, True)
+    Plot_Input_Features(xTrainRescaled, y_process_train, PhysicalWeights_train, _var_list, weight_dir, _nof_output_nodes, _parameterizedDNN, True)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
     _loss, _optim, _metrics = Get_Loss_Optim_Metrics(_regress, _nof_output_nodes)
 
-    #Get model and compile it
+    #-- Get model and compile it
     print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
-    model = Create_Model(_regress, weight_dir, "DNN", _nof_output_nodes, var_list, shifts, scales) #-- add default args
+    model = Create_Model(_regress, weight_dir, _nof_output_nodes, _var_list, shifts, scales, _parameterizedDNN, _listOperatorsParam) #-- add default args
 
-    #Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
+    # Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
     # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
 
     print('\n'); print(colors.fg.lightblue, "--- Compile the Keras model...", colors.reset); print('\n')
     model.compile(loss=_loss, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
 
-    #Define list of callbacks
+    #-- Define list of callbacks
     callbacks_list = Get_Callbacks(weight_dir)
-    # ckpt_dir = os.path.dirname(ckpt_path)
-    history = 0
+    # ckpt_dir = os.path.dirname(ckpt_path); history = 0
 
-    #Fit model (TRAIN)
+    #-- Fit model (TRAIN)
     print('\n'); print(colors.fg.lightblue, "--- Train (fit) DNN on training sample...", colors.reset, " (may take a while)"); print('\n')
-    history = model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=_nepochs, batch_size=_batchSize, sample_weight=LearningWeights_train, callbacks=callbacks_list, shuffle=True, verbose=1)
+    if _parameterizedDNN==False:
+        history = model.fit(x_train, y_train, sample_weight=LearningWeights_train, validation_data=(x_test, y_test, PhysicalWeights_test), epochs=_nepochs, batch_size=_batchSize, callbacks=callbacks_list, shuffle=True, verbose=1)
 
+        # Evaluate the neural network's performance (evaluate metrics on validation or test dataset)
+        print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
+        score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test, verbose=1)
+
+    else:
+        my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, _batchSize)
+        my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, _batchSize)
+        _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ _batchSize)
+        history = model.fit(my_training_batch_generator, steps_per_epoch=_steps_per_epoch, validation_data=my_validation_batch_generator, validation_steps=_steps_per_epoch_val, epochs=_nepochs, callbacks=callbacks_list, verbose=1)
+
+        print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
+        score = model.evaluate(my_validation_batch_generator, steps=_steps_per_epoch_val, verbose=1)
+
+# //--------------------------------------------
     #-- Can access weights and biases of any layer
     # weights_layer, biases_layer = model.layers[0].get_weights(); print(weights_layer.shape); print(biases_layer.shape); print(weights_layer); print(biases_layer[0:2])
-
-    # else:
-    #     # Loads the latest checkpoint weights
-    #     latest = tensorflow.train.latest_checkpoint(ckpt_dir)
-    #     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    #     model = load_model(h5model_outname) # model has to be re-loaded
-    #     model.load_weights(latest)
-
-    # Evaluate the neural network's performance (evaluate metrics on validation or test dataset)
-    print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
-    score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test)
-    # print(score)
+    #-- Loads the latest checkpoint weights
+    # latest = tensorflow.train.latest_checkpoint(ckpt_dir)
+    # tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+    # model = load_model(h5model_outname) # model has to be re-loaded
+    # model.load_weights(latest)
+# //--------------------------------------------
 
 
   ####    ##   #    # ######    #    #  ####  #####  ###### #
@@ -263,9 +277,6 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
     with open(weight_dir + 'arch_DNN.json', 'w') as json_file:
         json_file.write(model.to_json())
 
-    #Save list of variables #Done in data transformation function now
-    # Write_Variables_To_TextFile(weight_dir, var_list)
-
 
  ###### #####  ###### ###### ###### ######     ####  #####    ##   #####  #    #
  #      #    # #      #          #  #         #    # #    #  #  #  #    # #    #
@@ -276,6 +287,7 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
 
 # --- Convert model to estimator and save model as frozen graph for c++
 
+    #FIXME -- can move to other class ?
     with tensorflow.compat.v1.Session() as sess: #Must first open a new session #Can't manage to run code below without this... (why?)
 
         print('\n'); print(colors.fg.lightblue, "--- Freeze graph...", colors.reset); print('\n')
@@ -308,12 +320,12 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
         text_file.close()
 
 
- #####  ######  ####  #    # #      #####  ####
- #    # #      #      #    # #        #   #
- #    # #####   ####  #    # #        #    ####
- #####  #           # #    # #        #        #
- #   #  #      #    # #    # #        #   #    #
- #    # ######  ####   ####  ######   #    ####
+ #    #   ##   #      # #####    ##   ##### #  ####  #    #
+ #    #  #  #  #      # #    #  #  #    #   # #    # ##   #
+ #    # #    # #      # #    # #    #   #   # #    # # #  #
+ #    # ###### #      # #    # ######   #   # #    # #  # #
+  #  #  #    # #      # #    # #    #   #   # #    # #   ##
+   ##   #    # ###### # #####  #    #   #   #  ####  #    #
 
         print('\n\n')
         print(colors.bg.orange, colors.bold, "##############################################", colors.reset)
@@ -333,16 +345,21 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
         #     print(colors.fg.lightgrey, "-- TEST SAMPLE  \t==> " + str(auc_score), colors.reset)
         #     print(colors.fg.lightgrey, "-- TRAIN `SAMPLE \t==> " + str(auc_score_train), colors.reset); print('\n')
 
-        #Get control results
-        list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses = Apply_Model_toTrainTestData(_nof_output_nodes, _processClasses_list, _labels_list, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, h5model_outname, x_control_firstNEvents)
+# //--------------------------------------------
+        #-- Get control results (printouts, plots, histos)
+        print('\n', colors.fg.lightblue, "--- Apply model to train & test data...", colors.reset, " (may take a while)\n")
+        list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses = Apply_Model_toTrainTestData(_nof_output_nodes, _labels_list, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, h5model_outname, x_control_firstNEvents, _parameterizedDNN, _listOperatorsParam, _maxEvents_perClass)
+
+        Control_Printouts(_nof_output_nodes, _labels_list, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses)
 
         Create_TrainTest_ROC_Histos(lumiName, _nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
 
         Create_Control_Plots(_regress, _nof_output_nodes, _labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, model, _metrics, _nof_output_nodes, weight_dir, history)
 
-        Create_Correlation_Plot(x, var_list, weight_dir)
+        Create_Correlation_Plot(x, _var_list, weight_dir)
 
-        Plot_Input_Features(x, y_process, PhysicalWeights_allClasses, var_list, weight_dir, _nof_output_nodes, False)
+        Plot_Input_Features(x, y_process, PhysicalWeights_allClasses, _var_list, weight_dir, _nof_output_nodes, _parameterizedDNN, False)
+# //--------------------------------------------
 
     #End [with ... as sess]
 # //--------------------------------------------
@@ -354,124 +371,6 @@ def Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_lis
 
 
 
-
-
-
-
-
-
-
-
-# //--------------------------------------------
-# //--------------------------------------------
-# //--------------------------------------------
-   ###    ########  ########  ##       ##    ##
-  ## ##   ##     ## ##     ## ##        ##  ##
- ##   ##  ##     ## ##     ## ##         ####
-##     ## ########  ########  ##          ##
-######### ##        ##        ##          ##
-##     ## ##        ##        ##          ##
-##     ## ##        ##        ########    ##
-
-##     ##  #######  ########  ######## ##
-###   ### ##     ## ##     ## ##       ##
-#### #### ##     ## ##     ## ##       ##
-## ### ## ##     ## ##     ## ######   ##
-##     ## ##     ## ##     ## ##       ##
-##     ## ##     ## ##     ## ##       ##
-##     ##  #######  ########  ######## ########
-# //--------------------------------------------
-# //--------------------------------------------
-# //--------------------------------------------
-
-def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_list, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName, x_control_firstNEvents):
-
-    print('\n', colors.fg.lightblue, "--- Apply model to train & test data...", colors.reset, " (may take a while)\n")
-
-    # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
-
-    list_xTrain_allClasses = []
-    list_xTest_allClasses = []
-    list_yTrain_allClasses = []
-    list_yTest_allClasses = []
-    list_PhysicalWeightsTrain_allClasses = []
-    list_PhysicalWeightsTest_allClasses = []
-
-    if nof_output_nodes == 1: #Binary
-        list_xTrain_allClasses.append(x_train[y_process_train==1]); list_yTrain_allClasses.append(y_train[y_process_train==1]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1])
-        list_xTrain_allClasses.append(x_train[y_process_train==0]); list_yTrain_allClasses.append(y_train[y_process_train==0]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==0])
-        list_xTest_allClasses.append(x_test[y_process_test==1]); list_yTest_allClasses.append(y_test[y_process_test==1]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==1])
-        list_xTest_allClasses.append(x_test[y_process_test==0]); list_yTest_allClasses.append(y_test[y_process_test==0]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==0])
-    else: #Multiclass
-        for i in range(len(_processClasses_list)):
-            list_xTrain_allClasses.append(x_train[y_process_train[:,i]==1]); list_yTrain_allClasses.append(y_train[y_process_train[:,i]==1]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train[:,i]==1])
-            list_xTest_allClasses.append(x_test[y_process_test[:,i]==1]); list_yTest_allClasses.append(y_test[y_process_test[:,i]==1]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,i]==1])
-
-
- #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
- #    # #    # #      #    # # #    #   #   # #    # ##   # #
- #    # #    # #####  #    # # #        #   # #    # # #  #  ####
- #####  #####  #      #    # # #        #   # #    # #  # #      #
- #      #   #  #      #    # # #    #   #   # #    # #   ## #    #
- #      #    # ###### #####  #  ####    #   #  ####  #    #  ####
-
-    #--- Load model
-    tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(savedModelName)
-
-    #--- Printout : check the outputs of each layer for 2 events
-    check_outputs_eachLayer = False
-    if check_outputs_eachLayer == True:
-        print(x_train[0:1])
-        for ilayer in range(0, len(model.layers)):
-            Printout_Outputs_FirstLayer(model, ilayer, x_train[0:1])
-
-    #Application (can also use : predict_classes, predict_proba)
-    list_predictions_train_allNodes_allClasses = []
-    list_predictions_test_allNodes_allClasses = []
-    for inode in range(nof_output_nodes):
-
-        list_predictions_train_allClasses = []
-        list_predictions_test_allClasses = []
-        for iclass in range(len(processClasses_list)):
-            list_predictions_train_allClasses.append(model.predict(list_xTrain_allClasses[iclass])[:,inode])
-            list_predictions_test_allClasses.append(model.predict(list_xTest_allClasses[iclass])[:,inode])
-
-        list_predictions_train_allNodes_allClasses.append(list_predictions_train_allClasses)
-        list_predictions_test_allNodes_allClasses.append(list_predictions_test_allClasses)
-
-    # -- Printout of some predictions
-    # np.set_printoptions(threshold=5) #If activated, will print full numpy arrays
-    # print("\n-------------- FEW EXAMPLES... --------------")
-    # for i in range(10):
-    #     if nof_output_nodes == 1:
-    #         if y_test[i]==1:
-    #             true_label = "signal"
-    #         else:
-    #             true_label = "background"
-    #         print("===> Prediction for %s event : %s" % (true_label, (list_predictions_test_allClasses[0])[i]))
-    #
-    #     else:
-    #         true_label = ''
-    #         for j in range(len(processClasses_list)):
-    #             if y_test[i][j]==1:
-    #                 true_label = labels_list[j]
-    #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
-    # print("--------------\n")
-
-    #-- Print predictions for first few events of first process => can compare with predictions obtained for same DNN/events using another code
-    # for j in range(x_control_firstNEvents.shape[0]):
-    #     print(x_control_firstNEvents[j])
-    #     print("===> Prediction for event", j," :", model.predict(x_control_firstNEvents)[j][0], '\n')
-
-    #Apply 2-sided KS test to train/test distributions, for first node / first process class
-    KS_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
-
-    #Other tests : Anderson-Darling, Chi-2, ...
-    # Anderson_Darling_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
-    # ChiSquare_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
-
-    return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses
 
 
 
@@ -514,8 +413,11 @@ def Apply_Model_toTrainTestData(nof_output_nodes, processClasses_list, labels_li
 # //--------------------------------------------
 # //--------------------------------------------
 
-# if len(sys.argv) == 2:
-    # nLep = "3l" if sys.argv[1] == True else False
-
 #----------  Manual call to DNN training function
-Train_Test_Eval_DNN(_regress, _lumi_years, _processClasses_list, _labels_list, var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test)
+Train_Test_Eval_DNN(_regress, _target, _parameterizedDNN, _listOperatorsParam, _lumi_years, _processClasses_list, _labels_list, _var_list, cuts, _nepochs, _batchSize, _maxEvents_perClass, _splitTrainEventFrac, _nEventsTot_train, _nEventsTot_test)
+
+# //--------------------------------------------
+#-- Set up the command line arguments
+# if __name__ == "__main__":
+# parser = argparse.ArgumentParser()
+# parser.add_argument("xxx", metavar="xxx", help="help")

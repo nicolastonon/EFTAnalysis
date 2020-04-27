@@ -126,7 +126,7 @@ class TopEFT_analysis
     std::vector<TString> var_list_DNN; //Input features of DNN training may differ from those declared in 'analysis_main.cxx'
     std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from DNN info file to rescale input features on the fly
 
-    TString region; //"SR" / "CR_ttZ" / "CR_ttW"
+    TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category
 	TString signal_process;
     TString dir_ntuples; //Path to base dir. containing Ntuples

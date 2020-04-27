@@ -18,12 +18,13 @@ int main(int argc, char **argv)
     TString signal_process = "tZq";
     bool use_systematics = false; //true <-> will compute/store systematics selected below
 
+    TString region_choice = "tWZ"; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ'
+
     //-- MVA
     TString classifier_name = "DNN"; //'BDT' or 'DNN'
 
     //--- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString region_choice = "SR";
     TString template_name = "";
     bool show_pulls_ratio = false;
 
@@ -45,9 +46,9 @@ int main(int argc, char **argv)
 //NB : years must be placed in the right order !
 
 	vector<TString> set_lumi_years;
-    // set_lumi_years.push_back("2016");
+    set_lumi_years.push_back("2016");
     set_lumi_years.push_back("2017");
-    // set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2018");
 
 //-----------------------------------------------------------------------------------------
 //   ######  ##     ## ########  ######
@@ -66,8 +67,7 @@ int main(int argc, char **argv)
 	vector<bool> set_v_cut_IsUsedForBDT;
 
     // set_v_cut_name.push_back("nJets");  set_v_cut_def.push_back("==3 || ==4"); set_v_cut_IsUsedForBDT.push_back(false);
-
-    set_v_cut_name.push_back("passedBJets");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false); //enforce final tZq 3l selection
+    // set_v_cut_name.push_back("passedBJets");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false); //enforce final tZq 3l selection
 
 //---------------------------------------------------------------------------
 //  ######  ##     ##    ###    ##    ## ##    ## ######## ##        ######
@@ -109,11 +109,17 @@ int main(int argc, char **argv)
 
     //Private MC production including EFT weights
     // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
-    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
+    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
 
     //Signal(s)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
     thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
+
+    //tX
+    thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("tHq"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("tHW"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ST"); thesamplegroups.push_back("tX");
 
     //ttX
     thesamplelist.push_back("ttH"); thesamplegroups.push_back("ttX");
@@ -125,12 +131,6 @@ int main(int argc, char **argv)
     thesamplelist.push_back("ttWH"); thesamplegroups.push_back("ttX");
     thesamplelist.push_back("tttt"); thesamplegroups.push_back("ttX");
 
-    //tX
-    thesamplelist.push_back("tHq"); thesamplegroups.push_back("tX");
-    thesamplelist.push_back("tHW"); thesamplegroups.push_back("tX");
-    thesamplelist.push_back("ST"); thesamplegroups.push_back("tX");
-    // thesamplelist.push_back("tGJets"); thesamplegroups.push_back("tX"); //useless ?
-
     //VV)
     thesamplelist.push_back("WZ"); thesamplegroups.push_back("VV");
     thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VV");
@@ -140,7 +140,6 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VV");
     thesamplelist.push_back("WZ2l2q"); thesamplegroups.push_back("VV");
     thesamplelist.push_back("ZZ2l2q"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("ZG2l2g"); thesamplegroups.push_back("VV");
 
     //DY (VG?)
     thesamplelist.push_back("DY"); thesamplegroups.push_back("DY");
@@ -193,6 +192,10 @@ int main(int argc, char **argv)
     vector<TString> set_v_add_var_names;
     // set_v_add_var_names.push_back("nMediumBJets");
 
+    // set_v_add_var_names.push_back("NJets"); //new name
+    // set_v_add_var_names.push_back("NBJets"); //new name
+    set_v_add_var_names.push_back("nJets");
+    set_v_add_var_names.push_back("nBJets");
     set_v_add_var_names.push_back("metEt");
     set_v_add_var_names.push_back("recoZ_Mass");
     set_v_add_var_names.push_back("Mass_tZ"); //NaN?

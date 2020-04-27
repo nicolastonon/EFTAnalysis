@@ -41,7 +41,7 @@ from Utils.Helper import normalize
 #Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
 
 #Define here the Keras DNN model
-def Create_Model(regress, outdir, DNN_name, nof_outputs, var_list, shifts, scales):
+def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, parameterizedDNN, listOperatorsParam, DNN_name="DNN"):
 
     use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
@@ -50,6 +50,7 @@ def Create_Model(regress, outdir, DNN_name, nof_outputs, var_list, shifts, scale
 
     # Define model
     model = Sequential()
+
     num_input_variables = len(var_list) #Nof input variables to be read by the DNN
 
     # my_init = 'Zeros' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
@@ -57,6 +58,7 @@ def Create_Model(regress, outdir, DNN_name, nof_outputs, var_list, shifts, scale
 
     my_init = 'he_normal'
     # my_init = 'glorot_normal'
+    # my_init = 'glorot_uniform'
     # my_init = 'lecun_normal'
 
     #Regularizers
@@ -71,6 +73,8 @@ def Create_Model(regress, outdir, DNN_name, nof_outputs, var_list, shifts, scale
     # model.add(Activation('selu'))
 
     model_choice = 2
+
+    if parameterizedDNN==True: model_choice=1
 
     if regress==False: #Classification
 

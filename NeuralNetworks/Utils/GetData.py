@@ -1,14 +1,6 @@
 # Read ROOT files, shape/transform the data (x : input features, y : labels), compute event reweights, ...
 #NB : if want to add a validation test, could simply split the test sample again with train_test_split...
 
-# //--------------------------------------------
-#Filtering out manually some unimportant warnings
-import warnings
-warnings.filterwarnings("ignore", message="numpy.dtype size changed")
-warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
-warnings.filterwarnings("ignore", message="Conversion of the second argument of issubdtype from `float` to `np.floating` is deprecated")
-warnings.filterwarnings("ignore", message="FutureWarning: in the future insert will treat boolean arrays and array-likes as boolean index instead of casting it to integer")
-# --------------------------------------------
 import ROOT
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 import numpy as np
@@ -28,7 +20,14 @@ from tensorflow.keras import utils
 
 from Utils.EFTUtilities import *
 from Utils.ColoredPrintout import colors
-from Utils.Helper import get_normalization_iqr, normalize
+from Utils.Helper import get_normalization_iqr, normalize, unison_shuffled_copies
+
+#Filtering out manually some unimportant warnings #NB: sklean resets warning filters
+import warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+warnings.filterwarnings("ignore", message="Conversion of the second argument of issubdtype from `float` to `np.floating` is deprecated")
+warnings.filterwarnings("ignore", message="FutureWarning: in the future insert will treat boolean arrays and array-likes as boolean index instead of casting it to integer")
 
 np.set_printoptions(threshold=np.inf) #If activated, will print full numpy arrays
 # //--------------------------------------------
@@ -61,45 +60,51 @@ np.set_printoptions(threshold=np.inf) #If activated, will print full numpy array
 # //--------------------------------------------
 
 #Call sub-function to read/store/shape the data
-def Get_Data(regress, weight_dir, lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts, nof_output_nodes, maxEvents_perClass, splitTrainEventFrac, nEventsTot_train, nEventsTot_test, lumiName, transfType='quantile'):
+def Get_Data(regress, weight_dir, lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts, nof_output_nodes, maxEvents_perClass, splitTrainEventFrac, nEventsTot_train, nEventsTot_test, lumiName, parameterizedDNN, listOperatorsParam, transfType='quantile'):
 
-    #Get data from TFiles
+    #-- Get data from TFiles
     list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses = Read_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_list, cuts)
 
-    #For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point)
-    list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients(processClasses_list, labels_list, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
+    #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
+    list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses = Get_EFT_FitCoefficients(processClasses_list, labels_list, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #Concatenate data lists into (properly shaped) arrays
-    x, list_weights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, list_nrows_class = Shape_Data(list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, maxEvents_perClass, nof_output_nodes)
+    #-- If the DNN is parameterized on Wilson coeffs., need to artificially extend the dataset to train on many different points in EFT phase space
+    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses = Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses, nPointsPerOp=10, minWC=-5, maxWC=5)
 
-    #Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
-    y, y_process = Get_Targets(regress, nof_output_nodes, list_nrows_class)
+    #-- Concatenate and reshape arrays
+    x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, list_nentries_class = Shape_Data(list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, maxEvents_perClass, nof_output_nodes, parameterizedDNN)
 
-    #Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
+    #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
+    y, y_process = Get_Targets(regress, nof_output_nodes, processClasses_list, list_nentries_class, parameterizedDNN, targetClass_allClasses)
+
+    #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses)
 
-    #Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
+    #-- Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
     x_control_firstNEvents = x[0:10,:]
 
     #-- Define training & testing subsamples (takes care of splitting + shuffling)
     #http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
     #Default args : shuffle=True <-> shuffle events ; random_state=None <-> random seed ; could also use stratify=y so that the final splitting respects the class proportions of the array y, if desired (else : random)
+    #NB : to also split into val dataset, could call the function several times with same rnd seed (1:train, 2:test, 3:val)
     if (nEventsTot_train is not -1) and (nEventsTot_test is not -1): #Specify nof train/test events
         _trainsize=nEventsTot_train; _testsize=nEventsTot_test
     else: #Specify train/test relative proportions
         _trainsize=splitTrainEventFrac; _testsize=1-splitTrainEventFrac
 
-    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
+    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
+    # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
-    #Get rescaling parameters for each input feature, given to first DNN layer to normalize features -- derived from train data alone
-    xTrainRescaled, shifts, scales = Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType)
+    #-- Get rescaling parameters for each input feature, given to first DNN layer to normalize features -- derived from train data alone
+    xTrainRescaled, shifts, scales = Transform_Inputs(weight_dir, x_train, var_list, lumiName, parameterizedDNN, transfType)
 
     print(colors.fg.lightblue, "===========", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
     print(colors.fg.lightblue, "===========\n", colors.reset)
 
-    return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
+    return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
+    # return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -143,8 +148,7 @@ def Read_Data(lumi_years, ntuples_dir, processClasses_list, labels_list, var_lis
 
         list_x_proc = [] #List of x-arrays storing the values of input features for all events, for all considered years -- 1 array per physics process (sample)
         list_weights_proc = [] #Idem for central event weights
-        list_EFTweights_proc = [] #Idem for EFT reweights
-        # list_EFT_SWE_proc = [] #For each EFT reweight, store the corresponding Sum of Weight (SWE) for proper rescaling
+        list_EFTweights_proc = []; list_EFTweightIDs_proc = [] #Idem for EFT reweights
         for process in procClass: #Loop on physics processes (samples)
 
             isPrivMCsample = False
@@ -275,21 +279,35 @@ def Read_Data_EFT_File(lumi_years, ntuples_dir, process, cuts):
 #Once these fit coefficients are extracted for a given event, they can be used to extrapolate the event weight at any new EFT point
 def Get_EFT_FitCoefficients(processClasses_list, labels_list, list_EFTweights_allClasses, list_EFTweightIDs_allClasses):
 
+    # for iclass in range(len(list_EFTweights_allClasses)): list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5] #For debugging
+
+    list_indexSM_allClasses = [] #Store index of SM point for all classes
     list_EFT_FitCoeffs_allClasses = []
     for iclass in range(len(processClasses_list)): #Loop on classes of physics processes
 
         if "PrivMC" in processClasses_list[iclass][0] and "PrivMC" in labels_list[iclass]: #Check whether EFT reweights should be looked for
 
-            operatorNames, operatorWCs = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0]) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process
+            operatorNames, operatorWCs, idx_SM = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0]) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process
             n_components, components = Find_Components(operatorNames[0]) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
             effWC_components = Get_EffectiveWC_eachComponents(n_components, components, operatorWCs) #Determine the 'effective WC' values associated with each component, for each benchmark point
             fit_coeffs = Get_FitCoefficients(effWC_components, benchmark_weights=list_EFTweights_allClasses[iclass]) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
 
+            #-- Debug
+            # print('WCs',effWC_components.shape,  effWC_components[:5])
+            # print('coeffs', fit_coeffs.shape, fit_coeffs[:5])
+            # print('w0', np.dot(effWC_components[0],np.transpose(fit_coeffs[0])))
+            # print('w1 ev1', np.dot(effWC_components[1],np.transpose(fit_coeffs[1])))
+            # print('w2 ev2', np.dot(effWC_components[2],np.transpose(fit_coeffs[2])))
+            # print('w2 ev2', np.dot(np.transpose(fit_coeffs[2]), effWC_components[2]))
+            # print('bench', list_EFTweights_allClasses[iclass][:3])
+            # exit(1)
+
             list_EFT_FitCoeffs_allClasses.append(fit_coeffs) #Append fit coeffs to list
+            list_indexSM_allClasses.append(idx_SM)
 
         else: list_EFT_FitCoeffs_allClasses.append(np.full(shape=len(list_EFTweightIDs_allClasses[iclass]), fill_value=0)) #If process is not EFT, fill with dummy value for now (maintain ordering)
 
-    return list_EFT_FitCoeffs_allClasses
+    return list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses
 
 
 
@@ -315,82 +333,93 @@ def Get_EFT_FitCoefficients(processClasses_list, labels_list, list_EFTweights_al
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Shape the data into arrays (per process, lumiYear, etc.)
-def Shape_Data(list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, maxEvents_perClass, nof_output_nodes):
+#Properly shape the arrays and concatenate them (for all years, processes, etc.)
+#NB: nominal weights get concatenated in dedicated function
+def Shape_Data(list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, maxEvents_perClass, nof_output_nodes, parameterizedDNN):
 
-    #Reshape as normal arrays (root_numpy uses different format) : 1 column per variable, 1 line per event
+    #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
+    #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
+    #NB: EFT weights/IDs arrays already have proper 2D shapes (due to np.stack ?)
     list_x_arrays_allClasses = []
-    for x_class in list_x_allClasses:
-        list_x_arrays_allClasses.append(x_class.view(np.float32).reshape(x_class.shape + (-1,)) ) #could also use 'np.stack' ?
+    for iclass in range(len(list_x_allClasses)):
+        list_x_arrays_allClasses.append( list_x_allClasses[iclass].view(np.float32).reshape( (len(list_x_allClasses[iclass]), -1) ) ) #np.view <-> different view of same data ; here, enforces proper data type. Reshape is used to 'unroll' 1d elements into 2d ('-1' can be used when the new dimension can be guessed by numpy from the input data)
 
     #--- Get nof entries for each class
-    list_nrows_class = []
-    # total_rows = 0
-    for i in range(len(list_x_arrays_allClasses)):
-        list_nrows_class.append(list_x_arrays_allClasses[i].shape[0])
-        # total_rows+= list_x_arrays_allClasses[i].shape[0]
-    # print(total_rows)
+    list_nentries_class = []
+    for iclass in range(len(list_x_arrays_allClasses)): list_nentries_class.append(len(list_x_arrays_allClasses[iclass]))
 
-    # print(list_EFTweightIDs_allClasses[:][:10])
-
-#--- Max nof events for train.test phases
+    #--- Max nof events for train/test phases
     if maxEvents_perClass is not -1:
 
         #Skim each process class (keep only maxEvents_perClass events) ; skim all relevant arrays coherently
-        for i in range(len(list_x_arrays_allClasses)):
+        for iclass in range(len(list_x_arrays_allClasses)):
 
-            if list_nrows_class[i] > maxEvents_perClass:
+            if list_nentries_class[iclass] > maxEvents_perClass:
 
-                #FIXME -- shuffling all arrays does not work ?
                 #-- If only consider part of the process class data, shuffle events, so that the resulting dataset is representative of the event proportions of each process within the class (else, it could happen that e.g. only events from the first process get considered)
-                # unison_shuffled_copies(list_x_arrays_allClasses[i], list_weights_allClasses[i])
-                indices = np.arange(list_x_arrays_allClasses[i].shape[0])
-                np.random.shuffle(indices) #Get shuffled indices
-                list_x_arrays_allClasses[i] = list_x_arrays_allClasses[i][indices] #Shuffle input features according to indices
-                list_weights_allClasses[i] = list_weights_allClasses[i][indices] #Shuffle event weights according to indices
-                if list_EFTweights_allClasses[i].shape[0] is not 1: #If private sample, also shuffle EFT weights according to indices
-                    list_EFTweights_allClasses[i] = list_EFTweights_allClasses[i][indices]
-                    list_EFTweightIDs_allClasses[i] = list_EFTweightIDs_allClasses[i][indices]
-                    list_EFT_FitCoeffs_allClasses[i] = list_EFT_FitCoeffs_allClasses[i][indices]
+                #NB: only arrays potentially used for training (x, weight, theta) must be shuffled simultaneously
+                if len(list_EFTweights_allClasses[iclass]) <= 1: arr=[list_x_arrays_allClasses,list_weights_allClasses]
+                else: arr=[list_x_arrays_allClasses,list_weights_allClasses,list_thetas_allClasses,list_targetClass_allClasses]
+                unison_shuffled_copies(arr)
 
-                # list_x_allClasses[i] = list_x_allClasses[i][0:maxEvents_perClass] #Not needed anymore ?
-                list_nrows_class[i] = maxEvents_perClass
-                list_x_arrays_allClasses[i] = list_x_arrays_allClasses[i][0:maxEvents_perClass]
-                list_weights_allClasses[i] = list_weights_allClasses[i][0:maxEvents_perClass]
-                list_EFTweights_allClasses[i] = list_EFTweights_allClasses[i][0:maxEvents_perClass]
-                list_EFTweightIDs_allClasses[i] = list_EFTweightIDs_allClasses[i][0:maxEvents_perClass]
-                list_EFT_FitCoeffs_allClasses[i] = list_EFT_FitCoeffs_allClasses[i][0:maxEvents_perClass]
+                list_nentries_class[iclass] = maxEvents_perClass
+                list_tmp = [list_x_arrays_allClasses, list_weights_allClasses, list_thetas_allClasses,list_targetClass_allClasses]
+                for l in list_tmp:
+                    if len(l)>0: l[iclass] = l[iclass][0:maxEvents_perClass]
 
-            for j in range(len(list_x_arrays_allClasses)):
-                if i is not j:
+            '''
+            #-- Only needed if want to propagate EFT arrays further through the code, and therefore need to shape them properly even when they are empty. Not needed for now
+            for jclass in range(len(list_x_arrays_allClasses)):
+                if iclass is not jclass:
 
-                    #For central samples (dummy array of EFT weights is 1D instead of 2D), reshape to same nof columns (<-> nof reweight points) as in EFT samples, so that this array could be manipulated identically for all classes
-                    if list_EFTweights_allClasses[i].ndim is 2 and list_EFTweights_allClasses[j].ndim is 1:
-                        list_EFTweights_allClasses[j] = np.full(shape=(list_EFTweights_allClasses[i].shape[0],list_EFTweights_allClasses[i].shape[1]), fill_value=0.)
-                        list_EFTweightIDs_allClasses[j] = np.full(shape=(list_EFTweightIDs_allClasses[i].shape[0],list_EFTweightIDs_allClasses[i].shape[1]), fill_value='-1', dtype=object)
-                        list_EFT_FitCoeffs_allClasses[j] = np.full(shape=(list_EFT_FitCoeffs_allClasses[i].shape[0],list_EFT_FitCoeffs_allClasses[i].shape[1]), fill_value=0.)
+                    #-- For central samples (dummy array of EFT weights is 1D instead of 2D), reshape to same nof columns (<-> nof reweight points) as in EFT samples, so that this array could be manipulated identically for all classes
+                    if list_EFTweights_allClasses[iclass].ndim is 2 and list_EFTweights_allClasses[jclass].ndim is 1:
+                        list_EFTweights_allClasses[jclass] = np.full(shape=(list_EFTweights_allClasses[iclass].shape[0],list_EFTweights_allClasses[iclass].shape[1]), fill_value=0.)
+                        list_EFTweightIDs_allClasses[jclass] = np.full(shape=(list_EFTweightIDs_allClasses[iclass].shape[0],list_EFTweightIDs_allClasses[iclass].shape[1]), fill_value='-1', dtype=object)
+                        list_EFT_FitCoeffs_allClasses[jclass] = np.full(shape=(list_EFT_FitCoeffs_allClasses[iclass].shape[0],list_EFT_FitCoeffs_allClasses[iclass].shape[1]), fill_value=0.)
+                        list_thetas_allClasses[jclass] = np.full(shape=(list_thetas_allClasses[iclass].shape[0],list_EFT_FitCoeffs_allClasses[iclass].shape[1]), fill_value=0.)
 
-                    #Also, different EFT samples may have different numbers of columns (<-> nof benchmark reweights) --> Force them to have same nof columns, for manipulation
-                    elif list_EFTweights_allClasses[i].ndim is 2 and list_EFTweights_allClasses[j].ndim is 2 and list_EFTweights_allClasses[i].shape[1] > list_EFTweights_allClasses[j].shape[1]:
-                        tmp = np.zeros((list_EFTweights_allClasses[j].shape[0],list_EFTweights_allClasses[i].shape[1]))
-                        tmp[:,:-1] = list_EFTweights_allClasses[j]
-                        list_EFTweights_allClasses[j] = tmp
+                    #-- Also, different EFT samples may have different numbers of columns (<-> nof benchmark reweights) --> Force them to have same nof columns, for manipulation
+                    elif list_EFTweights_allClasses[iclass].ndim is 2 and list_EFTweights_allClasses[jclass].ndim is 2 and list_EFTweights_allClasses[iclass].shape[1] > list_EFTweights_allClasses[jclass].shape[1]:
+                        tmp = np.zeros((list_EFTweights_allClasses[jclass].shape[0],list_EFTweights_allClasses[iclass].shape[1]))
+                        tmp[:,:-1] = list_EFTweights_allClasses[jclass]
+                        list_EFTweights_allClasses[jclass] = tmp
 
-                        tmp = np.full(shape=(list_EFTweightIDs_allClasses[j].shape[0],list_EFTweightIDs_allClasses[i].shape[1]), fill_value='-1', dtype=object)
-                        tmp[:,:-1] = list_EFTweightIDs_allClasses[j]
-                        list_EFTweightIDs_allClasses[j] = tmp
+                        tmp = np.full(shape=(list_EFTweightIDs_allClasses[jclass].shape[0],list_EFTweightIDs_allClasses[iclass].shape[1]), fill_value='-1', dtype=object)
+                        tmp[:,:-1] = list_EFTweightIDs_allClasses[jclass]
+                        list_EFTweightIDs_allClasses[jclass] = tmp
 
-                        tmp = np.zeros(shape=(list_EFT_FitCoeffs_allClasses[j].shape[0],list_EFT_FitCoeffs_allClasses[i].shape[1]) )
-                        tmp[:,:-1] = list_EFT_FitCoeffs_allClasses[j]
-                        list_EFT_FitCoeffs_allClasses[j] = tmp
+                        tmp = np.zeros(shape=(list_EFT_FitCoeffs_allClasses[jclass].shape[0],list_EFT_FitCoeffs_allClasses[iclass].shape[1]) )
+                        tmp[:,:-1] = list_EFT_FitCoeffs_allClasses[jclass]
+                        list_EFT_FitCoeffs_allClasses[jclass] = tmp
 
-    #List of arrays --> single concatenated array
+                        tmp = np.zeros(shape=(list_thetas_allClasses[jclass].shape[0],list_thetas_allClasses[iclass].shape[1]) )
+                        tmp[:,:-1] = list_thetas_allClasses[jclass]
+                        list_thetas_allClasses[jclass] = tmp
+            '''
+
+    #-- Transform list of arrays --> single concatenated array
     x = np.concatenate(list_x_arrays_allClasses, 0)
-    EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0)
-    EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0)
-    EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
+    # EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0)
+    # EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0)
+    # EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
 
-    return x, list_weights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, list_nrows_class
+    #-- Parameterized DNN: pass the values of the WCs as input features
+    if parameterizedDNN==True and len(list_thetas_allClasses)>0:
+        thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
+        targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
+
+        #Theta has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the DNN will get trained on --> Only parameterize DNN on such operators, not the others (not used)
+        theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
+        targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)]
+        x = np.append(x, theta_tmp, axis=1)
+    else:
+        thetas_allClasses = np.zeros((1,1)); targetClass_allClasses = thetas_allClasses #Dummy arrays
+
+    # print(x.shape)
+
+    return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, list_nentries_class
+    # return x, list_weights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, thetas_allClasses, list_nentries_class
 
 
 
@@ -416,38 +445,52 @@ def Shape_Data(list_x_allClasses, list_weights_allClasses, list_EFTweights_allCl
 
 #Create and return array 'y' <-> target for classification/regression
 #Create and return array 'y_process' <-> will keep track of which process each event belongs to (since for regression, target will differ from 0,1)
-def Get_Targets(regress, nof_output_nodes, list_nrows_class):
+def Get_Targets(regress, nof_output_nodes, processClasses_list, list_nentries_class, parameterizedDNN, targetClass_allClasses):
 
-#Default : classification
+#-- CLASSIFICATION
+#NB: execute these commands also for regression, in order to get array 'y_process'
 
-    #Create array of labels (1 row per event, 1 column per class)
-    if nof_output_nodes == 1: #binary, single column => sig 1, bkg 0
-        y_integer_sig = np.ones(list_nrows_class[0]) #'1' = signal
-        y_integer_bkg = np.zeros(list_nrows_class[1]) #'0' = bkg
-        y = np.concatenate((y_integer_sig, y_integer_bkg), axis=0)
-    else: #multiclass, n columns => sig 1, bkg 0
-        list_y_integer_allClasses = []
-        for i in range(len(list_nrows_class)): #Concatenate subsequent classes
-            list_y_integer_allClasses.append(np.full((list_nrows_class[i]), i) ) #Return a new array of given shape and type, filled with fill_value <-> class
-        y_integer = np.concatenate(list_y_integer_allClasses, 0)
-        y = utils.to_categorical(y_integer, num_classes=nof_output_nodes) #Converts a class vector (integers) to binary class matrix <-> One-hot encode the integers
+    if parameterizedDNN == False: #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
 
-    y_process = y #For classification, target specifies process
+        #Create array of labels (1 row per event, 1 column per class)
+        if nof_output_nodes == 1: #binary, single column => sig 1, bkg 0
+            y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
+            y = y_integer_sig
+            if len(processClasses_list)>1:
+                y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
+                y = np.concatenate((y, y_integer_bkg), axis=0)
 
-    if regress==True: #Regression -- can modify target values
-        if nof_output_nodes == 1:
+        else: #multiclass, 1 column per class (y=1 for corresponding process, 0 for others)
+            list_y_integer_allClasses = []
 
-            #Target = 0,1
-            y_integer_sig = np.ones(list_nrows_class[0]) #'1' = signal
-            y_integer_bkg = np.zeros(list_nrows_class[1]) #'0' = bkg
+            #For each process class, create a 1D array with shape (n_entries) filled with integer associated with the class. Repeat for each class, concatenate, and one-hot encode
+            for iclass in range(len(list_nentries_class)): #Concatenate subsequent classes
+                list_y_integer_allClasses.append(np.full((list_nentries_class[iclass]), iclass) )
+            y_integer = np.concatenate(list_y_integer_allClasses, 0)
+            y = utils.to_categorical(y_integer, num_classes=nof_output_nodes)
+
+    elif parameterizedDNN == True: #Separate SM/EFT at any point in EFT phase space --> Target corresponds to EFT operator which is activated in a given event (0 <-> SM)
+        y = targetClass_allClasses #Info already stored when defining EFT points to train on
+
+    y_process = y #For classification, target corresponds to process
+
+#-- REGRESSION
+
+    if regress==True:
+
+        if nof_output_nodes == 1: #Target = 0,1
+            y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
+            y = y_integer_sig
 
             #Targets randomly sampled around 0,1 -- testing
-            # y_integer_sig = np.random.normal(loc=1.0, scale=0.05, size=list_nrows_class[0])
-            # y_integer_bkg = np.random.normal(loc=0.0, scale=0.05, size=list_nrows_class[1])
+            # y_integer_sig = np.random.normal(loc=1.0, scale=0.05, size=list_nentries_class[0])
+            # y_integer_bkg = np.random.normal(loc=0.0, scale=0.05, size=list_nentries_class[1])
 
-            y = np.concatenate((y_integer_sig, y_integer_bkg), axis=0)
-        else:
-            print('ERROR ! Not supported yet...')
+            if len(processClasses_list)>1:
+                y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+
+        else: print('ERROR ! Not supported yet...'); exit(1)
 
     return y, y_process
 
@@ -535,9 +578,11 @@ def Get_Events_Weights(processClasses_list, labels_list, list_weights_allClasses
 # //--------------------------------------------
 
 #-- Get normalization parameters from training data. Give these parameters to DNN input layers to directly normalize all inputs
-def Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType='quantile'):
+def Transform_Inputs(weight_dir, x_train, var_list, lumiName, parameterizedDNN, transfType='quantile'):
 
+    nmax = 100000 #Don't compute means shifts and scales on more than nmax events (slow)
     np.set_printoptions(precision=3)
+    xTrainRescaled = None
 
     # print('Before transformation :', x_train[0:5,:])
 
@@ -549,26 +594,25 @@ def Transform_Inputs(weight_dir, x_train, var_list, lumiName, transfType='quanti
     # a = median ; b = scale
     if transfType == 'quantile':
         frac=0.95 #Fraction of event within [-1;+1] -- 0.68 or 0.95
-        shift_, scale_ = get_normalization_iqr(x_train, frac)
-        xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
+        shift_, scale_ = get_normalization_iqr(x_train[:nmax], frac)
+        if parameterizedDNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
         # xTrainRescaled = (x_train - shift_) / scale_ #Apply transformation on train events -- for control
 
     #--- RANGE SCALING
     # a = min ; b = scale
     elif transfType == 'range':
-        scaler = MinMaxScaler(feature_range=(-1, 1)).fit(x_train) #Conpute macro parameters
+        scaler = MinMaxScaler(feature_range=(-1, 1)).fit(x_train[:nmax]) #Conpute macro parameters
         shift_ = scaler.min_
         scale_ = scaler.scale_
-        x_train = scaler.fit(x_train) #Get params
-        xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        if parameterizedDNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
 
     #--- RESCALE TO UNIT GAUSSIAN -- https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
     # a = mean ; b = stddev
     elif transfType == 'gauss':
-        scaler = StandardScaler().fit(x_train) #Get params
+        scaler = StandardScaler().fit(x_train[:nmax]) #Get params
         shift_ = scaler.mean_
         scale_ = scaler.scale_ # = np.sqrt(var_)
-        xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        if parameterizedDNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
 
     text_file = open(weight_dir + "DNN_infos.txt", "w")
 
