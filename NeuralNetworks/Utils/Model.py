@@ -41,17 +41,21 @@ from Utils.Helper import normalize
 #Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
 
 #Define here the Keras DNN model
-def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, parameterizedDNN, listOperatorsParam, DNN_name="DNN"):
+def Create_Model(opts, outdir, var_list, shifts, scales, DNN_name="DNN"):
 
     use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
     use_dropout = True #True <-> Activate dropout for each dense layer by amount 'droprate' to mitigate overtraining
-    droprate = 0.5
+    droprate = 0.4
+
+# //--------------------------------------------
+    nof_outputs = opts["nofOutputNodes"]
 
     # Define model
     model = Sequential()
 
     num_input_variables = len(var_list) #Nof input variables to be read by the DNN
+    # print(num_input_variables)
 
     # my_init = 'Zeros' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
     # my_init = 'Ones' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
@@ -72,11 +76,9 @@ def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, paramet
     # model.add(PReLU(alpha_initializer=my_init))
     # model.add(Activation('selu'))
 
-    model_choice = 2
+    model_choice = 1
 
-    if parameterizedDNN==True: model_choice=1
-
-    if regress==False: #Classification
+    if opts["regress"] == False: #Classification
 
 #-- List different models, by order of complexity
 
@@ -107,17 +109,19 @@ def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, paramet
         #Model 1 -- simple
         if model_choice == 1:
 
+            nNeurons = 50
+
             #Define some layer types
-            myDense = Dense(50, kernel_initializer=my_init, activation='relu')
+            myDense = Dense(nNeurons, kernel_initializer=my_init, activation='relu')
 
            # //--------------------------------------------
             if use_normInputLayer == True : # Add first a normalization layer
                 model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
                 model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
                 # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
-                model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
+                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
             else:
-                model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
             if use_batchNorm==True:
                 model.add(BatchNormalization())
             # if use_dropout==True:
@@ -135,10 +139,8 @@ def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, paramet
             # if use_dropout==True:
             #     model.add(Dropout(droprate)) #No dropout before output layer ?
 
-            if nof_outputs == 1 :
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-            else:
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
+            if nof_outputs == 1: model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
+            else: model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
            # //--------------------------------------------
 
                                         #####
@@ -152,7 +154,7 @@ def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, paramet
         #Model 2
         elif model_choice == 2:
 
-            nNeurons = 150
+            nNeurons = 100
 
            # //--------------------------------------------
             if use_normInputLayer == True :
@@ -258,7 +260,7 @@ def Create_Model(regress, outdir, nof_outputs, var_list, shifts, scales, paramet
 # //--------------------------------------------
 # //--------------------------------------------
 
-    elif regress==True: #Regression
+    elif opts["regress"] == True: #Regression
 
         nNeurons = 150
 

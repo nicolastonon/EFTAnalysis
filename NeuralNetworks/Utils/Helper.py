@@ -10,18 +10,23 @@ import tensorflow
 import keras
 import pandas as pd
 import re
+import os
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
 
 # //--------------------------------------------
-##     ## ######## ##       ########  ######## ########
-##     ## ##       ##       ##     ## ##       ##     ##
-##     ## ##       ##       ##     ## ##       ##     ##
-######### ######   ##       ########  ######   ########
-##     ## ##       ##       ##        ##       ##   ##
-##     ## ##       ##       ##        ##       ##    ##
-##     ## ######## ######## ##        ######## ##     ##
+# //--------------------------------------------
+# //--------------------------------------------
+ ######   ######## ##    ## ######## ########     ###    ##
+##    ##  ##       ###   ## ##       ##     ##   ## ##   ##
+##        ##       ####  ## ##       ##     ##  ##   ##  ##
+##   #### ######   ## ## ## ######   ########  ##     ## ##
+##    ##  ##       ##  #### ##       ##   ##   ######### ##
+##    ##  ##       ##   ### ##       ##    ##  ##     ## ##
+ ######   ######## ##    ## ######## ##     ## ##     ## ########
+# //--------------------------------------------
+# //--------------------------------------------
 # //--------------------------------------------
 
 #-- Automatically close matplotlib plot after some time
@@ -69,66 +74,7 @@ class TimeHistory(tensorflow.keras.callbacks.Callback):
     def on_epoch_end(self, batch, logs={}):
         self.times.append(time.time() - self.epoch_time_start)
 
-# //--------------------------------------------
-# //--------------------------------------------
-#-- Get name corresponding to the data-taking years which are considered in the DNN training
-def Get_LumiName(lumi_years):
 
-    # Set a unique name to each combination of year(s)
-    if len(lumi_years) == 1:
-        lumiName = lumi_years[0]
-    elif len(lumi_years) == 2:
-        if lumi_years[0] == "2016" and lumi_years[1] == "2017":
-            lumiName = "201617"
-        elif lumi_years[0] == "2016" and lumi_years[1] == "2018":
-            lumiName = "201618"
-        elif lumi_years[0] == "2017" and lumi_years[1] == "2018":
-            lumiName = "201718"
-    elif len(lumi_years) == 3:
-        lumiName = "Run2"
-    else:
-        print(colors.bold, colors.bg.red, 'ERROR : wrong lumi_years values !', colors.reset)
-        exit(1)
-
-    return lumiName
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-#Sanity checks of input args
-def SanityChecks_Parameters(processClasses_list, labels_list, regress, target, parameterizedDNN, listOperatorsParam):
-
-    if len(processClasses_list) == 0:
-        print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
-    elif len(processClasses_list) is not len(labels_list):
-        print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
-
-    for procClass, label in zip(processClasses_list, labels_list):
-        if "PrivMC" in label and len(procClass) > 1:
-            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset); exit(1)
-
-    onlyCentralSample=False #Check whether all training samples are central samples
-    centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
-    onlySMEFT=False #Check whether all training samples are SM/EFT private samples
-    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0
-    for label in labels_list:
-        if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
-        elif("PrivMC" in label): nSMEFTSamples+=1 #E.g. 'PrivMC_tZq'
-        else: ncentralSamples+=1 #E.g. 'tZq'
-
-    if nSMEFTSamples == len(labels_list): onlySMEFT=True
-    elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
-    elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
-    else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
-
-    if parameterizedDNN==True and onlySMEFT==False:
-        print(colors.bold, colors.fg.red, 'Parameterized DNN supported for SM/EFT samples only ! Setting parameterizedDNN to False', colors.reset);
-        parameterizedDNN=False;
-
-    if regress==True:
-        if target != "class": print(colors.fg.red, 'ERROR : target name not available for regression yet', colors.reset); exit(1)
-
-    return parameterizedDNN
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -153,7 +99,8 @@ def normalize2(x_train, x_test):
 #Implementation from David's DeepPotato ; cf. Jonas' master thesis
 #Using median and stddev from quantile is more robust against distributions with large tails
 def get_normalization_iqr(np_array, q):
-    """ Get shift and scale for events
+    """
+    Get shift and scale for events
     :param df: pandas DataFrame with events
     :param q: fraction of events that should be in the interval [-1, 1]
     :return: (shift, scale)
@@ -168,11 +115,13 @@ def get_normalization_iqr(np_array, q):
     median = newDF.median()
     l = abs(newDF.quantile(1 - q) - median)
     r = abs(newDF.quantile(q) - median)
+    # print('median', median)
     for i, (il, ir) in enumerate(zip(l,r)):
         if il == ir:
-            print(f"[WARNING] feature {df.keys()[i]} has no width")
-            l[i] = 1.
-            r[i] = 1.
+            print(f"[WARNING] feature {df.keys()[i]} has no width --> Set width = ", max(il, ir), ' (max. value)')
+            # print('il', il); print('ir', ir)
+            # l[i] = 1.; r[i] = 1.
+            l[i] = il; r[i] = ir #CHANGED -- happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
 
     return median.values, np.maximum(l, r).values
 
@@ -249,17 +198,6 @@ def ChiSquare_test(obs, exp):
 # //--------------------------------------------
 # //--------------------------------------------
 
-def CheckName_EFTpoint_ID(old):
-
-    new = re.sub('p(\d+)', r'.\1', old)
-    new = re.sub('min(\d+)', r'-\1', new)
-
-    # print(old, ' --> ', new)
-    return new
-
-# //--------------------------------------------
-# //--------------------------------------------
-
 def my_training_batch_generator(features, labels, batch_size): # Create empty arrays to contain batch of features and labels
 
     batch_features = np.zeros((batch_size, features.shape[1]))
@@ -277,14 +215,145 @@ def my_training_batch_generator(features, labels, batch_size): # Create empty ar
 # //--------------------------------------------
 # //--------------------------------------------
 
+
+
+
+
+
 # //--------------------------------------------
 # //--------------------------------------------
+# //--------------------------------------------
+ ######  ########  ########  ######  #### ######## ####  ######
+##    ## ##     ## ##       ##    ##  ##  ##        ##  ##    ##
+##       ##     ## ##       ##        ##  ##        ##  ##
+ ######  ########  ######   ##        ##  ######    ##  ##
+      ## ##        ##       ##        ##  ##        ##  ##
+##    ## ##        ##       ##    ##  ##  ##        ##  ##    ##
+ ######  ##        ########  ######  #### ##       ####  ######
+# //--------------------------------------------
+# //--------------------------------------------
+# //--------------------------------------------
+
+#-- Get name corresponding to the data-taking years which are considered in the DNN training
+def Get_LumiName(lumi_years):
+
+    # Set a unique name to each combination of year(s)
+    if len(lumi_years) == 1:
+        lumiName = lumi_years[0]
+    elif len(lumi_years) == 2:
+        if lumi_years[0] == "2016" and lumi_years[1] == "2017":
+            lumiName = "201617"
+        elif lumi_years[0] == "2016" and lumi_years[1] == "2018":
+            lumiName = "201618"
+        elif lumi_years[0] == "2017" and lumi_years[1] == "2018":
+            lumiName = "201718"
+    elif len(lumi_years) == 3:
+        lumiName = "Run2"
+    else:
+        print(colors.bold, colors.bg.red, 'ERROR : wrong lumi_years values !', colors.reset)
+        exit(1)
+
+    return lumiName
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Sanity checks of input args
+def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, labels_list):
+
+# //--------------------------------------------
+
+#-- Sanity checks
+    if len(processClasses_list) == 0:
+        print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
+    elif len(processClasses_list) is not len(labels_list):
+        print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
+
+    for procClass, label in zip(processClasses_list, labels_list):
+        if "PrivMC" in label and len(procClass) > 1:
+            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset); exit(1)
+
+    onlyCentralSample=False #Check whether all training samples are central samples
+    centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
+    onlySMEFT=False #Check whether all training samples are SM/EFT private samples
+    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0
+    for label in labels_list:
+        if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
+        elif("PrivMC" in label): nSMEFTSamples+=1 #E.g. 'PrivMC_tZq'
+        else: ncentralSamples+=1 #E.g. 'tZq'
+
+    if nSMEFTSamples == len(labels_list): onlySMEFT=True
+    elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
+    elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
+    else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
+
+    if opts["parameterizedDNN"]==True and onlySMEFT==False:
+        print(colors.bold, colors.fg.red, 'Parameterized DNN supported for SM/EFT samples only ! Setting parameterizedDNN to False', colors.reset);
+        opts["parameterizedDNN"]=False;
+
+    if opts["regress"]==True:
+        if opts["target"] != "class": print(colors.fg.red, 'ERROR : target name not available for regression yet', colors.reset); exit(1)
+
+# //--------------------------------------------
+
+#-- Initialization
+
+    #Year selection
+    lumiName = Get_LumiName(lumi_years)
+
+    # Set main output paths
+    weightDir = "../weights/DNN/" + lumiName + '/'
+    os.makedirs(weightDir, exist_ok=True)
+
+    #Top directory containing all input ntuples
+    ntuplesDir = "../input_ntuples/"
+
+    #Model output name
+    h5modelName = weightDir + 'model.h5'
+
+    #Determine/store number of process classes
+    opts["nofOutputNodes"] = len(processClasses_list) #1 output node per class
+    if opts["regress"] is True or opts["nofOutputNodes"] == 2: #Special case : 2 classes -> binary classification -> 1 output node only
+        opts["nofOutputNodes"] = 1
+    if opts["parameterizedDNN"]:
+        opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
+
+    if opts["parameterizedDNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
+    else: opts["maxEvents"] = opts["maxEventsPerClass"]
+
+    return opts, lumiName, weightDir, ntuplesDir, h5modelName
 
 # //--------------------------------------------
 # //--------------------------------------------
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+
+
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+# //--------------------------------------------
+######## ######## ########
+##       ##          ##
+##       ##          ##
+######   ######      ##
+##       ##          ##
+##       ##          ##
+######## ##          ##
+# //--------------------------------------------
+# //--------------------------------------------
+# //--------------------------------------------
+
+def CheckName_EFTpoint_ID(old):
+
+    new = re.sub('p(\d+)', r'.\1', old)
+    new = re.sub('min(\d+)', r'-\1', new)
+
+    # print(old, ' --> ', new)
+    return new
 
 # //--------------------------------------------
 # //--------------------------------------------

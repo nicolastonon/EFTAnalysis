@@ -363,19 +363,131 @@ def Extrapolate_EFTxsec(effWC_components, fit_coeffs):
  #       #  #    #   #      #   ## #    #
  ###### #    #   #   ###### #    # #####
 
-#NB: only extending arrays used in training (x, weight, theta). Could also resize accordingly other arrays (EFTweights, EFTweightIDs, EFT_FitCoeffs) to keep track of this per-event info, but not needed for now
-def Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses, nPointsPerOp=10, minWC=-5, maxWC=5):
+def Extend_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses):
     """
+    Extend the original data so that the DNN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the DNN to learn how to interpolate between them.
+    First, define the points 'theta' on which the DNN will get trained. For now, only training DNN at points where a single operator is non-zero at once. Then, for the same input features x, will duplicate events N times at different points, with corresponding reweights.
+    #NB: use this function rather than the other one: this one allows to choose the number N of events to be drawn at each point.
+    #NB: in this case, events are unweighted (all weights=1) !
+    #NB: only extending arrays used in training (x, weight, theta). Could also resize accordingly other arrays (EFTweights, EFTweightIDs, EFT_FitCoeffs) to keep track of this per-event info, but not needed for now
+
+    Parameters:
+    listOperatorsParam : list of operators considered in DNN training
+    list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses : obtained from previous functions
+    list_indexSM_allClasses : index of SM benchmark reweight, for each (EFT) sample
+    maxEvents : number of events to sample for each EFT point. Events will be drawn randomly, with replacement, from the entire class sample with the proper probability.
+    nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the DNN will get trained
+
+    Returns:
+    Extended lists
+    """
+
+    if opts["parameterizedDNN"] == False: #Return empty lists
+        list_thetas_allClasses = []; list_targetClass_allClasses = []
+        return list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses
+
+    if DEBUG_>1: #Debug printout
+        for iclass in range(len(list_x_allClasses)):
+            list_x_allClasses[iclass]=list_x_allClasses[iclass][:5]; list_weights_allClasses[iclass]=list_weights_allClasses[iclass][:5]; list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5]; list_EFT_FitCoeffs_allClasses[iclass]=list_EFT_FitCoeffs_allClasses[iclass][:5]
+
+    for iclass in range(len(list_labels)): #Sanity check operators
+        operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Asumme that benchmark points are identical for all events in the sample
+        operatorNames = operatorNames[0] #Single-element list -> array
+        for op1 in opts["listOperatorsParam"]:
+            if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
+
+# //--------------------------------------------
+
+    #-- Define the hypotheses theta on which the DNN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point)
+    thetas, targetClass = Get_ThetaParameters(opts, operatorNames)
+    # print(thetas); print(targetClass)
+
+    #-- Determine the components necessary to parameterize the event weights
+    n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
+    # print(components)
+
+    #Extended lists to return
+    extendedList_x_allClasses = []
+    extendedList_weights_allClasses = []
+    extendedList_thetas_allClasses = []
+    extendedList_targetClass_allClasses = []
+
+    rng = np.random.default_rng() #Init random generator
+
+    #-- Loop on process classes (each expected to contain a single EFT process)
+    for iclass in range(len(list_labels)):
+
+        list_x_class = []
+        list_weights_class = []
+        list_thetas_class = []
+        list_targetClass_class = []
+
+        #Sanity check
+        nEventsPerPoint_class = opts["maxEvents"]
+        if nEventsPerPoint_class > len(list_x_allClasses[iclass]):
+            print(colors.fg.orange, 'Warning : requiring more events per EFT point(', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...', colors.reset)
+            nEventsPerPoint_class = len(list_x_allClasses[iclass])
+
+        #-- Get the 'effective WC' values scaling each fit component
+        effWC_components_thetas_class = Get_EffectiveWC_eachComponents(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
+        # print(effWC_components_thetas_class)
+
+        #-- Extrapolate the event weights at the new points theta, for all events
+        newWeights = Extrapolate_EFTweight(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
+
+        #-- xxx
+        for itheta in range(len(thetas)):
+
+            thetas_class_point = np.tile(thetas[itheta,:], (nEventsPerPoint_class*2, 1) ) #Each original event gets repeated at all the different points theta
+            weights_class_point = np.ones(nEventsPerPoint_class*2)
+            # print(thetas_class); print(weights_class)
+
+            targetClass_class_point = np.tile(targetClass[itheta], (nEventsPerPoint_class, 1) )
+            targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1
+
+            #xxx
+            probas_point = newWeights[:,itheta]
+            probas_refPoint = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]]
+            probas_refPoint[probas_refPoint < 0] = 0; probas_point[probas_point < 0] = 0
+            probas_refPoint /= probas_refPoint.sum(); probas_point /= probas_point.sum()
+
+            # np.absolute(newWeights[:,itheta]);  #Use abs weights ?
+            indices_refPoint = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_refPoint)
+            indices_point = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_point)
+            # print(indices_refPoint); print(indices_point)
+
+            x_class_refPoint = list_x_allClasses[iclass][indices_refPoint] #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
+            x_class_point = list_x_allClasses[iclass][indices_point]
+
+            #-- Concatenate data twice : once with SM weights, once with reweights corresponding to EFT points to train on
+            list_thetas_class.append(thetas_class_point)
+            list_weights_class.append(weights_class_point)
+            list_x_class.append(np.concatenate((x_class_refPoint, x_class_point)) )
+            list_targetClass_class.append(np.concatenate((targetClass_class_refPoint, targetClass_class_point)) )
+
+        #-- Concatenate data twice : once with SM weights, once with reweights corresponding to EFT points to train on
+        extendedList_thetas_allClasses.append(np.concatenate(list_thetas_class))
+        extendedList_weights_allClasses.append(np.concatenate(list_weights_class))
+        extendedList_x_allClasses.append(np.concatenate(list_x_class))
+        extendedList_targetClass_allClasses.append(np.concatenate(list_targetClass_class))
+
+    return extendedList_x_allClasses, extendedList_weights_allClasses, extendedList_thetas_allClasses, extendedList_targetClass_allClasses
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+"""
+#Obsolete : duplicate the entire dataset (class events) at each considered EFT point. New function allows to choose the number N of events to be sampled at each point
+def Extend_Dataset_useEntireDatasetAtEachPoint(parameterizedDNN, listOperatorsParam, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses, nPointsPerOperator=10, minWC=-5, maxWC=5):
     Extend the original data so that the DNN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the DNN to learn how to interpolate between them.
     First, define the points 'theta' on which the DNN will get trained. For now, only training DNN at points where a single operator is non-zero at once. Then, for the same input features x, will duplicate events many times at different points, with different reweights.
 
     Parameters:
     Lists of features, weights, etc. obtained from previous functions
-    nPointsPerOp, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the DNN will get trained
+    nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the DNN will get trained
 
     Returns:
     Same lists, after extension
-    """
 
     if parameterizedDNN == False: #Return empty lists
         list_thetas_allClasses = []; list_targetClass_allClasses = []
@@ -385,16 +497,16 @@ def Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_all
         for iclass in range(len(list_x_allClasses)):
             list_x_allClasses[iclass]=list_x_allClasses[iclass][:5]; list_weights_allClasses[iclass]=list_weights_allClasses[iclass][:5]; list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5]; list_EFT_FitCoeffs_allClasses[iclass]=list_EFT_FitCoeffs_allClasses[iclass][:5]
 
-    for iclass in range(len(labels_list)):
+    for iclass in range(len(list_labels)):
         operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Asumme that benchmark points are identical for all events in the sample
         operatorNames = operatorNames[0] #Single-element list -> array
         for op1 in listOperatorsParam:
-            if "PrivMC" in labels_list[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', labels_list[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
+            if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
 
 # //--------------------------------------------
 
     #-- Define the hypotheses theta on which the DNN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the target to train on (<-> the operator which is activated at a given point)
-    thetas, targetClass = Get_ThetaParameters(listOperatorsParam, operatorNames, nPointsPerOp, minWC, maxWC)
+    thetas, targetClass = Get_ThetaParameters(listOperatorsParam, operatorNames, nPointsPerOperator, minWC, maxWC)
     # print(thetas)
 
     #-- Determine the components necessary to parameterize the event weights
@@ -405,7 +517,7 @@ def Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_all
     list_weights_allClasses_tmp = []
     list_thetas_allClasses_tmp = []; list_targetClass_allClasses_tmp = []
     #Loop on process classes (which should each contain a single process for now)
-    for iclass in range(len(labels_list)):
+    for iclass in range(len(list_labels)):
 
         #-- Get the 'effective WC' values scaling each fit component
         effWC_components_thetas_class = Get_EffectiveWC_eachComponents(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
@@ -439,7 +551,7 @@ def Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_all
         # print(list_x_allClasses_tmp[iclass].shape); print(list_weights_allClasses_tmp[iclass].shape); print(list_thetas_allClasses_tmp[iclass].shape); print(list_targetClass_allClasses_tmp[iclass].shape)
 
     return list_x_allClasses_tmp, list_weights_allClasses_tmp, list_thetas_allClasses_tmp, list_targetClass_allClasses_tmp
-
+"""
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -450,15 +562,33 @@ def Extend_Dataset(parameterizedDNN, listOperatorsParam, labels_list, list_x_all
  #    # #        #        #   #    # #        #   #    #
   ####  ######   #        #   #    # ######   #   #    #
 
-def Get_ThetaParameters(listOperatorsParam, operatorNames, n_pointsPerOperator, minVal, maxVal):
+def Get_ThetaParameters(opts, operatorNames):
+    """
+    Sets the grid of EFT points on which the DNN will get trained (<-> at which training events will be extrapolated).
+
+    Parameters:
+    listOperatorsParam : subset of operators on which to train the DNN
+    operatorNames : all operators found in the sample
+    nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the DNN will get trained
+
+    Returns:
+    thetas_allOperators (ndarray of shape [n_points, n_operators]) : WC values of all operators, for each point included in DNN training
+    targetClass (ndarray of shape [n_operators]) : translates each point into a target class (for event labelling). '1' means that the corresponding operator is non-zero, '0' otherwise. 1 column for each operator included in sample (remove un-necessary operators at later step)
+    """
+
+    #Read options
+    listOperatorsParam = opts["listOperatorsParam"]
+    nPointsPerOperator = opts["nPointsPerOperator"]
+    minWC = opts["minWC"]
+    maxWC = opts["maxWC"]
 
     list_thetas_allOperators = []
     list_targetClass = []
     for i_op_ToParameterize in range(len(listOperatorsParam)):
         # print(i_op_ToParameterize)
 
-        thetas = np.zeros((n_pointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, n_pointsPerOperator)
-        targetClass = np.zeros((n_pointsPerOperator, len(operatorNames)+1)) #Keep track of which operator is activated in each element of theta ; necessary to later specify target for DNN classification/regression #Shape (n_operators_inSample, n_pointsPerOperator) #Additional dim represents SM class (not filled here)
+        thetas = np.zeros((nPointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, nPointsPerOperator)
+        targetClass = np.zeros((nPointsPerOperator, len(operatorNames)+1)) #Keep track of which operator is activated in each element of theta ; necessary to later specify target for DNN classification/regression (will remove then operators not included in training) #Shape (n_operators_inSample, nPointsPerOperator) #Additional dim represents SM class (not filled here)
 
         for i_opInSample in range(len(operatorNames)):
             # print(i_opInSample)
@@ -469,7 +599,7 @@ def Get_ThetaParameters(listOperatorsParam, operatorNames, n_pointsPerOperator, 
             if listOperatorsParam[i_op_ToParameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_ToParameterize].lower() == operatorNames[i_opInSample]:
 
                 iter = 0
-                for x in np.linspace(minVal, maxVal, num=n_pointsPerOperator+1):
+                for x in np.linspace(opts["minWC"], opts["maxWC"], num=nPointsPerOperator+1):
 
                     if x == 0: continue #skip SM point
                     # print('x', x)

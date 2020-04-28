@@ -194,6 +194,7 @@ int main(int argc, char **argv)
 
     // set_v_add_var_names.push_back("NJets"); //new name
     // set_v_add_var_names.push_back("NBJets"); //new name
+    set_v_add_var_names.push_back("channel");
     set_v_add_var_names.push_back("nJets");
     set_v_add_var_names.push_back("nBJets");
     set_v_add_var_names.push_back("metEt");

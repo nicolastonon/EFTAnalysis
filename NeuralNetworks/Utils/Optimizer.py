@@ -53,7 +53,7 @@ def Get_Loss_Optim_Metrics(regress, nof_outputs):
             loss = 'binary_crossentropy'
             metrics = 'binary_accuracy'
             # metrics = 'AUC'
-            
+
     else: #Regression
         loss = 'mean_squared_error'
         metrics = 'mean_squared_error'

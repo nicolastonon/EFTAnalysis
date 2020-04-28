@@ -154,8 +154,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
-        // TString dir_ntuples = "./input_ntuples/" + v_years[iyear] + "/";
-        TString dir_ntuples = "./input_ntuples/top19001_3lSR/"; //FIXME
+        TString dir_ntuples = "./input_ntuples/" + v_years[iyear] + "/";
+        // TString dir_ntuples = "./input_ntuples/top19001_3lSR/";
 
     	//FIRST LOOP ON SAMPLES : check here if files are missing ; else, may interfer with summing of several processes (TTZ, Rares, ...)
     	for(int isample=0; isample<v_samples.size(); isample++)
@@ -234,7 +234,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     if(ts.Contains("_sm", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //Found relevant index, no need to read this branch anymore
                 }
                 if(idx_sm == -1) {cout<<FRED("SM point not found !")<<endl;}
-                // cout<<"idx_sm "<<idx_sm<<endl;
+                cout<<"idx_sm "<<idx_sm<<endl;
 
                 h_SWE = (TH1F*) f->Get("EFT_SumWeights");
                 if(!h_SWE) {cout<<FRED("EFT_SumWeights not found ! ")<<endl;}

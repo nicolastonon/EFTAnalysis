@@ -9,6 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from tensorflow.keras.models import load_model
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 from root_numpy import fill_hist
 from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, classification_report, confusion_matrix, multilabel_confusion_matrix
@@ -37,7 +38,20 @@ from pandas.plotting import scatter_matrix
 # //--------------------------------------------
 
 #Printout some information related to DNN performance
-def Control_Printouts(nof_output_nodes, labels_list, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses):
+def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses):
+
+    if nofOutputNodes == 1:
+        loss = score[0]
+        accuracy = score[1]
+        print(colors.fg.lightgrey, '** Loss :', float('%.4g' % loss), colors.reset)
+        print(colors.fg.lightgrey, '** Metrics :', float('%.4g' % accuracy), colors.reset)
+
+    # if len(np.unique(y_train)) > 1: # prevent bug in roc_auc_score, need >=2 unique values (at least sig+bkg classes)
+    #     auc_score = roc_auc_score(y_test, model.predict(x_test))
+    #     auc_score_train = roc_auc_score(y_train, model.predict(x_train))
+    #     print('\n'); print(colors.fg.lightgrey, '**** AUC scores ****', colors.reset)
+    #     print(colors.fg.lightgrey, "-- TEST SAMPLE  \t==> " + str(auc_score), colors.reset)
+    #     print(colors.fg.lightgrey, "-- TRAIN `SAMPLE \t==> " + str(auc_score_train), colors.reset); print('\n')
 
     #-- Apply 2-sided KS test to train/test distributions, for first node / first process class
     KS_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_test_allNodes_allClasses[0][0])
@@ -47,11 +61,11 @@ def Control_Printouts(nof_output_nodes, labels_list, y_test, list_predictions_tr
     # ChiSquare_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
 
     #-- Classification report (for >2 classes, must convert continuous output proba to class label)
-    if nof_output_nodes == 1:
+    if nofOutputNodes == 1:
         print('\n Classification report :')
-        print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=labels_list) )
-        # print(confusion_matrix(y_test, np.concatenate(list_predictions_test_allNodes_allClasses[0]), np.concatenate(list_PhysicalWeightsTest_allClasses), labels=labels_list) )
-    # else: print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=labels_list) )
+        print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=list_labels) )
+        # print(confusion_matrix(y_test, np.concatenate(list_predictions_test_allNodes_allClasses[0]), np.concatenate(list_PhysicalWeightsTest_allClasses), labels=list_labels) )
+    # else: print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=list_labels) )
     print('\n')
 
 
@@ -76,32 +90,34 @@ def Control_Printouts(nof_output_nodes, labels_list, y_test, list_predictions_tr
 # //--------------------------------------------
 
 #Apply DNN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
-def Create_TrainTest_ROC_Histos(lumiName, nof_output_nodes, labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics):
+def Make_TrainTestPrediction_Histograms(nofOutputNodes, lumiName, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics):
 
     print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset); print('\n')
 
-# Fill a ROOT histogram from NumPy arrays, fine binning
-    rootfile_outname = "../outputs/DNN_"+labels_list[0]+"_"+lumiName+".root"
+    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized DNN with huge training stat.)
+
+    # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
+    rootfile_outname = "../outputs/DNN_"+list_labels[0]+"_"+lumiName+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
-    for inode in range(nof_output_nodes):
+    for inode in range(nofOutputNodes):
 
-        hist_TrainingEvents_allClasses = TH1F('hist_train_NODE_'+labels_list[inode]+'_allClasses', '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2()
-        hist_TestingEvents_allClasses = TH1F('hist_test_NODE_'+labels_list[inode]+'_allClasses', '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2()
+        hist_TrainingEvents_allClasses = TH1F('hist_train_NODE_'+list_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2()
+        hist_TestingEvents_allClasses = TH1F('hist_test_NODE_'+list_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2()
 
-        for iclass in range(len(labels_list)):
+        for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
 
-            hist_TrainingEvents_class = TH1F('hist_train_NODE_'+labels_list[inode]+'_CLASS_'+labels_list[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2()
-            fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass], weights=list_PhysicalWeightsTrain_allClasses[iclass])
+            hist_TrainingEvents_class = TH1F('hist_train_NODE_'+list_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2()
+            fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
             hist_TrainingEvents_class.Write()
 
-            hist_TestingEvents_class = TH1F('hist_test_NODE_'+labels_list[inode]+'_CLASS_'+labels_list[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2()
-            fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass], weights=list_PhysicalWeightsTest_allClasses[iclass])
+            hist_TestingEvents_class = TH1F('hist_test_NODE_'+list_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2()
+            fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Write()
 
-            fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass], weights=list_PhysicalWeightsTrain_allClasses[iclass])
-            fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass], weights=list_PhysicalWeightsTest_allClasses[iclass])
+            fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+            fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
 
         hist_TrainingEvents_allClasses.Write()
         hist_TestingEvents_allClasses.Write()
@@ -133,9 +149,14 @@ def Create_TrainTest_ROC_Histos(lumiName, nof_output_nodes, labels_list, list_pr
 # //--------------------------------------------
 
 # Create standard control plots for each output node : ROC, accuracy, loss, etc.
-def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, model, metrics, nof_outputs, weight_dir, history=None):
+def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, h5modelName, metrics, weight_dir, history=None):
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
+
+    nofOutputNodes = opts["nofOutputNodes"]
+
+    model = load_model(h5modelName) # load frozen model
+
 
  #       ####   ####   ####
  #      #    # #      #
@@ -225,7 +246,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
     fig2.clear()
 
     #ROC and overtraining => Plot for each node
-    for i in range(nof_output_nodes):
+    for i in range(nofOutputNodes):
 
  #####   ####   ####
  #    # #    # #    #
@@ -234,12 +255,11 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
  #   #  #    # #    #
  #    #  ####   ####
 
-        if regress==False: #ROC only make sense for classification
+        if opts["regress"] == False: #ROC only make sense for classification
 
-            #Get ROC curve using test data -- different for nof_outputs>1, should fix it
-            #Uses predict() function, which generates (output) given (input + model)
+        # FIXME -- rather read existing predictions
             lw = 2 #linewidth
-            if nof_outputs == 1:
+            if opts["nofOutputNodes"] == 1:
                 fpr, tpr, _ = roc_curve(y_test, model.predict(x_test)) #Need '_' to read all the return values
                 roc_auc = auc(fpr, tpr)
                 fpr_train, tpr_train, _ = roc_curve(y_train, model.predict(x_train)) #Need '_' to read all the return values
@@ -254,15 +274,12 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
                 tpr_train = dict()
                 roc_auc_train = dict()
 
-                # for i in range(nof_output_nodes):
-                #     fpr[i], tpr[i], _ = roc_curve(y_test[:, i], model.predict(x_test)[:, i])
-                #     roc_auc[i] = auc(fpr[i], tpr[i])
-                #     fpr_train[i], tpr_train[i], _ = roc_curve(y_train[:, i], model.predict(x_train)[:, i])
-                #     roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])
-
-                fpr[i], tpr[i], _ = roc_curve(y_test[:, i], model.predict(x_test)[:, i])
+                # fpr[i], tpr[i], _ = roc_curve(y_test[:, i], model.predict(x_test)[:, i])
+                fpr[i], tpr[i], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,i], np.concatenate(list_predictions_test_allNodes_allClasses[i]))
                 roc_auc[i] = auc(fpr[i], tpr[i])
-                fpr_train[i], tpr_train[i], _ = roc_curve(y_train[:, i], model.predict(x_train)[:, i])
+
+                # fpr_train[i], tpr_train[i], _ = roc_curve(y_train[:, i], model.predict(x_train)[:, i])
+                fpr_train[i], tpr_train[i], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,i], np.concatenate(list_predictions_train_allNodes_allClasses[i]))
                 roc_auc_train[i] = auc(fpr_train[i], tpr_train[i])
 
                 #Only for first node
@@ -278,7 +295,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
             timer = fig3.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
             timer.add_callback(close_event)
 
-            if nof_outputs == 1: #only 1 node
+            if opts["nofOutputNodes"] == 1: #only 1 node
                 plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC DNN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train))
                 plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC DNN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
             else: #for each node
@@ -302,7 +319,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
                 timer.start()
                 plt.show()
 
-            plotname = weight_dir + 'ROC_DNN_' + labels_list[i] + '.png'
+            plotname = weight_dir + 'ROC_DNN_' + list_labels[i] + '.png'
             fig3.savefig(plotname)
             print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
             fig3.clear()
@@ -320,8 +337,8 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
         rmin = 0.
         rmax = 1.
 
-        if regress==True: #Adjust plot range to target
-            for z in range(nof_output_nodes):
+        if opts["regress"] == True: #Adjust plot range to target
+            for z in range(nofOutputNodes):
                 tmp = np.concatenate(list_predictions_train_allNodes_allClasses[z])
                 minElement = np.amin(tmp)
                 maxElement = np.amax(tmp)
@@ -371,7 +388,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
             hist_overtrain_train_sig.Fill(val, w)
 
         #only background processes
-        for iclass in range(0, len(labels_list)):
+        for iclass in range(0, len(list_labels)):
             if iclass is not i:
                 for val, w in zip(list_predictions_train_allNodes_allClasses[i][iclass], list_PhysicalWeightsTrain_allClasses[iclass]):
                     hist_overtrain_train_bkg.Fill(val, w)
@@ -393,7 +410,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
 
         #Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
-        for iclass in range(0, len(labels_list)):
+        for iclass in range(0, len(list_labels)):
             if iclass is not i:
                 lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[i][iclass])
                 lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
@@ -416,7 +433,7 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
             timer.start()
             plt.show()
 
-        plotname = weight_dir + 'Overtraining_DNN_' + labels_list[i] + '.png'
+        plotname = weight_dir + 'Overtraining_DNN_' + list_labels[i] + '.png'
         fig4.savefig(plotname)
         # print("Saved Overtraining plot as : " + plotname)
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
@@ -440,10 +457,10 @@ def Create_Control_Plots(regress, nof_output_nodes, labels_list, list_prediction
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Create_Correlation_Plot(x, var_list, weight_dir):
+def Create_Correlation_Plot(x, list_features, weight_dir):
 
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:], columns=var_list[:]) #x = (events, vars) ; colums names are var names
+    df = pd.DataFrame(data=x[0:,0:], columns=list_features[:]) #x = (events, vars) ; colums names are var names
     # print(df)
     # print(df.describe())
 
@@ -474,8 +491,8 @@ def Create_Correlation_Plot(x, var_list, weight_dir):
     hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
     sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
     hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
-    # ax.set_ylim(bottom=-0.5, top=len(var_list)+0.5)
-    # ax.set_xlim(left=-0.5, right=len(var_list)+0.5)
+    # ax.set_ylim(bottom=-0.5, top=len(list_features)+0.5)
+    # ax.set_xlim(left=-0.5, right=len(list_features)+0.5)
     # ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False) # x labels appear on top
     # hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='left', va='bottom', fontsize = 16)
     ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True) # x labels appear at bottom
@@ -506,25 +523,27 @@ def Create_Correlation_Plot(x, var_list, weight_dir):
 # //--------------------------------------------
 
 
-def Plot_Input_Features(x, y_process, weights, var_list, weight_dir, nof_output_nodes, parameterizedDNN, isControlNorm=False):
+def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, isControlNorm=False):
 
     plot_eachSingleFeature = False #True <-> 1 single plot per feature
 # //--------------------------------------------
 
-    if parameterizedDNN == True: return #Too slow ; could use subsample only
+    # if opts["parameterizedDNN"] is True and isControlNorm is True: return #Gain time
+    if x is None: print('Error, can\'t produce input features plots : x=None !'); return
 
-    if len(x) > 50000: x = x[:50000]; y_process = y_process[:50000]; weights = weights[:50000] #Else, too slow
+    nMax = 50000 #Don't use more events (slow)
+    if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
     plt.tight_layout()
 
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:], columns=var_list[:]) #x = (events, vars) ; colums names are var names
+    df = pd.DataFrame(data=x[0:,0:], columns=list_features[:]) #x = (events, vars) ; colums names are var names
 
     #-- Insert a column corresponding to the class label
-    if nof_output_nodes == 1:
+    if opts["nofOutputNodes"] == 1:
         df.insert(loc=0, column='class', value=y_process[:], allow_duplicates=False)
-    elif nof_output_nodes > 1:
+    elif opts["nofOutputNodes"] > 1:
         df.insert(loc=0, column='class', value=y_process[:,0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
 
     #-- Insert a column corresponding to physical event weights
@@ -533,8 +552,8 @@ def Plot_Input_Features(x, y_process, weights, var_list, weight_dir, nof_output_
     # print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=var_list[:], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=var_list[:], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(var_list)]) #bkgs
+    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[:], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[:], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features)]) #bkgs
 
     if isControlNorm == True: #Control plot, different name, general plot only
         plotname = weight_dir + 'InputFeatures_normTrain.png'
@@ -556,7 +575,7 @@ def Plot_Input_Features(x, y_process, weights, var_list, weight_dir, nof_output_
     #-- Also create individual plots
     # if plot_eachSingleFeature == True:
     if plot_eachSingleFeature == True and isControlNorm==False:
-        for feature in var_list:
+        for feature in list_features:
             # fig, ax = plt.subplots()
             fig, ax = plt.subplots(figsize=(10,10))
             plt.ylabel("normalized", fontsize=20)
