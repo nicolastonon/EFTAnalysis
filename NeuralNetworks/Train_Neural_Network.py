@@ -56,7 +56,7 @@ optsTrain = {
 "parameterizedDNN": True, #True <-> DNN is parameterized on the Wilson coefficients of the EFT operators
 "listOperatorsParam": ['ctZ','ctW'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the DNN on
+"nPointsPerOperator": 20, "minWC": -50, "maxWC": 50, #Interval [min,max,step] in which EFT points get sampled uniformly to train the DNN on
 "nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized DNN only) ; -1 <-> use all available events
 
 #Hyperparameters
