@@ -68,7 +68,10 @@ def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictio
     # else: print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=list_labels) )
     print('\n')
 
+    return
 
+# //--------------------------------------------
+# //--------------------------------------------
 
 
 
@@ -126,6 +129,10 @@ def Make_TrainTestPrediction_Histograms(nofOutputNodes, lumiName, list_labels, l
     # print("Saved output ROOT file containing Keras Predictions as histograms : " + rootfile_outname)
     print(colors.fg.lightgrey, "\nSaved output ROOT file containing Keras Predictions as histograms :", colors.reset, rootfile_outname, '\n')
 
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
 
 
 
@@ -257,15 +264,18 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
 
         if opts["regress"] == False: #ROC only make sense for classification
 
-        # FIXME -- rather read existing predictions
             lw = 2 #linewidth
-            if opts["nofOutputNodes"] == 1:
-                fpr, tpr, _ = roc_curve(y_test, model.predict(x_test)) #Need '_' to read all the return values
+            if opts["nofOutputNodes"] == 1 and i==0:
+
+                # fpr, tpr, _ = roc_curve(y_test, model.predict(x_test))
+                fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[i])) #Need '_' to read all the return values
                 roc_auc = auc(fpr, tpr)
-                fpr_train, tpr_train, _ = roc_curve(y_train, model.predict(x_train)) #Need '_' to read all the return values
+
+                # fpr_train, tpr_train, _ = roc_curve(y_train, model.predict(x_train))
+                fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[i]))
                 roc_auc_train = auc(fpr_train, tpr_train)
 
-            else: #different for multiclass
+            elif opts["nofOutputNodes"] > 1: # multiclass
                 # Compute ROC curve and ROC area for each class
                 fpr = dict()
                 tpr = dict()
@@ -324,7 +334,6 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
             print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
             fig3.clear()
 
-# //--------------------------------------------
 
   ####  #    # ###### #####  ##### #####    ##   # #    #
  #    # #    # #      #    #   #   #    #  #  #  # ##   #
@@ -439,7 +448,10 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
         fig4.clear()
 
+    return
 
+# //--------------------------------------------
+# //--------------------------------------------
 
 
 
@@ -503,7 +515,10 @@ def Create_Correlation_Plot(x, list_features, weight_dir):
     plt.savefig(plotname)
     print(colors.fg.lightgrey, "\nSaved correlation matrix plot as :", colors.reset, plotname)
 
+    return
 
+# //--------------------------------------------
+# //--------------------------------------------
 
 
 
@@ -531,7 +546,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # if opts["parameterizedDNN"] is True and isControlNorm is True: return #Gain time
     if x is None: print('Error, can\'t produce input features plots : x=None !'); return
 
-    nMax = 50000 #Don't use more events (slow)
+    nMax = 50000 #Don't use more events (slow) #Warning : for parameterized DNN, biases distributions of WCs (will most likely not cover all EFT points)
     if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
@@ -597,4 +612,5 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     matplotlib.rc_file_defaults() #Restore matplotlib default settings
     return
 
+# //--------------------------------------------
 # //--------------------------------------------

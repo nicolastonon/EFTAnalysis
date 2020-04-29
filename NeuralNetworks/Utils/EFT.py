@@ -8,14 +8,11 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 '''
 
 #TODO :
--
+- 
 
 # NOTES :
-- Only applies to private EFT samples
-- Invert matrices for all events at once ?
-- Interpret power=0 <-> SM and power < max <-> interference
-- properly restrict size of arrays to minimum
-- how to deal with rwgt_1, rwgt_sm ?
+- Negative weights ?
+
 
 # LIMITATIONS / ASSUMPTIONS :
 - Can not sum several processes into a process class including an EFT process. Each EFT process must constitute a separate class.
@@ -552,6 +549,8 @@ def Extend_Dataset_useEntireDatasetAtEachPoint(parameterizedDNN, listOperatorsPa
 
     return list_x_allClasses_tmp, list_weights_allClasses_tmp, list_thetas_allClasses_tmp, list_targetClass_allClasses_tmp
 """
+
+
 # //--------------------------------------------
 # //--------------------------------------------
 

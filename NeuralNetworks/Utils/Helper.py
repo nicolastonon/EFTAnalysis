@@ -321,7 +321,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if opts["parameterizedDNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
     else: opts["maxEvents"] = opts["maxEventsPerClass"]
 
-    return opts, lumiName, weightDir, ntuplesDir, h5modelName
+    return opts, lumiName, weightDir, ntuplesDir, h5modelName, opts["batchSize"]
 
 # //--------------------------------------------
 # //--------------------------------------------

@@ -76,7 +76,7 @@ def Create_Model(opts, outdir, var_list, shifts, scales, DNN_name="DNN"):
     # model.add(PReLU(alpha_initializer=my_init))
     # model.add(Activation('selu'))
 
-    model_choice = 1
+    model_choice = 2
 
     if opts["regress"] == False: #Classification
 

@@ -36,7 +36,6 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized DNN with huge training stat.)
 
-    #FIXME -- fill list of y_proc (truth) values, not y
     # print('...Order data by target class...')
     list_xTrain_allClasses = []; list_xTest_allClasses = []
     list_yTrain_allClasses = []; list_yTest_allClasses = []

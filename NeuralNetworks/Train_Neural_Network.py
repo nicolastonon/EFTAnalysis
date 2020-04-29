@@ -27,19 +27,23 @@ _list_lumiYears.append("2017")
 
 #Signal process must be first
 _list_processClasses = []
-# _list_processClasses.append(["tZq"])
-_list_processClasses.append(["PrivMC_tZq"])
-# _list_processClasses.append(["PrivMC_tZq_ctz"])
+_list_processClasses.append(["tZq"])
+# _list_processClasses.append(["PrivMC_tZq"])
+# _list_processClasses.append(["PrivMC_ttZ"])
+_list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
+# _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
 _list_labels = []
-# _list_labels.append("tZq")
-_list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_tZq_ctz")
+_list_labels.append("tZq")
+# _list_labels.append("PrivMC_tZq")
+# _list_labels.append("PrivMC_ttZ")
+_list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_tZq_ctw")
+# _list_labels.append("PrivMC_ttZ_ctz")
 # _list_labels.append("ttZ")
 # _list_labels.append("Backgrounds")
 # //--------------------------------------------
@@ -52,21 +56,21 @@ optsTrain = {
 "regress": False, #True <-> DNN used for regression ; False <-> classification
 "target": "class", #'None', 'class'
 
-#EFT
-"parameterizedDNN": True, #True <-> DNN is parameterized on the Wilson coefficients of the EFT operators
-"listOperatorsParam": ['ctZ','ctW'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -50, "maxWC": 50, #Interval [min,max,step] in which EFT points get sampled uniformly to train the DNN on
-"nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized DNN only) ; -1 <-> use all available events
-
 #Hyperparameters
 "nepochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-"batchSize": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSize": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 # "maxEvents": 100, #max nof events to be used for each process class, *or for each EFT point* (in parameterized DNN) ; -1 <-> use all available events
-"maxEventsPerClass": 100000, #max nof events to be used for each process class (non-parameterized DNN only) ; -1 <-> use all available events
+"maxEventsPerClass": 1000, #max nof events to be used for each process class (non-parameterized DNN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_test": -1, #nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
+
+#EFT
+"parameterizedDNN": False, #True <-> DNN is parameterized on the Wilson coefficients of the EFT operators
+"listOperatorsParam": ['ctZ','ctW'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the DNN on
+"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized DNN only) ; -1 <-> use all available events
 
 #Event preselection
 "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
@@ -178,7 +182,7 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
  # #    # #   #
 
     #-- Initialization, sanity checks
-    optsTrain, _lumiName, _weightDir, _ntuplesDir, _h5modelName = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
+    optsTrain, _lumiName, _weightDir, _ntuplesDir, _h5modelName, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
 
 
                                        #
@@ -226,16 +230,16 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
     #-- Fit model (TRAIN)
     print('\n'); print(colors.fg.lightblue, "--- Train (fit) DNN on training sample...", colors.reset, " (may take a while)"); print('\n')
     if optsTrain["parameterizedDNN"]==False:
-        history = model.fit(x_train, y_train, sample_weight=LearningWeights_train, validation_data=(x_test, y_test, PhysicalWeights_test), epochs=optsTrain["nepochs"], batch_size=optsTrain["batchSize"], callbacks=callbacks_list, shuffle=True, verbose=1)
+        history = model.fit(x_train, y_train, sample_weight=LearningWeights_train, validation_data=(x_test, y_test, PhysicalWeights_test), epochs=optsTrain["nepochs"], batch_size=_batchSize, callbacks=callbacks_list, shuffle=True, verbose=1)
 
         # Evaluate the neural network's performance (evaluate metrics on validation or test dataset)
         print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
         score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test, verbose=1)
 
     else:
-        my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, optsTrain["batchSize"])
-        my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, optsTrain["batchSize"])
-        _steps_per_epoch = np.ceil(len(x_train) / optsTrain["batchSize"]); _steps_per_epoch_val = np.ceil(len(x_test)/ optsTrain["batchSize"])
+        my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, _batchSize)
+        my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, _batchSize)
+        _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ optsTrain["batchSize"])
         history = model.fit(my_training_batch_generator, steps_per_epoch=_steps_per_epoch, validation_data=my_validation_batch_generator, validation_steps=_steps_per_epoch_val, epochs=optsTrain["nepochs"], callbacks=callbacks_list, verbose=1)
 
         print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')

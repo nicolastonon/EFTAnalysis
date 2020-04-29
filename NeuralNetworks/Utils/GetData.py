@@ -18,7 +18,7 @@ from sklearn.preprocessing import MinMaxScaler, Normalizer, StandardScaler
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from tensorflow.keras import utils
 
-from Utils.EFTUtilities import *
+from Utils.EFT import *
 from Utils.ColoredPrintout import colors
 from Utils.Helper import get_normalization_iqr, normalize, unison_shuffled_copies
 
@@ -455,7 +455,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
     if opts["parameterizedDNN"] == False: #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
 
         #Create array of labels (1 row per event, 1 column per class)
-        if nofOutputNodes == 1: #binary, single column => sig 1, bkg 0
+        if opts["nofOutputNodes"] == 1: #binary, single column => sig 1, bkg 0
             y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
             y = y_integer_sig
             if len(list_processClasses)>1:
@@ -469,7 +469,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
             for iclass in range(len(list_nentries_class)): #Concatenate subsequent classes
                 list_y_integer_allClasses.append(np.full((list_nentries_class[iclass]), iclass) )
             y_integer = np.concatenate(list_y_integer_allClasses, 0)
-            y = utils.to_categorical(y_integer, num_classes=nofOutputNodes)
+            y = utils.to_categorical(y_integer, num_classes=opts["nofOutputNodes"])
 
     else: #Separate SM/EFT at any point in EFT phase space --> Target corresponds to EFT operator which is activated in a given event (0 <-> SM)
         y = targetClass_allClasses #Info already stored when defining EFT points to train on
@@ -480,7 +480,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 
     if opts["regress"]==True:
 
-        if nofOutputNodes == 1: #Target = 0,1
+        if opts["nofOutputNodes"] == 1: #Target = 0,1
             y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
             y = y_integer_sig
 
