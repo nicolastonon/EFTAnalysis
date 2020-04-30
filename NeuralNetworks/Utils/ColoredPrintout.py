@@ -49,11 +49,11 @@
 '''Colors class:reset all colors with colors.reset;
 two sub classes : fg for foreground and bg for background;
 use as colors.subclass.colorname, i.e. colors.fg.red or colors.bg.green
-Also, the generic bold, disable, underline, reverse, strike through, and invisible work with the main class i.e. colors.bold'''
+Also, the generic bold, dim, underline, reverse, strike through, and invisible work with the main class i.e. colors.bold'''
 class colors:
     reset='\033[0m'
     bold='\033[01m'
-    disable='\033[02m'
+    dim='\033[02m'
     ital='\033[03m'
     underline='\033[04m'
     reverse='\033[07m'

@@ -860,7 +860,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 	//Output file name
 	//-- For BDT templates
-    TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
+    TString cat_tmp = (region=="") ? "" : region+"Cat";
+    // TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
 	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 
 	//-- For input vars
@@ -1570,7 +1571,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	}
 
 	TString input_name = "";
-    TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
+    TString cat_tmp = (region=="") ? "" : region+"Cat";
 
 	if(use_combine_file)
 	{
@@ -2775,8 +2776,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //--------------------------------------------
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
-    v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlack);
-    v_samples.push_back("PrivMC_ttZ"); v_groups.push_back("PrivMC_ttZ"); v_colors.push_back(kRed);
+    v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
+    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001"); v_colors.push_back(kRed);
+    v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
 
     vector<TString> v_syst;
     v_syst.push_back("");
@@ -2883,6 +2886,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     				h_tmp->SetFillColor(kWhite);
 
     				h_tmp->SetLineColor(v_colors[isample]);
+                    if(samplename.Contains("PrivMC")) {h_tmp->SetLineStyle(2);}
 
     				//HARDCODED
     				if(v_syst[isyst] == "JESUp") {h_tmp->SetLineColor(kRed);}

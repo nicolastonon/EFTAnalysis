@@ -8,7 +8,9 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 '''
 
 #TODO :
-- 
+- rename operatorWC -> theta ?
+- if parameterized and regress on r,t --> train at mixed points
+- only get gradients and xsecs if regress
 
 # NOTES :
 - Negative weights ?
@@ -21,12 +23,15 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 - Can only rescale array of event if all events have exact same EFT parameterization
 
 # NAMING CONVENTIONS :
+NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3 terms correspond to SM, interference, and pure-EFT.
 - 'WC' = Wilson coefficient <-> the scalar value scaling a given EFT operator in the Lagrangian
 - 'Parameter'/'Operator' = EFT operator
 - 'Benchmark point' = EFT point (<-> given WC values for given EFT operators) at which the event weight has been evaluated by MG. The ensemble of the benchmark points is also refered to as the 'basis'
 - 'Benchmark weight' = corresponding weight value (evaluated by MG with the reweighting module)
 - 'Benchmark ID' = string encoding of the name of the benchmark point
 - 'Components' = individual terms contributing to the squared matrix element of the process. For example, if considering a single operator, there are 3 components to account for (corresponding to the SM squared term, the interference term, and the pure-EFT term)
+- 'Effective WC'/'component weight' = factors 'c_i' for all components. Example: for the interfence term between ctZ=3 and ctW=5, c=3*5=15. They are not the WC values of the operators, but depend directly on them, hence labelled "effective WC"
+- 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parameterize the event weight
 - ...
 
 '''
@@ -151,7 +156,7 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
   ####   ####  #    # #       ####  #    # ###### #    #   #    ####
 
 #Adapted from madminer code (https://github.com/diana-hep/madminer/blob/080e7fefc481bd6aae16ba094af0fd6bfc301dff/madminer/utils/morphing.py#L116)
-#NB : shall interpret row full of 0 <-> pure SM ; any row with sum of powers < 2 <-> interference with SM
+#NB: row full of zeros (<-> not impacted by any operator) corresponds to SM (will correspond to a fix coefficient value of 0^0=1)
 def Find_Components(operatorNames):
     """
     Determine the number of components necessary to compute the squared matrix element, and at what power each EFT operator enters each component.
@@ -213,13 +218,13 @@ def Find_Components(operatorNames):
  #      #      #      ###    ##  ## #    #
  ###### #      #      ###    #    #  ####
 
-def Get_EffectiveWC_eachComponents(n_components, components, operatorWCs):
+def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
     """
     Determine the 'effective WC' (or 'scaling factor') for each component, i.e. the product of the corresponding WC values
 
     Parameters:
     n_components (int) : number of components
-    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a component
+    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a given component
     operatorWCs (ndarray of shape [n_points, n_operators]) : array of corresponding WC values, for all (n_points) EFT points
 
     Returns:
@@ -230,17 +235,135 @@ def Get_EffectiveWC_eachComponents(n_components, components, operatorWCs):
 
     for y in range(len(operatorWCs)): #For each EFT point
         for x in range(n_components): #For each component
-            factor = 1.0
-            for p in range(len(np.transpose(operatorWCs))): #For each operator (transpose so that 1st dim corresponds to operators)
+            effWC_components[y,x] = np.prod(operatorWCs[y,:] ** components[x,:]) #Product of contributions of all operators to this component (e.g. if consider 2 operators, element corresponding to their interference will have value: WC1*WC2; element corresponding to squared operator1 will have value: WC1*WC1 ; etc.)
+
+            # factor = 1.0
+            # for p in range(len(np.transpose(operatorWCs))): #For each operator (transpose so that 1st dim corresponds to operators)
+            #     factor *= float(operatorWCs[y, p] ** components[x, p]) #Contribution of this operator to this component
                 # if DEBUG_>1: print('x', x, 'y', y, 'p', p)
-                # print(operatorWCs[p]); print(components[x, p]); print(factor)
-                factor *= float(operatorWCs[y, p] ** components[x, p]) #Contribution of this operator to this component
-                effWC_components[y, x] = factor
+                # print(operatorWCs[y, p]); print(components[x, p]); print(factor)
 
     if DEBUG_:
-        print('\n-- Get_EffectiveWC_eachComponents'); print(effWC_components.shape)
+        print('\n-- Get_EffectiveWC_eachComponent'); print(effWC_components.shape)
         if DEBUG_>1: print(effWC_components)
     return effWC_components
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+  ####  #####    ##   #####  # ###### #    # #####
+ #    # #    #  #  #  #    # # #      ##   #   #
+ #      #    # #    # #    # # #####  # #  #   #
+ #  ### #####  ###### #    # # #      #  # #   #
+ #    # #   #  #    # #    # # #      #   ##   #
+  ####  #    # #    # #####  # ###### #    #   #
+
+#Adapted from MadMiner code: https://github.com/diana-hep/madminer/blob/43d5b59c6857b56cfbd2d06f683ccf32a0aa5440/madminer/utils/morphing.py#L462-L530
+def Get_Gradient_EffectiveWC_eachComponent(n_components, components, operatorWCs):
+    """
+    FIXME
+
+    Parameters:
+    n_components (int) : number of components
+    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a given component
+    operatorWCs (ndarray of shape [n_operators]) : array of corresponding WC values, for a single EFT point
+
+    Returns:
+    gradient_effWC_components (ndarray of shape [n_operators, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
+    """
+
+    if operatorWCs.ndim > 1:
+        print('[Get_Gradient_EffectiveWC_eachComponent]', colors.fg.red, 'Error : operatorWCs has dim', ndim, '> 1 ! Keeping first entry only...', colors.reset)
+        operatorWCs = operatorWCs[0,...]
+
+    gradient_effWC_components = np.zeros((n_components, len(operatorWCs))) #Create empty array of shape (n_components, n_operators), transpose later
+
+    for y in range(n_components): #For each component
+        for x in range(len(operatorWCs)): #For each operator (loop on array elements)
+
+            factor = 1.0
+            for p in range(len(operatorWCs)): #For each operator (loop on operators potentially impacting the current element)
+                if p == x and components[y,p] >= 1: #xxx
+                    factor *= float(components[y,p] * operatorWCs[p] ** components[y,p] - 1) #xxx
+                elif p == x: #xxx
+                    factor = 0.0; break #xxx
+                else: #xxx
+                    factor *= float(operatorWCs[p] ** components[y,p]) #xxx
+
+                print('x', x, 'y', y, 'p', p)
+                print(operatorWCs[p]); print(components[x, p]); print(factor)
+
+            gradient_effWC_components[y,x] = factor
+
+    gradient_effWC_components = gradient_effWC_components.T #Reshape (n_operators, n_components)
+
+    #FIXME
+    # print('\n-- Get_Gradient_EffectiveWC_eachComponent')
+    # print(operatorWCs)
+    # print(components)
+    # print(gradient_effWC_components.shape)
+    # print(gradient_effWC_components)
+
+    # if DEBUG_:
+    #     print('\n-- Get_Gradient_EffectiveWC_eachComponent'); print(gradient_effWC_components.shape)
+    #     if DEBUG_>1: print(gradient_effWC_components)
+    return gradient_effWC_components
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Adapted from MadMiner code: https://github.com/diana-hep/madminer/blob/43d5b59c6857b56cfbd2d06f683ccf32a0aa5440/madminer/utils/morphing.py#L462-L530
+#NB: could be significantly optimized
+def Get_Gradient_EffectiveWC_eachComponent3D(n_components, components, operatorWCs):
+    """
+    FIXME
+
+    Parameters:
+    n_components (int) : number of components
+    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a given component
+    operatorWCs (ndarray of shape [n_points, n_operators]) : array of corresponding WC values, for a single EFT point
+
+    Returns:
+    gradient_effWC_components (ndarray of shape [n_operators, n_points, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
+    """
+
+    print('operatorWCs', operatorWCs.shape)
+    print('components', components.shape)
+
+    gradient_effWC_components_allPoints = np.zeros((components.shape[1], len(operatorWCs), n_components)) #Create empty array of shape (n_operators, n_points, n_components)
+    for z in range(components.shape[1]): #For each operator (loop on array elements, will differentiate M^2 w.r.t. this operator)
+
+        gradient_effWC_components = np.zeros((len(operatorWCs), n_components)) #Create empty array of shape (n_points, n_components)
+        for y in range(len(operatorWCs)): #For each point
+            for x in range(n_components): #For each component
+
+                factor = 1.0
+                for p in range(components.shape[1]): #For each operator (loop on operators potentially impacting the current element)
+                    if p == z and components[x,p] >= 1: #xxx
+                        factor *= float(components[x,p] * operatorWCs[y,p] ** (components[x,p]-1)) #xxx
+                    elif p == z: #xxx
+                        factor = 0.0; break #xxx
+                    else: #xxx
+                        factor *= float(operatorWCs[y,p] ** components[x,p]) #xxx
+
+                    # if z==0 and y==0:
+                    #     print('z', z, 'y', y, 'x', x, 'p', p)
+                    #     print(operatorWCs[y,p]); print(components[x,p]); print(factor)
+                    #     if DEBUG_>1: print('z', z, 'y', y, 'x', x, 'p', p)
+
+                gradient_effWC_components[y,x] = factor
+
+        gradient_effWC_components_allPoints[z, ...] = gradient_effWC_components
+
+    # print('\n-- Get_Gradient_EffectiveWC_eachComponent');
+    # print(gradient_effWC_components_allPoints.shape)
+    # print('z=0,p=0', operatorWCs[0,:], '\n', components[:,:], '\n', gradient_effWC_components_allPoints[0,0,:])
+    # print('z=0,p=1', operatorWCs[1,:], '\n', components[:,:], '\n', gradient_effWC_components_allPoints[0,1,:])
+
+    # if DEBUG_:
+    #     print('\n-- Get_Gradient_EffectiveWC_eachComponent'); print(gradient_effWC_components_allPoints.shape)
+    #     if DEBUG_>1: print(gradient_effWC_components_allPoints)
+    return gradient_effWC_components_allPoints
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -284,10 +407,10 @@ def Get_FitCoefficients(effWC_components, benchmark_weights):
         print('\n-- Get_FitCoefficients'); print(fit_coeffs.shape)
         if DEBUG_>1:
             # print(fit_coeffs)
-            print('fit_coeffs', fit_coeffs[0])
-            print('benchmark_weights', benchmark_weights[0])
-            print('WC', effWC_components[0])
-            print('inv WC', np.linalg.inv(effWC_components)[0])
+            print('fit_coeffs0', fit_coeffs[0])
+            print('benchmark_weights0', benchmark_weights[0])
+            print('effWC0', effWC_components[0])
+            print('inv effWC0', np.linalg.inv(effWC_components)[0])
             print('benchweight0 : coeff*WC0=', np.dot(effWC_components[0],fit_coeffs[0]) )
             print('benchweight1 : coeff*WC1=', np.dot(effWC_components[1],fit_coeffs[0]) )
             print('benchweight2 : coeff*WC2=', np.dot(effWC_components[2],fit_coeffs[0]) )
@@ -296,12 +419,12 @@ def Get_FitCoefficients(effWC_components, benchmark_weights):
 # //--------------------------------------------
 # //--------------------------------------------
 
- ###### #    # ##### #####    ##   #####   ####  #
- #       #  #    #   #    #  #  #  #    # #    # #
- #####    ##     #   #    # #    # #    # #    # #
- #        ##     #   #####  ###### #####  #    # #      ###
- #       #  #    #   #   #  #    # #      #    # #      ###
- ###### #    #   #   #    # #    # #       ####  ###### ###
+ ###### #    # ##### #####    ##   #####   ####  #        ##   ##### ######
+ #       #  #    #   #    #  #  #  #    # #    # #       #  #    #   #
+ #####    ##     #   #    # #    # #    # #    # #      #    #   #   #####
+ #        ##     #   #####  ###### #####  #    # #      ######   #   #
+ #       #  #    #   #   #  #    # #      #    # #      #    #   #   #
+ ###### #    #   #   #    # #    # #       ####  ###### #    #   #   ######
 
 def Extrapolate_EFTweight(effWC_components, fit_coeffs):
     """
@@ -395,12 +518,12 @@ def Extend_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses
 
 # //--------------------------------------------
 
-    #-- Define the hypotheses theta on which the DNN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point)
+    #-- Define the hypotheses theta on which the DNN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point) #NB: points theta are defined according to user-defined list 'listOperatorsParam', but must be shaped according to total nof operators present in samples
     thetas, targetClass = Get_ThetaParameters(opts, operatorNames)
     # print(thetas); print(targetClass)
 
     #-- Determine the components necessary to parameterize the event weights
-    n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
+    n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events, in all process classes
     # print(components)
 
     #Extended lists to return
@@ -426,11 +549,24 @@ def Extend_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses
             nEventsPerPoint_class = len(list_x_allClasses[iclass])
 
         #-- Get the 'effective WC' values scaling each fit component
-        effWC_components_thetas_class = Get_EffectiveWC_eachComponents(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
+        effWC_components_thetas_class = Get_EffectiveWC_eachComponent(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
         # print(effWC_components_thetas_class)
 
         #-- Extrapolate the event weights at the new points theta, for all events
         newWeights = Extrapolate_EFTweight(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
+
+        newXsecs = Extrapolate_EFTxsec(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass]) #FIXME -- only if needed  ; also for SM
+
+        gradEffWC_components_operators_thetas_class = Get_Gradient_EffectiveWC_eachComponent3D(n_components, components, thetas)
+
+        list_gradNewWeights_operators = []
+        list_gradNewXsecs_operators = []
+        for iop in range(len())
+        #FIXME --> Extrapolate grad reweights (3D : op, ev, points)
+        #--> Get xsecs by summing over events (2D : op, points)
+        exit(1)
+
+        #FIXME compute r, t, store
 
         #-- xxx
         for itheta in range(len(thetas)):
@@ -517,7 +653,7 @@ def Extend_Dataset_useEntireDatasetAtEachPoint(parameterizedDNN, listOperatorsPa
     for iclass in range(len(list_labels)):
 
         #-- Get the 'effective WC' values scaling each fit component
-        effWC_components_thetas_class = Get_EffectiveWC_eachComponents(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
+        effWC_components_thetas_class = Get_EffectiveWC_eachComponent(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
         # print(effWC_components_thetas_class)
 
         #-- Extrapolate the event weights at the new points theta, for all events

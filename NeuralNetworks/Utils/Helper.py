@@ -45,6 +45,7 @@ def batchOutput(batch, logs):
     print(logs)
 
     return
+
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -320,6 +321,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["parameterizedDNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
     else: opts["maxEvents"] = opts["maxEventsPerClass"]
+
+    if opts["parameterizedDNN"] == True: opts["batchSize"] = opts["batchSizeClass"]
+    else: opts["batchSize"] = opts["batchSizeEFT"]
 
     return opts, lumiName, weightDir, ntuplesDir, h5modelName, opts["batchSize"]
 

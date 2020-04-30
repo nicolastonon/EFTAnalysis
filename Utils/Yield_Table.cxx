@@ -342,9 +342,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     //Need to divide by corresponding SWE, because was not done at Potato level
                     //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
                     {
-                        weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+                        weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //with SFs
 
-                        // weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];
+                        // weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm]; //no SF, basic formula
+
+                        // weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //TESTING
                     }
                 }
 
