@@ -1,4 +1,5 @@
-# xxx
+# Define a DataGenerator class which can cut an entire dataset into small batches, to be fed sequentially to fit the NN. Rendered necessary for huge training datasets, which do not fit the RAM.
+# Basic implementation, following conventions necessary to be given as arg to keras.fit()
 
 import tensorflow
 import keras
@@ -9,7 +10,8 @@ from Utils.ColoredPrintout import colors
 
 # //--------------------------------------------
 # //--------------------------------------------
-# //--------------------------------------------
+
+
 ########     ###    ########    ###
 ##     ##   ## ##      ##      ## ##
 ##     ##  ##   ##     ##     ##   ##
@@ -25,12 +27,10 @@ from Utils.ColoredPrintout import colors
 ##    ##  ##       ##  ####
 ##    ##  ##       ##   ### ###
  ######   ######## ##    ## ###
-# //--------------------------------------------
-# //--------------------------------------------
-# //--------------------------------------------
 
 # //--------------------------------------------
 # //--------------------------------------------
+
 class DataGenerator(Sequence):
     'Generates data for Keras'
 
@@ -59,30 +59,6 @@ class DataGenerator(Sequence):
     #     self.indexes = np.arange(len(self.list_IDs))
     #     if self.shuffle == True:
     #         np.random.shuffle(self.indexes)
-
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
 
 
 # //--------------------------------------------

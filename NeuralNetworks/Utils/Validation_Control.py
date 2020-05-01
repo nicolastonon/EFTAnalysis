@@ -37,7 +37,7 @@ from pandas.plotting import scatter_matrix
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Printout some information related to DNN performance
+#Printout some information related to NN performance
 def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses):
 
     if nofOutputNodes == 1:
@@ -92,15 +92,15 @@ def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictio
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Apply DNN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
+#Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
 def Make_TrainTestPrediction_Histograms(nofOutputNodes, lumiName, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics):
 
     print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset); print('\n')
 
-    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized DNN with huge training stat.)
+    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
-    rootfile_outname = "../outputs/DNN_"+list_labels[0]+"_"+lumiName+".root"
+    rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
     for inode in range(nofOutputNodes):
@@ -205,7 +205,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
     timer.start()
     plt.show()
 
-    plotname = weight_dir + 'Loss_DNN.png'
+    plotname = weight_dir + 'Loss_NN.png'
     fig1.savefig(plotname, bbox_inches='tight') #bbox_inches='tight' ensures that second y-axis is visible
     print(colors.fg.lightgrey, "\nSaved Loss plot as :", colors.reset, plotname)
     fig1.clear()
@@ -246,7 +246,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
     timer.start()
     plt.show()
 
-    plotname = weight_dir + 'Accuracy_DNN_.png'
+    plotname = weight_dir + 'Accuracy_NN_.png'
     fig2.savefig(plotname, bbox_inches='tight')
     # print("Saved Accuracy plot as : " + plotname)
     print(colors.fg.lightgrey, "\nSaved Accuracy plot as :", colors.reset, plotname)
@@ -297,8 +297,8 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
                 # roc_auc[0] = auc(fpr[0], tpr[0])
                 # fpr_train[0], tpr_train[0], _ = roc_curve(y_train[:, 0], model.predict(x_train)[:, 0])
                 # roc_auc_train[0] = auc(fpr_train[0], tpr_train[0])
-                # plt.plot(tpr_train[0], 1-fpr_train[0], color='darkorange', lw=lw, label='ROC DNN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[0]))
-                # plt.plot(tpr[0], 1-fpr[0], color='cornflowerblue', lw=lw, label='ROC DNN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[0]))
+                # plt.plot(tpr_train[0], 1-fpr_train[0], color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[0]))
+                # plt.plot(tpr[0], 1-fpr[0], color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[0]))
 
             # Plot ROC curves
             fig3 = plt.figure(3)
@@ -306,11 +306,11 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
             timer.add_callback(close_event)
 
             if opts["nofOutputNodes"] == 1: #only 1 node
-                plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC DNN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train))
-                plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC DNN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
+                plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train))
+                plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
             else: #for each node
-                plt.plot(tpr_train[i], 1-fpr_train[i], color='darkorange', lw=lw, label='ROC DNN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[i]))
-                plt.plot(tpr[i], 1-fpr[i], color='cornflowerblue', lw=lw, label='ROC DNN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[i]))
+                plt.plot(tpr_train[i], 1-fpr_train[i], color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[i]))
+                plt.plot(tpr[i], 1-fpr[i], color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[i]))
 
             ax = fig3.gca()
             ax.set_xticks(np.arange(0, 1, 0.1))
@@ -329,7 +329,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
                 timer.start()
                 plt.show()
 
-            plotname = weight_dir + 'ROC_DNN_' + list_labels[i] + '.png'
+            plotname = weight_dir + 'ROC_NN_' + list_labels[i] + '.png'
             fig3.savefig(plotname)
             print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
             fig3.clear()
@@ -435,14 +435,14 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
         plt.title("Output distributions for Signal & Background")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
-        plt.xlabel('DNN output')
+        plt.xlabel('NN output')
         plt.ylabel('PDF')
 
         if i == 0:
             timer.start()
             plt.show()
 
-        plotname = weight_dir + 'Overtraining_DNN_' + list_labels[i] + '.png'
+        plotname = weight_dir + 'Overtraining_NN_' + list_labels[i] + '.png'
         fig4.savefig(plotname)
         # print("Saved Overtraining plot as : " + plotname)
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
@@ -543,10 +543,10 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     plot_eachSingleFeature = False #True <-> 1 single plot per feature
 # //--------------------------------------------
 
-    # if opts["parameterizedDNN"] is True and isControlNorm is True: return #Gain time
+    # if opts["parameterizedNN"] is True and isControlNorm is True: return #Gain time
     if x is None: print('Error, can\'t produce input features plots : x=None !'); return
 
-    nMax = 50000 #Don't use more events (slow) #Warning : for parameterized DNN, biases distributions of WCs (will most likely not cover all EFT points)
+    nMax = 50000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
     if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default

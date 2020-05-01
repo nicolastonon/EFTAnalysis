@@ -60,22 +60,22 @@ _list_labels.append("PrivMC_tZq_top19001")
 optsTrain = {
 
 #-- General settings
-"regress": False, #True <-> DNN used for regression ; False <-> classification
+"regress": False, #True <-> NN used for regression ; False <-> classification
 "target": "class", #'None', 'class', ...
-"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-#-- Settings specific to non-parameterized DNN (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": 100000, #max nof events to be used for each process class (non-parameterized DNN only) ; -1 <-> use all available events
+#-- Settings specific to non-parameterized NN (separate processes, or SM/pure-EFT)
+"maxEventsPerClass": 100000, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
-#-- Settings specific to parameterized DNN
-"parameterizedDNN": True, #True <-> DNN is parameterized on the Wilson coefficients of the EFT operators
+#-- Settings specific to parameterized NN
+"parameterizedNN": True, #True <-> NN is parameterized on the Wilson coefficients of the EFT operators
 # "listOperatorsParam": ['ctZ','ctW'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the DNN on
-"nEventsPerPoint": 100, #max nof events to be used for each EFT point (for parameterized DNN only) ; -1 <-> use all available events
+"nPointsPerOperator": 10, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #-- Event preselection
@@ -178,7 +178,7 @@ from Utils.DataGenerator import *
 # //--------------------------------------------
 
 #Main function, calling sub-functions to perform all necessary actions
-def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features):
+def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features):
 
  # #    # # #####
  # ##   # #   #
@@ -201,19 +201,19 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
 
     print('\n\n')
     print(colors.bg.orange, colors.bold, "=====================================", colors.reset)
-    print('\t', colors.fg.orange, colors.bold, "DNN Training", colors.reset)
+    print('\t', colors.fg.orange, colors.bold, "NN Training", colors.reset)
     print(colors.bg.orange, colors.bold, "=====================================", colors.reset, '\n\n')
 
     #-- Get data
     print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
 
-    # From there, for parameterized DNN, the different 'classes' correspond to different operators, and must include their WCs as inputs
-    if optsTrain["parameterizedDNN"]==True :
+    # From there, for parameterized NN, the different 'classes' correspond to different operators, and must include their WCs as inputs
+    if optsTrain["parameterizedNN"]==True :
         _list_labels = optsTrain["listOperatorsParam"][:]; _list_labels.insert(0, "SM") #Specify '[:]' to create a copy, not a reference
         _list_features = np.append(_list_features, optsTrain["listOperatorsParam"])
 
-    #-- Plot input features distributions, after applying to train data same rescaling as will be done by first DNN layer (-> check rescaling)
+    #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
@@ -234,12 +234,12 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
     # ckpt_dir = os.path.dirname(ckpt_path); history = 0
 
     #-- Fit model (TRAIN)
-    print('\n'); print(colors.fg.lightblue, "--- Train (fit) DNN on training sample...", colors.reset); print('\n')
-    if optsTrain["parameterizedDNN"]==False:
+    print('\n'); print(colors.fg.lightblue, "--- Train (fit) NN on training sample...", colors.reset); print('\n')
+    if optsTrain["parameterizedNN"]==False:
         history = model.fit(x_train, y_train, sample_weight=LearningWeights_train, validation_data=(x_test, y_test, PhysicalWeights_test), epochs=optsTrain["nEpochs"], batch_size=_batchSize, callbacks=callbacks_list, shuffle=True, verbose=1)
 
         # Evaluate the neural network's performance (evaluate metrics on validation or test dataset)
-        print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
+        print('\n'); print(colors.fg.lightblue, "--- Evaluate NN performance on test sample...", colors.reset); print('\n')
         score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test, verbose=1)
 
     else:
@@ -248,7 +248,7 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
         _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ optsTrain["batchSize"])
         history = model.fit(my_training_batch_generator, steps_per_epoch=_steps_per_epoch, validation_data=my_validation_batch_generator, validation_steps=_steps_per_epoch_val, epochs=optsTrain["nEpochs"], callbacks=callbacks_list, verbose=1)
 
-        print('\n'); print(colors.fg.lightblue, "--- Evaluate DNN performance on test sample...", colors.reset); print('\n')
+        print('\n'); print(colors.fg.lightblue, "--- Evaluate NN performance on test sample...", colors.reset); print('\n')
         score = model.evaluate(my_validation_batch_generator, steps=_steps_per_epoch_val, verbose=1)
 
 # //--------------------------------------------
@@ -275,7 +275,7 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
     model.save(_h5modelName)
 
     # Save the model architecture
-    with open(_weightDir + 'arch_DNN.json', 'w') as json_file:
+    with open(_weightDir + 'arch_NN.json', 'w') as json_file:
         json_file.write(model.to_json())
 
     # Convert model to estimator and save model as frozen graph for c++
@@ -359,8 +359,8 @@ def Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_
 # //--------------------------------------------
 # //--------------------------------------------
 
-#----------  Manual call to DNN training function
-Train_Test_Eval_DNN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+#----------  Manual call to NN training function
+Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
 # //--------------------------------------------
 #-- Set up the command line arguments

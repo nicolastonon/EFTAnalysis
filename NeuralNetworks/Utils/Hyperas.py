@@ -1,5 +1,4 @@
-# Nicolas Tonon (DESY)
-# OUTDATED code to perform DNN hyperparameters optimization, using the Hyperas library
+# OUTDATED code to perform NN hyperparameters optimization, using the Hyperas library
 
 from __future__ import print_function
 from hyperopt import Trials, STATUS_OK, tpe

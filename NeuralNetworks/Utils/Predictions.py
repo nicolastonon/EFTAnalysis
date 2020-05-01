@@ -34,7 +34,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
-    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized DNN with huge training stat.)
+    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
     # print('...Order data by target class...')
     list_xTrain_allClasses = []; list_xTest_allClasses = []
@@ -48,7 +48,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
         list_xTest_allClasses.append(x_test[y_process_test==0][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test==0][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test==0][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==0][:maxEvents])
     else: #Multiclass
         for i in range(len(list_labels)):
-            if opts["parameterizedDNN"] == False or i==0: #Use all events from process class for control plots (for non-parameterized DNN, and for SM point)
+            if opts["parameterizedNN"] == False or i==0: #Use all events from process class for control plots (for non-parameterized NN, and for SM point)
                 list_xTrain_allClasses.append(x_train[y_process_train[:,i]==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train[:,i]==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train[:,i]==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train[:,i]==1][:maxEvents])
                 list_xTest_allClasses.append(x_test[y_process_test[:,i]==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test[:,i]==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test[:,i]==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,i]==1][:maxEvents])
             else: #For each EFT operator, only use events generated at most extreme EFT point
@@ -114,7 +114,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
     # print("--------------\n")
 
-    #-- Print predictions for first few events of first process => can compare with predictions obtained for same DNN/events using another code
+    #-- Print predictions for first few events of first process => can compare with predictions obtained for same NN/events using another code
     # for j in range(x_control_firstNEvents.shape[0]):
     #     print(x_control_firstNEvents[j])
     #     print("===> Prediction for event", j," :", model.predict(x_control_firstNEvents)[j][0], '\n')

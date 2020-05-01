@@ -68,8 +68,8 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses = Get_EFT_FitCoefficients(list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #-- If the DNN is parameterized on Wilson coeffs., need to artificially extend the dataset to train on many different points in EFT phase space
-    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses = Extend_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses)
+    #-- If the NN is parameterized on Wilson coeffs., need to artificially extend the dataset to train on many different points in EFT phase space
+    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, extendedList_jointLR_allClasses, extendedList_score_allClasses = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses)
 
     #-- Concatenate and reshape arrays
     x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses)
@@ -78,7 +78,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses)
 
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
-    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, opts["parameterizedDNN"])
+    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, opts["parameterizedNN"])
 
     #-- Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
     x_control_firstNEvents = x[0:10,:]
@@ -95,8 +95,8 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
-    #-- Get rescaling parameters for each input feature, given to first DNN layer to normalize features -- derived from train data alone
-    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedDNN"])
+    #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
+    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"])
 
     print(colors.fg.lightblue, "===========", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
@@ -350,7 +350,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     maxEvents = opts["maxEvents"]
 
     #--- Max nof events for train/test phases
-    if maxEvents is not -1 and opts["parameterizedDNN"] is False:
+    if maxEvents is not -1 and opts["parameterizedNN"] is False:
     # if maxEvents is not -1:
 
         #Skim each process class (keep only maxEvents events) ; skim all relevant arrays coherently
@@ -406,12 +406,12 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     # EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0)
     # EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
 
-    #-- Parameterized DNN: pass the values of the WCs as input features
-    if opts["parameterizedDNN"]==True and len(list_thetas_allClasses)>0:
+    #-- Parameterized NN: pass the values of the WCs as input features
+    if opts["parameterizedNN"]==True and len(list_thetas_allClasses)>0:
         thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
-        #Theta has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the DNN will get trained on --> Only parameterize DNN on such operators, not the others (not used)
+        #Theta has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
         theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
         targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)]
         x = np.append(x, theta_tmp, axis=1)
@@ -452,7 +452,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 #-- CLASSIFICATION
 #NB: execute these commands also for regression, in order to get array 'y_process'
 
-    if opts["parameterizedDNN"] == False: #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
+    if opts["parameterizedNN"] == False: #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
 
         #Create array of labels (1 row per event, 1 column per class)
         if opts["nofOutputNodes"] == 1: #binary, single column => sig 1, bkg 0
@@ -519,7 +519,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 # //--------------------------------------------
 
 #Compute and apply weights to training dataset to balance the training
-def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, parameterizedDNN):
+def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, parameterizedNN):
 
     #Dupplicate list of weight arrays, storing absolute weights (can't handle negative weights in training)
     list_weights_allClasses_abs = []
@@ -536,7 +536,7 @@ def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses
     #Compute scale factors to rescale each class to 'yield_abs_total'
     list_SFs_allClasses = []
     for i in range(len(list_processClasses)):
-        if parameterizedDNN == False:
+        if parameterizedNN == False:
             list_SFs_allClasses.append(100. / list_yields_abs_allClasses[i]) #Compute SF for each process so that its total yield equals N (arbitrary)
             # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[i])
         else: list_SFs_allClasses.append(1)
@@ -581,8 +581,8 @@ def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses
 # //--------------------------------------------
 # //--------------------------------------------
 
-#-- Get normalization parameters from training data. Give these parameters to DNN input layers to directly normalize all inputs
-def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedDNN, transfType='quantile'):
+#-- Get normalization parameters from training data. Give these parameters to NN input layers to directly normalize all inputs
+def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedNN, transfType='quantile'):
 
     nmax = 100000 #Don't compute means shifts and scales on more than nmax events (slow)
     np.set_printoptions(precision=3)
@@ -599,7 +599,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedD
     if transfType == 'quantile':
         frac=0.95 #Fraction of event within [-1;+1] -- 0.68 or 0.95
         shift_, scale_ = get_normalization_iqr(x_train[:nmax], frac)
-        # if parameterizedDNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
+        # if parameterizedNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
         xTrainRescaled = normalize(x_train, shift_, scale_)
 
     #--- RANGE SCALING
@@ -608,7 +608,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedD
         scaler = MinMaxScaler(feature_range=(-1, 1)).fit(x_train[:nmax]) #Conpute macro parameters
         shift_ = scaler.min_
         scale_ = scaler.scale_
-        # if parameterizedDNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        # if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
         xTrainRescaled = scaler.transform(x_train)
 
     #--- RESCALE TO UNIT GAUSSIAN -- https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
@@ -617,10 +617,10 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedD
         scaler = StandardScaler().fit(x_train[:nmax]) #Get params
         shift_ = scaler.mean_
         scale_ = scaler.scale_ # = np.sqrt(var_)
-        if parameterizedDNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
         xTrainRescaled = scaler.transform(x_train)
 
-    text_file = open(weightDir + "DNN_infos.txt", "w")
+    text_file = open(weightDir + "NN_infos.txt", "w")
 
     #Dump shift_ and scale_ params into txtfile
     for ivar in range(len(list_features)):
@@ -629,7 +629,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedD
         text_file.write(str(scale_[ivar])); text_file.write('\n')
 
     text_file.close()
-    print(colors.fg.lightgrey, '\n===> Saved DNN infos (input/output nodes names, rescaling values, etc.) in : ', weightDir + "DNN_infos.txt \n", colors.reset)
+    print(colors.fg.lightgrey, '\n===> Saved NN infos (input/output nodes names, rescaling values, etc.) in : ', weightDir + "NN_infos.txt \n", colors.reset)
 
     # print('shift_', shift_); print('scale_', scale_)
     # print('After transformation :', xTrainRescaled[0:5,:])

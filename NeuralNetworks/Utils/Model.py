@@ -1,8 +1,6 @@
-# Define the DNN model
-
+# Define the NN model
 #TODO: Pass as args with default values : nof inputs, nof dense layers, batchnorm, dropout, output layer, ...
 
-# //--------------------------------------------
 from tensorflow.keras.models import Sequential, load_model, model_from_json
 from tensorflow.keras.layers import Lambda, Input, Dense, Dropout, AlphaDropout, Activation, BatchNormalization, LeakyReLU
 from tensorflow.keras import regularizers
@@ -10,9 +8,6 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LambdaCallback, LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras.utils import plot_model
 from Utils.Helper import normalize
-
-
-
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -40,8 +35,8 @@ from Utils.Helper import normalize
 #ReLu activations should only be used for hidden layers, avoids vanishing gradient issue
 #Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
 
-#Define here the Keras DNN model
-def Create_Model(opts, outdir, var_list, shifts, scales, DNN_name="DNN"):
+#Define here the Keras NN model
+def Create_Model(opts, outdir, var_list, shifts, scales, NN_name="NN"):
 
     use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
     use_batchNorm = True #True <-> Active batch norm layers
@@ -54,7 +49,7 @@ def Create_Model(opts, outdir, var_list, shifts, scales, DNN_name="DNN"):
     # Define model
     model = Sequential()
 
-    num_input_variables = len(var_list) #Nof input variables to be read by the DNN
+    num_input_variables = len(var_list) #Nof input variables to be read by the NN
     # print(num_input_variables)
 
     # my_init = 'Zeros' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
@@ -308,13 +303,13 @@ def Create_Model(opts, outdir, var_list, shifts, scales, DNN_name="DNN"):
     #Model visualization
     print(model.summary())
 
-    # outname = outdir+'graphviz_'+DNN_name+'.png'
+    # outname = outdir+'graphviz_'+NN_name+'.png'
     # plot_model(model, to_file=outname, show_shapes=True, show_layer_names=True, dpi=96)
-    # print("\n-- Created DNN arch plot with graphviz : " + outname)
+    # print("\n-- Created NN arch plot with graphviz : " + outname)
 
-    # outname = outdir+'annviz_'+DNN_name+'.gv'
+    # outname = outdir+'annviz_'+NN_name+'.gv'
     # ann_viz(model, title="Neural network architecture", filename=outname, view=True) #cant handle batchnorm?
-    # print("\n-- Created DNN arch plot with annviz : " + outname)
+    # print("\n-- Created NN arch plot with annviz : " + outname)
 
     return model
 # //--------------------------------------------

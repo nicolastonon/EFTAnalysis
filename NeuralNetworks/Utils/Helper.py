@@ -1,4 +1,3 @@
-# Nicolas Tonon (DESY)
 # Python helper functions
 
 import time   # time accounting
@@ -49,7 +48,7 @@ def batchOutput(batch, logs):
 # //--------------------------------------------
 # //--------------------------------------------
 
-#-- Write DNN input variables to a .txt file
+#-- Write NN input variables to a .txt file
 def Write_Variables_To_TextFile(weight_dir, var_list):
 
     text_file = open(weight_dir + "ListVariables.txt", "w")
@@ -235,7 +234,7 @@ def my_training_batch_generator(features, labels, batch_size): # Create empty ar
 # //--------------------------------------------
 # //--------------------------------------------
 
-#-- Get name corresponding to the data-taking years which are considered in the DNN training
+#-- Get name corresponding to the data-taking years which are considered in the NN training
 def Get_LumiName(lumi_years):
 
     # Set a unique name to each combination of year(s)
@@ -288,9 +287,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
-    if opts["parameterizedDNN"]==True and onlySMEFT==False:
-        print(colors.bold, colors.fg.red, 'Parameterized DNN supported for SM/EFT samples only ! Setting parameterizedDNN to False', colors.reset);
-        opts["parameterizedDNN"]=False;
+    if opts["parameterizedNN"]==True and onlySMEFT==False:
+        print(colors.bold, colors.fg.red, 'Parameterized NN supported for SM/EFT samples only ! Setting parameterizedNN to False', colors.reset);
+        opts["parameterizedNN"]=False;
 
     if opts["regress"]==True:
         if opts["target"] != "class": print(colors.fg.red, 'ERROR : target name not available for regression yet', colors.reset); exit(1)
@@ -303,7 +302,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     lumiName = Get_LumiName(lumi_years)
 
     # Set main output paths
-    weightDir = "../weights/DNN/" + lumiName + '/'
+    weightDir = "../weights/NN/" + lumiName + '/'
     os.makedirs(weightDir, exist_ok=True)
 
     #Top directory containing all input ntuples
@@ -316,13 +315,13 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     opts["nofOutputNodes"] = len(processClasses_list) #1 output node per class
     if opts["regress"] is True or opts["nofOutputNodes"] == 2: #Special case : 2 classes -> binary classification -> 1 output node only
         opts["nofOutputNodes"] = 1
-    if opts["parameterizedDNN"]:
+    if opts["parameterizedNN"]:
         opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
 
-    if opts["parameterizedDNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
+    if opts["parameterizedNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
     else: opts["maxEvents"] = opts["maxEventsPerClass"]
 
-    if opts["parameterizedDNN"] == True: opts["batchSize"] = opts["batchSizeClass"]
+    if opts["parameterizedNN"] == True: opts["batchSize"] = opts["batchSizeClass"]
     else: opts["batchSize"] = opts["batchSizeEFT"]
 
     return opts, lumiName, weightDir, ntuplesDir, h5modelName, opts["batchSize"]
