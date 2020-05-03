@@ -17,14 +17,14 @@ from tensorflow.keras.optimizers import SGD, Adam, RMSprop
 # //--------------------------------------------
 
 #Define here the loss function / optimizer / metrics to be used to train the model
-def Get_Loss_Optim_Metrics(regress, nof_outputs):
+def Get_Loss_Optim_Metrics(opts):
 
     #The bigger the LR, the bigger the changes of weights in-between epochs. Too low -> weights don't update. Too large -> Instability
     _lr = 0.001
 
     _momentum = 0.9 #helps preventing oscillations. Usually 0.5 - 0.9
     _decay = 0.0 #Decreases the _lr by specified amount after each epoch. Used in similar way as LearningRateScheduler
-    _nesterov = True #improved momentum, stronger theoretical converge guarantees for convex functions
+    _nesterov = True #improved momentum
 
     #-- Some possible choices of optimizers
     # optim = RMSprop(lr=_lr)
@@ -44,12 +44,12 @@ def Get_Loss_Optim_Metrics(regress, nof_outputs):
     # metrics = 'binary_crossentropy' #Calculates the cross-entropy value for binary classification problems.
     # metrics = 'AUC' #tf.metrics.AUC #Computes the approximate AUC (Area under the curve) via a Riemann sum.
 
-    if regress==False: #Classification
-        if nof_outputs > 1:
+    if opts["regress"]==False: #Classification
+        if opts["nofOutputNodes"] > 1:
             loss = 'categorical_crossentropy'
             metrics = 'categorical_accuracy'
             # metrics = 'AUC'
-        elif nof_outputs == 1:
+        elif opts["nofOutputNodes"] == 1:
             loss = 'binary_crossentropy'
             metrics = 'binary_accuracy'
             # metrics = 'AUC'
@@ -58,8 +58,12 @@ def Get_Loss_Optim_Metrics(regress, nof_outputs):
         loss = 'mean_squared_error'
         metrics = 'mean_squared_error'
 
-    #Return the one you want to use
-    return loss, optim, metrics
+    lossWeights = None
+    if opts["strategy"] == "RASCAL": #2 outputs : [r,t]
+        loss = ['mean_squared_error', 'mean_squared_error']
+        lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
+
+    return loss, optim, metrics, lossWeights
 
 # //--------------------------------------------
 # //--------------------------------------------

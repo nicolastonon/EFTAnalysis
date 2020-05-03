@@ -1,6 +1,13 @@
 # Nicolas TONON (DESY)
-# Train fully-connected neural networks with Keras (tensorflow back-end) for classification and regression
+# Train fully-connected neural networks with Keras (tensorflow back-end) for classification and regression, with advanced functionnalities for EFT inference
 # //--------------------------------------------
+
+"""
+#TODO :
+- if parameterized and regress on r,t --> train at mixed points
+- compile(optimizer, loss=None, metrics=None, loss_weights=None, sample_weight_mode=None, weighted_metrics=None, target_tensors=None)
+- model, loss, activ
+"""
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -16,16 +23,62 @@
 # //--------------------------------------------
 # //--------------------------------------------
 
+# Training options
+# //--------------------------------------------
+optsTrain = {
+
+#=== NN strategy ===#
+# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+# "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
+# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+"strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
+
+#=== General training settings ===#
+"nEpochs": 3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
+
+"nHiddenLayers": 5, #Number of hidden layers
+"nNeuronsPerLayer": 100, #Number of neurons per hidden layer
+"activInputLayer": 'tanh', #Activation function of input layer
+"activHiddenLayers": 'relu', #Activation function of hidden layers
+"use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
+"use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
+"dropoutRate": 0.4, #Dropout rate (0 <-> disabled)
+
+#=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
+"maxEventsPerClass": 10000, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
+"nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
+"batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
+
+#=== Settings for parameterized NN ===#
+"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 10, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": 10, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+"score_lossWeight": 5, #Apply scale factor to score term in loss function
+"regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
+
+#=== Event preselection ===#
+"cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
+
+# _startFromExistingModel = False #True <-> Skip training, load latest checkpoint model and create perf plots #not properly implemented yet
+}
+
+
 # Analysis options
 # //--------------------------------------------
-# -- Choose here what data you want to consider (separate ntuples per year) ; same convention as for main analysis code
-# Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" # NB : years must be placed in the right order !
+
+# -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
 # _list_lumiYears.append("2016")
 _list_lumiYears.append("2017")
 # _list_lumiYears.append("2018")
 
-#Signal process must be first
+#-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["PrivMC_tZq"])
@@ -40,6 +93,7 @@ _list_processClasses.append(["PrivMC_tZq_top19001"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
+#-- Define labels associated with each process class
 _list_labels = []
 # _list_labels.append("tZq")
 # _list_labels.append("PrivMC_tZq")
@@ -54,39 +108,7 @@ _list_labels.append("PrivMC_tZq_top19001")
 # _list_labels.append("Backgrounds")
 # //--------------------------------------------
 
-#--- Training options
-#NB: the model (architecture) must be defined in Utils/Model.py for now
-# //--------------------------------------------
-optsTrain = {
-
-#-- General settings
-"regress": False, #True <-> NN used for regression ; False <-> classification
-"target": "class", #'None', 'class', ...
-"nEpochs": 3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-"splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
-
-#-- Settings specific to non-parameterized NN (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": 100000, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
-"nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
-"batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
-
-#-- Settings specific to parameterized NN
-"parameterizedNN": True, #True <-> NN is parameterized on the Wilson coefficients of the EFT operators
-# "listOperatorsParam": ['ctZ','ctW'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
-
-#-- Event preselection
-"cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
-}
-
-# _startFromExistingModel = False #True <-> Skip training, load latest checkpoint model and create perf plots #not used yet
-# //--------------------------------------------
-
-# Define list of input variables
-# //--------------------------------------------
+#-- Choose input features x
 _list_features = []
 _list_features.append("maxDijetDelR")
 _list_features.append("dEtaFwdJetBJet")
@@ -180,6 +202,11 @@ from Utils.DataGenerator import *
 #Main function, calling sub-functions to perform all necessary actions
 def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features):
 
+    print('\n\n')
+    print(colors.bg.orange, colors.bold, "=====================================", colors.reset)
+    print('\t', colors.fg.orange, colors.bold, "NN Training", colors.reset)
+    print(colors.bg.orange, colors.bold, "=====================================", colors.reset, '\n\n')
+
  # #    # # #####
  # ##   # #   #
  # # #  # #   #
@@ -188,8 +215,8 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
  # #    # #   #
 
     #-- Initialization, sanity checks
-    optsTrain, _lumiName, _weightDir, _ntuplesDir, _h5modelName, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
-
+    optsTrain, _lumiName, _weightDir, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
+    print(colors.fg.lightgrey, '\n===> Saving NN infos (options, features rescaling, etc.) in : ', _weightDir + "NN_infos.txt", colors.reset)
 
                                        #
  ##### #####    ##   # #    #         #     ##### ######  ####  #####
@@ -199,25 +226,20 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
    #   #   #  #    # # #   ##     #           #   #      #    #   #
    #   #    # #    # # #    #    #            #   ######  ####    #
 
-    print('\n\n')
-    print(colors.bg.orange, colors.bold, "=====================================", colors.reset)
-    print('\t', colors.fg.orange, colors.bold, "NN Training", colors.reset)
-    print(colors.bg.orange, colors.bold, "=====================================", colors.reset, '\n\n')
-
     #-- Get data
-    print(colors.fg.lightblue, "--- Read and shape the data...", colors.reset); print('\n')
-    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
+    print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
+    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
 
     # From there, for parameterized NN, the different 'classes' correspond to different operators, and must include their WCs as inputs
-    if optsTrain["parameterizedNN"]==True :
-        _list_labels = optsTrain["listOperatorsParam"][:]; _list_labels.insert(0, "SM") #Specify '[:]' to create a copy, not a reference
-        _list_features = np.append(_list_features, optsTrain["listOperatorsParam"])
+    # if optsTrain["parameterizedNN"]==True :
+    #     _list_labels = optsTrain["listOperatorsParam"][:]; _list_labels.insert(0, "SM") #Must specify '[:]' to create a copy, not a reference
+    #     _list_features = np.append(_list_features, optsTrain["listOperatorsParam"])
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
-    _loss, _optim, _metrics = Get_Loss_Optim_Metrics(optsTrain['regress'], optsTrain['nofOutputNodes'])
+    _loss, _optim, _metrics, _lossWeights = Get_Loss_Optim_Metrics(optsTrain)
 
     #-- Get model and compile it
     print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
@@ -227,7 +249,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
 
     print('\n'); print(colors.fg.lightblue, "--- Compile the Keras model...", colors.reset); print('\n')
-    model.compile(loss=_loss, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
+    model.compile(loss=_loss, loss_weights=_lossWeights, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
 
     #-- Define list of callbacks
     callbacks_list = Get_Callbacks(_weightDir)
@@ -243,9 +265,11 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test, verbose=1)
 
     else:
-        my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, _batchSize)
-        my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, _batchSize)
-        _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ optsTrain["batchSize"])
+        my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, optsTrain["strategy"], _batchSize, returnWeights=False)
+        my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, optsTrain["strategy"], _batchSize, returnWeights=False)
+        _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ _batchSize)
+        # batch_x, batch_y = my_training_batch_generator.__getitem__(1); print(batch_x); print(batch_y)
+
         history = model.fit(my_training_batch_generator, steps_per_epoch=_steps_per_epoch, validation_data=my_validation_batch_generator, validation_steps=_steps_per_epoch_val, epochs=optsTrain["nEpochs"], callbacks=callbacks_list, verbose=1)
 
         print('\n'); print(colors.fg.lightblue, "--- Evaluate NN performance on test sample...", colors.reset); print('\n')
@@ -271,10 +295,14 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 
     print('\n'); print(colors.fg.lightblue, "--- Save model...", colors.reset);
 
-    # Serialize model to HDF5
+    #Model output name
+    _h5modelName = _weightDir + 'model.h5'
+
+    # Serialize full model (arch+weights+config+state of optimizer) to HDF5
+    #Can then get this compiled model with 'model = load_model('xxx.h5')' (see: https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model)
     model.save(_h5modelName)
 
-    # Save the model architecture
+    # Save the model architecture only to json format
     with open(_weightDir + 'arch_NN.json', 'w') as json_file:
         json_file.write(model.to_json())
 
@@ -298,15 +326,17 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print('\n', colors.fg.lightblue, "--- Apply model to train & test data...", colors.reset, colors.dim," (may take a while)\n", colors.reset)
     list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName, x_control_firstNEvents)
 
-    Control_Printouts(optsTrain["nofOutputNodes"], score, _list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses)
+    Control_Printouts(optsTrain, score, _list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses)
 
-    Make_TrainTestPrediction_Histograms(optsTrain["nofOutputNodes"], _lumiName, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
+    Make_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
 
     Create_Control_Plots(optsTrain, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, _h5modelName, _metrics, _weightDir, history)
 
-    Create_Correlation_Plot(x, _list_features, _weightDir)
+    Create_Correlation_Plot(optsTrain, x, _list_features, _weightDir)
 
     Plot_Input_Features(optsTrain, x, y_process, PhysicalWeights_allClasses, _list_features, _weightDir, False)
+
+    Write_Timestamp_toLogfile(_weightDir, 1) #Final timestamp before exit
 
 # //--------------------------------------------
 # //--------------------------------------------

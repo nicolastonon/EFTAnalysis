@@ -1,4 +1,3 @@
-# Author : Nicolas Tonon, DESY
 # Helper functions related to the EFT treatment in the NN (parameterization of weight .vs. WCs, extrapolation, computation of score/likelihood, etc.
 
 DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (arrays, etc.)
@@ -6,22 +5,15 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 # //--------------------------------------------
 
 '''
-
-#TODO :
-- NN -> NN
-- option needs_gradients
-- if parameterized and regress on r,t --> train at mixed points
-- only get gradients and xsecs if regress !
-
 # NOTES :
-- Negative weights ?
-
+-
 
 # LIMITATIONS / ASSUMPTIONS :
 - Can not sum several processes into a process class including an EFT process. Each EFT process must constitute a separate class.
 - Assume that a given EFT sample has the exact same list of reweight points (in same order) for all considered years (could change that in the future by estimating fit coefficients directly when reading the sample, separately for each year)
 - If single operator identified, assume sample is pure-EFT only
 - Can only rescale array of event if all events have exact same EFT parameterization
+- Negative weights are ignored
 
 # NAMING CONVENTIONS :
 NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3 terms correspond to SM, interference, and pure-EFT.
@@ -34,6 +26,7 @@ NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3
 - 'Components' = individual terms contributing to the squared matrix element of the process. For example, if considering a single operator, there are 3 components to account for (corresponding to the SM squared term, the interference term, and the pure-EFT term)
 - 'Effective WC'/'component weight' = factors 'c_i' for all components. Example: for the interfence term between ctZ=3 and ctW=5, c=3*5=15. They are not the WC values of the operators, but depend directly on them, hence labelled "effective WC"
 - 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parameterize the event weight
+- 'JLR' = joint likelihood ratio, denoted r. Along with score t, these variables correspond to the augmented data extracted from the generator (see reference summary article: https://arxiv.org/abs/1805.00020)
 - ...
 
 '''
@@ -46,113 +39,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import itertools
-from Utils.Helper import CheckName_EFTpoint_ID
+from Utils.Helper import *
 from Utils.ColoredPrintout import colors
 
 import warnings
 warnings.filterwarnings("ignore", message="in the future insert will treat boolean arrays and array-likes as boolean index instead of casting it to integer")
-
-# //--------------------------------------------
-# //--------------------------------------------
-
- #     #
- #     # ###### #      #####  ###### #####
- #     # #      #      #    # #      #    #
- ####### #####  #      #    # #####  #    #
- #     # #      #      #####  #      #####
- #     # #      #      #      #      #   #
- #     # ###### ###### #      ###### #    #
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
-    """
-    Look for EFT weight names which do not follow the expected naming convention (of the kind 'rwgt_ctZ_5.2'), and removes coherently these elements in the arrays of EFT weights/names. Returns modified arrays.
-
-    Parameters:
-    array_EFTweights (ndarray of shape [n_events, n_points]) : reweights for all points, for all events
-    array_EFTweightIDs (ndarray of shape [n_events, n_points]) : reweight names for all points, for all events. Example name: 'rwgt_ctZ_5_ctW_3'
-
-    Returns:
-    Same arrays, but without the columns (<-> reweights) which are not necessary for the morphing procedure (e.g. SM reweight which does not follow the same naming convention)
-    """
-
-    indices = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'rwgt_c') #Get column indices of reweight names not following the expected naming convention
-    indices = np.asarray(indices, dtype=bool) #Convert indices to booleans (True=does not follow naming convention)
-
-    #Remove coherently the incorrect weights
-    array_EFTweightIDs = np.delete(array_EFTweightIDs, indices==True, axis=1)
-    array_EFTweights = np.delete(array_EFTweights, indices==True, axis=1)
-
-    # print(array_EFTweights.shape); print(array_EFTweightIDs.shape)
-    return array_EFTweights, array_EFTweightIDs
-
-# //--------------------------------------------
-# //--------------------------------------------
-
-  #####    ##   #####   ####  ######
-  #    #  #  #  #    # #      #
-  #    # #    # #    #  ####  #####
-  #####  ###### #####       # #
-  #      #    # #   #  #    # #
-  #      #    # #    #  ####  ######
-
-def Parse_EFTpoint_IDs(benchmarkIDs):
-    """
-    Parse an array of strings, each corresponding to the name of an EFT point
-
-    Parameters:
-    benchmarkIDs (ndarray of shape [n_points]) : array of strings, each corresponding to a separate EFT point. Example : 'rwgt_ctZ_5_ctW_3'
-
-    Returns:
-    operatorNames (ndarray of shape [n_points, n_operators]) : array of names of EFT operators, for all (n_points) EFT points
-    operatorWCs (ndarray of shape [n_points, n_operators]) : array whose columns represent the WC value of each operator defining a given point, and rows represent different EFT points
-    idx_SM : return index corresponding to SM point, if corresponding string is found
-    """
-
-    benchmarkIDs = np.atleast_1d(benchmarkIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
-
-    idx_SM = -1 #Store SM index
-    operatorNames = []
-    operatorWCs = []
-    # for idx in range(len(benchmarkIDs)):
-    for idx, ID in enumerate(benchmarkIDs):
-
-        #For each EFT point, get the list of names/WCs for all operators
-        list_operatorNames = []
-        list_operatorWCs = []
-        # ID = benchmarkIDs[idx]
-
-        if not ID.startswith("rwgt_c"): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
-            # list_operatorNames.append(ID) #Operator name
-            # list_operatorWCs.append(float(0)) #Operator WC
-            if ID=="rwgt_sm" or ID=="rwgt_SM": idx_SM = idx #SM point found
-            continue
-
-        ID = CheckName_EFTpoint_ID(ID) #Enforce proper naming convention
-
-        prefix = 'rwgt_' #Naming convention, strip this substring
-        if ID.startswith(prefix): ID = ID[len(prefix):]
-        else: print('Error : naming convention in benchmark ID not recognized'); exit(1)
-
-        list_keys = ID.split('_') #Split string into list of substrings (pairs [name,WC])
-        for ikey in range(0, len(list_keys)-1, 2):
-            list_operatorNames.append(list_keys[ikey]) #Operator name
-            list_operatorWCs.append(float(list_keys[ikey+1])) #Operator WC
-
-        #Append list for each EFT point
-        operatorNames.append(list_operatorNames)
-        operatorWCs.append(list_operatorWCs)
-
-    #Convert list of lists into 2D array. Each list element must have an equal length
-    operatorNames = np.array(operatorNames)
-    operatorWCs = np.array(operatorWCs)
-
-    if DEBUG_:
-        print('\n-- Parse_EFTpoint_IDs'); print(operatorNames.shape); print(operatorWCs.shape)
-        if DEBUG_>1: print(operatorNames); print(operatorWCs)
-    return operatorNames, operatorWCs, idx_SM
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -391,7 +282,7 @@ def Extrapolate_EFTweights(effWC_components, fit_coeffs):
     extrapolatedWeights (ndarray of shape [n_events, n_points]) : new weights extrapolated at the considered EFT points, for each considered event
     """
 
-    if fit_coeffs.ndim==2 and effWC_components.ndim==2 and fit_coeffs.shape[1] is not effWC_components.shape[1]:
+    if fit_coeffs.ndim==2 and effWC_components.ndim==2 and fit_coeffs.shape[1] != effWC_components.shape[1]:
         print(fit_coeffs.shape[1]); print(effWC_components.shape[1])
         print(colors.fg.red, 'Error : Arrays fit_coeffs and effWC_components have different numbers of columns !', colors.reset)
         return
@@ -457,9 +348,11 @@ def Extrapolate_EFTxsecs_fromWeights(extrapolatedWeights):
  #    # #        #        #   #    # #        #   #    #
   ####  ######   #        #   #    # ######   #   #    #
 
+#FIXME : different thetas for strategies. different y_targetClass
 def Get_ThetaParameters(opts, operatorNames):
     """
     Sets the grid of EFT points on which the NN will get trained (<-> at which training events will be extrapolated).
+    Returned arrays are defined in terms of operators found in the sample (<-> on which event weights are parameterized), not only the operators selected by the user. This is because these arrays will have to be used to parameterize weights, hence need to follow sample's convention.
 
     Parameters:
     listOperatorsParam : subset of operators on which to train the NN
@@ -471,6 +364,8 @@ def Get_ThetaParameters(opts, operatorNames):
     targetClass (ndarray of shape [n_operators]) : translates each point into a target class (for event labelling). '1' means that the corresponding operator is non-zero, '0' otherwise. 1 column for each operator included in sample (remove un-necessary operators at later step)
     """
 
+    if opts["strategy"] == "CARL_singlePoint": return np.array([]), np.array([])
+
     #Read options
     listOperatorsParam = opts["listOperatorsParam"]
     nPointsPerOperator = opts["nPointsPerOperator"]
@@ -479,40 +374,58 @@ def Get_ThetaParameters(opts, operatorNames):
 
     list_thetas_allOperators = []
     list_targetClass = []
-    for i_op_ToParameterize in range(len(listOperatorsParam)):
-        # print(i_op_ToParameterize)
 
-        thetas = np.zeros((nPointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, nPointsPerOperator)
-        targetClass = np.zeros((nPointsPerOperator, len(operatorNames)+1)) #Keep track of which operator is activated in each element of theta ; necessary to later specify target for NN classification/regression (will remove then operators not included in training) #Shape (n_operators_inSample, nPointsPerOperator) #Additional dim represents SM class (not filled here)
+#--- Sample thetas uniformly between [min;max], *independently for each operator*. No more than 1 operator activated (non-zero) at once, to qllow for unambiguous labelling
+    if opts["strategy"] == "CARL_multiclass":
 
-        for i_opInSample in range(len(operatorNames)):
-            # print(i_opInSample)
-            # print(operatorNames[i_opInSample])
-            # print(listOperatorsParam[i_op_ToParameterize])
-            # print(listOperatorsParam[i_op_ToParameterize].lower())
+        for i_op_ToParameterize in range(len(listOperatorsParam)): #Loop on operators selected by user
+            # print(i_op_ToParameterize)
 
-            if listOperatorsParam[i_op_ToParameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_ToParameterize].lower() == operatorNames[i_opInSample]:
+            thetas = np.zeros((nPointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, nPointsPerOperator)
+            targetClass = np.zeros((nPointsPerOperator, opts["nofOutputNodes"])) #CARL (SM vs EFT) <-> all EFT points have class ID = 1 ; CARL_multiclass (SM vs op1 vs op2 vs ...) <-> one-hot encoded multilabels. 0=SM (not filled here), 1=operator1 activated, 2=operator2 activated, etc. #NB: in multiclass, for ease, assign 1 column per operator found in sample for now. Later, will remove zero-only columns (<-> only keep operators chosen by user)
 
-                iter = 0
-                for x in np.linspace(opts["minWC"], opts["maxWC"], num=nPointsPerOperator+1):
+            for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
+                # print(i_opInSample)
+                # print(operatorNames[i_opInSample])
+                # print(listOperatorsParam[i_op_ToParameterize])
+                # print(listOperatorsParam[i_op_ToParameterize].lower())
 
-                    if x == 0: continue #skip SM point
-                    # print('x', x)
+                if listOperatorsParam[i_op_ToParameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_ToParameterize].lower() == operatorNames[i_opInSample]:
 
-                    thetas[iter, i_opInSample] = x
-                    targetClass[iter, i_opInSample+1] = 1
-                    iter+= 1
+                    iter = 0
+                    for x in np.linspace(minWC, maxWC, num=nPointsPerOperator+1):
 
-        list_thetas_allOperators.append(thetas)
-        list_targetClass.append(targetClass)
+                        if x == 0: continue #skip SM point
+                        # print('x', x)
 
-    thetas_allOperators = np.concatenate(list_thetas_allOperators)
-    targetClass = np.concatenate(list_targetClass)
+                        thetas[iter, i_opInSample] = x
+                        if opts["nofOutputNodes"] == 1: targetClass[iter] = 1 #Single column <-> any EFT point has label 1 (only SM point has label 0)
+                        else: targetClass[iter, i_opInSample+1] = 1 #Multi-column
+                        iter+= 1
+
+            list_thetas_allOperators.append(thetas)
+            list_targetClass.append(targetClass)
+
+        thetas_allOperators = np.concatenate(list_thetas_allOperators)
+        targetClasses_allOperators = np.concatenate(list_targetClass)
+
+#-- Sample thetas randomly betweem [min;max] in multi-dimensional EFT phase space
+    else:
+
+        rng = np.random.default_rng() #Init random generator
+
+        thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam), len(operatorNames)) )
+        targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label 0=reference point (SM, not filled here), 1=any EFT point
+
+        for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
+            if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
+
+# //--------------------------------------------
 
     if DEBUG_:
         print('\n-- Get_ThetaParameters'); print(thetas_allOperators)
         if DEBUG_>1: print(thetas_allOperators)
-    return thetas_allOperators, targetClass
+    return thetas_allOperators, targetClasses_allOperators
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -536,7 +449,7 @@ def Get_ThetaParameters(opts, operatorNames):
 
 def Compute_JointLR(weights_refPoint, xsec_refPoint, weights_thetas, xsecs_thetas):
     """
-    Compute the 'joint likelihood ratio' (JLR) quantity between 2 EFT hypotheses, defined as (M^2_0/xsec_0) / (M^2_1/xsec_1)
+    Compute the 'joint likelihood ratio' (JLR) quantity between 2 EFT hypotheses, defined as (M^2_0/xsec_0) / (M^2_1/xsec_1). The reference hypothesis theta1 at denominator is fixed, and not trained upon. Reminder: taking advantage of the LR property: LR(hA,hB) = LR(hA,h0) / LR(hB,h0)
 
     Parameters:
     weights_refPoint (ndarray of shape [n_events]) : weights extrapolated at reference point, for all events
@@ -548,10 +461,10 @@ def Compute_JointLR(weights_refPoint, xsec_refPoint, weights_thetas, xsecs_theta
     JLRs (ndarray of shape [n_events, n_points]) : JLR values computed for all events, for all EFT points
     """
 
-    dw_ref = np.divide(weights_refPoint, xsec_refPoint)
     dw_thetas = np.divide(weights_thetas, xsecs_thetas)
+    dw_ref = np.divide(weights_refPoint, xsec_refPoint)
 
-    JLRs = np.divide(dw_ref[:,np.newaxis], dw_thetas)
+    JLRs = np.divide(dw_thetas, dw_ref[:,np.newaxis])
 
     return JLRs
 
@@ -599,7 +512,7 @@ def Compute_Score_Component(weights_thetas, xsecs_thetas, gradWeights_thetas, gr
 ##     ## ##     ##    ##    ##     ## ##    ## ##          ##
 ########  ##     ##    ##    ##     ##  ######  ########    ##
 
-#Main EFT function, called in GetData.py
+#Main EFT function, called in GetData.py. Extend the data (x, weights, ...) at all the EFT points theta at which the NN will get trained.
 def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses):
     """
     Extend the original data so that the NN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the NN to learn how to interpolate between them.
@@ -618,12 +531,17 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     Extended/augmented lists
     """
 
+    parameterizedNN = opts["parameterizedNN"]
+
+    need_jlr = (opts["strategy"] in ["ROLR", "RASCAL"])
+    need_score = (opts["strategy"] in ["RASCAL"])
+
 # //--------------------------------------------
 # Sanity checks
 
-    if opts["parameterizedNN"] == False: #Return empty lists
-        list_thetas_allClasses = []; list_targetClass_allClasses = []
-        return list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses
+    if parameterizedNN == False and opts["strategy"] != "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
+        list_thetas_allClasses = []; list_targetClass_allClasses = [];
+        return list_x_allClasses, list_weights_allClasses, [], [], [], []
 
     if DEBUG_>1: #Debug printout
         for iclass in range(len(list_x_allClasses)):
@@ -635,10 +553,10 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     #Extended lists to return
     extendedList_x_allClasses = []
     extendedList_weights_allClasses = []
-    extendedList_thetas_allClasses = []
     extendedList_targetClass_allClasses = []
+    extendedList_thetas_allClasses = []
     extendedList_jointLR_allClasses = []
-    extendedList_score_allClasses = []
+    extendedList_score_allClasses_allOperators = [ [] for iclass in range(len(list_labels))] #List of list because score is a vector --> will store values for each class, for each score component
 
     rng = np.random.default_rng() #Init random generator
 
@@ -672,41 +590,55 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         list_thetas_allThetas_class = []
         list_targetClass_allThetas_class = []
         list_jointLR_allThetas_class = []
-        list2D_score_allThetas_class = [] #List of list because score is a vector (first index corresponds to score component)
+        list2D_score_allOperators_allThetas_class = [ [] for iop in range(len(opts['listOperatorsParam']))] #List of list because score is a vector (first index corresponds to score component <-> operator) #Initialize an empty list for each operator
 
 # //--------------------------------------------
 # Start by computing necessary quantities (reweights, augmented data, etc.) for entire sample
 
-        #-- Get the 'effective WC' values scaling each fit component
-        effWC_components_thetas_class = Get_EffectiveWC_eachComponent(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
-        # print(effWC_components_thetas_class)
-
-        #-- Extrapolate the event weights at the new points thetas, for all events
-        newWeights = Extrapolate_EFTweights(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
-
-        #-- Extrapolate the cross sections at the new points thetas
-        newXsecs = Extrapolate_EFTxsecs_fromWeights(newWeights)
-
         #-- Extrapolate the event weights at the reference point, for all events
-        weights_refPoint = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]]
+        if opts["refPoint"] == "SM":
+            weights_refPoint = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]] #Choose SM as reference point
+        else:
+            refPointWCs = Translate_EFTpointID_to_WCvalues(operatorNames, opts["refPoint"]) #Encode reference point name into WC values
+            effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, refPointWCs) #Get corresponding matrix
+            weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
+            weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        #-- Extrapolate the cross section at the reference point
-        xsecs_refPoint = Extrapolate_EFTxsecs_fromWeights(weights_refPoint)
+        if parameterizedNN == True:
 
-        #-- Get the gradients of the 'effective WC' values scaling each fit component (3D array with shape (n_operators, n_points, n_components) )
-        gradEffWC_components_operators_thetas_class = Get_Gradients_EffectiveWC_eachComponent(n_components, components, thetas)
+            #-- Get the 'effective WC' values scaling each fit component
+            effWC_components_thetas_class = Get_EffectiveWC_eachComponent(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
+            # print(effWC_components_thetas_class)
 
-        #-- Compute joint likelihood ratio at the new points thetas, for all events
-        jointLR_class = Compute_JointLR(weights_refPoint, xsecs_refPoint, newWeights, newXsecs)
+            #-- Extrapolate the event weights at the new points thetas, for all events
+            newWeights = Extrapolate_EFTweights(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
 
-        #-- Differentiating w.r.t. 1 operator at once, get the corresponding gradients of weights and xsecs at all points for all events, and use them to get the corresponding score component
-        list_gradNewWeights_operators = []
-        list_gradNewXsecs_operators = []
-        list_score_operators = []
-        for iop in range(len(opts['listOperatorsParam']) ):
-            list_gradNewWeights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
-            list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradNewWeights_operators[iop]))
-            list_score_operators.append(Compute_Score_Component(newWeights, newXsecs, list_gradNewWeights_operators[iop], list_gradNewXsecs_operators[iop]) )
+        #-- For non-parameterized NN, only 1 EFT point to separate from SM, build lists differently
+        else:
+            newWeights = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]] #Choose SM as reference point
+            list_weights_allThetas_class.append(np.concatenate( (newWeights, weights_refPoint)) )
+            list_x_allThetas_class.append(np.concatenate( (list_x_allClasses[iclass], list_x_allClasses[iclass])) )
+            list_targetClass_allThetas_class.append(np.concatenate( (np.ones(len(list_x_allClasses[iclass])), np.zeros(len(list_x_allClasses[iclass])) ) ) ) #EFT ref point=0, SM=1
+
+        #-- Extrapolate the cross section at the reference point and the new points thetas
+        if need_jlr or need_score:
+            newXsecs = Extrapolate_EFTxsecs_fromWeights(newWeights)
+            xsecs_refPoint = Extrapolate_EFTxsecs_fromWeights(weights_refPoint)
+
+            #-- Compute joint likelihood ratio at the new points thetas, for all events
+            if need_jlr: jointLR_class = Compute_JointLR(weights_refPoint, xsecs_refPoint, newWeights, newXsecs)
+
+            list_gradNewWeights_operators = []; list_gradNewXsecs_operators = []; list_score_allOperators = []
+            if need_score:
+
+                #-- Get the gradients of the 'effective WC' values scaling each fit component (3D array with shape (n_operators, n_points, n_components) )
+                gradEffWC_components_operators_thetas_class = Get_Gradients_EffectiveWC_eachComponent(n_components, components, thetas)
+
+                #-- Differentiating w.r.t. 1 operator at once, get the corresponding gradients of weights and xsecs at all points for all events, and use them to get the corresponding score component
+                for iop in range(len(opts['listOperatorsParam']) ):
+                    list_gradNewWeights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
+                    list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradNewWeights_operators[iop]))
+                    list_score_allOperators.append(Compute_Score_Component(newWeights, newXsecs, list_gradNewWeights_operators[iop], list_gradNewXsecs_operators[iop]) )
 
 # //--------------------------------------------
 # Then, for each new point theta, build the corresponding dataset (features, weights, etc.), and append it to total dataset
@@ -717,7 +649,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             #-- Sample unweighting: translate the event weights (at point theta and for reference point) into probabilities to build the sample's PDF
             #NB: ignoring negative weights for now
             probas_point = newWeights[:,itheta]
-            probas_refPoint = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]]
+            probas_refPoint = weights_refPoint
             probas_refPoint[probas_refPoint < 0] = 0; probas_point[probas_point < 0] = 0 #Ignore neg weights
             probas_refPoint /= probas_refPoint.sum(); probas_point /= probas_point.sum() #Normalize to 1
 
@@ -732,21 +664,15 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             x_class_refPoint = list_x_allClasses[iclass][indices_refPoint]
             x_class_point = list_x_allClasses[iclass][indices_point]
 
-            #-- Get the score components of selected events
-            list_t_class_operators_refPoint = []
-            list_t_class_operators_point = []
-            for iop in range(len(opts['listOperatorsParam'])):
-                list_t_class_operators_refPoint.append(list_score_operators[iop][indices_refPoint])
-                list_t_class_operators_point.append(list_score_operators[iop][indices_point])
-                list2D_score_allThetas_class.append(np.concatenate((list_t_class_operators_refPoint[iop], list_t_class_operators_point[iop])) )
-
             #-- Both events at theta and ref point will share the same 'theta' given as input to the NN, i.e. they are both fed to the NN for the same value of theta. Hence, duplicate theta (<-> the WC values defining the current point) for all selected events
             thetas_class_point = np.tile(thetas[itheta,:], (nEventsPerPoint_class*2, 1) ) #Once for events at theta, once for events at ref point
             #Each original event gets repeated at all the different points theta
 
             #-- For classification, only 1 operator is 'activated' (non-zero) at once. Keep track of which operator it is, for event labelling
             targetClass_class_point = np.tile(targetClass[itheta], (nEventsPerPoint_class, 1) )
-            targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1
+            if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape))
+            else: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
+            targetClass_class_point = np.squeeze(targetClass_class_point); targetClass_class_refPoint = np.squeeze(targetClass_class_refPoint)
 
             #-- After unweighting, all events are attributed a weight of 1.
             weights_class_point = np.ones(nEventsPerPoint_class*2)
@@ -755,22 +681,26 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Concatenate data for selected events at ref point and at theta
 
-            list_thetas_allThetas_class.append(thetas_class_point)
-            list_weights_allThetas_class.append(weights_class_point)
             list_x_allThetas_class.append(np.concatenate((x_class_refPoint, x_class_point)) )
+            list_weights_allThetas_class.append(weights_class_point)
             list_targetClass_allThetas_class.append(np.concatenate((targetClass_class_refPoint, targetClass_class_point)) )
-            list_jointLR_allThetas_class.append(np.concatenate((jointLR_class[indices_refPoint], jointLR_class[indices_point])))
+            list_thetas_allThetas_class.append(thetas_class_point)
+            if need_jlr: list_jointLR_allThetas_class.append(np.concatenate((jointLR_class[indices_refPoint,itheta], jointLR_class[indices_point,itheta])))
+            if need_score:
+                for iop in range(len(opts['listOperatorsParam'])): list2D_score_allOperators_allThetas_class[iop].append(np.concatenate((list_score_allOperators[iop][indices_refPoint,itheta], list_score_allOperators[iop][indices_point,itheta])) )
 
 # //--------------------------------------------
 # Append arrays for all classes
-        extendedList_thetas_allClasses.append(np.concatenate(list_thetas_allThetas_class))
-        extendedList_weights_allClasses.append(np.concatenate(list_weights_allThetas_class))
         extendedList_x_allClasses.append(np.concatenate(list_x_allThetas_class))
+        extendedList_weights_allClasses.append(np.concatenate(list_weights_allThetas_class))
         extendedList_targetClass_allClasses.append(np.concatenate(list_targetClass_allThetas_class))
-        extendedList_jointLR_allClasses.append(np.concatenate(list_jointLR_allThetas_class))
-        for iop in range(len(opts['listOperatorsParam'])): extendedList_score_allClasses.append(np.concatenate(list2D_score_allThetas_class[:][iop]))
+        if parameterizedNN == True:
+            extendedList_thetas_allClasses.append(np.concatenate(list_thetas_allThetas_class))
+            if need_jlr: extendedList_jointLR_allClasses.append(np.concatenate(list_jointLR_allThetas_class))
+            if need_score:
+                for iop in range(len(opts['listOperatorsParam'])): extendedList_score_allClasses_allOperators[iclass].append(np.concatenate(list2D_score_allOperators_allThetas_class[iop][:])) #Concatenate different points thetas together, but retain correct operator ordering (for each process class)
 
-    return extendedList_x_allClasses, extendedList_weights_allClasses, extendedList_thetas_allClasses, extendedList_targetClass_allClasses, extendedList_jointLR_allClasses, extendedList_score_allClasses
+    return extendedList_x_allClasses, extendedList_weights_allClasses, extendedList_targetClass_allClasses, extendedList_thetas_allClasses, extendedList_jointLR_allClasses, extendedList_score_allClasses_allOperators
 
 # //--------------------------------------------
 # //--------------------------------------------

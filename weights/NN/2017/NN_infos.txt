@@ -1,0 +1,56 @@
+Start of NN training :03-May-2020 (23:56:54)
+
+OPTIONS
+----------------- 
+strategy --> RASCAL
+nEpochs --> 3
+splitTrainEventFrac --> 0.8
+nHiddenLayers --> 5
+nNeuronsPerLayer --> 100
+activInputLayer --> tanh
+activHiddenLayers --> relu
+use_normInputLayer --> True
+use_batchNorm --> True
+dropoutRate --> 0.4
+maxEventsPerClass --> 10000
+nEventsTot_train --> -1
+nEventsTot_test --> -1
+batchSizeClass --> 512
+listOperatorsParam --> ['ctZ', 'ctW', 'cpQM', 'cpQ3', 'cpt']
+nPointsPerOperator --> 10
+minWC --> -10
+maxWC --> 10
+nEventsPerPoint --> 10
+batchSizeEFT --> 1000
+refPoint --> SM
+score_lossWeight --> 5
+regress_onLogr --> True
+cuts --> 1
+parameterizedNN --> True
+regress --> True
+nofOutputNodes --> 6
+maxEvents --> 10
+batchSize --> 1000
+----------------- 
+
+maxDijetDelR 4.147772312164307 3.2808209538459767
+dEtaFwdJetBJet 1.0407921075820923 3.310009980201718
+dEtaFwdJetClosestLep 0.09935417026281357 2.7181430414319023
+mHT 499.39808654785156 1079.5781738281246
+mTW 61.77499580383301 104.99619941711424
+Mass_3l 219.61043548583984 669.3531600952148
+forwardJetAbsEta 2.7325628995895386 1.8658748865127563
+jPrimeAbsEta 1.8615540862083435 2.4437574505805975
+maxDeepCSV 0.9768109619617462 0.4278117820620536
+delRljPrime 2.9330203533172607 2.5625031113624575
+lAsymmetry 0.336526557803154 2.2813312411308284
+maxDijetMass 505.5820770263672 1999.7753753662096
+maxDelPhiLL 2.742313027381897 1.8065778136253354
+ctZ 0.9228055291723436 10.025743625267538
+ctW 0.326493680736176 8.92535436880386
+cpQM -0.0835653969004504 9.671076261293479
+cpQ3 0.3210532587531407 10.251247526941198
+cpt -1.2032986997688617 10.039496030113412
+MYINPUT -1 -1 
+likelihood_ratio/Exp -2 -2 
+6 -3 -3 

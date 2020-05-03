@@ -1,12 +1,12 @@
-# Define the NN model
-#TODO: Pass as args with default values : nof inputs, nof dense layers, batchnorm, dropout, output layer, ...
+# Define the NN architecture and training settings
 
-from tensorflow.keras.models import Sequential, load_model, model_from_json
+import numpy as np
+from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Lambda, Input, Dense, Dropout, AlphaDropout, Activation, BatchNormalization, LeakyReLU
 from tensorflow.keras import regularizers
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LambdaCallback, LearningRateScheduler, ReduceLROnPlateau
-from tensorflow.keras.utils import plot_model
+from tensorflow.keras import backend as K
 from Utils.Helper import normalize
 
 # //--------------------------------------------
@@ -23,42 +23,40 @@ from Utils.Helper import normalize
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Advice :
-# If your targets are [0,1], use a sigmoid output layer and binary_crossentropy loss.
-# If your targets are [-1,1], use a linear or tanh output layer and hinge or squared_hinge loss.
-# If your targets are labels for k categories, use to_categorical to convert to one-hot, use a softmax output layer with k outputs, and use categorical_crossentropy loss.
-
-# * Has you model's performance plateaued? If not train for more epochs.
-# * Compare the performance on training versus test sample. Are you over training?
-
-#Sigmoid/tanh/softmax work fine for classifiers, but can have problems of vanishing gradients
-#ReLu activations should only be used for hidden layers, avoids vanishing gradient issue
-#Should use sigmoid (binary) of softmax (multiclass) for output layer, to get class probabilities ? NB : if nof_outputs=1, softmax doesn't seem to work
-
-#Define here the Keras NN model
-def Create_Model(opts, outdir, var_list, shifts, scales, NN_name="NN"):
-
-    use_normInputLayer = True #True <-> add normalization layer to automatically rescale all input values (gaussian scaling)
-    use_batchNorm = True #True <-> Active batch norm layers
-    use_dropout = True #True <-> Activate dropout for each dense layer by amount 'droprate' to mitigate overtraining
-    droprate = 0.4
+#Define here the NN model
+def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 
 # //--------------------------------------------
+# //--------------------------------------------
+# Architecture options (set by user in main code)
+
+    nHiddenLayers = opts["nHiddenLayers"]
+    nNeuronsPerLayer = opts["nNeuronsPerLayer"]
+    activInputLayer = opts["activInputLayer"]
+    activHiddenLayers = opts["activHiddenLayers"]
+
+    use_normInputLayer = opts["use_normInputLayer"]
+    use_batchNorm = opts["use_batchNorm"]
+    dropoutRate = opts["dropoutRate"]
+    regress_onLogr = opts["regress_onLogr"]
+
+    use_dropout = False
+    if dropoutRate > 0: use_dropout = True
+
+# //--------------------------------------------
+# //--------------------------------------------
+# Automatically set some variables
+
     nof_outputs = opts["nofOutputNodes"]
 
-    # Define model
-    model = Sequential()
-
-    num_input_variables = len(var_list) #Nof input variables to be read by the NN
+    num_input_variables = len(list_features) #Nof input variables to be read by the NN
     # print(num_input_variables)
 
-    # my_init = 'Zeros' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
-    # my_init = 'Ones' #-- Can check that with this init and few training epochs, ROC is ~0.5 (no time to learn)
-
-    my_init = 'he_normal'
-    # my_init = 'glorot_normal'
-    # my_init = 'glorot_uniform'
-    # my_init = 'lecun_normal'
+    myKernelInit = 'he_normal' #Hard-coded here
+    # myKernelInit = 'he_normal'
+    # myKernelInit = 'glorot_normal'
+    # myKernelInit = 'glorot_uniform'
+    # myKernelInit = 'lecun_normal'
 
     #Regularizers
     #NB : "In practice, if you are not concerned with explicit feature selection, L2 regularization can be expected to give superior performance over L1."
@@ -68,249 +66,88 @@ def Create_Model(opts, outdir, var_list, shifts, scales, NN_name="NN"):
 
     #Examples of advanced activations (should be added as layers, after dense layers)
     # model.add(LeakyReLU(alpha=0.1))
-    # model.add(PReLU(alpha_initializer=my_init))
+    # model.add(PReLU(alpha_initializer=myKernelInit))
     # model.add(Activation('selu'))
 
-    model_choice = 2
+# //--------------------------------------------
+# //--------------------------------------------
+
+# //--------------------------------------------
+# INPUT LAYER
+
+    inp = Input(shape=num_input_variables, name="MYINPUT") #Inactive input layer
+
+    X = inp
+
+    if use_normInputLayer == True :
+        X = Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")(X)
+
+# //--------------------------------------------
+# HIDDEN LAYERS
+
+    for iLayer in range(nHiddenLayers):
+
+        X = Dense(nNeuronsPerLayer, activation=activHiddenLayers, kernel_initializer=myKernelInit)(X)
+
+        if use_batchNorm==True:
+            X = BatchNormalization()(X)
+
+        if use_dropout==True:
+            X = Dropout(dropoutRate)(X)
+# //--------------------------------------------
+# OUTPUT LAYER
+
+    activOutput = "sigmoid" #Default
 
     if opts["regress"] == False: #Classification
 
-#-- List different models, by order of complexity
+        if nof_outputs == 1: activOutput = "sigmoid"
+        else: activOutput = "softmax"
 
- #####  ###### #####  #    #  ####
- #    # #      #    # #    # #    #
- #    # #####  #####  #    # #
- #    # #      #    # #    # #  ###
- #    # #      #    # #    # #    #
- #####  ###### #####   ####   ####
+        out = Dense(nof_outputs, kernel_initializer=myKernelInit, activation=activOutput, name="MYOUTPUT")(X)
+        model = Model(inputs=[inp], outputs=[out])
 
-    #Model 0 -- debugging
-        if model_choice == 0:
+    else: #Regression
 
-           # //--------------------------------------------
-            if use_normInputLayer == True : # Add first a normalization layer
-                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-                model.add(Dense(50, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
+        if opts["strategy"] in ["ROLR", "RASCAL"]:
 
-                                         #
- #    #  ####  #####  ###### #          ##
- ##  ## #    # #    # #      #         # #
- # ## # #    # #    # #####  #           #
- #    # #    # #    # #      #           #
- #    # #    # #    # #      #           #
- #    #  ####  #####  ###### ######    #####
+            if regress_onLogr: #Apply linear activation and exponentiate the result to match the target <-> train on log(r)
+                logr = Dense(1, activation="linear")(X)
+                r = Lambda(lambda v: K.exp(v), name="likelihood_ratio")(logr)
+            else: #Apply linear activation to match the target <-> train on r. Also define log(r), may be needed to compute score
+                r = Dense(1, activation="linear", name="likelihood_ratio")(X)
+                logr = Lambda(lambda v: K.log(v))(r)
 
-        #Model 1 -- simple
-        if model_choice == 1:
+            if opts["strategy"] == "RASCAL": #Ratio+Score. Differentiate 'r' layer to get the score
+                t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
+                model = Model(inputs=[inp], outputs=[r, t]) #1 output for r, n_operator outputs for t
+            else: #Ratio only
+                model = Model(inputs=[inp], outputs=[r])
 
-            nNeurons = 50
-
-            #Define some layer types
-            myDense = Dense(nNeurons, kernel_initializer=my_init, activation='relu')
-
-           # //--------------------------------------------
-            if use_normInputLayer == True : # Add first a normalization layer
-                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-                # model.add(Dense(50, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables))
-                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu', input_dim=num_input_variables))
-            else:
-                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate))
-
-            model.add(myDense)
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(myDense)
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate)) #No dropout before output layer ?
-
-            if nof_outputs == 1: model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-            else: model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
-           # //--------------------------------------------
-
-                                        #####
- #    #  ####  #####  ###### #         #     #
- ##  ## #    # #    # #      #               #
- # ## # #    # #    # #####  #          #####
- #    # #    # #    # #      #         #
- #    # #    # #    # #      #         #
- #    #  ####  #####  ###### ######    #######
-
-        #Model 2
-        elif model_choice == 2:
-
-            nNeurons = 100
-
-           # //--------------------------------------------
-            if use_normInputLayer == True :
-                model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-                model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh') ) #First dense layer
-                # model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu') ) #First dense layer
-            else :
-                model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate))
-
-            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) )
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate)) #No dropout before output layer ?
-
-            if nof_outputs == 1 :
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-            else:
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
-           # //--------------------------------------------
-                                        #####
- #    #  ####  #####  ###### #         #     #
- ##  ## #    # #    # #      #               #
- # ## # #    # #    # #####  #          #####
- #    # #    # #    # #      #               #
- #    # #    # #    # #      #         #     #
- #    #  ####  #####  ###### ######     #####
-
-        #Model 3
-        elif model_choice == 3:
-            # //--------------------------------------------
-            model.add(Dense(150, input_dim=num_input_variables, activation='tanh', kernel_initializer=my_init) ) #Input layer
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate))
-
-            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            model.add(LeakyReLU(alpha=0.1))
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            # model.add(LeakyReLU(alpha=0.1))
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            # model.add(LeakyReLU(alpha=0.1))
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            if use_dropout==True:
-                model.add(Dropout(droprate))
-
-            model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            if use_batchNorm==True:
-                model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate))
-
-            # model.add(Dense(150, activation='relu', kernel_initializer=my_init) ) #hidden layer
-            # if use_batchNorm==True:
-            #     model.add(BatchNormalization())
-            # if use_dropout==True:
-            #     model.add(Dropout(droprate))
-
-            if nof_outputs == 1 :
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='sigmoid', name="MYOUTPUT"))
-            else:
-                model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='softmax', name="MYOUTPUT")) #, name="myOutputs"
-                # //--------------------------------------------
-
-        else:
-            print("\n-- ERROR : wrong model_choice value !\n")
+        else: print("ERROR: no regressor model defined for this strategy"); exit(1)
 
 # //--------------------------------------------
 # //--------------------------------------------
-
-    elif opts["regress"] == True: #Regression
-
-        nNeurons = 150
-
-       # //--------------------------------------------
-        if use_normInputLayer == True :
-            model.add(Input(shape=num_input_variables, name="MYINPUT")) #Inactive input layer
-            model.add(Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")) #Normalization
-            model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh') ) #First dense layer
-            # model.add(Dense(nNeurons, kernel_initializer=my_init, activation='relu') ) #First dense layer
-        else :
-            model.add(Dense(nNeurons, kernel_initializer=my_init, activation='tanh', input_dim=num_input_variables, name="MYINPUT")) #, name="myInputs"
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate))
-
-        model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) )
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        if use_dropout==True:
-            model.add(Dropout(droprate))
-
-        model.add(Dense(nNeurons, activation='relu', kernel_initializer=my_init) ) #hidden layer
-        if use_batchNorm==True:
-            model.add(BatchNormalization())
-        # if use_dropout==True:
-        #     model.add(Dropout(droprate)) #No dropout before output layer ?
-
-        model.add(Dense(nof_outputs, kernel_initializer=my_init, activation='linear', name="MYOUTPUT")) #Need linear (or exp.) activation for regression
-       # //--------------------------------------------
-
 
     #Model visualization
     print(model.summary())
 
-    # outname = outdir+'graphviz_'+NN_name+'.png'
-    # plot_model(model, to_file=outname, show_shapes=True, show_layer_names=True, dpi=96)
-    # print("\n-- Created NN arch plot with graphviz : " + outname)
-
-    # outname = outdir+'annviz_'+NN_name+'.gv'
-    # ann_viz(model, title="Neural network architecture", filename=outname, view=True) #cant handle batchnorm?
-    # print("\n-- Created NN arch plot with annviz : " + outname)
-
     return model
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+# Returns the gradients of loss w.r.t. variables
+# Here: v[0] is output of logr layer, v[1] are inputs
+def lambda_layer_score(v, theta_dim):
+
+    # grad = K.gradients(loss=v[0], variables=v[1][:-theta_dim])[0]
+    grad = K.gradients(loss=v[0], variables=v[1])[0]
+
+    if grad is None:
+        grad = K.zeros_like(theta_dim)
+
+    return grad[:, -theta_dim:] #Only return gradients w.r.t. theory parameters (last input features) --> Nof score outputs = nof operators
+
 # //--------------------------------------------
 # //--------------------------------------------

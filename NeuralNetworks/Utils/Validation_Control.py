@@ -5,11 +5,12 @@ import ROOT
 import numpy as np
 import keras
 import math
+import json
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model, model_from_json
 from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 from root_numpy import fill_hist
 from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, classification_report, confusion_matrix, multilabel_confusion_matrix
@@ -17,11 +18,8 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, class
 from Utils.Helper import close_event, Printout_Outputs_FirstLayer, KS_test, Anderson_Darling_test, ChiSquare_test
 from Utils.ColoredPrintout import colors
 from pandas.plotting import scatter_matrix
-
-
-
-
-
+from ann_visualizer.visualize import ann_viz
+from tensorflow.keras.utils import plot_model
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -38,9 +36,9 @@ from pandas.plotting import scatter_matrix
 # //--------------------------------------------
 
 #Printout some information related to NN performance
-def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses):
+def Control_Printouts(opts, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses):
 
-    if nofOutputNodes == 1:
+    if opts["nofOutputNodes"] == 1:
         loss = score[0]
         accuracy = score[1]
         print(colors.fg.lightgrey, '** Loss :', float('%.4g' % loss), colors.reset)
@@ -55,18 +53,18 @@ def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictio
 
     #-- Apply 2-sided KS test to train/test distributions, for first node / first process class
     KS_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_test_allNodes_allClasses[0][0])
+    # KS_test(list_predictions_train_allNodes_allClasses[0][0][:,0], list_predictions_test_allNodes_allClasses[0][0][:,0])
 
     #-- Other tests : Anderson-Darling, Chi-2, ...
     # Anderson_Darling_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
     # ChiSquare_test(list_predictions_train_allNodes_allClasses[0][0], list_predictions_train_allNodes_allClasses[0][0])
 
-    #-- Classification report (for >2 classes, must convert continuous output proba to class label)
-    if nofOutputNodes == 1:
-        print('\n Classification report :')
-        print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=list_labels) )
-        # print(confusion_matrix(y_test, np.concatenate(list_predictions_test_allNodes_allClasses[0]), np.concatenate(list_PhysicalWeightsTest_allClasses), labels=list_labels) )
-    # else: print(classification_report(y_test, np.around(np.concatenate(list_predictions_test_allNodes_allClasses[0])), target_names=list_labels) )
-    print('\n')
+    #-- Classification report (problem with shapes)
+    # if opts["nofOutputNodes"] == 1 and opts["strategy"] == "classifier":
+    #     print('\n Classification report :')
+    #     print(classification_report(y_true=y_test, y_pred=np.rint(np.concatenate(list_predictions_test_allNodes_allClasses[0])), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses), labels=list_labels, target_names=list_labels) ) #Use rint to round to nearest integer (predict a class, not proba)
+    #     print(confusion_matrix(y_true=y_test, y_pred=np.rint(np.concatenate(list_predictions_test_allNodes_allClasses[0])), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses), labels=list_labels) )
+    # print('\n')
 
     return
 
@@ -93,7 +91,7 @@ def Control_Printouts(nofOutputNodes, score, list_labels, y_test, list_predictio
 # //--------------------------------------------
 
 #Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
-def Make_TrainTestPrediction_Histograms(nofOutputNodes, lumiName, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics):
+def Make_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics):
 
     print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset); print('\n')
 
@@ -103,19 +101,26 @@ def Make_TrainTestPrediction_Histograms(nofOutputNodes, lumiName, list_labels, l
     rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
+    nofOutputNodes = opts["nofOutputNodes"]
+
+    nodes_labels = list_labels
+    if opts["strategy"] == "RASCAL":
+        nodes_labels = ["LR"]
+        for op in opts["listOperatorsParam"]: nodes_labels.append(str("Score "+op))
+
     for inode in range(nofOutputNodes):
 
-        hist_TrainingEvents_allClasses = TH1F('hist_train_NODE_'+list_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2()
-        hist_TestingEvents_allClasses = TH1F('hist_test_NODE_'+list_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2()
+        hist_TrainingEvents_allClasses = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2()
+        hist_TestingEvents_allClasses = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2()
 
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
 
-            hist_TrainingEvents_class = TH1F('hist_train_NODE_'+list_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2()
+            hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2()
             fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
             hist_TrainingEvents_class.Write()
 
-            hist_TestingEvents_class = TH1F('hist_test_NODE_'+list_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2()
+            hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2()
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Write()
 
@@ -163,7 +168,6 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
     nofOutputNodes = opts["nofOutputNodes"]
 
     model = load_model(h5modelName) # load frozen model
-
 
  #       ####   ####   ####
  #      #    # #      #
@@ -217,6 +221,10 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
  #    # #    # #    # #    # #   #  #    # #    #   #
  #    #  ####   ####   ####  #    # #    #  ####    #
 
+
+    if opts["strategy"] == "RASCAL": #Metrics name depend on the output (e.g. 'val_likelihood_ratio_mean_squared_error' or 'val_score_mean_squared_error')
+        metrics = "likelihood_ratio_" + metrics
+
     # Plotting the error with the number of iterations
     fig2 = plt.figure(2)
     ax1 = fig2.gca()
@@ -228,6 +236,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
     plt.ylabel('Train '+metrics, color='darkorange')
     plt.xlabel('Epoch')
     lns1 = plt.plot(history.history[metrics], color='darkorange', label='Train') #metrics name
+    # print(history.history.keys())
 
     ax2 = ax1.twinx()  # instantiate a second axis that shares the same x-axis
     ax2.set_ylabel('Test '+metrics, color='cornflowerblue')  # we already handled the x-label with ax1
@@ -398,7 +407,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
 
         #only background processes
         for iclass in range(0, len(list_labels)):
-            if iclass is not i:
+            if iclass != i:
                 for val, w in zip(list_predictions_train_allNodes_allClasses[i][iclass], list_PhysicalWeightsTrain_allClasses[iclass]):
                     hist_overtrain_train_bkg.Fill(val, w)
 
@@ -420,7 +429,7 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
         #Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
         for iclass in range(0, len(list_labels)):
-            if iclass is not i:
+            if iclass != i:
                 lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[i][iclass])
                 lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
         predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
@@ -431,11 +440,14 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
         plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label='Signal (Train)')
         plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label='Background (Train)')
 
+        myxlabel = "Classifier output"
+        if opts["strategy"] in ["ROLR", "RASCAL"]: myxlabel = "Regressor output"
+
         plt.legend(loc='upper center', numpoints=1)
         plt.title("Output distributions for Signal & Background")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
-        plt.xlabel('NN output')
+        plt.xlabel(myxlabel)
         plt.ylabel('PDF')
 
         if i == 0:
@@ -469,12 +481,16 @@ def Create_Control_Plots(opts, list_labels, list_predictions_train_allNodes_allC
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Create_Correlation_Plot(x, list_features, weight_dir):
+#Plot correlations between input features
+def Create_Correlation_Plot(opts, x, list_features, weight_dir):
+
+    #Use this variables to avoid plotting also Wilson Coefficients given as inputs
+    if opts["parameterizedNN"] == True: iVarMax = len(opts["listOperatorsParam"])
+    else: iVarMax = 0
 
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:], columns=list_features[:]) #x = (events, vars) ; colums names are var names
-    # print(df)
-    # print(df.describe())
+    df = pd.DataFrame(data=x[0:,0:-iVarMax], columns=list_features[:-iVarMax]) #x = (events, vars) ; colums names are var names
+    # print(df); print(df.describe())
 
     #-- Get correlation matrix
     corr = df.corr()
@@ -537,7 +553,7 @@ def Create_Correlation_Plot(x, list_features, weight_dir):
 # //--------------------------------------------
 # //--------------------------------------------
 
-
+#Plot distributions of input features (according to dataset in arg)
 def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, isControlNorm=False):
 
     plot_eachSingleFeature = False #True <-> 1 single plot per feature
@@ -552,14 +568,16 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
     plt.tight_layout()
 
+    #Use this variables to avoid plotting also Wilson Coefficients given as inputs
+    if opts["parameterizedNN"] == True: iVarMax = len(opts["listOperatorsParam"])
+    else: iVarMax = 0
+
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:], columns=list_features[:]) #x = (events, vars) ; colums names are var names
+    df = pd.DataFrame(data=x[0:,0:-iVarMax], columns=list_features[:-iVarMax]) #x = (events, vars) ; colums names are var names
 
     #-- Insert a column corresponding to the class label
-    if opts["nofOutputNodes"] == 1:
-        df.insert(loc=0, column='class', value=y_process[:], allow_duplicates=False)
-    elif opts["nofOutputNodes"] > 1:
-        df.insert(loc=0, column='class', value=y_process[:,0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
+    if y_process.ndim==1: df.insert(loc=0, column='class', value=y_process[:], allow_duplicates=False)
+    else: df.insert(loc=0, column='class', value=y_process[:,0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
 
     #-- Insert a column corresponding to physical event weights
     df.insert(loc=0, column='weight', value=weights[:,]) #Only care about first column=main signal (rest -> bkg)
@@ -567,8 +585,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[:], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[:], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features)]) #bkgs
+    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[:-iVarMax], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[:-iVarMax], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features)-iVarMax]) #bkgs
 
     if isControlNorm == True: #Control plot, different name, general plot only
         plotname = weight_dir + 'InputFeatures_normTrain.png'
@@ -611,6 +629,47 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
 
     matplotlib.rc_file_defaults() #Restore matplotlib default settings
     return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+
+
+
+
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+##     ## ####  ######  ##     ##    ###    ##       #### ######## ########
+##     ##  ##  ##    ## ##     ##   ## ##   ##        ##       ##  ##
+##     ##  ##  ##       ##     ##  ##   ##  ##        ##      ##   ##
+##     ##  ##   ######  ##     ## ##     ## ##        ##     ##    ######
+ ##   ##   ##        ## ##     ## ######### ##        ##    ##     ##
+  ## ##    ##  ##    ## ##     ## ##     ## ##        ##   ##      ##
+   ###    ####  ######   #######  ##     ## ######## #### ######## ########
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Does not work yet...
+def Visualize_NN_architecture(weightDir):
+
+    return
+
+    '''
+    with open(str(weightDir+'arch_NN.json'), 'r') as json_file:
+        model = model_from_json(json_file.read()) #model_from_json() expects a JSON string as its first parameter, not the name of a JSON file
+
+    outname = weightDir+'graphviz_NN.png'
+    plot_model(model, to_file=outname, show_shapes=True, show_layer_names=True, dpi=96)
+    print("\n-- Created NN arch plot with graphviz : " + outname)
+
+    outname = weightDir+'annviz_NN.gv'
+    ann_viz(model, title="Neural network architecture", filename=outname, view=True) #cant handle batchnorm?
+    print("\n-- Created NN arch plot with annviz : " + outname)
+
+    return
+    '''
 
 # //--------------------------------------------
 # //--------------------------------------------

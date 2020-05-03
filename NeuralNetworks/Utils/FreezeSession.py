@@ -63,7 +63,7 @@ def FreezeSession_and_SaveModel(opts, sess, weightDir, h5modelName):
     print('\n'); print(colors.fg.lightgrey, '===> Successfully froze graph :', colors.reset, weightDir+'model.pb', '\n')
 
     #-- Also append the names of the input/output nodes in the file "NN_info.txt" containing input features names, etc. (for later use in C++ code)
-    text_file = open(weightDir + "NN_infos.txt", "a") #Append mode
+    text_file = open(weightDir + "NN_infos.txt", "a+") #Append mode
     text_file.write(inputs_names[0]); text_file.write(' -1 -1 \n'); #use end values as flags to signal these lines
     text_file.write(outputs_names[0]); text_file.write(' -2 -2 \n');
     text_file.write(str(opts["nofOutputNodes"])); text_file.write(' -3 -3 \n');

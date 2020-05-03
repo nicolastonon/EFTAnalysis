@@ -10,6 +10,7 @@ import keras
 import pandas as pd
 import re
 import os
+from datetime import datetime
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
@@ -96,15 +97,9 @@ def normalize2(x_train, x_test):
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Implementation from David's DeepPotato ; cf. Jonas' master thesis
 #Using median and stddev from quantile is more robust against distributions with large tails
+#q is the fraction of events that should be in the interval [-1, 1]
 def get_normalization_iqr(np_array, q):
-    """
-    Get shift and scale for events
-    :param df: pandas DataFrame with events
-    :param q: fraction of events that should be in the interval [-1, 1]
-    :return: (shift, scale)
-    """
 
     df = pd.DataFrame(data=np_array[0:,0:]) #Convert to panda DF
 
@@ -115,13 +110,14 @@ def get_normalization_iqr(np_array, q):
     median = newDF.median()
     l = abs(newDF.quantile(1 - q) - median)
     r = abs(newDF.quantile(q) - median)
-    # print('median', median)
+    maximums = abs(newDF.max())
+    # print('median\n', median)
+    # print('maximums\n', maximums)
     for i, (il, ir) in enumerate(zip(l,r)):
+        # print('il', il); print('ir', ir)
         if il == ir:
-            print(f"[WARNING] feature {df.keys()[i]} has no width --> Set width = ", max(il, ir), ' (max. value)')
-            # print('il', il); print('ir', ir)
-            # l[i] = 1.; r[i] = 1.
-            l[i] = il; r[i] = ir #CHANGED -- happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
+            print(colors.dim, f"[WARNING] feature {df.keys()[i]} has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
+            l[i] = maximums[i]; r[i] = maximums[i]
 
     return median.values, np.maximum(l, r).values
 
@@ -155,6 +151,10 @@ def unison_shuffled_copies(*arr):
 # Computes the Kolmogorov-Smirnov statistic on 2 samples. This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution
 # Returns (KS,pval). If the K-S statistic is small or the p-value is high, then we cannot reject the hypothesis that the distributions of the two samples are the same
 def KS_test(values1, values2):
+
+    #Need 1D arrays
+    if values1.ndim > 1: values1 = np.squeeze(values1)
+    if values2.ndim > 1: values2 = np.squeeze(values2)
 
     # calculate the significance
     value, pvalue = ks_2samp(values1, values2)
@@ -262,8 +262,64 @@ def Get_LumiName(lumi_years):
 def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, labels_list):
 
 # //--------------------------------------------
+#-- Initialization
 
+    opts["parameterizedNN"] = False
+    opts["regress"] = False
+    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["parameterizedNN"] = True
+    if opts["strategy"] in ["ROLR", "RASCAL"]: opts["regress"] = True
+
+    #Year selection
+    lumiName = Get_LumiName(lumi_years)
+
+    # Set main output paths
+    weightDir = "../weights/NN/" + lumiName + '/'
+    os.makedirs(weightDir, exist_ok=True)
+
+    #Top directory containing all input ntuples
+    ntuplesDir = "../input_ntuples/"
+
+    #Determine/store number of process classes, depending on strategy
+    opts["nofOutputNodes"] = len(processClasses_list) #Multiclass classification --> 1 output node per process class
+    if opts["strategy"] == "classifier" and len(processClasses_list) == 2: opts["nofOutputNodes"] = 1 #Binary classification --> single output node needed
+    elif opts["strategy"] in ["CARL", "CARL_singlePoint"]: opts["nofOutputNodes"] = 1 #Binary classification
+    elif opts["strategy"] == "CARL_multiclass":
+        if len(opts["listOperatorsParam"]) == 1: opts["nofOutputNodes"] = 1 #Binary classification
+        else: opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
+    elif opts["strategy"] == "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
+    elif opts["strategy"] == "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
+
+    if opts["parameterizedNN"] == True:
+        opts["maxEvents"] = opts["nEventsPerPoint"]
+        opts["batchSize"] = opts["batchSizeEFT"]
+    else:
+        opts["maxEvents"] = opts["maxEventsPerClass"]
+        opts["batchSize"] = opts["batchSizeClass"]
+
+# //--------------------------------------------
 #-- Sanity checks
+
+    if opts["strategy"] not in ["classifier", "CARL", "CARL_multiclass", "CARL_singlePoint", "ROLR", "RASCAL"]:
+        print(colors.fg.red, 'ERROR : strategy', opts["strategy"],'not recognized', colors.reset); exit(1)
+
+    if opts["strategy"] is "CARL_singlePoint" and opts["maxEvents"] != -1:
+        print(colors.dim, "For strategy CARL_singlePoint, all available events will be used. Setting maxEvents to -1 !", colors.reset)
+        opts["maxEvents"] = -1
+
+    if opts["refPoint"] is "SM" and opts["strategy"] is "CARL_singlePoint": print(colors.fg.red, 'ERROR : refPoint must be different than SM for strategy CARL_singlePoint (choose point to train against SM) !', colors.reset); exit(1)
+    if opts["refPoint"] is not "SM":
+        if opts["strategy"] is "CARL_multiclass": print(colors.fg.red, 'ERROR : refPoint', opts["refPoint"],' must be set to SM for strategy CARL_multiclass (will train SM against several EFT operators) !', colors.reset); exit(1)
+        if not opts["refPoint"].startswith("rwgt_c"): print(colors.fg.red, 'ERROR : refPoint', opts["refPoint"],' must start with prefix [rwgt_]. Example: [rwgt_ctZ_-2.6_ctp_3.1] !', colors.reset); exit(1)
+        operatorNames, operatorWCs, idx_SM = Parse_EFTpoint_IDs(opts["refPoint"]) #NB: returns 2D arrays
+        for iop in range(len(operatorNames[0])):
+            if str(operatorNames[0][iop]) not in opts["refPoint"] or not np.any(operatorWCs[0]): print(colors.fg.red, 'ERROR : refPoint', opts["refPoint"],' not understood !', colors.reset); exit(1)
+
+    if opts["score_lossWeight"] <= 0:
+        print(colors.dim, "Option score_lossWeight should not be <=0. Setting it to 1 !", colors.reset)
+        opts["score_lossWeight"] = 1
+
+    if opts["nHiddenLayers"]<0 or opts["nNeuronsPerLayer"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
+
     if len(processClasses_list) == 0:
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
     elif len(processClasses_list) is not len(labels_list):
@@ -287,45 +343,55 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
-    if opts["parameterizedNN"]==True and onlySMEFT==False:
-        print(colors.bold, colors.fg.red, 'Parameterized NN supported for SM/EFT samples only ! Setting parameterizedNN to False', colors.reset);
-        opts["parameterizedNN"]=False;
-
-    if opts["regress"]==True:
-        if opts["target"] != "class": print(colors.fg.red, 'ERROR : target name not available for regression yet', colors.reset); exit(1)
+    if (opts["parameterizedNN"]==True or opts["strategy"] is not "classifier") and onlySMEFT==False: print(colors.bold, colors.fg.red, 'Only non-parameterized classifier strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
 
 # //--------------------------------------------
 
-#-- Initialization
+    Write_Timestamp_toLogfile(weightDir, 0)
+    Dump_NN_Options_toLogFile(opts, weightDir)
 
-    #Year selection
-    lumiName = Get_LumiName(lumi_years)
+    return opts, lumiName, weightDir, ntuplesDir, opts["batchSize"]
 
-    # Set main output paths
-    weightDir = "../weights/NN/" + lumiName + '/'
-    os.makedirs(weightDir, exist_ok=True)
+# //--------------------------------------------
+# //--------------------------------------------
 
-    #Top directory containing all input ntuples
-    ntuplesDir = "../input_ntuples/"
+#Write information related to this NN training
+def Dump_NN_Options_toLogFile(opts, weightDir):
 
-    #Model output name
-    h5modelName = weightDir + 'model.h5'
+    #-- Also append the names of the input/output nodes in the file "NN_info.txt" containing input features names, etc. (for later use in C++ code)
+    text_file = open(weightDir + "NN_infos.txt", "a+") #Overwrite file
 
-    #Determine/store number of process classes
-    opts["nofOutputNodes"] = len(processClasses_list) #1 output node per class
-    if opts["regress"] is True or opts["nofOutputNodes"] == 2: #Special case : 2 classes -> binary classification -> 1 output node only
-        opts["nofOutputNodes"] = 1
-    if opts["parameterizedNN"]:
-        opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
+    text_file.write("\nOPTIONS\n")
+    text_file.write("----------------- \n")
 
-    if opts["parameterizedNN"] == True: opts["maxEvents"] = opts["nEventsPerPoint"]
-    else: opts["maxEvents"] = opts["maxEventsPerClass"]
+    for key in opts:
+        text_file.write(str(key) + " --> " + str(opts[key]) + "\n")
 
-    if opts["parameterizedNN"] == True: opts["batchSize"] = opts["batchSizeClass"]
-    else: opts["batchSize"] = opts["batchSizeEFT"]
+    text_file.write("----------------- \n\n")
+    text_file.close()
 
-    return opts, lumiName, weightDir, ntuplesDir, h5modelName, opts["batchSize"]
+    return
 
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Write timestamp to NN logfile
+#status: 0=start, 1=end
+def Write_Timestamp_toLogfile(weightDir, status):
+
+    if status == 0: mode = "w"
+    else: mode = "a+"
+
+    dateTimeObj = datetime.now()
+    timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
+    # print('Current Timestamp : ', timestampStr)
+
+    text_file = open(weightDir + "NN_infos.txt", mode) #Overwrite file
+    if status == 0: text_file.write("Start of NN training :" + str(timestampStr) + "\n")
+    elif status == 1: text_file.write("End of NN training and evaluation :" + str(timestampStr) + "\n")
+    text_file.close()
+
+    return
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -357,6 +423,119 @@ def CheckName_EFTpoint_ID(old):
 
     # print(old, ' --> ', new)
     return new
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
+    """
+    Look for EFT weight names which do not follow the expected naming convention (of the kind 'rwgt_ctZ_5.2'), and removes coherently these elements in the arrays of EFT weights/names. Returns modified arrays.
+
+    Parameters:
+    array_EFTweights (ndarray of shape [n_events, n_points]) : reweights for all points, for all events
+    array_EFTweightIDs (ndarray of shape [n_events, n_points]) : reweight names for all points, for all events. Example name: 'rwgt_ctZ_5_ctW_3'
+
+    Returns:
+    Same arrays, but without the columns (<-> reweights) which are not necessary for the morphing procedure (e.g. SM reweight which does not follow the same naming convention)
+    """
+
+    indices = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'rwgt_c') #Get column indices of reweight names not following the expected naming convention
+    indices = np.asarray(indices, dtype=bool) #Convert indices to booleans (True=does not follow naming convention)
+
+    #Remove coherently the incorrect weights
+    array_EFTweightIDs = np.delete(array_EFTweightIDs, indices==True, axis=1)
+    array_EFTweights = np.delete(array_EFTweights, indices==True, axis=1)
+
+    # print(array_EFTweights.shape); print(array_EFTweightIDs.shape)
+    return array_EFTweights, array_EFTweightIDs
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+  #####    ##   #####   ####  ######
+  #    #  #  #  #    # #      #
+  #    # #    # #    #  ####  #####
+  #####  ###### #####       # #
+  #      #    # #   #  #    # #
+  #      #    # #    #  ####  ######
+
+def Parse_EFTpoint_IDs(benchmarkIDs):
+    """
+    Parse an array of strings, each corresponding to the name of an EFT point
+
+    Parameters:
+    benchmarkIDs (ndarray of shape [n_points]) : array of strings, each corresponding to a separate EFT point. Example : 'rwgt_ctZ_5_ctW_3'
+
+    Returns:
+    operatorNames (ndarray of shape [n_points, n_operators]) : array of names of EFT operators, for all (n_points) EFT points
+    operatorWCs (ndarray of shape [n_points, n_operators]) : array whose columns represent the WC value of each operator defining a given point, and rows represent different EFT points
+    idx_SM : return index corresponding to SM point, if corresponding string is found
+    """
+
+    benchmarkIDs = np.atleast_1d(benchmarkIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
+
+    idx_SM = -1 #Store SM index
+    operatorNames = []
+    operatorWCs = []
+    # for idx in range(len(benchmarkIDs)):
+    for idx, ID in enumerate(benchmarkIDs):
+
+        #For each EFT point, get the list of names/WCs for all operators
+        list_operatorNames = []
+        list_operatorWCs = []
+        # ID = benchmarkIDs[idx]
+
+        if not ID.startswith("rwgt_c"): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
+            # list_operatorNames.append(ID) #Operator name
+            # list_operatorWCs.append(float(0)) #Operator WC
+            if ID=="rwgt_sm" or ID=="rwgt_SM": idx_SM = idx #SM point found
+            continue
+
+        ID = CheckName_EFTpoint_ID(ID) #Enforce proper naming convention
+
+        prefix = 'rwgt_' #Naming convention, strip this substring
+        if ID.startswith(prefix): ID = ID[len(prefix):]
+        else: print('Error : naming convention in benchmark ID not recognized'); exit(1)
+
+        list_keys = ID.split('_') #Split string into list of substrings (pairs [name,WC])
+        for ikey in range(0, len(list_keys)-1, 2):
+            list_operatorNames.append(list_keys[ikey]) #Operator name
+            list_operatorWCs.append(float(list_keys[ikey+1])) #Operator WC
+
+        #Append list for each EFT point
+        operatorNames.append(list_operatorNames)
+        operatorWCs.append(list_operatorWCs)
+
+    #Convert list of lists into 2D array. Each list element must have an equal length
+    operatorNames = np.array(operatorNames)
+    operatorWCs = np.array(operatorWCs)
+
+    return operatorNames, operatorWCs, idx_SM
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Translate reference points IDs (if different from SM) into the corresponding 2D array of WC values, properly ordered following same operator order as found in the sample
+def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
+
+    refPointIDs = np.atleast_1d(refPointIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
+
+    operatorNames_new, operatorWCs_new, _ = Parse_EFTpoint_IDs(refPointIDs)
+
+    orderedList_WCvalues_allPoints = []
+    for i_ID in range(len(refPointIDs)): #For each point ID
+        orderedList_WCvalues = []
+        for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
+            for op_sample in operatorNames_sample: #For each operator found in sample
+                if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample): orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
+                elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.bg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample...', colors.reset); exit(1) #Operator specified in ID not found in sample
+
+        orderedList_WCvalues_allPoints.append(orderedList_WCvalues)
+
+    orderedList_WCvalues_allPoints = np.asarray(orderedList_WCvalues_allPoints) #List --> array
+    print('orderedList_WCvalues_allPoints.shape', orderedList_WCvalues_allPoints.shape)
+
+    return orderedList_WCvalues_allPoints
 
 # //--------------------------------------------
 # //--------------------------------------------

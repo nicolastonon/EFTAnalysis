@@ -41,7 +41,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     list_yTrain_allClasses = []; list_yTest_allClasses = []
     list_truth_Train_allClasses = []; list_truth_Test_allClasses = []
     list_PhysicalWeightsTrain_allClasses = []; list_PhysicalWeightsTest_allClasses = []
-    if opts["nofOutputNodes"] == 1: #Binary
+    if opts["nofOutputNodes"] == 1 or opts["regress"] == True: #Binary class
         list_xTrain_allClasses.append(x_train[y_process_train==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1][:maxEvents])
         list_xTrain_allClasses.append(x_train[y_process_train==0][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==0][:maxEvents])
         list_xTest_allClasses.append(x_test[y_process_test==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==1][:maxEvents])
@@ -81,16 +81,26 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
     #Application (can also use : predict_classes, predict_proba)
     # print('...Compute model predictions...')
-    list_predictions_train_allNodes_allClasses = []
-    list_predictions_test_allNodes_allClasses = []
+    list_predictions_train_allNodes_allClasses = []; list_predictions_test_allNodes_allClasses = []
     for inode in range(opts["nofOutputNodes"]):
-
-        list_predictions_train_class = []
-        list_predictions_test_class = []
+        list_predictions_train_class = []; list_predictions_test_class = []
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
-            list_predictions_train_class.append(model.predict(list_xTrain_allClasses[iclass])[:,inode])
-            list_predictions_test_class.append(model.predict(list_xTest_allClasses[iclass])[:,inode])
+
+            if opts["nofOutputNodes"] == 1:
+                list_predictions_train_class.append( np.squeeze(model.predict(list_xTrain_allClasses[iclass])) )
+                list_predictions_test_class.append( np.squeeze(model.predict(list_xTest_allClasses[iclass])) )
+            else:
+                if opts["strategy"] is "RASCAL": #For RASCAL there are 2 asymmetric outputs : 1 single output for r, and 1 output with N sub-outputs for t
+                    if inode == 0:
+                        list_predictions_train_class.append(np.squeeze(model.predict(list_xTrain_allClasses[iclass])[0]))
+                        list_predictions_test_class.append(np.squeeze(model.predict(list_xTest_allClasses[iclass])[0]))
+                    else:
+                        list_predictions_train_class.append(model.predict(list_xTrain_allClasses[iclass])[1][:,inode-1])
+                        list_predictions_test_class.append(model.predict(list_xTest_allClasses[iclass])[1][:,inode-1])
+                else:
+                    list_predictions_train_class.append(model.predict(list_xTrain_allClasses[iclass])[:,inode])
+                    list_predictions_test_class.append(model.predict(list_xTest_allClasses[iclass])[:,inode])
 
         list_predictions_train_allNodes_allClasses.append(list_predictions_train_class)
         list_predictions_test_allNodes_allClasses.append(list_predictions_test_class)
