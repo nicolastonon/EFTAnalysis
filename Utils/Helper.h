@@ -57,8 +57,8 @@
 #include <TObjArray.h>
 #include <TObjString.h>
 
-//Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/maste)
-// #include "TH1EFT.h"
+//Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/master)
+#include "TH1EFT.h"
 // #include "WCPoint.h"
 // #include "WCFit.h"
 
@@ -110,5 +110,19 @@
 
 		return;
 	};
+
+    inline void Fill_TH1EFT_UnderOverflow(TH1EFT* h, double value, float weight, WCFit fit)
+    {
+        if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //overflow in last bin
+        else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //underflow in first bin
+        else {h->Fill(value, weight, fit);}
+        return;
+    };
+
+    inline void Fill_TH1F_NoUnderOverflow(TH1F* h, double value, double weight)
+    {
+        if(value < h->GetXaxis()->GetXmax() && value > h->GetXaxis()->GetXmin() ) {h->Fill(value, weight);}
+        return;
+    };
 
 #endif

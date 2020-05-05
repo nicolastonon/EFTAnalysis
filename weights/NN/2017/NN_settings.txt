@@ -1,0 +1,36 @@
+Start of NN training :05-May-2020 (15:45:52)
+
+OPTIONS
+----------------- 
+strategy --> ROLR
+nEpochs --> 10
+splitTrainEventFrac --> 0.8
+nHiddenLayers --> 4
+nNeuronsPerLayer --> 100
+activInputLayer --> tanh
+activHiddenLayers --> relu
+use_normInputLayer --> True
+use_batchNorm --> True
+dropoutRate --> 0.4
+maxEventsPerClass --> 1000
+nEventsTot_train --> -1
+nEventsTot_test --> -1
+batchSizeClass --> 512
+listOperatorsParam --> ['ctZ']
+nPointsPerOperator --> 20
+minWC --> -10
+maxWC --> 10
+nEventsPerPoint --> 10000
+batchSizeEFT --> 5000
+refPoint --> SM
+score_lossWeight --> 5
+regress_onLogr --> True
+cuts --> 1
+parameterizedNN --> True
+regress --> True
+nofOutputNodes --> 1
+maxEvents --> 10000
+batchSize --> 5000
+----------------- 
+
+End of NN training and evaluation :05-mai-2020 (15:47:07)

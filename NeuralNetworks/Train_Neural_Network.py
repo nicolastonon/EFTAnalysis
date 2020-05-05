@@ -32,14 +32,14 @@ optsTrain = {
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 # "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
-# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
-"strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
+"strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+# "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 5, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 5, #Number of hidden layers
+"nHiddenLayers": 4, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers
@@ -48,17 +48,18 @@ optsTrain = {
 "dropoutRate": 0.4, #Dropout rate (0 <-> disabled)
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": 10000, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
+"maxEventsPerClass": 1000, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for parameterized NN ===#
-"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 10, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+# "refPoint": "rwgt_ctZ_5", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 "score_lossWeight": 5, #Apply scale factor to score term in loss function
 "regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
 
@@ -88,8 +89,8 @@ _list_processClasses.append(["PrivMC_tZq_top19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
 # _list_processClasses.append(["PrivMC_ttZ_ctz"])
-# _list_processClasses.append(["PrivMC_ttZ_ctw"])
 # _list_processClasses.append(["ttZ"])
+# _list_processClasses.append(["PrivMC_ttZ_ctw"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
@@ -110,11 +111,11 @@ _list_labels.append("PrivMC_tZq_top19001")
 
 #-- Choose input features x
 _list_features = []
+_list_features.append("mTW")
 _list_features.append("maxDijetDelR")
 _list_features.append("dEtaFwdJetBJet")
 _list_features.append("dEtaFwdJetClosestLep")
 _list_features.append("mHT")
-_list_features.append("mTW")
 _list_features.append("Mass_3l")
 _list_features.append("forwardJetAbsEta")
 _list_features.append("jPrimeAbsEta")
@@ -216,7 +217,8 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 
     #-- Initialization, sanity checks
     optsTrain, _lumiName, _weightDir, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
-    print(colors.fg.lightgrey, '\n===> Saving NN infos (options, features rescaling, etc.) in : ', _weightDir + "NN_infos.txt", colors.reset)
+    print(colors.fg.lightgrey, '\n===> Saving NN settings to: ', _weightDir + "NN_settings.txt", colors.reset)
+    print(colors.fg.lightgrey, '===> Saving NN features list and node names to: ', _weightDir + "NN_info.txt", colors.reset)
 
                                        #
  ##### #####    ##   # #    #         #     ##### ######  ####  #####
@@ -268,7 +270,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         my_training_batch_generator = DataGenerator(x_train, y_train, LearningWeights_train, optsTrain["strategy"], _batchSize, returnWeights=False)
         my_validation_batch_generator = DataGenerator(x_test, y_test, PhysicalWeights_test, optsTrain["strategy"], _batchSize, returnWeights=False)
         _steps_per_epoch = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_test)/ _batchSize)
-        # batch_x, batch_y = my_training_batch_generator.__getitem__(1); print(batch_x); print(batch_y)
+        # batch_x, batch_y = my_training_batch_generator.__getitem__(0); print(batch_x); print(batch_y)
 
         history = model.fit(my_training_batch_generator, steps_per_epoch=_steps_per_epoch, validation_data=my_validation_batch_generator, validation_steps=_steps_per_epoch_val, epochs=optsTrain["nEpochs"], callbacks=callbacks_list, verbose=1)
 
@@ -326,17 +328,13 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print('\n', colors.fg.lightblue, "--- Apply model to train & test data...", colors.reset, colors.dim," (may take a while)\n", colors.reset)
     list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName, x_control_firstNEvents)
 
-    Control_Printouts(optsTrain, score, _list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses)
+    #-- Store NN predictions for train/test datasets, for later use
+    Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses)
 
-    Make_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, _metrics)
+    #-- Create several validation plots automatically
+    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, _metrics, _weightDir, score, history)
 
-    Create_Control_Plots(optsTrain, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x_train, x_test, y_train, y_test, y_process_train, y_process_test, _h5modelName, _metrics, _weightDir, history)
-
-    Create_Correlation_Plot(optsTrain, x, _list_features, _weightDir)
-
-    Plot_Input_Features(optsTrain, x, y_process, PhysicalWeights_allClasses, _list_features, _weightDir, False)
-
-    Write_Timestamp_toLogfile(_weightDir, 1) #Final timestamp before exit
+    Write_Timestamp_toLogfile(_weightDir, 1) #Write final timestamp before exit
 
 # //--------------------------------------------
 # //--------------------------------------------

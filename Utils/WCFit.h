@@ -258,7 +258,10 @@ public:
     }
 
     // Evaluate the fit at a particular WC phase space point
-    double evalPoint(WCPoint* pt) {
+    double evalPoint(WCPoint* pt)
+    {
+        bool debug = false;
+
         uint i;
         double v,x1,x2,c;
         std::string n1,n2;
@@ -277,10 +280,13 @@ public:
             v += x1*x2*c;
 
             //Useful for fit debugging -> can cross check each coeff
-            // cout<<"x1 ("<<n1<<") "<<x1<<endl;
-            // cout<<"x2 ("<<n2<<") "<<x2<<endl;
-            // cout<<"c "<<c<<endl;
-            // cout<<"v "<<v<<endl;
+            if(debug)
+            {
+                cout<<"x1 ("<<n1<<") "<<x1<<endl;
+                cout<<"x2 ("<<n2<<") "<<x2<<endl;
+                cout<<"c "<<c<<endl;
+                cout<<"v "<<v<<endl;
+            }
         }
         return v; //Return corresponding fit value (= event weight ?)
     }
@@ -501,9 +507,6 @@ public:
         for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
 
         uint nCols,nRows,row_idx,col_idx;
-        // double x1,x2;
-        // std::string n1,n2;
-        // std::pair<int,int> idx_pair;
 
         nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
         nRows = pts.size();
@@ -561,9 +564,6 @@ public:
         for(auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} //NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
 
         uint nCols,nRows,row_idx,col_idx;
-        // double x1,x2;
-        // std::string n1,n2;
-        // std::pair<int,int> idx_pair;
 
         nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
         nRows = this->points.size();
@@ -602,6 +602,8 @@ public:
         for(uint i = 0; i < this->errSize(); i++)
         {
             if(i < this->size()) {this->coeffs.at(i) = c_x(i);}
+
+            // std::cout<<"c_x(i) "<<c_x(i)<<std::endl;
 
             // idx_pair = this->err_pairs.at(i);
             //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);

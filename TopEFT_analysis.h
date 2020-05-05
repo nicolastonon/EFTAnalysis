@@ -84,7 +84,7 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void Merge_Templates_ByProcess(TString, TString, vector<TString>, bool=false);
 
-    void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float);
+    void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int);
     // void Fill_TH1EFT(TH1EFT*&, float, vector<string>*, vector<float>*, vector<float>, float);
     void Test_TH1EFT();
 
@@ -100,7 +100,7 @@ class TopEFT_analysis
     TMVA::Reader *reader;
     TMVA::Reader *reader1; //1 reader for BDT xxx
     TMVA::Reader *reader2; //1 reader for BDT yyy
-    TFModel* clfy1; //DNN classifier
+    TFModel* clfy1; //NN classifier
 
     std::vector<TString> sample_list; //List of samples
     std::vector<TString> sample_groups; //List of "group naming", 1 per sample (many samples can have same naming)
@@ -122,9 +122,9 @@ class TopEFT_analysis
 
 	bool use_NeuralNetwork;
 	TString classifier_name;
-    TString DNN_inputLayerName, DNN_outputLayerName; int nNodes = 1; //DNN model params
-    std::vector<TString> var_list_DNN; //Input features of DNN training may differ from those declared in 'analysis_main.cxx'
-    std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from DNN info file to rescale input features on the fly
+    TString NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
+    std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
+    std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category

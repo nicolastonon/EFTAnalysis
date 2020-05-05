@@ -255,6 +255,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             t->SetBranchStatus("weightMENominal", 1);
     		t->SetBranchAddress("weightMENominal", &weightMENominal);
 
+            Float_t mTW; //Debugging
+            t->SetBranchStatus("mTW", 1);
+    		t->SetBranchAddress("mTW", &mTW);
+
             bool passedBJets;
             t->SetBranchStatus("passedBJets", 1);
     		t->SetBranchAddress("passedBJets", &passedBJets);
@@ -333,21 +337,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 //Private MC sample : need to do some rescaling
                 if(v_samples[isample].Contains("Priv"))
                 {
-                    // cout<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
-                    // cout<<"weight "<<weight<<endl;
-                    // cout<<"weightMENominal "<<weightMENominal<<endl;
-                    // cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
-
-                    //--- SM reweight //FIXME
-                    //Need to divide by corresponding SWE, because was not done at Potato level
+                    //--- SM reweight
                     //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
-                    {
-                        weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //with SFs
+                    weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //with SFs
 
-                        // weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm]; //no SF, basic formula
-
-                        // weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //TESTING
-                    }
+                    if(remove_totalSF) {weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];}  //no SF, basic formula
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -383,6 +377,16 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     }
                 }
 
+                if(v_samples[isample] == "PrivMC_tZq_top19001" && ientry < 5)
+                {
+                    cout<<endl<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
+                    cout<<"weightMENominal "<<weightMENominal<<endl;
+                    cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
+                    cout<<"mTW "<<mTW<<endl;
+                    cout<<"weight "<<weight<<endl;
+
+                    // cout<<"yield_tmp "<<yield_tmp<<endl;
+                }
             } //event loop
 
     		// cout<<"yield_bkg = "<<yield_bkg<<endl;
@@ -550,6 +554,7 @@ int main(int argc, char **argv)
     v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
     v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
     v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
+    v_samples.push_back("PrivMC_ttZ_top19001_fullsim"); v_label.push_back("PrivMC_ttZ_fullsim");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");

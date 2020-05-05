@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     TString region_choice = ""; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ'
 
     //-- MVA
-    TString classifier_name = "DNN"; //'BDT' or 'DNN'
+    TString classifier_name = "NN"; //'BDT' or 'NN'
 
     //--- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
@@ -108,10 +108,11 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
-    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
+    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
+    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
     thesamplelist.push_back("PrivMC_tZq_top19001"); thesamplegroups.push_back("tZq_EFT_v2");
-    thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
+    // thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
+    // thesamplelist.push_back("PrivMC_tZq_top19001_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
 
     //Signal(s)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
@@ -274,7 +275,7 @@ int main(int argc, char **argv)
     bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
@@ -286,7 +287,7 @@ int main(int argc, char **argv)
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
-    bool compare_template_shapes = true;
+    bool compare_template_shapes = false;
 
 //-----------------    OTHER
 

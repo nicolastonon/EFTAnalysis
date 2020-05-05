@@ -105,6 +105,9 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
         list_predictions_train_allNodes_allClasses.append(list_predictions_train_class)
         list_predictions_test_allNodes_allClasses.append(list_predictions_test_class)
 
+    # print(list_predictions_test_allNodes_allClasses[0][0][:10])
+    # print(y_train[:10])
+
     # -- Printout of some predictions
     # np.set_printoptions(threshold=5) #If activated, will print full numpy arrays
     # print("\n-------------- FEW EXAMPLES... --------------")

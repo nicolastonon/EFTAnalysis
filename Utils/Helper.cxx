@@ -1074,7 +1074,7 @@ void Fill_TH1EFT(TH1EFT*& h, float x, vector<string> v_ids, vector<float> v_wgts
             // cout<<"v_ids[iwgt] "<<v_ids[iwgt]<<endl;
 
             TString ts = v_ids[iwgt];
-            if(ts.Contains("rwgt_") && ts != "rwgt_1" && ts != "rwgt_SM" && ts != "rwgt_sm") //FIXME
+            if(ts.Contains("rwgt_") && ts != "rwgt_1" && ts != "rwgt_SM" && ts != "rwgt_sm")
             // std::size_t foundstr = v_ids[iwgt].find("rwgt_");// only save EFT weights
             // if(foundstr != std::string::npos)
             {

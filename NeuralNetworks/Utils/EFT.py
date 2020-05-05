@@ -131,6 +131,8 @@ def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
     effWC_components (ndarray of shape [n_points, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
     """
 
+    operatorWCs = np.atleast_2d(operatorWCs) #Need 2D array
+
     effWC_components = np.zeros((len(operatorWCs), n_components)) #Create empty array of shape (n_points, n_components)
 
     for y in range(len(operatorWCs)): #For each EFT point
@@ -341,6 +343,38 @@ def Extrapolate_EFTxsecs_fromWeights(extrapolatedWeights):
 # //--------------------------------------------
 # //--------------------------------------------
 
+def Extrapolate_SM_Weights(n_components, components, fit_coeffs, listOperatorsParam):
+    """
+    Extrapolate event weights at SM point.
+    """
+
+    WCs_SM = np.zeros(len(listOperatorsParam)) #SM <-> All operators are set to 0
+    effWC_components_SM = Get_EffectiveWC_eachComponent(n_components, components, WCs_SM) #Get corresponding matrix
+    weight_SM = Extrapolate_EFTweights(effWC_components_SM, fit_coeffs) #Get corresponding event weights
+    weight_SM = np.squeeze(weight_SM) #2D -> 1D
+
+
+    weight_SM = Extrapolate_EFTweights(effWC_components_SM, fit_coeffs)
+
+    return weight_SM
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Extrapolate_SM_Xsec(opts, weights_SM):
+    """
+    Extrapolate cross section at SM point.
+    """
+
+    effWC_components_SM = np.zeros(len(opts["listOperatorsParam"])) #SM <-> All operators are set to 0
+
+    xsec_SM = extrapolatedXsecs = np.sum(weights_SM, axis=0)
+
+    return xsec_SM
+
+# //--------------------------------------------
+# //--------------------------------------------
+
   ####  ###### #####    ##### #    # ###### #####   ##
  #    # #        #        #   #    # #        #    #  #
  #      #####    #        #   ###### #####    #   #    #
@@ -496,6 +530,60 @@ def Compute_Score_Component(weights_thetas, xsecs_thetas, gradWeights_thetas, gr
 # //--------------------------------------------
 # //--------------------------------------------
 
+ #####  ###### #####  #    #  ####
+ #    # #      #    # #    # #    #
+ #    # #####  #####  #    # #
+ #    # #      #    # #    # #  ###
+ #    # #      #    # #    # #    #
+ #####  ###### #####   ####   ####
+
+def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coeffs, EFT_weights, EFT_weightIDs, list_weights, list_SMweights):
+    """
+    Debug printouts for first events. Check fit coefficients, compare event weights/xsecs from MG benchmark weights and from extrapolation procedure, etc.
+    """
+
+    print(colors.fg.orange, '=========== DEBUG =========\n\n', colors.reset)
+
+    print('\nComponents --> \n', components)
+    print('\nFit coeffs [:5] --> \n', fit_coeffs[:5])
+
+    print("-----------")
+    print('\nSM MG reweights [:5] --> \n', list_SMweights[:5])
+    sm_weights = Extrapolate_SM_Weights(n_components, components, fit_coeffs, opts["listOperatorsParam"])
+    print('SM extrapol. reweights [:5] --> \n', sm_weights[:5])
+
+    print("-----------")
+    sm_xsec = Extrapolate_SM_Xsec(opts, sm_weights)
+    print('SM xsec from extrapolated weights: ', sm_xsec)
+    print('SM xsec from MG weights: ', Extrapolate_EFTxsecs_fromWeights(list_SMweights))
+
+    # print("-----------")
+    # baseline_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_5_ctW_5_cpQM_5_cpQ3_5_cpt_5")
+    # effWC_components_baseline = Get_EffectiveWC_eachComponent(n_components, components, baseline_WCs) #Get corresponding matrix
+    # weights_baseline = Extrapolate_EFTweights(effWC_components_baseline, fit_coeffs) #Get corresponding event weights
+    # weights_baseline = np.squeeze(weights_baseline) #2D -> 1D (single point)
+    # print('\nBaseline weight from MG [:5] --> ', list_weights[:5])
+    # print('Baseline weight from extrapol [:5] --> ', weights_baseline[:5])
+
+    print("-----------")
+    idx_refPoint = EFT_weightIDs.shape[1]-1 #Last rwgt point
+    print('RefPoint ID : ', EFT_weightIDs[0,idx_refPoint])
+    # lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_5")
+    lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_4.07_ctW_4.43_cpQM_3.7_cpQ3_-1.16_cpt_-1.82 ")
+    effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, lasPoint_WCs) #Get corresponding matrix
+    weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, fit_coeffs) #Get corresponding event weights
+    weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
+    print('\nLast point weight from MG [:5] --> ', EFT_weights[:5,idx_refPoint])
+    print('Ref point weight from extrapol [:5] --> ', weights_refPoint[:5])
+    print('Ref point xsec from extrapol [:5] --> ', Extrapolate_EFTxsecs_fromWeights(weights_refPoint))
+
+    print("-----------")
+    print(colors.fg.red, 'Exiting CrossCheck_FewEvents(), which is for debugging only. Stopping here', colors.reset); exit(1)
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 ######## ##     ## ######## ######## ##    ## ########
 ##        ##   ##     ##    ##       ###   ## ##     ##
 ##         ## ##      ##    ##       ####  ## ##     ##
@@ -513,7 +601,7 @@ def Compute_Score_Component(weights_thetas, xsecs_thetas, gradWeights_thetas, gr
 ########  ##     ##    ##    ##     ##  ######  ########    ##
 
 #Main EFT function, called in GetData.py. Extend the data (x, weights, ...) at all the EFT points theta at which the NN will get trained.
-def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_indexSM_allClasses):
+def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses):
     """
     Extend the original data so that the NN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the NN to learn how to interpolate between them.
     First, define the points 'thetas' on which the NN will get trained. Then, for the same input features x, will duplicate events N times at these points, with corresponding reweights.
@@ -522,8 +610,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
     Parameters:
     listOperatorsParam : list of operators considered in NN training
-    list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses : obtained from previous functions
-    list_indexSM_allClasses : index of SM benchmark reweight, for each (EFT) sample
+    list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses : obtained from previous functions
     maxEvents : number of events to sample for each EFT point. Events will be drawn randomly, with replacement, from the entire class sample with the proper probability.
     nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the NN will get trained
 
@@ -597,7 +684,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
         #-- Extrapolate the event weights at the reference point, for all events
         if opts["refPoint"] == "SM":
-            weights_refPoint = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]] #Choose SM as reference point
+            weights_refPoint = list_SMweights_allClasses[iclass] #Choose SM as reference point
         else:
             refPointWCs = Translate_EFTpointID_to_WCvalues(operatorNames, opts["refPoint"]) #Encode reference point name into WC values
             effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, refPointWCs) #Get corresponding matrix
@@ -615,7 +702,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
         #-- For non-parameterized NN, only 1 EFT point to separate from SM, build lists differently
         else:
-            newWeights = list_EFTweights_allClasses[iclass][:,list_indexSM_allClasses[iclass]] #Choose SM as reference point
+            newWeights = list_SMweights_allClasses[iclass] #Choose SM as reference point
             list_weights_allThetas_class.append(np.concatenate( (newWeights, weights_refPoint)) )
             list_x_allThetas_class.append(np.concatenate( (list_x_allClasses[iclass], list_x_allClasses[iclass])) )
             list_targetClass_allThetas_class.append(np.concatenate( (np.ones(len(list_x_allClasses[iclass])), np.zeros(len(list_x_allClasses[iclass])) ) ) ) #EFT ref point=0, SM=1
@@ -639,6 +726,9 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
                     list_gradNewWeights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
                     list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradNewWeights_operators[iop]))
                     list_score_allOperators.append(Compute_Score_Component(newWeights, newXsecs, list_gradNewWeights_operators[iop], list_gradNewXsecs_operators[iop]) )
+
+        #-- Debugging
+        # CrossCheck_FewEvents(opts, n_components, components, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_EFTweights_allClasses[iclass], list_EFTweightIDs_allClasses[iclass], list_weights_allClasses[iclass], list_SMweights_allClasses[iclass])
 
 # //--------------------------------------------
 # Then, for each new point theta, build the corresponding dataset (features, weights, etc.), and append it to total dataset

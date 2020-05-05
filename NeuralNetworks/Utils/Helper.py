@@ -10,6 +10,7 @@ import keras
 import pandas as pd
 import re
 import os
+import shutil
 from datetime import datetime
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
@@ -32,13 +33,13 @@ from Utils.ColoredPrintout import colors
 #-- Automatically close matplotlib plot after some time
 def close_event():
 
-    plt.close() #timer calls this function after 3 seconds and closes the window
+    plt.close('all') #timer calls this function after N seconds and closes all active figures
 
     return
 
 # //--------------------------------------------
 # //--------------------------------------------
-#-- Printout training infos
+#-- Printout training info
 def batchOutput(batch, logs):
 
     print("Finished batch: " + str(batch))
@@ -274,7 +275,12 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     # Set main output paths
     weightDir = "../weights/NN/" + lumiName + '/'
+
+    # os.remove(weightDir+"/*")
+    shutil.rmtree(weightDir)
     os.makedirs(weightDir, exist_ok=True)
+
+    print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 
     #Top directory containing all input ntuples
     ntuplesDir = "../input_ntuples/"
@@ -332,7 +338,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
     onlySMEFT=False #Check whether all training samples are SM/EFT private samples
-    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0
+    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0; totalSamples=0
     for label in labels_list:
         if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
         elif("PrivMC" in label): nSMEFTSamples+=1 #E.g. 'PrivMC_tZq'
@@ -343,7 +349,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
-    if (opts["parameterizedNN"]==True or opts["strategy"] is not "classifier") and onlySMEFT==False: print(colors.bold, colors.fg.red, 'Only non-parameterized classifier strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
+    if (opts["parameterizedNN"]==True or opts["strategy"] is not "classifier") and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
+    if totalSamples and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
 
 # //--------------------------------------------
 
@@ -359,7 +366,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 def Dump_NN_Options_toLogFile(opts, weightDir):
 
     #-- Also append the names of the input/output nodes in the file "NN_info.txt" containing input features names, etc. (for later use in C++ code)
-    text_file = open(weightDir + "NN_infos.txt", "a+") #Overwrite file
+    text_file = open(weightDir + "NN_settings.txt", "a+") #Overwrite file
 
     text_file.write("\nOPTIONS\n")
     text_file.write("----------------- \n")
@@ -386,7 +393,7 @@ def Write_Timestamp_toLogfile(weightDir, status):
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
     # print('Current Timestamp : ', timestampStr)
 
-    text_file = open(weightDir + "NN_infos.txt", mode) #Overwrite file
+    text_file = open(weightDir + "NN_settings.txt", mode) #Overwrite file
     if status == 0: text_file.write("Start of NN training :" + str(timestampStr) + "\n")
     elif status == 1: text_file.write("End of NN training and evaluation :" + str(timestampStr) + "\n")
     text_file.close()
@@ -439,12 +446,16 @@ def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
     Same arrays, but without the columns (<-> reweights) which are not necessary for the morphing procedure (e.g. SM reweight which does not follow the same naming convention)
     """
 
-    indices = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'rwgt_c') #Get column indices of reweight names not following the expected naming convention
-    indices = np.asarray(indices, dtype=bool) #Convert indices to booleans (True=does not follow naming convention)
-
     #Remove coherently the incorrect weights
+    indices = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'rwgt_c') #Get column indices of reweight names not following the expected naming convention, from first event; 0 <-> found ; -1 <-> not found
+    indices = np.asarray(indices, dtype=bool) #Convert indices to booleans (True <-> does not follow naming convention)
     array_EFTweightIDs = np.delete(array_EFTweightIDs, indices==True, axis=1)
     array_EFTweights = np.delete(array_EFTweights, indices==True, axis=1)
+
+    #Just removes first weight if it is 'rwgt_1' (baseline weight sometimes included by default by MG)
+    # if array_EFTweightIDs[0][0] is "rwgt_1":
+    #     array_EFTweightIDs = np.delete(array_EFTweightIDs, 0, axis=1)
+    #     array_EFTweights = np.delete(array_EFTweights, 0, axis=1)
 
     # print(array_EFTweights.shape); print(array_EFTweightIDs.shape)
     return array_EFTweights, array_EFTweightIDs
@@ -533,7 +544,6 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
         orderedList_WCvalues_allPoints.append(orderedList_WCvalues)
 
     orderedList_WCvalues_allPoints = np.asarray(orderedList_WCvalues_allPoints) #List --> array
-    print('orderedList_WCvalues_allPoints.shape', orderedList_WCvalues_allPoints.shape)
 
     return orderedList_WCvalues_allPoints
 

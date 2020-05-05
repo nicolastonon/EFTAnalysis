@@ -266,16 +266,19 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 		}
 	}
 
-    //Read the list of input variables directly from .txt file generated at DNN training
+    //Read the list of input variables directly from .txt file generated at NN training
     //Also read the mean/variance of each var, in order to rescale the input values correspondingly
-    v_inputs_rescaling.resize(0); var_list_DNN.resize(0);
-    if(classifier_name == "DNN")
+    v_inputs_rescaling.resize(0); var_list_NN.resize(0);
+    if(classifier_name == "NN")
     {
-        TString file_var_path = "./weights/DNN/"+lumiName+"/DNN_infos.txt";
-        if(!Check_File_Existence(file_var_path) ) {cout<<DIM("DNN infos not found ("<<file_var_path<<")")<<endl;}
+        NN_inputLayerName = "";
+        NN_outputLayerName = "";
+        nNodes = -1;
+        TString file_var_path = "./weights/NN/"+lumiName+"/NN_info.txt";
+        if(!Check_File_Existence(file_var_path) ) {cout<<DIM("NN infos not found ("<<file_var_path<<")")<<endl;}
         else
         {
-            cout<<DIM("Reading list of DNN input variables from : "<<file_var_path<<"")<<endl;
+            cout<<DIM("Reading list of NN input variables from : "<<file_var_path<<"")<<endl;
 
             ifstream file_in(file_var_path);
             string line;
@@ -288,12 +291,12 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                 ss >> varname >> tmp1 >> tmp2;
                 if(varname != "") //Last line may be empty
                 {
-                    if(tmp1 == -1 && tmp2 == -1) {DNN_inputLayerName = varname;} //Name of input layer
-                    else if(tmp1 == -2 && tmp2 == -2) {DNN_outputLayerName = varname;} //Name of output layer
+                    if(tmp1 == -1 && tmp2 == -1) {NN_inputLayerName = varname;} //Name of input layer
+                    else if(tmp1 == -2 && tmp2 == -2) {NN_outputLayerName = varname;} //Name of output layer
                     else if(tmp1 == -3 && tmp2 == -3) {nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
                     else
                     {
-                        var_list_DNN.push_back(varname);
+                        var_list_NN.push_back(varname);
                         std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
                         v_inputs_rescaling.push_back(pair_tmp);
                     }
@@ -301,10 +304,12 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                 }
             }
         }
-        // cout<<"-->  "<<DNN_inputLayerName<<endl;
-        // cout<<"-->  "<<DNN_outputLayerName<<endl;
-        // cout<<"-->  "<<nNodes<<endl;
+        cout<<DIM("-->  "<<NN_inputLayerName<<"")<<endl;
+        cout<<DIM("-->  "<<NN_outputLayerName<<"")<<endl;
+        cout<<DIM("-->  "<<nNodes<<"")<<endl;
         // cout<<"v_inputs_rescaling.first "<<v_inputs_rescaling[0].first<<" / v_inputs_rescaling.second "<<v_inputs_rescaling[0].second<<endl;
+
+        if(NN_inputLayerName == "" || NN_outputLayerName == "" || nNodes == -1) {cout<<endl<<FRED("Warning : wrong NN input/output info !")<<endl;} //Need this info for NN
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -490,7 +495,7 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 	//Complete path for weight files is : [path_given_toDataloader]/[fWeightFileDir]
 	//Apparently, TMVAGui can't handle nested repos in path given to myDataLoader... so split path in 2 here
 	TMVA::gConfig().GetIONames().fWeightFileDir = "BDT/"+lumiName;
-	// if(classifier_name == "DNN" && DNN_type == "TMVA") {TMVA::gConfig().GetIONames().fWeightFileDir = "DNN/TMVA/"+lumiName;}
+	// if(classifier_name == "NN" && NN_type == "TMVA") {TMVA::gConfig().GetIONames().fWeightFileDir = "NN/TMVA/"+lumiName;}
 
 //--------------------------------------------
  // #    #   ##   #####  #   ##   #####  #      ######  ####
@@ -822,7 +827,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	else {cout<<BOLD(FRED("--- ERROR : invalid arguments ! Exit !"))<<endl; cout<<"Valid template names are : ttbar / ttV / 2D / 2Dlin !"<<endl; return;}
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 
-	if(classifier_name != "BDT" && classifier_name != "DNN") {cout<<BOLD(FRED("Error : classifier_name value not supported !"))<<endl; return;}
+	if(classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value not supported !"))<<endl; return;}
 
     TString restore_classifier_name = classifier_name;
 	if(makeHisto_inputVars) {classifier_name = "";} //For naming conventions
@@ -871,7 +876,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
 
     // vector<pair<float,float>> v_inputs_rescaling;
-    // TString DNN_inputLayerName = ""; TString DNN_outputLayerName = ""; int nNodes = 1;
+    // TString NN_inputLayerName = ""; TString NN_outputLayerName = ""; int nNodes = 1;
     if(!makeHisto_inputVars && classifier_name == "BDT")
     {
         //NB : TMVA requires floats, and nothing else, to ensure reproducibility of results (training done with floats) => Need to recast e.g. doubles as flots
@@ -895,16 +900,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             }
         }
     }
-    else if(!makeHisto_inputVars && classifier_name == "DNN") //DNN
+    else if(!makeHisto_inputVars && classifier_name == "NN") //NN
     {
-        var_list = var_list_DNN; //Use DNN input features
+        var_list = var_list_NN; //Use NN input features
         var_list_floats.resize(var_list.size());
 
-        //--- Load DNN model
-        TString DNNmodel_path = "./weights/DNN/"+lumiName+"/model.pb";
-        if(!Check_File_Existence(DNNmodel_path) ) {cout<<BOLD(FRED("Model "<<DNNmodel_path<<" not found ! Abort"))<<endl; return;}
+        //--- Load NN model
+        TString NNmodel_path = "./weights/NN/"+lumiName+"/model.pb";
+        if(!Check_File_Existence(NNmodel_path) ) {cout<<BOLD(FRED("Model "<<NNmodel_path<<" not found ! Abort"))<<endl; return;}
 
-        clfy1 = new TFModel(DNNmodel_path.Data(), var_list.size(), DNN_inputLayerName.Data(), nNodes, DNN_outputLayerName.Data()); //Specify names of I/O layers, and nof I/O nodes //These names can be read from the 'model.pbtxt' file produced at DNN training : look for name of first and last nodes *WHICH IS NOT A TRAINING NODE*
+        clfy1 = new TFModel(NNmodel_path.Data(), var_list.size(), NN_inputLayerName.Data(), nNodes, NN_outputLayerName.Data()); //Specify names of I/O layers, and nof I/O nodes //These names can be read from the 'model.pbtxt' file produced at NN training : look for name of first and last nodes *WHICH IS NOT A TRAINING NODE*
     }
 
 	//Input TFile and TTree, called for each sample
@@ -914,7 +919,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	//Template binning
 	double xmin = -1, xmax = 1;
 	nbins = 10;
-    if(classifier_name == "DNN") {xmin = 0;}
+    if(classifier_name == "NN") {xmin = 0;}
 
 	//Want to plot ALL selected variables
 	vector<TString> total_var_list;
@@ -1129,10 +1134,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 //--- Event weights
                 double eventWeight; //Corresponds to 'nominalMEWeight_' in TopAnalysis code
                 float eventMCFactor; //Sample-specific SF (xsec*lumi/SWE)
+                Float_t weightMENominal;
                 tree->SetBranchStatus("eventWeight", 1);
     			tree->SetBranchAddress("eventWeight", &eventWeight);
                 tree->SetBranchStatus("eventMCFactor", 1);
     			tree->SetBranchAddress("eventMCFactor", &eventMCFactor);
+                tree->SetBranchStatus("weightMENominal", 1);
+    			tree->SetBranchAddress("weightMENominal", &weightMENominal);
                 // float mc_weight_originalValue;
     			// tree->SetBranchStatus("mc_weight_originalValue", 1);
     			// tree->SetBranchAddress("mc_weight_originalValue", &mc_weight_originalValue);
@@ -1205,6 +1213,21 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                 WCFit* eft_fit = NULL; //1 WCFit object per private MC event
 
+                //For private EFT samples, get and store index of SM reweight
+                int idx_sm = -1;
+                if(isPrivMC)
+                {
+                    tree->GetEntry(0); //Read 1 entry
+
+                    for(int iwgt=0; iwgt<v_ids->size(); iwgt++)
+                    {
+                        if(ToLower(v_ids->at(iwgt)).Contains("_sm") ) {idx_sm = iwgt; break;} //SM weight found
+                    }
+
+                    if(idx_sm == -1) {cout<<BOLD(FRED("Error : SM reweight not found in private samle ! Abort ! "))<<endl; return;}
+                }
+
+
 // ###### #    # ###### #    # #####    #       ####   ####  #####
 // #      #    # #      ##   #   #      #      #    # #    # #    #
 // #####  #    # #####  # #  #   #      #      #    # #    # #    #
@@ -1216,7 +1239,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			// int nentries = 10;
     			int nentries = tree->GetEntries();
-                if(isPrivMC && nentries > 1000) {nentries = 1000;}
+                // if(isPrivMC && nentries > 1000) {nentries = 1000;}
 
                 // if(!draw_progress_bar) {cout<<endl<< "--- "<<sample_list[isample]<<" : Processing: " << tree->GetEntries() << " events" << std::endl;}
                 cout<<endl<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
@@ -1239,7 +1262,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				//--- Cut on category value
     				if(region != "" && !is_goodCategory) {continue;}
 
-//---- APPLY CUTS HERE (defined in main)  ----
+//---- APPLY CUTS HERE (as defined in main)  ----
     				bool pass_all_cuts = true;
     				for(int icut=0; icut<v_cut_name.size(); icut++)
     				{
@@ -1265,7 +1288,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(classifier_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(MVA_method_name);}
 
                         //NB -- slow evaluation ! ==> Don't rescale inputs, add lambda layer in model to rescale inputs !
-                        else //DNN
+                        else //NN
                         {
                             //Convert my vector storing input values into array
                             // float clfy1_inputs[var_list_floats.size()];
@@ -1308,10 +1331,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                     double weight_tmp = eventWeight*eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
 
+                    float w_SMpoint = 0;
                     if(isPrivMC)
                     {
                         eft_fit = new WCFit("myfit");
-                        Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp); //Fill w/ nominal weight ?
+                        w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+                        Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, idx_sm); //Fill w/ nominal weight ?
                     }
 
     				//-- Fill histos for all subcategories
@@ -1353,12 +1378,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             for(int ivar=0; ivar<total_var_list.size(); ivar++)
                             {
-                                if(isPrivMC) //FIXME -- check reweighting
+                                if(isPrivMC)
                                 {
-                                    // Fill_TH1EFT(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], v_ids, v_wgts, v_SWE, weight_tmp);
+                                    float w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
 
-                                    Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp*v_wgts->at(1)/v_SWE[1]);
-                                    v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Fill(total_var_floats[ivar], weight_tmp*v_wgts->at(1)/v_SWE[1], *eft_fit);
+                                    Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint);
+                                    Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);
                                 }
                                 else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);}
                             }
@@ -1416,6 +1441,24 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             {
                                 output_histo_name = "TH1EFT_"+ output_histo_name;
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+
+                                bool debug = false;
+                                if(debug) //Printout WC values and extrapolated integrals for each benchmark point
+                                {
+                                    WCFit fit = v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->GetSumFit(); //Get summed fit (over all bins)
+
+                                    cout<<"//-------------------------------------------- "<<endl;
+                                    cout<<"chan "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<" / var"<<var_list[ivar]<<endl;
+                                    fit.dump(); //Printout all names and coefficients of WC pairs
+                                    for (uint i=0; i < fit.points.size(); i++)
+                                    {
+                                        WCPoint wc_pt = fit.points.at(i);
+                                        double fit_val = fit.evalPoint(&wc_pt);
+                                        wc_pt.dump(); //Printout names and values of all WCs for this point
+                                        std::cout << "===> " << std::setw(3) << i << ": " << std::setw(12) << std::setw(12) << fit_val << std::endl; //Printout : i / true weight / evaluated weight / diff
+                                    }
+                                    cout<<endl<<endl<<endl;
+                                }
                             }
 
     						delete v3_histo_chan_syst_var[ichan][isyst][ivar]; v3_histo_chan_syst_var[ichan][isyst][ivar] = NULL;
@@ -1640,9 +1683,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     cout<<DIM("Opening file "<<input_name<<"")<<endl;
 	cout<<endl<<endl<<endl;
 
-
 	usleep(1000000); //Pause for 1s (in microsec)
-
 
 	//Input file containing histos
 	TFile* file_input = TFile::Open(input_name);
@@ -1682,7 +1723,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	}
 	else
 	{
-        if(classifier_name == "DNN")
+        if(classifier_name == "NN")
         {
             for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));} //1 template per output node
         }
@@ -2427,7 +2468,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		if(show_pulls_ratio) {histo_ratio_data->GetYaxis()->SetTitle("Pulls");}
 		else {histo_ratio_data->GetYaxis()->SetTitle("Data/MC");}
 		histo_ratio_data->GetYaxis()->SetTickLength(0.);
-		// histo_ratio_data->GetXaxis()->SetTitleOffset(1); //FIXME
+		// histo_ratio_data->GetXaxis()->SetTitleOffset(1);
 		histo_ratio_data->GetYaxis()->SetTitleOffset(1.2);
 		histo_ratio_data->GetYaxis()->SetLabelSize(0.048);
 		histo_ratio_data->GetXaxis()->SetLabelFont(42);
@@ -2460,10 +2501,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             // histo_ratio_data->GetXaxis()->SetTitle(classifier_name+" (vs "+template_name + ")");
             histo_ratio_data->GetXaxis()->SetTitle(total_var_list[ivar]);
 
-            //Hardcode DNN output nodes names...?
-            if(total_var_list[ivar] == "DNN0") {histo_ratio_data->GetXaxis()->SetTitle("DNN (tZq node)");}
-            else if(total_var_list[ivar] == "DNN1" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("DNN (ttZ node)");}
-            else if(total_var_list[ivar] == "DNN2" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("DNN (Bkgs node)");}
+            //Hardcode NN output nodes names...?
+            if(total_var_list[ivar] == "NN0") {histo_ratio_data->GetXaxis()->SetTitle("NN (tZq node)");}
+            else if(total_var_list[ivar] == "NN1" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("NN (ttZ node)");}
+            else if(total_var_list[ivar] == "NN2" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("NN (Bkgs node)");}
 
 			if(template_name == "categ") //Vertical text X labels (categories names)
 			{
@@ -2750,6 +2791,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 //  ######  ##     ## ##     ## ##        ########  ######
 //--------------------------------------------
 
+//Compare shapes of several (hard-coded) samples for some variables
+//Reads pre-existing histograms, which must have been previously produced with Draw_Templates(drawInputVars=True)
 void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TString channel)
 {
 	bool drawInputVars = true;
@@ -2777,9 +2820,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
     v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001"); v_colors.push_back(kRed);
-    v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
+    v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
+    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
 
     vector<TString> v_syst;
     v_syst.push_back("");
@@ -3235,7 +3279,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 	TFile* f = TFile::Open(filename, "UPDATE");
 
 	//NB :here the order of loops is important because we sum histograms recursively ! The 'sample_list' loop *must be the most nested one* !
-    for(int ivar=0; ivar<total_var_list.size(); ivar++) //There may be more than 1 template, e.g. several DNN output nodes
+    for(int ivar=0; ivar<total_var_list.size(); ivar++) //There may be more than 1 template, e.g. several NN output nodes
     {
         for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
         {
@@ -3387,9 +3431,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
 
-//FIXME -- check weight, ...
-void TopEFT_analysis::Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, const vector<float>& v_SWE, float wgt_nominal)
-// void TopEFT_analysis::Fill_TH1EFT(TH1EFT*& h, float x, vector<string>* v_ids, vector<float>* v_wgts, vector<float> v_SWE, float wgt_nominal)
+void TopEFT_analysis::Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, const vector<float>& v_SWE, float wgt_baseline, float weightMENominal, float w_SMpoint, int idx_sm)
 {
     bool debug = false;
 
@@ -3397,16 +3439,23 @@ void TopEFT_analysis::Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<f
 
     //May only loop on minimal required number of points for WCFit (depends on n.of WCs) -- will get fit warning otherwise
     //=== WARNING : ASSUMES THAT FIRST WEIGHT is 'rwgt_1', and second is 'rwgt_sm' ===
-    for(int iwgt=2; iwgt<25; iwgt++) //just the necessary nof weights to overconstrain fit with 5 WCs
-    // for(int iwgt=2; iwgt<v_ids->size(); iwgt++)
+    for(int iwgt=1; iwgt<25; iwgt++) //just the necessary nof weights to overconstrain fit with 5 WCs
+    // for(int iwgt=1; iwgt<v_ids->size(); iwgt++)
     {
-        // double w = wgt_nominal * v_wgts->at(iwgt)/v_wgts->at(1);
-        double w = wgt_nominal * v_wgts->at(iwgt) / v_SWE[iwgt];
+        float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[idx_sm]);
+        // float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[iwgt]);
+        // float w = v_wgts->at(iwgt) / v_SWE[iwgt];
+        // float w = v_wgts->at(iwgt) / v_SWE[idx_sm];
+        // float w = v_wgts->at(iwgt);
 
-        // cout<<"wgt_nominal "<<wgt_nominal<<endl;
+        // cout<<"wgt_baseline "<<wgt_baseline<<endl;
         // cout<<"v_wgts->at(iwgt) "<<v_wgts->at(iwgt)<<endl;
         // cout<<"v_SWE[iwgt] "<<v_SWE[iwgt]<<endl;
         // cout<<"w "<<w<<endl;
+
+        if(ToLower(v_ids->at(iwgt)) == "rwgt_sm") {continue;} //SM point added manually
+
+        // double w = wgt_nominal * v_wgts->at(iwgt) / v_SWE[iwgt];
 
         WCPoint wc_pt(v_ids->at(iwgt), w);
 
@@ -3416,7 +3465,8 @@ void TopEFT_analysis::Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<f
     //-- Include 'manually' the SM point as first element (not included automatically because named 'SM' and not via its operator values)
     eft_fit->points.insert(eft_fit->points.begin(), eft_fit->points[0]); //Duplicate the first element
     eft_fit->points[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
-    eft_fit->points[0].wgt = v_wgts->at(1); //Set (new) first element to SM weight
+    // eft_fit->points[0].wgt = v_wgts->at(idx_sm); //Set (new) first element to SM weight
+    eft_fit->points[0].wgt = w_SMpoint; //Set (new) first element to SM weight
 
     eft_fit->fitPoints();
 
