@@ -58,6 +58,7 @@
 #include <TObjString.h>
 
 //Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/master)
+#include "split_string.h"
 #include "TH1EFT.h"
 // #include "WCPoint.h"
 // #include "WCFit.h"
@@ -98,6 +99,7 @@
     TString Get_Modified_SystName(TString, TString);
     void Get_Pointer_GENHisto(TH1F*&, TString);
     // void Fill_TH1EFT(TH1EFT*&, float, std::vector<std::string>, std::vector<float>, float);
+    vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 
 //--------------------------------------------
 	//Increment weight of first bin by 'weight'

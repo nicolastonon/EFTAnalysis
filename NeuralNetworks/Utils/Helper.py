@@ -268,7 +268,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     opts["parameterizedNN"] = False
     opts["regress"] = False
     if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["parameterizedNN"] = True
-    if opts["strategy"] in ["ROLR", "RASCAL"]: opts["regress"] = True
+    if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: opts["regress"] = True
 
     #Year selection
     lumiName = Get_LumiName(lumi_years)
@@ -287,13 +287,14 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     #Determine/store number of process classes, depending on strategy
     opts["nofOutputNodes"] = len(processClasses_list) #Multiclass classification --> 1 output node per process class
-    if opts["strategy"] == "classifier" and len(processClasses_list) == 2: opts["nofOutputNodes"] = 1 #Binary classification --> single output node needed
+    if opts["strategy"] is "classifier" and len(processClasses_list) == 2: opts["nofOutputNodes"] = 1 #Binary classification --> single output node needed
+    elif opts["strategy"] is "regressor": opts["nofOutputNodes"] = 1
     elif opts["strategy"] in ["CARL", "CARL_singlePoint"]: opts["nofOutputNodes"] = 1 #Binary classification
-    elif opts["strategy"] == "CARL_multiclass":
+    elif opts["strategy"] is "CARL_multiclass":
         if len(opts["listOperatorsParam"]) == 1: opts["nofOutputNodes"] = 1 #Binary classification
         else: opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
-    elif opts["strategy"] == "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
-    elif opts["strategy"] == "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
+    elif opts["strategy"] is "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
+    elif opts["strategy"] is "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
 
     if opts["parameterizedNN"] == True:
         opts["maxEvents"] = opts["nEventsPerPoint"]
@@ -305,7 +306,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 #-- Sanity checks
 
-    if opts["strategy"] not in ["classifier", "CARL", "CARL_multiclass", "CARL_singlePoint", "ROLR", "RASCAL"]:
+    if opts["strategy"] not in ["classifier", "regressor", "CARL", "CARL_multiclass", "CARL_singlePoint", "ROLR", "RASCAL"]:
         print(colors.fg.red, 'ERROR : strategy', opts["strategy"],'not recognized', colors.reset); exit(1)
 
     if opts["strategy"] is "CARL_singlePoint" and opts["maxEvents"] != -1:
@@ -338,19 +339,22 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
     onlySMEFT=False #Check whether all training samples are SM/EFT private samples
-    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0; totalSamples=0
+    ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0;
     for label in labels_list:
         if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
         elif("PrivMC" in label): nSMEFTSamples+=1 #E.g. 'PrivMC_tZq'
         else: ncentralSamples+=1 #E.g. 'tZq'
 
+    totalSamples = len(processClasses_list)
     if nSMEFTSamples == len(labels_list): onlySMEFT=True
     elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
     elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
-    if (opts["parameterizedNN"]==True or opts["strategy"] is not "classifier") and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
-    if totalSamples and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
+    if (opts["parameterizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
+    elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
+    if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
+    if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 
 # //--------------------------------------------
 

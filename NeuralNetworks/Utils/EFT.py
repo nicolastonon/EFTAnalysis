@@ -382,7 +382,7 @@ def Extrapolate_SM_Xsec(opts, weights_SM):
  #    # #        #        #   #    # #        #   #    #
   ####  ######   #        #   #    # ######   #   #    #
 
-#FIXME : different thetas for strategies. different y_targetClass
+#FIXME : different thetas for different strategies
 def Get_ThetaParameters(opts, operatorNames):
     """
     Sets the grid of EFT points on which the NN will get trained (<-> at which training events will be extrapolated).
@@ -416,7 +416,7 @@ def Get_ThetaParameters(opts, operatorNames):
             # print(i_op_ToParameterize)
 
             thetas = np.zeros((nPointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, nPointsPerOperator)
-            targetClass = np.zeros((nPointsPerOperator, opts["nofOutputNodes"])) #CARL (SM vs EFT) <-> all EFT points have class ID = 1 ; CARL_multiclass (SM vs op1 vs op2 vs ...) <-> one-hot encoded multilabels. 0=SM (not filled here), 1=operator1 activated, 2=operator2 activated, etc. #NB: in multiclass, for ease, assign 1 column per operator found in sample for now. Later, will remove zero-only columns (<-> only keep operators chosen by user)
+            targetClass = np.zeros((nPointsPerOperator, opts["nofOutputNodes"])) #SM vs EFT <-> all EFT points have class ID = 0; CARL_multiclass (SM vs op1 vs op2 vs ...) <-> one-hot encoded multilabels. 0=SM (not filled here), 1=operator1 activated, 2=operator2 activated, etc. #NB: in multiclass, for ease, assign 1 column per operator found in sample for now. Later, will remove zero-only columns (<-> only keep operators chosen by user)
 
             for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
                 # print(i_opInSample)
@@ -433,7 +433,7 @@ def Get_ThetaParameters(opts, operatorNames):
                         # print('x', x)
 
                         thetas[iter, i_opInSample] = x
-                        if opts["nofOutputNodes"] == 1: targetClass[iter] = 1 #Single column <-> any EFT point has label 1 (only SM point has label 0)
+                        if opts["nofOutputNodes"] == 1: targetClass[iter] = 0 #Single column <-> any EFT point has label 0 (only SM point has label 1)
                         else: targetClass[iter, i_opInSample+1] = 1 #Multi-column
                         iter+= 1
 
@@ -443,15 +443,17 @@ def Get_ThetaParameters(opts, operatorNames):
         thetas_allOperators = np.concatenate(list_thetas_allOperators)
         targetClasses_allOperators = np.concatenate(list_targetClass)
 
-#-- Sample thetas randomly betweem [min;max] in multi-dimensional EFT phase space
+#-- Sample thetas randomly betweem [min;max] in multi-dimensional EFT phase space. Include points corresponding to the min/max boundaries for all operators at once
     else:
 
         rng = np.random.default_rng() #Init random generator
 
-        thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam), len(operatorNames)) )
-        targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label 0=reference point (SM, not filled here), 1=any EFT point
+        thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam)-2, len(operatorNames) ) ) #'-2' because also include min/max boundaries points
+        thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
+        thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
+        targetClasses_allOperators = np.zeros(len(thetas_allOperators)) #Binary label 0=reference point (SM, not filled here), 1=any EFT point
 
-        for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
+        for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parameterization
             if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
 
 # //--------------------------------------------
@@ -658,7 +660,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
         nEventsPerPoint_class = opts["maxEvents"]
         if nEventsPerPoint_class > len(list_x_allClasses[iclass]):
-            print(colors.fg.orange, 'Warning : requiring more events per EFT point(', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...', colors.reset)
+            print(colors.fg.orange, 'Warning : requiring more events per EFT point (', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...\n', colors.reset)
             nEventsPerPoint_class = len(list_x_allClasses[iclass])
         elif nEventsPerPoint_class ==-1: nEventsPerPoint_class = len(list_x_allClasses[iclass]) #Use entire dataset at each point
 
@@ -760,13 +762,14 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
             #-- For classification, only 1 operator is 'activated' (non-zero) at once. Keep track of which operator it is, for event labelling
             targetClass_class_point = np.tile(targetClass[itheta], (nEventsPerPoint_class, 1) )
-            if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape))
+            if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_class_refPoint = np.ones((targetClass_class_point.shape))
             else: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
             targetClass_class_point = np.squeeze(targetClass_class_point); targetClass_class_refPoint = np.squeeze(targetClass_class_refPoint)
 
             #-- After unweighting, all events are attributed a weight of 1.
-            weights_class_point = np.ones(nEventsPerPoint_class*2)
-            # print(thetas_class); print(weights_class)
+            # weights_class_point = np.ones(nEventsPerPoint_class*2) #FIXME
+
+            weights_class_point = np.concatenate((probas_refPoint[indices_refPoint],probas_point[indices_point])) #Store event weights
 
 # //--------------------------------------------
 # Concatenate data for selected events at ref point and at theta

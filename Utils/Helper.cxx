@@ -1058,6 +1058,30 @@ void Get_Pointer_GENHisto(TH1F*& h, TString variable)
     return;
 }
 
+//Parse the name of an EFT reweight point to extract the names and strengths of each operator
+vector<pair<TString,float>> Parse_EFTreweight_ID(TString id)
+{
+    vector<pair<TString,float>> v;
+
+    std::vector<std::string> words;
+    split_string((string) id, words, "_");
+    if(words.at(0).compare("rwgt") != 0) {cout<<"Error: EFT ID should start with rwgt_ prefix ! "<<endl; return v;}
+
+    for (uint i=1; i < words.size(); i+= 2)
+    {
+        if(i+1 >= words.size()) {std::cout<<"Error : i > words.size() ! Full string : "<<id<<std::endl; return v;}
+
+        pair<TString, float> pair_tmp;
+        pair_tmp.first = words.at(i);
+        pair_tmp.second = stod(words.at(i+1));
+
+        v.push_back(pair_tmp);
+    }
+
+    return v;
+}
+
+
 //TESTING
 /*
 void Fill_TH1EFT(TH1EFT*& h, float x, vector<string> v_ids, vector<float> v_wgts, float wgt_originalXWGTUP)

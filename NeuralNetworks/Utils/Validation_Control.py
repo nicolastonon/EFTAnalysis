@@ -17,6 +17,7 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, class
 # from sklearn.feature_selection import mutual_info_classif
 from Utils.Helper import close_event, Printout_Outputs_FirstLayer, KS_test, Anderson_Darling_test, ChiSquare_test
 from Utils.ColoredPrintout import colors
+from Utils.StandaloneValidation import *
 from pandas.plotting import scatter_matrix
 from ann_visualizer.visualize import ann_viz
 from tensorflow.keras.utils import plot_model
@@ -108,7 +109,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predi
 # //--------------------------------------------
 
 # Call all sub-functions
-def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, metrics, weight_dir, score, history=None):
+def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, predictions_train, predictions_test, metrics, weight_dir, score, history=None):
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
@@ -126,11 +127,13 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir)
 
-    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir)
+    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir, predictions_train, predictions_test)
 
     Create_Correlation_Plot(opts, x, list_features, weight_dir)
 
     Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
+
+    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, y_train, y_test, y_process, y_process_train, y_process_test, predictions_train, predictions_test, weight_dir)
 
     return
 
@@ -181,8 +184,7 @@ def Control_Printouts(opts, score, list_labels, y_test, list_predictions_train_a
  ######  ####   ####   ####
 
 def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir, history=None):
-
-    # NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
+# NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
 
     # Plotting the loss with the number of iterations
     fig = plt.figure('loss')
@@ -445,8 +447,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
 
         nbins = 20
-        rmin = 0.
-        rmax = 1.
+        rmin = 0.; rmax = 1.
 
         fig = plt.figure('overtrain')
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
@@ -494,9 +495,13 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                     hist_overtrain_train_bkg.Fill(val, w)
 
         #Normalize
+        int_sig = hist_overtrain_train_sig.Integral(0,hist_overtrain_train_sig.GetNbinsX()+1)
+        int_bkg = hist_overtrain_train_bkg.Integral(0,hist_overtrain_train_bkg.GetNbinsX()+1)
+        if int_sig <= 0: int_sig = 1
+        if int_bkg <= 0: int_bkg = 1
         sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
-        hist_overtrain_train_sig.Scale(1./(hist_overtrain_train_sig.Integral()*sf_integral))
-        hist_overtrain_train_bkg.Scale(1./(hist_overtrain_train_bkg.Integral()*sf_integral))
+        hist_overtrain_train_sig.Scale(1./(int_sig*sf_integral))
+        hist_overtrain_train_bkg.Scale(1./(int_bkg*sf_integral))
 
         #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
         if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_test_allNodes_allClasses[inode][inode]+1) #Transform r -> s
@@ -512,9 +517,10 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 lists_predictions_bkgs.append(tmp)
                 # lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
                 lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
-        predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
 
-        plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
+        if len(lists_predictions_bkgs) > 0:
+            predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
+            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
 
         #Read bin contents/errors
         bin_centres = []; counts_sig = []; err_sig = []; counts_bkg = []; err_bkg = []
@@ -559,14 +565,23 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
  #   #  #      #    # #   #  #      #    # #    # #    # #   #
  #    # ######  ####  #    # ######  ####   ####   ####  #    #
 
-def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir):
+def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir, predictions_train, predictions_test):
+
+    plot_truth_histos = True #True <-> Display truth histos on plot
 
     nbins = 20
     rmin = 0; rmax = 1
     nofOutputNodes = opts["nofOutputNodes"]
 
+    if opts["strategy"] in ["ROLR", "RASCAL"]: rmin=-2; rmax=2
+
+    label_class0 = "SM"; label_class1 = "EFT"
+    if opts["strategy"] is "regressor": label_class0 = "Signal"; label_class1 = "Backgrounds"
+
     for inode in range(nofOutputNodes):
 
+        #Auto-adjust plot range
+        '''
         for z in range(nofOutputNodes):
             tmp = np.concatenate(list_predictions_test_allNodes_allClasses[z])
             minElement = np.amin(tmp)
@@ -577,6 +592,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
             rmax = quantile if quantile > rmax else rmax #Define rmax so as to display ~95% of events (better in case few predictions are very off, axis range will stay reasonable)
         rmin = math.floor(rmin) #Round down
         rmax = math.ceil(rmax) #Round up
+        '''
 
         fig = plt.figure('regressor')
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
@@ -611,22 +627,42 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         hist_truth_SM = TH1F('hist_truth_SM', '', nbins, rmin, rmax); hist_truth_SM.Sumw2(); hist_truth_SM.SetDirectory(0)
         hist_truth_EFT = TH1F('hist_truth_EFT', '', nbins, rmin, rmax); hist_truth_EFT.Sumw2(); hist_truth_EFT.SetDirectory(0)
 
-        for val in y_test[y_process_test==0]: #'zip' stops when the shorter of the lists stops
+        #Only 'SM' events
+        for val in y_test[y_process_test==1]: #'zip' stops when the shorter of the lists stops
             if opts["strategy"] is "RASCAL": val = val[inode]
             hist_truth_SM.Fill(val, 1.)
 
-        #only background processes
-        for val in y_test[y_process_test==1]: #'zip' stops when the shorter of the lists stops
+        #Only 'EFT' events
+        for val in y_test[y_process_test==0]: #'zip' stops when the shorter of the lists stops
             if opts["strategy"] is "RASCAL": val = val[inode]
             hist_truth_EFT.Fill(val, 1.)
 
         #Normalize
+        int_sm = hist_truth_SM.Integral(0,hist_truth_SM.GetNbinsX()+1)
+        int_eft = hist_truth_EFT.Integral(0,hist_truth_EFT.GetNbinsX()+1)
+        if int_sm <= 0: int_sm = 1
+        if int_eft <= 0: int_eft = 1
         sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
-        hist_truth_SM.Scale(1./(hist_truth_SM.Integral()*sf_integral))
-        hist_truth_EFT.Scale(1./(hist_truth_EFT.Integral()*sf_integral))
+        hist_truth_SM.Scale(1./(int_sm*sf_integral))
+        hist_truth_EFT.Scale(1./(int_eft*sf_integral))
 
-        plt.hist(np.concatenate(list_predictions_test_allNodes_allClasses[inode])[y_process_test==0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step', log=False, label="SM (Pred.)", edgecolor='cornflowerblue',fill=True)
-        plt.hist(np.concatenate(list_predictions_test_allNodes_allClasses[inode])[y_process_test==1], bins=nbins, range=(rmin,rmax), color= 'orangered', alpha=0.50, density=True, histtype='step', log=False, label="EFT (Pred.)", edgecolor='cornflowerblue',fill=True)
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
+
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
+        # lists_predictions_bkgs = []; lists_weights_bkg = []
+        # for iclass in range(0, len(list_labels)):
+        #     if iclass != inode:
+        #         lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
+        #         lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
+        # if len(lists_predictions_bkgs) > 0:
+        #     predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
+        #     plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', alpha=0.50, density=True, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
 
         #Read bin contents/errors
         bin_centres = []; counts_SM = []; err_SM = []; counts_EFT = []; err_EFT = []
@@ -635,9 +671,13 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
             counts_SM.append(hist_truth_SM.GetBinContent(ibin)); counts_EFT.append(hist_truth_EFT.GetBinContent(ibin))
             err_SM.append(hist_truth_SM.GetBinError(ibin)); err_EFT.append(hist_truth_EFT.GetBinError(ibin))
 
+        counts_SM[0]+= hist_truth_SM.GetBinContent(0); counts_EFT[0]+= hist_truth_EFT.GetBinContent(0) # Add underflow
+        counts_SM[-1]+= hist_truth_SM.GetBinContent(hist_truth_SM.GetNbinsX()+1); counts_EFT[-1]+= hist_truth_EFT.GetBinContent(hist_truth_EFT.GetNbinsX()+1) # Add overflow
+
         #Plot truth histos, normalized, with errorbars
-        plt.errorbar(bin_centres, counts_SM, marker='o', yerr=err_SM, linestyle='None', markersize=6, color='blue', alpha=0.90, label='SM (Truth)')
-        plt.errorbar(bin_centres, counts_EFT, marker='o', yerr=err_EFT, linestyle='None', markersize=6, color='red', alpha=0.90, label='EFT (Truth)')
+        if plot_truth_histos == True:
+            plt.errorbar(bin_centres, counts_SM, marker='o', yerr=err_SM, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Truth)')
+            plt.errorbar(bin_centres, counts_EFT, marker='o', yerr=err_EFT, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Truth)')
 
         nodename = 'node' + str(inode)
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode == 0: nodename = 'LR'
@@ -708,15 +748,21 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
     ax.set_title('Input features correlations',fontsize=30)
 
     # Draw the heatmap -- see : https://seaborn.pydata.org/generated/seaborn.heatmap.html
-    hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
+    if len(list_features) > 20: #Lots of features to display
+        hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = False, fmt='.1g', cbar_kws={"shrink": .5},)
+        hm.set_xticklabels(hm.get_xticklabels(), horizontalalignment='right', fontsize = 14) #bottom labels
+        hm.set_yticklabels(hm.get_yticklabels(), fontsize = 14)
+    else:
+        hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
+        hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 16) #bottom labels
+        hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
+
     sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
-    hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
     # ax.set_ylim(bottom=-0.5, top=len(list_features)+0.5)
     # ax.set_xlim(left=-0.5, right=len(list_features)+0.5)
     # ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False) # x labels appear on top
     # hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='left', va='bottom', fontsize = 16)
     ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True) # x labels appear at bottom
-    hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 16) #bottom labels
     fig.tight_layout()
 
     plotname = weight_dir + 'CorrelMatrix.png'

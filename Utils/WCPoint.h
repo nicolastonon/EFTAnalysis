@@ -41,7 +41,7 @@ public:
     void parseRwgtId(const std::string& _str) {
         // ex str: "EFTrwgt1_ctG_-1.2_ctW_2.4"
         std::vector<std::string> words;
-        split_string(_str,words,"_");
+        split_string(_str, words, "_");
         this->inputs.clear();
         for (uint i = 1; i < words.size(); i+= 2)
         {
@@ -62,7 +62,10 @@ public:
     }
 
     // Explicity set a single WC parameter strength
-    void setStrength(std::string wc_name,double strength) {
+    void setStrength(std::string wc_name,double strength)
+    {
+        // std::cout<<"wc_name "<<wc_name<<", strength "<<strength<<std::endl;
+
         this->inputs[wc_name] = strength; //NB : operator map[] inserts a new element in the map, and increases size by 1
     }
 

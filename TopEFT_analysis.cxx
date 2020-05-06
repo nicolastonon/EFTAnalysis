@@ -1572,7 +1572,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 	bool draw_logarithm = false;
 
-    bool superimpose_GENhisto = false; //Superimpose corresponding GEN-level EFT histogram, for shape comparison...?
+    bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
+
+    bool superimpose_EFThisto = true; //true <-> superimpose shape of EFT histo //FIXME -- improve, remove hardcode
+        TString EFT_point = "rwgt_ctZ_5_ctW_0_cpQM_0_cpQ3_0_cpt_0"; //Name of the EFT point at which to reweight the histo
 
 //--------------------------------------------
 
@@ -1742,7 +1745,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	{
 		if(drawInputVars) {cout<<endl<<FBLU("* Variable : "<<total_var_list[ivar]<<" ")<<endl<<endl;}
 
-		//TH1F* to retrieve distributions
 		TH1F* h_tmp = 0; //Tmp storing histo
 
 		TH1F* h_tzq = 0; //Store tZq shape
@@ -1812,6 +1814,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     				//Protections, special cases
     				if(sample_list[isample].Contains("DATA") ) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                    if(sample_list[isample].Contains("PrivMC"))  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //Only central samples get stacked, not private samples
 
     				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
 
@@ -2109,6 +2112,60 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 			}
 		}
 
+ // #####  #####  # #    #         ####    ##   #    # #####  #      ######
+ // #    # #    # # #    #        #       #  #  ##  ## #    # #      #
+ // #    # #    # # #    #         ####  #    # # ## # #    # #      #####
+ // #####  #####  # #    # ###         # ###### #    # #####  #      #
+ // #      #   #  #  #  #  ###    #    # #    # #    # #      #      #
+ // #      #    # #   ##   ###     ####  #    # #    # #      ###### ######
+
+        vector<TH1EFT*> v_th1eft; //Store TH1EFT objects
+        vector<TString> v_th1eft_labels; //Corresponding names for legend
+        for(int isample=0; isample<sample_list.size(); isample++)
+        {
+            if(superimpose_EFThisto && sample_list[isample] == "PrivMC_tZq_top19001") //Hardcoded
+            {
+                TH1EFT* th1eft_tmp = 0;
+
+                TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample]; //hardcoded
+
+                cout<<"TH1EFT_"<<histo_name<<endl;
+                if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
+                th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
+                // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
+
+                //Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
+                WCPoint wcp = WCPoint((string) EFT_point, 1.);
+                th1eft_tmp->Scale(wcp);
+                // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
+
+                th1eft_tmp->SetLineColor(kRed);
+                th1eft_tmp->SetLineWidth(3);
+                th1eft_tmp->SetLineStyle(2);
+
+                v_th1eft.push_back(th1eft_tmp);
+
+                vector<pair<TString,float>> v = Parse_EFTreweight_ID(EFT_point);
+                TString EFpointlabel;
+                for(int i=0; i<v.size(); i++)
+                {
+                    if(v[i].second != 0)
+                    {
+                        if(EFpointlabel != "") {EFpointlabel+= ",";}
+                        EFpointlabel+= v[i].first + "=" + v[i].second;
+                    }
+                }
+                cout<<"EFpointlabel "<<EFpointlabel<<endl;
+
+                std::vector<std::string> words;
+                split_string((string) sample_list[isample], words, "_");
+                TString leg_name = words.at(1); //should be process name
+                leg_name+= " ("+EFpointlabel+")";
+                v_th1eft_labels.push_back(leg_name);
+            }
+        } //sample loop
+
+
 
  // # #    # #####  ###### #    #
  // # ##   # #    # #       #  #
@@ -2219,6 +2276,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             else if(MC_samples_legend[i] == "VV" ) {qw->AddEntry(v_MC_histo[i], "VV", "f");}
 		}
 
+        for(int isample=0; isample<v_th1eft.size(); isample++)
+        {
+            qw->AddEntry(v_th1eft[isample], v_th1eft_labels[isample], "L");
+        }
+
+
 
 // ##### #    #  ####  #####   ##    ####  #    #
 //   #   #    # #        #    #  #  #    # #   #
@@ -2301,6 +2364,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 				h_sum_data->Draw("e0psame");
 			}
 		}
+
+        for(int i=0; i<v_th1eft.size(); i++)
+        {
+            if(v_th1eft[i]) {v_th1eft[i]->Draw("same hist");}
+        }
+
 
 		//Superimpose shape of signal
 		// if(doNot_stack_signal)
@@ -2736,6 +2805,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		delete c1; c1 = NULL;
 		delete qw; qw = NULL;
 		delete stack_MC; stack_MC = NULL;
+        for(int i=0; i<v_th1eft.size(); i++)
+        {
+            if(v_th1eft[i]) {delete v_th1eft[i];}
+        }
 
 		if(use_combine_file) {delete g_data; g_data = NULL;}
 	} //Var loop

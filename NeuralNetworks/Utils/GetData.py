@@ -152,7 +152,14 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
                 tree = file.Get('result')
                 print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )\n\n') #Dummy variable, just to read the nof entries
 
-                list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts)) #Store values of input features into array, append to list
+                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts)) #Store values of input features into array, append to list
+
+                #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
+                #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
+                x_tmp = tree2array(tree, branches=list_features, selection=cuts)
+                x_tmp = np.column_stack([x_tmp[name] for name in x_tmp.dtype.names]) #1D --> 2D
+                x_tmp = x_tmp.astype(np.float32) #Convert all to floats
+                list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
                 list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
@@ -313,9 +320,11 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
     #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
     #NB: EFT weights/IDs arrays already have proper 2D shapes (due to np.stack ?)
-    list_x_arrays_allClasses = []
-    for iclass in range(len(list_x_allClasses)):
-        list_x_arrays_allClasses.append( list_x_allClasses[iclass].view(np.float32).reshape( (len(list_x_allClasses[iclass]), -1) ) ) #np.view <-> different view of same data ; here, enforces proper data type. Reshape is used to 'unroll' 1d elements into 2d ('-1' can be used when the new dimension can be guessed by numpy from the input data)
+    # list_x_arrays_allClasses = []
+    # for iclass in range(len(list_x_allClasses)):
+    #     list_x_arrays_allClasses.append(list_x_allClasses[iclass].view(np.float32).reshape( (len(list_x_allClasses[iclass]), -1) ) ) #np.view <-> different view of same data ; here, enforces proper data type. Reshape is used to 'unroll' 1d elements into 2d ('-1' can be used when the new dimension can be guessed by numpy from the input data)
+
+    list_x_arrays_allClasses = list_x_allClasses
 
     #--- Get nof entries for each class
     list_nentries_class = []
@@ -448,7 +457,9 @@ def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses
     #Get array of reweighted 'training' weights, i.e. used for training only and which are not physical
     list_LearningWeights_allClasses = []
     for i in range(len(list_processClasses)):
-        list_LearningWeights_allClasses.append(list_weights_allClasses_abs[i]*list_SFs_allClasses[i])
+        if parameterizedNN == False:
+            list_LearningWeights_allClasses.append(list_weights_allClasses_abs[i]*list_SFs_allClasses[i]) #Training weights = phys weights * norm_SF
+        else: list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[i]))) #Param. NN <-> unweighted samples <-> training weights = 1
     LearningWeights_allClasses = np.concatenate(list_LearningWeights_allClasses, 0)
 
     #Also create corresponding array of physical event weights, to get correct plots, etc.
@@ -499,7 +510,7 @@ def Update_Lists(opts, list_labels, list_features):
 def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator):
 
     #-- Binary or multiclass classification between different processes
-    if opts["strategy"] == "classifier": #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
+    if opts["strategy"] is "classifier": #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
 
         #Create array of labels (1 row per event, 1 column per class)
         if opts["nofOutputNodes"] == 1: #binary, single column => sig 1, bkg 0
@@ -519,6 +530,34 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
             y = utils.to_categorical(y_integer, num_classes=opts["nofOutputNodes"])
 
         y_process = y #Classification <-> target corresponds to process ID
+
+    #-- Regress some quantity (only 0,1 supported for now, for debug)
+    elif opts["strategy"] is "regressor":
+
+        if opts["nofOutputNodes"] == 1: #Target = 0,1
+
+            mode = 0 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians
+
+            if mode == 0:
+                y = np.ones(list_nentries_class[0]) #'1' = signal
+                if len(list_processClasses) > 1:
+                    y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
+                    y = np.concatenate((y, y_integer_bkg), axis=0)
+                y_process = y #Classification <-> target corresponds to process ID
+
+            elif mode == 1:
+
+                #Targets randomly sampled around 0,1 -- testing
+                y = np.random.normal(loc=0.2, scale=0.1, size=list_nentries_class[0])
+                y_process = np.ones(list_nentries_class[0]) #'1' = signal
+                if len(list_processClasses) > 1:
+                    y_integer_bkg = np.random.normal(loc=5, scale=0.1, size=list_nentries_class[1])
+                    y = np.concatenate((y, y_integer_bkg), axis=0)
+                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+
+            else: print('ERROR ! Not supported yet...'); exit(1)
+
+        else: print('ERROR ! Not supported yet...'); exit(1)
 
     #-- For NNs separating SM from EFT, already defined target in dedicated function (not based on 'process class' like for regular classification)
     else:

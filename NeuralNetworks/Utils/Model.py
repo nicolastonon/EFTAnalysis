@@ -118,11 +118,15 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
                 r = Dense(1, activation="linear", name="likelihood_ratio")(X)
                 logr = Lambda(lambda v: K.log(v))(r)
 
-            if opts["strategy"] == "RASCAL": #Ratio+Score. Differentiate 'r' layer to get the score
+            if opts["strategy"] == "RASCAL": #Ratio+Score. Differentiate 'logr' layer to get the score
                 t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
                 model = Model(inputs=[inp], outputs=[r, t]) #1 output for r, n_operator outputs for t
             else: #Ratio only
                 model = Model(inputs=[inp], outputs=[r])
+
+        elif opts["strategy"] is "regressor":
+            out = Dense(1, activation="linear")(X)
+            model = Model(inputs=[inp], outputs=[out])
 
         else: print("ERROR: no regressor model defined for this strategy"); exit(1)
 
