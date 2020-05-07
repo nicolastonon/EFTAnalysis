@@ -63,14 +63,14 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #-- If the NN is parameterized on Wilson coeffs., need to artificially extend the dataset to train on many different points in EFT phase space
+    #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
     list_x_allClasses, list_weights_allClasses, list_targetClass_allClasses, list_thetas_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses)
 
     #-- Concatenate and reshape arrays
     x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators)
 
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
-    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, opts["parameterizedNN"])
+    LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
 
     #-- Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
     x_control_firstNEvents = x[0:10,:]
@@ -80,6 +80,9 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
     y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator)
+
+    #-- Sanitize data
+    y_process = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
 
     #Shuffle and split the data for training / testing
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
@@ -91,10 +94,6 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
     print(colors.fg.lightblue, "===========\n", colors.reset)
-
-    #-- Sanity check (NaN, infinite)
-    for l in [x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales]:
-        if np.isnan(l).any() or not np.isfinite(l).all(): print('\n', colors.fg.red, 'Error : found a NaN or infinite value in 1 array returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
 
     return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled, list_labels, list_features
 
@@ -166,7 +165,7 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
                 # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
-                list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc = Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts)
+                list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc = Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, label)
 
         #Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 array per process class
         list_x_allClasses.append(np.concatenate(list_x_proc))
@@ -193,7 +192,10 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
 # //--------------------------------------------
 
 #For private MC (EFT) samples, retrieve the EFT reweights and their IDs. Directly normalize properly the EFT weights
-def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts):
+def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, label):
+
+    isPureEFT = False
+    if "PrivMC" in label and "_c" in label: isPureEFT = True #Naming convention associated with pure-EFT sample --> no SM point
 
     list_EFTweights_proc = []
     list_EFTweightIDs_proc = []
@@ -233,24 +235,25 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
 
         #Store the MG reweight value for the SM point
         idx_SM = -1
-        for i in range(len(array_EFTweightIDs_proc[0])):
-            if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
+        if not isPureEFT:
+            for i in range(len(array_EFTweightIDs_proc[0])):
+                if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
 
         array_SMweights_proc = np.array([])
-        if idx_SM != -1: array_SMweights_proc = array_EFTweights_proc[:,i]; #print('idx_SM = ',idx_SM)
-        elif "PrivMC" in label and "_c" not in label: print(colors.fg.red, 'ERROR: from naming convention, infer that this is a SM+EFT sample. However, the benchmark SM point from MG was not found (needed for proper normalization since the sample xsec is expected to correspond to SM. Abort ! (If this is not the desired behaviour, adapt the code...)', colors.reset); exit(1)
+        if idx_SM != -1: #Get weights at SM point (and normalize them, cf. below)
+            array_SMweights_proc = array_EFTweights_proc[:,i]; #print('idx_SM = ',idx_SM)
+            array_SMweights_proc = array_SMweights_proc * list_weights_proc[iyear]
+            array_SMweights_proc = np.divide(array_SMweights_proc, normWeights_proc)
+            array_SMweights_proc = np.divide(array_SMweights_proc, array_EFT_SWE_proc[idx_SM])
+        elif not isPureEFT: print(colors.fg.red, 'ERROR: from naming convention, infer that this is a SM+EFT sample. However, the benchmark SM point from MG was not found (needed for proper normalization since the sample xsec is expected to correspond to SM. Abort ! (If this is not the desired behaviour, adapt the code...)', colors.reset); exit(1)
 
         #-- Normalize EFT weights: rwgt = rwgt_from_MG * (centralEventWeight/weightMENominal) / (SWE_SM)
         #-- 1st term is the MG reweight for a given point idx ; 2nd term corresponds to SF * L * xsec(SM) ; 3rd term is needed for proper normalization, it is the sum of weights before preselection at the SM point (consistent with using the xsec at SM point)
         array_EFTweights_proc = array_EFTweights_proc * list_weights_proc[iyear][:,None]
         array_EFTweights_proc = np.divide(array_EFTweights_proc, normWeights_proc[:,None])
-        array_EFTweights_proc = np.divide(array_EFTweights_proc, array_EFT_SWE_proc[idx_SM])
-
-        #-- Idem for SM reweight
-        array_SMweights_proc = array_SMweights_proc * list_weights_proc[iyear]
-        array_SMweights_proc = np.divide(array_SMweights_proc, normWeights_proc)
-        array_SMweights_proc = np.divide(array_SMweights_proc, array_EFT_SWE_proc[idx_SM])
-
+        SWE_SM = array_EFT_SWE_proc[idx_SM]
+        if SWE_SM == 0: SWE_SM = 1 #For pure-EFT samples, SM=0 -> Set to 1 (weights are unphysical anyway)
+        array_EFTweights_proc = np.divide(array_EFTweights_proc, SWE_SM)
 
         #Manually find and remove all weights with unproper naming conventions (for example 'rwgt_1' nominal weight is included by default by MG)
         array_EFTweights_proc, array_EFTweightIDs_proc = Remove_Unnecessary_EFTweights(array_EFTweights_proc, array_EFTweightIDs_proc)
@@ -314,7 +317,7 @@ def Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFT
   ####  #    # #    # #      ######
 
 #Properly shape the arrays and concatenate them (for all years, processes, etc.)
-#NB: nominal weights get concatenated in dedicated function
+#NB: nominal weights are still returned as a list (want to retain process class info), and get concatenated in dedicated function Get_Events_Weights()
 def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators):
 
     #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
@@ -424,43 +427,90 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
  ##  ## #      # #    # #    #   #   #    #
  #    # ###### #  ####  #    #   #    ####
 
-#Compute and apply weights to training dataset to balance the training
-def Get_Events_Weights(list_processClasses, list_labels, list_weights_allClasses, parameterizedNN):
+def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses):
+    """
+    Compute and apply weights to training dataset to balance the training. Use absolute weights only.
+    There are 3 possibilities:
+    1) Classification between physics processes --> rescale each process to same total training weight
+    2) Classification between SM and single EFT point ('CARL_singlePoint' strategy) --> rescale each hypothesis to same total training weight (but merge all process classes together)
+    3) Parameterized classifier of regressor --> set all training weights to 1 (because samples were already unweighted, to draw events according to their weights)
+    """
 
-    #Dupplicate list of weight arrays, storing absolute weights (can't handle negative weights in training)
+    parameterizedNN = opts["parameterizedNN"]
+
+    """
+    if opts["strategy"] is "CARL_singlePoint": #Case 2), transform such that 'class' mean 'SM or EFT' instead of 'physics process'
+        allweights = np.concatenate(list_weights_allClasses) #Merge all classes = physics processes
+        list_weights_allClasses = [] #Reset this list
+        list_weights_allClasses.append(allweights[targetClass_allClasses==1]) #First element -> SM events
+        list_weights_allClasses.append(allweights[targetClass_allClasses==0]) #Second element -> EFT events
+
+    print(len(list_weights_allClasses))
+    """
+
+    #Duplicate list of weight arrays, storing absolute weights (can't handle negative weights in training)
     list_weights_allClasses_abs = []
     for weights_class in list_weights_allClasses:
         list_weights_allClasses_abs.append(np.absolute(weights_class))
 
-    #Compute 'yields' (from *absolute* weights) to reweight classes
-    list_yields_abs_allClasses = []
-    yield_abs_total = 0
-    for i in range(len(list_processClasses)):
-        list_yields_abs_allClasses.append(list_weights_allClasses_abs[i].sum())
-        yield_abs_total+= list_weights_allClasses_abs[i].sum()
-
-    #Compute scale factors to rescale each class to 'yield_abs_total'
-    list_SFs_allClasses = []
-    for i in range(len(list_processClasses)):
-        if parameterizedNN == False:
-            list_SFs_allClasses.append(100. / list_yields_abs_allClasses[i]) #Compute SF for each process so that its total yield equals N (arbitrary)
-            # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[i])
-        else: list_SFs_allClasses.append(1)
-
-        print(colors.ital, '* Class', list_labels[i], ':', colors.reset)
-        print('Default yield = ', float('%.4g' % list_yields_abs_allClasses[i]))
-        print('Rescaling factor = ', float('%.3g' % list_SFs_allClasses[i]))
-        print('==> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[i]*list_SFs_allClasses[i])), '\n')
-        # print('Class', list_labels[i], ' / Yield = ', float('%.4g' % list_yields_abs_allClasses[i]), ' / Scale factor = ', float('%.3g' % list_SFs_allClasses[i]), '===> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[i]*list_SFs_allClasses[i])) )
-    print('\n')
-
-    #Get array of reweighted 'training' weights, i.e. used for training only and which are not physical
     list_LearningWeights_allClasses = []
-    for i in range(len(list_processClasses)):
-        if parameterizedNN == False:
-            list_LearningWeights_allClasses.append(list_weights_allClasses_abs[i]*list_SFs_allClasses[i]) #Training weights = phys weights * norm_SF
-        else: list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[i]))) #Param. NN <-> unweighted samples <-> training weights = 1
+
+    if parameterizedNN == False:
+
+        if opts["strategy"] is "CARL_singlePoint":
+
+            allweights = np.concatenate(list_weights_allClasses_abs)
+            yield_SM = allweights[targetClass_allClasses==1].sum()
+            yield_EFT = allweights[targetClass_allClasses==0].sum()
+            SF_SM = 100. / yield_SM
+            SF_EFT = 100. / yield_EFT
+
+            print(colors.ital, '* SM:', colors.reset)
+            print('Default yield = ', float('%.4g' % yield_SM))
+            print('Rescaling factor = ', float('%.3g' % SF_SM))
+            print('==> Rescaled yield :', float('%.2g' % (yield_SM*SF_SM)), '\n')
+            print(colors.ital, '* EFT:', colors.reset)
+            print('Default yield = ', float('%.4g' % yield_EFT))
+            print('Rescaling factor = ', float('%.3g' % SF_EFT))
+            print('==> Rescaled yield :', float('%.2g' % (yield_EFT*SF_EFT)), '\n')
+
+            for iclass in range(len(list_processClasses)):
+                list_LearningWeights_allClasses.append(list_weights_allClasses_abs[iclass])
+
+        else:
+
+            #Compute 'yields' (from *absolute* weights) to reweight classes
+            list_yields_abs_allClasses = []
+            yield_abs_total = 0
+            for iclass in range(len(list_processClasses)):
+                list_yields_abs_allClasses.append(list_weights_allClasses_abs[iclass].sum())
+                yield_abs_total+= list_weights_allClasses_abs[iclass].sum()
+
+            #Compute scale factors to rescale each class to 'yield_abs_total'
+            list_SFs_allClasses = []
+            for iclass in range(len(list_processClasses)):
+                if parameterizedNN == False:
+                    list_SFs_allClasses.append(100. / list_yields_abs_allClasses[iclass]) #Compute SF for each process so that its total yield equals N (arbitrary)
+                    # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[iclass])
+
+                print(colors.ital, '* Class', list_labels[iclass], ':', colors.reset)
+                print('Default yield = ', float('%.4g' % list_yields_abs_allClasses[iclass]))
+                print('Rescaling factor = ', float('%.3g' % list_SFs_allClasses[iclass]))
+                print('==> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[iclass]*list_SFs_allClasses[iclass])), '\n')
+
+            for iclass in range(len(list_processClasses)):
+                list_LearningWeights_allClasses.append(list_weights_allClasses_abs[iclass]*list_SFs_allClasses[iclass]) #Training weights = phys weights * norm_SF
+
+    else:
+
+        for iclass in range(len(list_processClasses)):
+            list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[iclass]))) #Param. NN <-> unweighted samples <-> training weights = 1
+
     LearningWeights_allClasses = np.concatenate(list_LearningWeights_allClasses, 0)
+
+    if opts["strategy"] is "CARL_singlePoint":
+        LearningWeights_allClasses[targetClass_allClasses==1] = LearningWeights_allClasses[targetClass_allClasses==1] * SF_SM
+        LearningWeights_allClasses[targetClass_allClasses==0] = LearningWeights_allClasses[targetClass_allClasses==0] * SF_EFT
 
     #Also create corresponding array of physical event weights, to get correct plots, etc.
     PhysicalWeights_allClasses = np.concatenate(list_weights_allClasses, 0)
@@ -491,7 +541,7 @@ def Update_Lists(opts, list_labels, list_features):
         elif opts["strategy"] == "CARL_multiclass": list_labels = opts["listOperatorsParam"][:]; list_labels.insert(0, refName) #SM vs op1 vs op2 vs ... #NB: must specify '[:]' to create a copy, not a reference
 
     elif opts["strategy"] == "CARL_singlePoint":
-        list_labels = []; list_labels.append("EFT"); list_labels.append("SM") #SM vs EFT ref point
+        list_labels = []; list_labels.append("SM"); list_labels.append("EFT")#SM vs EFT ref point
 
     return list_labels, list_features
 
@@ -572,7 +622,6 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
         elif opts["strategy"] == "RASCAL": #Targets are joint likelihood ratio r and score t (1 component per operator)
             y = np.column_stack((jointLR_allClasses, scores_allClasses_eachOperator)); y_process = targetClass_allClasses
 
-# //--------------------------------------------
     # if opts["regress"]==True:
     #
     #     if opts["nofOutputNodes"] == 1: #Target = 0,1
@@ -588,9 +637,30 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
     #             y = np.concatenate((y, y_integer_bkg), axis=0)
     #
     #     else: print('ERROR ! Not supported yet...'); exit(1)
-# //--------------------------------------------
 
     return y, y_process
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Sanitize the data fed to NN
+def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses):
+
+    #-- Sanity check (NaN, infinite)
+    for l in [x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]:
+        if np.isnan(l).any() or not np.isfinite(l).all(): print('\n', colors.fg.red, 'Error : found a NaN or infinite value in 1 array returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
+
+    if opts["strategy"] in ["ROLR", "RASCAL"]:
+        if np.all(y_process==0):
+            print(colors.fg.orange, "WARNING : all the class labels are set to 0. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 1!", colors.reset)
+            max_idx = int(len(y_process)/2) #Half events
+            y_process[::2]=1 #x[start:stop:step] syntax -> change label of 1 every 2 elements
+        elif np.all(y_process==1):
+            print(colors.fg.orange, "WARNING : all the class labels are set to 1. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 0!", colors.reset)
+            max_idx = int(len(y_process)/2) #x[start:stop:step] syntax -> change label of 1 every 2 elements
+            y_process[::2]=0
+
+    return y_process
 
 # //--------------------------------------------
 # //--------------------------------------------

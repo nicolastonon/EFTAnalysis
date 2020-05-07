@@ -109,7 +109,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predi
 # //--------------------------------------------
 
 # Call all sub-functions
-def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, predictions_train, predictions_test, metrics, weight_dir, score, history=None):
+def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, metrics, weight_dir, score=None, history=None):
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
@@ -117,23 +117,27 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     # sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB: this also sets plotting options to seaborn's default
     # plt.tight_layout()
 
-    Control_Printouts(opts, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses)
+    #FIXME
+    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, weight_dir)
+    exit(1)
 
-    Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir, history)
+    Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
-    Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, metrics, weight_dir, history)
+    Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history)
+
+    Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history)
 
     Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir)
 
-    Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir)
+    Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir)
 
-    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir, predictions_train, predictions_test)
+    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, weight_dir)
 
     Create_Correlation_Plot(opts, x, list_features, weight_dir)
 
     Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
 
-    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, y_train, y_test, y_process, y_process_train, y_process_test, predictions_train, predictions_test, weight_dir)
+    # if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, weight_dir)
 
     return
 
@@ -148,9 +152,9 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
  #      #    # # #    #   #    ####   ####    #
 
 #Printout some information related to NN performance
-def Control_Printouts(opts, score, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses):
+def Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score=None):
 
-    if opts["nofOutputNodes"] == 1:
+    if opts["nofOutputNodes"] == 1 and score is not None:
         loss = score[0]
         accuracy = score[1]
         print(colors.fg.lightgrey, '** Loss :', float('%.4g' % loss), colors.reset)
@@ -183,7 +187,7 @@ def Control_Printouts(opts, score, list_labels, y_test, list_predictions_train_a
  #      #    # #    # #    #
  ######  ####   ####   ####
 
-def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir, history=None):
+def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history=None):
 # NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
 
     # Plotting the loss with the number of iterations
@@ -235,7 +239,7 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    # #        #   #   #  # #    # #    #
  #    # ######   #   #    # #  ####   ####
 
-def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, metrics, weight_dir, history=None):
+def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history=None):
 
     if opts["strategy"] == "RASCAL": #Metrics name depend on the output (e.g. 'val_likelihood_ratio_mean_squared_error' or 'val_score_mean_squared_error')
         metrics = "likelihood_ratio_" + metrics
@@ -289,15 +293,21 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
  #   #  #    # #    # #    #
  #    #  ####   ####   ####
 
+#See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
 def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
+
+
+    #-- CHANGED: ROC curve can not handle negative weights. Either discard weights, or use absolute
+    list_PhysicalWeightsTest_allClasses_abs = np.absolute(list_PhysicalWeightsTest_allClasses)
+    list_PhysicalWeightsTrain_allClasses_abs = np.absolute(list_PhysicalWeightsTrain_allClasses)
 
     for inode in range(nofOutputNodes):
 
         lw = 2 #linewidth
 
-        if opts["strategy"] in ["ROLR", "RASCAL"]: #Transformation r->s : s = 1/(r+1)
+        if opts["strategy"] in ["ROLR", "RASCAL"]: #Transformation r->s : s = 1/(r+1) #No sample weights (unweighted samples)
 
             if inode != 0: continue #Only for r node
 
@@ -309,11 +319,23 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
         elif opts["nofOutputNodes"] == 1:
 
+            if opts["parameterizedNN"] is False:
+                fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
+            else:
+                fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+                fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
+
+            roc_auc = auc(fpr, tpr)
+            roc_auc_train = auc(fpr_train, tpr_train)
+
+            """
             fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
             roc_auc = auc(fpr, tpr)
 
             fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
             roc_auc_train = auc(fpr_train, tpr_train)
+            """
 
         elif opts["nofOutputNodes"] > 1: # Multiclass: 1 ROC (signal vs All) per node
 
@@ -324,11 +346,23 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             tpr_train = dict()
             roc_auc_train = dict()
 
+            if opts["parameterizedNN"] is False:
+                fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
+            else:
+                fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+                fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
+
+            roc_auc[inode] = auc(fpr[inode], tpr[inode])
+            roc_auc_train[inode] = auc(fpr_train[inode], tpr_train[inode])
+
+            """
             fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
             roc_auc[inode] = auc(fpr[inode], tpr[inode])
 
             fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
             roc_auc_train[inode] = auc(fpr_train[inode], tpr_train[inode])
+            """
 
         # Plot ROC curves
         fig = plt.figure()
@@ -365,7 +399,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         fig.clear()
         plt.close(fig)
 
-    #Multiclass ROC (first node only)
+    #Multiclass ROC (first node, test data only)
     if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
 
         # Compute ROC curve and ROC area for each class
@@ -389,11 +423,17 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             # print(list_truth_Test_allClasses[iclass][:,0].shape)
 
             if iclass == 0: #first signal vs all
-                fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,0], np.concatenate(list_predictions_test_allNodes_allClasses[0]))
+                if opts["parameterizedNN"] is False:
+                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,0], np.concatenate(list_predictions_test_allNodes_allClasses[0]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                else:
+                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,0], np.concatenate(list_predictions_test_allNodes_allClasses[0]))
                 roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
                 mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
             else: #first signal vs specific process
-                fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[iclass]))[:,0], np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][iclass])) )
+                if opts["parameterizedNN"] is False:
+                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[iclass]))[:,0], np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[0],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
+                else:
+                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[iclass]))[:,0], np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][iclass])) )
                 roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
                 mylabel = 'vs ' + list_labels[iclass]+' (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
 
@@ -438,7 +478,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir):
+def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
 
@@ -565,7 +605,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
  #   #  #      #    # #   #  #      #    # #    # #    # #   #
  #    # ######  ####  #    # ######  ####   ####   ####  #    #
 
-def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, y_train, y_test, y_process_train, y_process_test, weight_dir, predictions_train, predictions_test):
+def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, weight_dir):
 
     plot_truth_histos = True #True <-> Display truth histos on plot
 
@@ -623,6 +663,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
                 for tick in ax.get_yticklabels():
                     tick.set_color('gray')
 
+        """
         #-- Trick : for truth histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
         hist_truth_SM = TH1F('hist_truth_SM', '', nbins, rmin, rmax); hist_truth_SM.Sumw2(); hist_truth_SM.SetDirectory(0)
         hist_truth_EFT = TH1F('hist_truth_EFT', '', nbins, rmin, rmax); hist_truth_EFT.Sumw2(); hist_truth_EFT.SetDirectory(0)
@@ -646,24 +687,6 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         hist_truth_SM.Scale(1./(int_sm*sf_integral))
         hist_truth_EFT.Scale(1./(int_eft*sf_integral))
 
-        plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-        plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
-
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
-        # lists_predictions_bkgs = []; lists_weights_bkg = []
-        # for iclass in range(0, len(list_labels)):
-        #     if iclass != inode:
-        #         lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
-        #         lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
-        # if len(lists_predictions_bkgs) > 0:
-        #     predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-        #     plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', alpha=0.50, density=True, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-
         #Read bin contents/errors
         bin_centres = []; counts_SM = []; err_SM = []; counts_EFT = []; err_EFT = []
         for ibin in range(1, hist_truth_SM.GetNbinsX()+1):
@@ -678,6 +701,35 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         if plot_truth_histos == True:
             plt.errorbar(bin_centres, counts_SM, marker='o', yerr=err_SM, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Truth)')
             plt.errorbar(bin_centres, counts_EFT, marker='o', yerr=err_EFT, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Truth)')
+        """
+
+        #FIXME -- changed : no weights, and only plt.hist ?
+        #Plot truth histos, normalized, with errorbars
+        if plot_truth_histos == True:
+            if nofOutputNodes == 1:
+                plt.hist(y_test[y_process_test==1], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
+                plt.hist(y_test[y_process_test==0], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+            else:
+                plt.hist(y_test[y_process_test==1][:,inode], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
+                plt.hist(y_test[y_process_test==0][:,inode], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color='orangered', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
+
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
+        # lists_predictions_bkgs = []; lists_weights_bkg = []
+        # for iclass in range(0, len(list_labels)):
+        #     if iclass != inode:
+        #         lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
+        #         lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
+        # if len(lists_predictions_bkgs) > 0:
+        #     predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
+        #     plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
+        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', alpha=0.50, density=True, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
 
         nodename = 'node' + str(inode)
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode == 0: nodename = 'LR'
@@ -685,7 +737,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
 
         # myxlabel = "Regressor output"
         plt.legend(loc='upper center', numpoints=1)
-        plt.title("Regressor output for SM & EFT")
+        plt.title("Regressor output for SM & EFT (test data)")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
         plt.xlabel(nodename)
@@ -716,19 +768,31 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
 #Plot correlations between input features
 def Create_Correlation_Plot(opts, x, list_features, weight_dir):
 
-    #Use this variables to avoid plotting also Wilson Coefficients given as inputs
-    iVarMax = None
-    if opts["parameterizedNN"] == True: iVarMax = -len(opts["listOperatorsParam"])
+# //--------------------------------------------
+    doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
+# //--------------------------------------------
+
+    #Can avoid plotting theory parameter inputs (by default), and p4 variables
+    list_features = np.array(list_features)
+    indices = []
+    for ivar in range(len(list_features)):
+        if doNotPlotP4 and list_features[ivar].endswith(('_Phi', ']')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        elif opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+
+    indices = np.array(indices, dtype=int)
+    mask = np.ones(len(list_features), np.bool)
+    mask[indices] = 0
+    # print(indices)
 
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:iVarMax], columns=list_features[:iVarMax]) #x = (events, vars) ; colums names are var names
+    df = pd.DataFrame(data=x[:,:][:,mask], columns=list_features[mask]) #x = (events, vars) ; colums names are var names
     # print(df); print(df.describe())
 
     #-- Get correlation matrix
     corr = df.corr()
 
-    mask = np.triu(np.ones_like(corr, dtype=np.bool)) #Mask upper right triangle
-    # mask = np.tril(np.ones_like(corr, dtype=np.bool)) #Mask bottom left triangle
+    mask_diag = np.triu(np.ones_like(corr, dtype=np.bool)) #Mask upper right triangle
+    # mask_diag = np.tril(np.ones_like(corr, dtype=np.bool)) #Mask bottom left triangle
 
     #-- Take abs(values)
     # corr = abs(corr)
@@ -748,12 +812,12 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
     ax.set_title('Input features correlations',fontsize=30)
 
     # Draw the heatmap -- see : https://seaborn.pydata.org/generated/seaborn.heatmap.html
-    if len(list_features) > 20: #Lots of features to display
-        hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = False, fmt='.1g', cbar_kws={"shrink": .5},)
+    if len(list_features[mask]) > 15: #Lots of features to display, remove values
+        hm = sns.heatmap(corr, mask=mask_diag, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = False, fmt='.1g', cbar_kws={"shrink": .5},)
         hm.set_xticklabels(hm.get_xticklabels(), horizontalalignment='right', fontsize = 14) #bottom labels
         hm.set_yticklabels(hm.get_yticklabels(), fontsize = 14)
     else:
-        hm = sns.heatmap(corr, mask=mask, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
+        hm = sns.heatmap(corr, mask=mask_diag, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
         hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 16) #bottom labels
         hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
 
@@ -786,6 +850,7 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
 def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, isControlNorm=False):
 
     plot_eachSingleFeature = False #True <-> 1 single plot per feature
+    doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
     # if opts["parameterizedNN"] is True and isControlNorm is True: return #Gain time
@@ -793,18 +858,25 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
     plt.tight_layout()
+    list_features = np.array(list_features)
 
-    #Use this variables to avoid plotting also Wilson Coefficients given as inputs
-    iVarMax = None
-    n_features = len(list_features)
     if opts["parameterizedNN"] == True:
-        iVarMax = -len(opts["listOperatorsParam"])
-        n_features+= iVarMax
         nMax = 50000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
         if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
+    #Can avoid plotting theory parameter inputs (by default), and p4 variables
+    list_features = np.array(list_features)
+    indices = []
+    for ivar in range(len(list_features)):
+        if doNotPlotP4 and list_features[ivar].endswith(('_Phi', ']')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        elif opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+
+    indices = np.array(indices, dtype=int)
+    mask = np.ones(len(list_features), np.bool)
+    mask[indices] = 0
+
     #-- Convert np array to pd dataframe
-    df = pd.DataFrame(data=x[0:,0:iVarMax], columns=list_features[:iVarMax]) #x = (events, vars) ; colums names are var names
+    df = pd.DataFrame(data=x[:,:][:,mask], columns=list_features[mask]) #x = (events, vars) ; colums names are var names
 
     #-- Insert a column corresponding to the class label
     if y_process.ndim==1: df.insert(loc=0, column='class', value=y_process[:], allow_duplicates=False)
@@ -815,8 +887,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # print(df); print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[:iVarMax], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[:iVarMax], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:n_features]) #bkgs
+    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
 
     if isControlNorm == True: #Control plot, different name, general plot only
         plotname = weight_dir + 'InputFeatures_normTrain.png'
@@ -838,7 +910,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     #-- Also create individual plots
     # if plot_eachSingleFeature == True:
     if plot_eachSingleFeature == True and isControlNorm==False:
-        for feature in list_features:
+        for feature in list_features[mask]:
             # fig, ax = plt.subplots()
             fig, ax = plt.subplots(figsize=(10,10))
             plt.ylabel("normalized", fontsize=20)

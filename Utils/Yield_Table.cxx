@@ -233,6 +233,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     // cout<<"ts "<<ts<<endl;
                     if(ts.Contains("_sm", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //Found relevant index, no need to read this branch anymore
                 }
+                if(v_samples[isample].Contains("_c")) {idx_sm = -1;} //Pure-EFT sample
                 if(idx_sm == -1) {cout<<FRED("SM point not found !")<<endl;}
                 cout<<"idx_sm "<<idx_sm<<endl;
 
@@ -335,7 +336,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 // if(njets != 2 || nbjets != 2) {continue;}
 
                 //Private MC sample : need to do some rescaling
-                if(v_samples[isample].Contains("Priv"))
+                if(v_samples[isample].Contains("Priv") && idx_sm != -1)
                 {
                     //--- SM reweight
                     //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
@@ -346,7 +347,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
                 {
-                    cout<<BOLD(FRED("* Found event with weight*eventMCFactor = "<<weight<<"*"<<eventMCFactor<<" ; remove it..."))<<endl; continue;
+                    cout<<BOLD(FRED("* Found event with weight*eventMCFactor = "<<weight<<"*"<<eventMCFactor<<" ; remove it..."))<<endl; break; //continue;
                 }
                 // else if(!weight*eventMCFactor) {cout<<"weight*eventMCFactor = "<<weight<<"*"<<eventMCFactor<<" ! Is it expected ?"<<endl;}
 
@@ -375,17 +376,6 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     {
                         yield_bkg+= weight;
                     }
-                }
-
-                if(v_samples[isample] == "PrivMC_tZq_top19001" && ientry < 5)
-                {
-                    cout<<endl<<"v_reweights_floats->at("<<idx_sm<<") "<<v_reweights_floats->at(idx_sm)<<endl;
-                    cout<<"weightMENominal "<<weightMENominal<<endl;
-                    cout<<"v_SWE["<<idx_sm<<"] "<<v_SWE[idx_sm]<<endl;
-                    cout<<"mTW "<<mTW<<endl;
-                    cout<<"weight "<<weight<<endl;
-
-                    // cout<<"yield_tmp "<<yield_tmp<<endl;
                 }
             } //event loop
 
@@ -554,7 +544,8 @@ int main(int argc, char **argv)
     v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
     v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
     v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
-    v_samples.push_back("PrivMC_ttZ_top19001_fullsim"); v_label.push_back("PrivMC_ttZ_fullsim");
+    v_samples.push_back("PrivMC_tZq_ctz"); v_label.push_back("PrivMC_tZq_ctz");
+    v_samples.push_back("PrivMC_tZq_ctw"); v_label.push_back("PrivMC_tZq_ctw");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");

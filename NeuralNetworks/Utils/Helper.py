@@ -15,6 +15,7 @@ from datetime import datetime
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
+from tensorflow.keras.models import load_model
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -216,6 +217,27 @@ def my_training_batch_generator(features, labels, batch_size): # Create empty ar
 # //--------------------------------------------
 # //--------------------------------------------
 
+def Load_PreExisting_Model(h5modelName):
+
+# //--------------------------------------------
+#-- Can access weights and biases of any layer
+# weights_layer, biases_layer = model.layers[0].get_weights(); print(weights_layer.shape); print(biases_layer.shape); print(weights_layer); print(biases_layer[0:2])
+#-- Loads the latest checkpoint weights
+# latest = tensorflow.train.latest_checkpoint(ckpt_dir)
+# tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+# model = load_model(_h5modelName) # model has to be re-loaded
+# model.load_weights(latest)
+# //-------------------------------------------
+
+    tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+    model = load_model(h5modelName) # model has to be re-loaded
+
+
+    return model
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 
 
 
@@ -259,7 +281,7 @@ def Get_LumiName(lumi_years):
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Sanity checks of input args
+#Perform sanitify check of user options and set internal options accordingly (updates the option dictionnary given in arg)
 def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, labels_list):
 
 # //--------------------------------------------
@@ -276,9 +298,15 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     # Set main output paths
     weightDir = "../weights/NN/" + lumiName + '/'
 
-    # os.remove(weightDir+"/*")
-    shutil.rmtree(weightDir)
-    os.makedirs(weightDir, exist_ok=True)
+    #Model output name
+    h5modelName = weightDir + 'model.h5'
+
+    if opts["makeValPlotsOnly"] == False: #If training a new NN, remove previous output folder
+        # os.remove(weightDir+"/*")
+        shutil.rmtree(weightDir)
+        os.makedirs(weightDir, exist_ok=True)
+    else:
+        print(colors.fg.orange, "Will only produce validation plots. Reading pre-existing NN model:", colors.reset, h5modelName)
 
     print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 
@@ -361,7 +389,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     Write_Timestamp_toLogfile(weightDir, 0)
     Dump_NN_Options_toLogFile(opts, weightDir)
 
-    return opts, lumiName, weightDir, ntuplesDir, opts["batchSize"]
+    return lumiName, weightDir, h5modelName, ntuplesDir, opts["batchSize"]
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -543,7 +571,7 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
         for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
             for op_sample in operatorNames_sample: #For each operator found in sample
                 if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample): orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
-                elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.bg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample...', colors.reset); exit(1) #Operator specified in ID not found in sample
+                elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.fg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample... (check exact naming)', colors.reset); exit(1) #Operator specified in ID not found in sample
 
         orderedList_WCvalues_allPoints.append(orderedList_WCvalues)
 

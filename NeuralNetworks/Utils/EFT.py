@@ -628,8 +628,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Sanity checks
 
-    if parameterizedNN == False and opts["strategy"] != "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
-        list_thetas_allClasses = []; list_targetClass_allClasses = [];
+    if parameterizedNN is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
         return list_x_allClasses, list_weights_allClasses, [], [], [], []
 
     if DEBUG_>1: #Debug printout
@@ -681,6 +680,9 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         list_jointLR_allThetas_class = []
         list2D_score_allOperators_allThetas_class = [ [] for iop in range(len(opts['listOperatorsParam']))] #List of list because score is a vector (first index corresponds to score component <-> operator) #Initialize an empty list for each operator
 
+        #-- Debugging
+        # CrossCheck_FewEvents(opts, n_components, components, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_EFTweights_allClasses[iclass], list_EFTweightIDs_allClasses[iclass], list_weights_allClasses[iclass], list_SMweights_allClasses[iclass])
+
 # //--------------------------------------------
 # Start by computing necessary quantities (reweights, augmented data, etc.) for entire sample
 
@@ -693,7 +695,16 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        if parameterizedNN == True:
+        #-- For non-parameterized NN, only 1 EFT point to separate from SM, build lists differently
+        if parameterizedNN == False: #'CARL_singlePoint' strategy
+
+            newWeights = list_SMweights_allClasses[iclass] #Will compare SM to EFT ref point
+            list_weights_allThetas_class.append(np.concatenate( (newWeights, weights_refPoint)) )
+            list_x_allThetas_class.append(np.concatenate( (list_x_allClasses[iclass], list_x_allClasses[iclass])) )
+            list_targetClass_allThetas_class.append(np.concatenate( (np.ones(len(list_x_allClasses[iclass])), np.zeros(len(list_x_allClasses[iclass])) ) ) ) #EFT ref point=0, SM=1
+
+        #-- Parameterized NN
+        else:
 
             #-- Get the 'effective WC' values scaling each fit component
             effWC_components_thetas_class = Get_EffectiveWC_eachComponent(n_components, components, thetas) #Determine the 'effective WC' values associated with each component, for each benchmark point
@@ -702,85 +713,116 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             #-- Extrapolate the event weights at the new points thetas, for all events
             newWeights = Extrapolate_EFTweights(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
 
-        #-- For non-parameterized NN, only 1 EFT point to separate from SM, build lists differently
-        else:
-            newWeights = list_SMweights_allClasses[iclass] #Choose SM as reference point
-            list_weights_allThetas_class.append(np.concatenate( (newWeights, weights_refPoint)) )
-            list_x_allThetas_class.append(np.concatenate( (list_x_allClasses[iclass], list_x_allClasses[iclass])) )
-            list_targetClass_allThetas_class.append(np.concatenate( (np.ones(len(list_x_allClasses[iclass])), np.zeros(len(list_x_allClasses[iclass])) ) ) ) #EFT ref point=0, SM=1
+            #-- Extrapolate the cross section at the reference point and the new points thetas
+            if need_jlr or need_score:
+                newXsecs = Extrapolate_EFTxsecs_fromWeights(newWeights)
+                xsecs_refPoint = Extrapolate_EFTxsecs_fromWeights(weights_refPoint)
 
-        #-- Extrapolate the cross section at the reference point and the new points thetas
-        if need_jlr or need_score:
-            newXsecs = Extrapolate_EFTxsecs_fromWeights(newWeights)
-            xsecs_refPoint = Extrapolate_EFTxsecs_fromWeights(weights_refPoint)
+                #-- Compute joint likelihood ratio at the new points thetas, for all events
+                if need_jlr: jointLR_class = Compute_JointLR(weights_refPoint, xsecs_refPoint, newWeights, newXsecs)
 
-            #-- Compute joint likelihood ratio at the new points thetas, for all events
-            if need_jlr: jointLR_class = Compute_JointLR(weights_refPoint, xsecs_refPoint, newWeights, newXsecs)
+                list_gradNewWeights_operators = []; list_gradNewXsecs_operators = []; list_score_allOperators = []
+                if need_score:
 
-            list_gradNewWeights_operators = []; list_gradNewXsecs_operators = []; list_score_allOperators = []
-            if need_score:
+                    #-- Get the gradients of the 'effective WC' values scaling each fit component (3D array with shape (n_operators, n_points, n_components) )
+                    gradEffWC_components_operators_thetas_class = Get_Gradients_EffectiveWC_eachComponent(n_components, components, thetas)
 
-                #-- Get the gradients of the 'effective WC' values scaling each fit component (3D array with shape (n_operators, n_points, n_components) )
-                gradEffWC_components_operators_thetas_class = Get_Gradients_EffectiveWC_eachComponent(n_components, components, thetas)
-
-                #-- Differentiating w.r.t. 1 operator at once, get the corresponding gradients of weights and xsecs at all points for all events, and use them to get the corresponding score component
-                for iop in range(len(opts['listOperatorsParam']) ):
-                    list_gradNewWeights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
-                    list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradNewWeights_operators[iop]))
-                    list_score_allOperators.append(Compute_Score_Component(newWeights, newXsecs, list_gradNewWeights_operators[iop], list_gradNewXsecs_operators[iop]) )
-
-        #-- Debugging
-        # CrossCheck_FewEvents(opts, n_components, components, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_EFTweights_allClasses[iclass], list_EFTweightIDs_allClasses[iclass], list_weights_allClasses[iclass], list_SMweights_allClasses[iclass])
+                    #-- Differentiating w.r.t. 1 operator at once, get the corresponding gradients of weights and xsecs at all points for all events, and use them to get the corresponding score component
+                    for iop in range(len(opts['listOperatorsParam']) ):
+                        list_gradNewWeights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
+                        list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradNewWeights_operators[iop]))
+                        list_score_allOperators.append(Compute_Score_Component(newWeights, newXsecs, list_gradNewWeights_operators[iop], list_gradNewXsecs_operators[iop]) )
 
 # //--------------------------------------------
 # Then, for each new point theta, build the corresponding dataset (features, weights, etc.), and append it to total dataset
 # /!\ Reminder: both for classifying H0 vs H1 and LR regression r(H0,H1), need to provide events *both at theta (H1) and at a reference point (H0)* ! The reference point is arbitrary, it can be fixed or not, and is a hyperparameter. For convenience, we set it to the SM point.
 
-        for itheta in range(len(thetas)):
+            for itheta in range(len(thetas)):
 
-            #-- Sample unweighting: translate the event weights (at point theta and for reference point) into probabilities to build the sample's PDF
-            #NB: ignoring negative weights for now
-            probas_point = newWeights[:,itheta]
-            probas_refPoint = weights_refPoint
-            probas_refPoint[probas_refPoint < 0] = 0; probas_point[probas_point < 0] = 0 #Ignore neg weights
-            probas_refPoint /= probas_refPoint.sum(); probas_point /= probas_point.sum() #Normalize to 1
+                #-- Sample unweighting: translate the event weights (at point theta and for reference point) into probabilities to build the sample's PDF
+                #NB: ignoring negative weights for now
+                probas_point = newWeights[:,itheta]
+                probas_refPoint = weights_refPoint
+                probas_refPoint[probas_refPoint < 0] = 0; probas_point[probas_point < 0] = 0 #Ignore neg weights
+                probas_refPoint /= probas_refPoint.sum(); probas_point /= probas_point.sum() #Normalize to 1
 
-            #-- Draw N events from sample according to PDF (either at theta or ref point), with replacement
-            #NB: events with large weights may get drawn many times, degrading the NN performance
-            indices_refPoint = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_refPoint)
-            indices_point = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_point)
-            # print(indices_refPoint); print(indices_point)
+                #-- Draw N events from sample according to PDF (either at theta or ref point), with replacement
+                #NB: events with large weights may get drawn many times, degrading the NN performance
+                indices_refPoint = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_refPoint)
+                indices_point = rng.choice(len(list_x_allClasses[iclass]), size=nEventsPerPoint_class, p=probas_point)
+                # print(indices_refPoint); print(indices_point)
 
-            #-- Get the features of selected events
-            #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
-            x_class_refPoint = list_x_allClasses[iclass][indices_refPoint]
-            x_class_point = list_x_allClasses[iclass][indices_point]
+                #-- Get the features of selected events
+                #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
+                x_class_refPoint = list_x_allClasses[iclass][indices_refPoint]
+                x_class_point = list_x_allClasses[iclass][indices_point]
 
-            #-- Both events at theta and ref point will share the same 'theta' given as input to the NN, i.e. they are both fed to the NN for the same value of theta. Hence, duplicate theta (<-> the WC values defining the current point) for all selected events
-            thetas_class_point = np.tile(thetas[itheta,:], (nEventsPerPoint_class*2, 1) ) #Once for events at theta, once for events at ref point
-            #Each original event gets repeated at all the different points theta
+# //--------------------------------------------
+# //--------------------------------------------
 
-            #-- For classification, only 1 operator is 'activated' (non-zero) at once. Keep track of which operator it is, for event labelling
-            targetClass_class_point = np.tile(targetClass[itheta], (nEventsPerPoint_class, 1) )
-            if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_class_refPoint = np.ones((targetClass_class_point.shape))
-            else: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
-            targetClass_class_point = np.squeeze(targetClass_class_point); targetClass_class_refPoint = np.squeeze(targetClass_class_refPoint)
+                #FIXME #FIXME --> new func
+                if opts["strategy"] in ["ROLR", "RASCAL"]:
+                    score_allOperators_class_point = []; score_allOperators_class_refPoint = []
 
-            #-- After unweighting, all events are attributed a weight of 1.
-            # weights_class_point = np.ones(nEventsPerPoint_class*2) #FIXME
+                    #Draw from SM (--> indices_refPoint), weight=SM, theta0=theta_EFT, x=x, targetClass=1, jlr=jlr, score=t
+                    weights_class_point = probas_refPoint[indices_refPoint]
+                    thetas_class_point = np.tile(thetas[itheta,:], (nEventsPerPoint_class,1))
+                    targetClass_class_point = np.ones(nEventsPerPoint_class)
+                    if need_jlr: jointLR_class_point = jointLR_class[indices_refPoint,itheta]
+                    if need_score:
+                        for iop in range(len(opts['listOperatorsParam'])): score_allOperators_class_point.append(list_score_allOperators[iop][indices_refPoint,itheta])
 
-            weights_class_point = np.concatenate((probas_refPoint[indices_refPoint],probas_point[indices_point])) #Store event weights
+                    #FIXME -- not necessary, but allows to get events with label=0 #DIVIDE STAT BY 10? SCORE = 0??? #FIXME
+                    #Draw from EFT point (--> indices_point), weight=EFT point, theta0=SM, x=x, targetClass=0, jlr=1/jlr, score=0???
+                    thetas_class_refPoint = np.tile(np.zeros((1,len(operatorNames))), (nEventsPerPoint_class,1))
+                    targetClass_class_refPoint = np.zeros(nEventsPerPoint_class)
+                    weights_class_refPpoint = probas_point[indices_point]
+                    if need_jlr: jointLR_class_refPoint = 1/jointLR_class[indices_point,itheta]
+                    if need_score:
+                        for iop in range(len(opts['listOperatorsParam'])): score_allOperators_class_refPoint.append(np.zeros(nEventsPerPoint_class))
 
+                    #Concatenate //SM + EFT events
+                    # list_x_allThetas_class.append(np.concatenate((x_class_point, x_class_refPoint)) )
+                    # list_weights_allThetas_class.append(np.concatenate((probas_point[indices_point], probas_refPoint[indices_refPoint])))
+                    # list_thetas_allThetas_class.append(np.concatenate((thetas_class_point, thetas_class_refPoint)))
+                    # list_targetClass_allThetas_class.append(np.concatenate((targetClass_class_point, targetClass_class_refPoint)) )
+
+                    #CHANGED -- ONLY EVENTS DRAWN AT SM #FIXME
+                    list_x_allThetas_class.append(x_class_point)
+                    list_weights_allThetas_class.append(probas_point[indices_point])
+                    list_thetas_allThetas_class.append(thetas_class_point)
+                    list_targetClass_allThetas_class.append(targetClass_class_point)
+
+                    if need_jlr: list_jointLR_allThetas_class.append(jointLR_class_point)
+                    if need_score:
+                        for iop in range(len(opts['listOperatorsParam'])): list2D_score_allOperators_allThetas_class[iop].append(score_allOperators_class_point[iop])
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+                else:
+                # if True:
 # //--------------------------------------------
 # Concatenate data for selected events at ref point and at theta
 
-            list_x_allThetas_class.append(np.concatenate((x_class_refPoint, x_class_point)) )
-            list_weights_allThetas_class.append(weights_class_point)
-            list_targetClass_allThetas_class.append(np.concatenate((targetClass_class_refPoint, targetClass_class_point)) )
-            list_thetas_allThetas_class.append(thetas_class_point)
-            if need_jlr: list_jointLR_allThetas_class.append(np.concatenate((jointLR_class[indices_refPoint,itheta], jointLR_class[indices_point,itheta])))
-            if need_score:
-                for iop in range(len(opts['listOperatorsParam'])): list2D_score_allOperators_allThetas_class[iop].append(np.concatenate((list_score_allOperators[iop][indices_refPoint,itheta], list_score_allOperators[iop][indices_point,itheta])) )
+                    #-- Both events at theta and ref point will share the same 'theta' given as input to the NN, i.e. they are both fed to the NN for the same value of theta. Hence, duplicate theta (<-> the WC values defining the current point) for all selected events
+                    thetas_class_point = np.tile(thetas[itheta,:], (nEventsPerPoint_class*2, 1) ) #Once for events at theta, once for events at ref point
+
+                    #-- For classification, only 1 operator is 'activated' (non-zero) at once. Keep track of which operator it is, for event labelling
+                    targetClass_class_point = np.tile(targetClass[itheta], (nEventsPerPoint_class, 1) )
+                    if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_class_refPoint = np.ones(len(targetClass_class_point))
+                    else: targetClass_class_refPoint = np.zeros((targetClass_class_point.shape)); targetClass_class_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
+                    targetClass_class_point = np.squeeze(targetClass_class_point); targetClass_class_refPoint = np.squeeze(targetClass_class_refPoint)
+
+                    list_x_allThetas_class.append(np.concatenate((x_class_refPoint, x_class_point)) )
+                    list_weights_allThetas_class.append(np.concatenate((probas_refPoint[indices_refPoint],probas_point[indices_point]))) #Store event weights
+                    list_targetClass_allThetas_class.append(np.concatenate((targetClass_class_refPoint, targetClass_class_point)) )
+                    list_thetas_allThetas_class.append(thetas_class_point)
+
+                    # if need_jlr: list_jointLR_allThetas_class.append(np.concatenate((jointLR_class[indices_refPoint,itheta], 1/jointLR_class[indices_point,itheta]))) #FIXME
+                    # if need_jlr: list_jointLR_allThetas_class.append(np.concatenate((jointLR_class[indices_refPoint,itheta], jointLR_class[indices_point,itheta])))
+                    # if need_score:
+                    #     for iop in range(len(opts['listOperatorsParam'])): list2D_score_allOperators_allThetas_class[iop].append(np.concatenate((list_score_allOperators[iop][indices_refPoint,itheta], list_score_allOperators[iop][indices_point,itheta])) )
 
 # //--------------------------------------------
 # Append arrays for all classes

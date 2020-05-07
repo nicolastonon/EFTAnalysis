@@ -112,7 +112,8 @@ int main(int argc, char **argv)
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
     thesamplelist.push_back("PrivMC_tZq_top19001"); thesamplegroups.push_back("tZq_EFT_v2");
     // thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
-    // thesamplelist.push_back("PrivMC_tZq_top19001_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
+    thesamplelist.push_back("PrivMC_tZq_top19001_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
+    thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
 
     //Signal(s)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
@@ -284,10 +285,10 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
-    bool compare_template_shapes = false;
+    bool compare_template_shapes = true;
 
 //-----------------    OTHER
 

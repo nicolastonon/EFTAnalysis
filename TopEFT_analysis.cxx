@@ -1034,7 +1034,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		file_input = TFile::Open(inputfile, "READ");
 
             bool isPrivMC = false;
-            if(sample_list[isample].Contains("PrivMC")) {isPrivMC = true;}
+            if(sample_list[isample].Contains("PrivMC") && !sample_list[isample].Contains("_c")) {isPrivMC = true;}
 
             vector<float> v_SWE; //Store Sums of Weights (SWE) for all reweight points -- for private MC samples only
             if(isPrivMC) //Not available yet
@@ -2887,14 +2887,20 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     total_var_list.push_back("maxDijetMass");
     total_var_list.push_back("maxDelPhiLL");
 
+    total_var_list.push_back("recoZ_Mass");
+    total_var_list.push_back("nJets");
+    total_var_list.push_back("nBJets");
+    total_var_list.push_back("maxDelPhiLL");
+
     TString theyear = "2017"; //2016,2017,2018
 
 //--------------------------------------------
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
     v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
+    // v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("PrivMC_tctz"); v_colors.push_back(kBlue);
     // v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
 
