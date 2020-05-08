@@ -15,9 +15,9 @@ from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 from root_numpy import fill_hist
 from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, classification_report, confusion_matrix, multilabel_confusion_matrix
 # from sklearn.feature_selection import mutual_info_classif
-from Utils.Helper import close_event, Printout_Outputs_FirstLayer, KS_test, Anderson_Darling_test, ChiSquare_test
+from Utils.Helper import close_event, KS_test, Anderson_Darling_test, ChiSquare_test
 from Utils.ColoredPrintout import colors
-from Utils.StandaloneValidation import *
+from Utils.RegressorValidation import *
 from pandas.plotting import scatter_matrix
 from ann_visualizer.visualize import ann_viz
 from tensorflow.keras.utils import plot_model
@@ -109,17 +109,13 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predi
 # //--------------------------------------------
 
 # Call all sub-functions
-def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, metrics, weight_dir, score=None, history=None):
+def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, score=None, history=None):
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
     #NB: styling not working properly ? related to figsize... ?
     # sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB: this also sets plotting options to seaborn's default
     # plt.tight_layout()
-
-    #FIXME
-    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, weight_dir)
-    exit(1)
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
@@ -131,13 +127,13 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir)
 
-    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, weight_dir)
+    if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, list_yTest_allClasses, weight_dir)
 
     Create_Correlation_Plot(opts, x, list_features, weight_dir)
 
     Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
 
-    # if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, weight_dir)
+    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
 
     return
 
@@ -190,6 +186,8 @@ def Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes
 def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history=None):
 # NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
 
+    if history is None: return
+
     # Plotting the loss with the number of iterations
     fig = plt.figure('loss')
     ax1 = fig.gca()
@@ -240,6 +238,8 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    # ######   #   #    # #  ####   ####
 
 def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history=None):
+
+    if history is None: return
 
     if opts["strategy"] == "RASCAL": #Metrics name depend on the output (e.g. 'val_likelihood_ratio_mean_squared_error' or 'val_score_mean_squared_error')
         metrics = "likelihood_ratio_" + metrics
@@ -482,6 +482,10 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
     nofOutputNodes = opts["nofOutputNodes"]
 
+    label_class0 = "Signal"; label_class1 = "Backgrounds"
+
+    if opts["parameterizedNN"] == True: label_class0 = "SM"; label_class1 = "EFT"
+
     for inode in range(nofOutputNodes):
 
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
@@ -546,7 +550,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
         if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_test_allNodes_allClasses[inode][inode]+1) #Transform r -> s
         else: tmp = list_predictions_test_allNodes_allClasses[inode][inode]
-        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
+        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Test)", edgecolor='cornflowerblue',fill=True)
 
         #Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
@@ -560,7 +564,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         if len(lists_predictions_bkgs) > 0:
             predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
+            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Test)", hatch='/', edgecolor='orangered',fill=False)
 
         #Read bin contents/errors
         bin_centres = []; counts_sig = []; err_sig = []; counts_bkg = []; err_bkg = []
@@ -570,8 +574,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
             err_sig.append(hist_overtrain_train_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_train_bkg.GetBinError(ibin))
 
         #Plot training sig/bkg histos, normalized, with errorbars
-        plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label='Signal (Train)')
-        plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label='Background (Train)')
+        plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Train)')
+        plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Train)')
 
         myxlabel = "Classifier output"
 
@@ -605,7 +609,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
  #   #  #      #    # #   #  #      #    # #    # #    # #   #
  #    # ######  ####  #    # ######  ####   ####   ####  #    #
 
-def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, weight_dir):
+def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, list_yTest_allClasses, weight_dir):
 
     plot_truth_histos = True #True <-> Display truth histos on plot
 
@@ -659,7 +663,6 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
             ax.tick_params(colors='gray', direction='out')
             for tick in ax.get_xticklabels():
                 tick.set_color('gray')
-                # tick.set_weight('bold')
                 for tick in ax.get_yticklabels():
                     tick.set_color('gray')
 
@@ -703,22 +706,25 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
             plt.errorbar(bin_centres, counts_EFT, marker='o', yerr=err_EFT, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Truth)')
         """
 
-        #FIXME -- changed : no weights, and only plt.hist ?
-        #Plot truth histos, normalized, with errorbars
+        #Prediction and truth histos, normalized
+        #NB: apply weights, but they are all equal to 1 for parameterized strategies
         if plot_truth_histos == True:
             if nofOutputNodes == 1:
-                plt.hist(y_test[y_process_test==1], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
-                plt.hist(y_test[y_process_test==0], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+                # plt.hist(y_test[y_process_test==1], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
+                # plt.hist(y_test[y_process_test==0], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+                plt.hist(list_yTest_allClasses[0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=3.)
+                plt.hist(list_yTest_allClasses[1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
             else:
-                plt.hist(y_test[y_process_test==1][:,inode], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
-                plt.hist(y_test[y_process_test==0][:,inode], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+                # plt.hist(y_test[y_process_test==1][:,inode], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
+                # plt.hist(y_test[y_process_test==0][:,inode], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
+                plt.hist(list_yTest_allClasses[0][:,inode], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=3.)
+                plt.hist(list_yTest_allClasses[1][:,inode], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
 
-        plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
-        plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color='orangered', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
+        plt.hist(list_predictions_test_allNodes_allClasses[inode][1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
 
         # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
         # plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-
         # plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
         # lists_predictions_bkgs = []; lists_weights_bkg = []
         # for iclass in range(0, len(list_labels)):

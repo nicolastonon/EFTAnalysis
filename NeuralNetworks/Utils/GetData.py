@@ -66,16 +66,16 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
     list_x_allClasses, list_weights_allClasses, list_targetClass_allClasses, list_thetas_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses)
 
+    #FIXME #FIXME #FIXME -- debug => regress on dummy value
+    list_jointLR_allClasses[:][:] = 0.5
+
     #-- Concatenate and reshape arrays
     x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators)
 
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
 
-    #-- Before we randomize the events, store the input values of the very first events (which belong to first process) --> Can use these known events for later validation/comparison
-    x_control_firstNEvents = x[0:10,:]
-
-    #-- For parameterized NN, need to include theory parameters as inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
+    #-- For parameterized NN, need to count theory parameters as additional inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
@@ -95,7 +95,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
     print(colors.fg.lightblue, "===========\n", colors.reset)
 
-    return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled, list_labels, list_features
+    return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, list_labels, list_features
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -409,7 +409,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
         #Theta has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
         theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
         targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)]
-        targetClass_allClasses = np.squeeze(targetClass_allClasses) #If single column, squeeze into 1D array
+        targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
         x = np.append(x, theta_tmp, axis=1)
 
     # print(x.shape)
@@ -622,22 +622,6 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
         elif opts["strategy"] == "RASCAL": #Targets are joint likelihood ratio r and score t (1 component per operator)
             y = np.column_stack((jointLR_allClasses, scores_allClasses_eachOperator)); y_process = targetClass_allClasses
 
-    # if opts["regress"]==True:
-    #
-    #     if opts["nofOutputNodes"] == 1: #Target = 0,1
-    #         y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
-    #         y = y_integer_sig
-    #
-    #         #Targets randomly sampled around 0,1 -- testing
-    #         # y_integer_sig = np.random.normal(loc=1.0, scale=0.05, size=list_nentries_class[0])
-    #         # y_integer_bkg = np.random.normal(loc=0.0, scale=0.05, size=list_nentries_class[1])
-    #
-    #         if len(list_processClasses)>1:
-    #             y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
-    #             y = np.concatenate((y, y_integer_bkg), axis=0)
-    #
-    #     else: print('ERROR ! Not supported yet...'); exit(1)
-
     return y, y_process
 
 # //--------------------------------------------
@@ -682,6 +666,8 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
         _trainsize=opts["nEventsTot_train"]; _testsize=opts["nEventsTot_test"]
     else: #Specify train/test relative proportions
         _trainsize=opts["splitTrainEventFrac"]; _testsize=1-opts["splitTrainEventFrac"]
+
+    if opts["makeValPlotsOnly"] is True: _trainsize = 0.01 #If not training a NN, keep all data for validation
 
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)

@@ -54,22 +54,22 @@ optsTrain = {
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"batchSizeEFT": 500, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_ctZ_5", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-"score_lossWeight": 5, #Apply scale factor to score term in loss function
-"regress_onLogr": False, #True <-> NN will regress on log(r) instead of r #FIXME
+"score_lossWeight": 1, #Apply scale factor to score term in loss function
+"regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
 
 #=== Event preselection ===#
 "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 
+#=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
-# _startFromExistingModel = False #True <-> Skip training, load latest checkpoint model and create perf plots #not properly implemented yet
 }
 
 
@@ -261,12 +261,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 
     #-- Get data
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
-    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, x_control_firstNEvents, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
-
-    # From there, for parameterized NN, the different 'classes' correspond to different operators, and must include their WCs as inputs
-    # if optsTrain["parameterizedNN"]==True :
-    #     _list_labels = optsTrain["listOperatorsParam"][:]; _list_labels.insert(0, "SM") #Must specify '[:]' to create a copy, not a reference
-    #     _list_features = np.append(_list_features, optsTrain["listOperatorsParam"])
+    x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)
@@ -350,13 +345,13 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print(colors.bg.orange, colors.bold, "##############################################", colors.reset, '\n')
 
     #-- Get control results (printouts, plots, histos)
-    list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName, x_control_firstNEvents)
+    list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName)
 
     #-- Store NN predictions for train/test datasets, for later use
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses)
 
     #-- Create several validation plots automatically
-    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, _metrics, _weightDir, score, history)
+    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, _metrics, _weightDir, score, history)
 
     Write_Timestamp_toLogfile(_weightDir, 1) #Write final timestamp before exit
 

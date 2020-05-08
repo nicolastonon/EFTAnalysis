@@ -4,7 +4,7 @@ import numpy as np
 import keras
 import tensorflow
 import math
-from Utils.Helper import Printout_Outputs_FirstLayer
+from Utils.Helper import Printout_Outputs_Layer
 from Utils.ColoredPrintout import colors
 from tensorflow.keras.models import load_model
 
@@ -30,7 +30,7 @@ from tensorflow.keras.models import load_model
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName, x_control_firstNEvents):
+def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName):
 
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
@@ -44,7 +44,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     list_yTrain_allClasses = []; list_yTest_allClasses = []
     list_truth_Train_allClasses = []; list_truth_Test_allClasses = []
     list_PhysicalWeightsTrain_allClasses = []; list_PhysicalWeightsTest_allClasses = []
-    if opts["nofOutputNodes"] == 1 or opts["regress"] == True: #Single output node
+    if opts["nofOutputNodes"] == 1 or opts["regress"] == True: #Binary class label
 
         if opts["parameterizedNN"] == False:
             list_xTrain_allClasses.append(x_train[y_process_train==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1][:maxEvents])
@@ -55,9 +55,11 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
             #Get relevant indices or slices: only retain EFT events whose operators are at boundaries
             sl = np.s_[x_train.shape[1]-len(opts["listOperatorsParam"]):x_train.shape[1]-1] #Specify slice corresponding to indices of theory parameters features
             indices_train_class0 = np.where(y_process_train==1) #All events drawn at SM point
-            indices_train_class1 = np.where(np.logical_and(y_process_train==0, np.logical_or(np.all(x_train[:,sl]==minWC,axis=1),np.all(x_train[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
+            indices_train_class1 = np.where(y_process_train==0) #All events drawn at EFT points
+            # indices_train_class1 = np.where(np.logical_and(y_process_train==0, np.logical_or(np.all(x_train[:,sl]==minWC,axis=1),np.all(x_train[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
             indices_test_class0 = np.where(y_process_test==1) #All events drawn at SM point
-            indices_test_class1 = np.where(np.logical_and(y_process_test==0, np.logical_or(np.all(x_test[:,sl]==minWC,axis=1),np.all(x_test[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
+            indices_test_class1 = np.where(y_process_test==0) #All events drawn at EFT points
+            # indices_test_class1 = np.where(np.logical_and(y_process_test==0, np.logical_or(np.all(x_test[:,sl]==minWC,axis=1),np.all(x_test[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
             # print(indices_train_class0); print(indices_train_class1); print(indices_test_class0); print(indices_test_class1)
 
             list_xTrain_allClasses.append(x_train[indices_train_class0][:maxEvents]); list_yTrain_allClasses.append(y_train[indices_train_class0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[indices_train_class0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[indices_train_class0][:maxEvents])
@@ -81,10 +83,16 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     #-- Sanity checks: make sure no class is empty
     assert all(len(l) for l in list_xTrain_allClasses); assert all(len(l) for l in list_xTest_allClasses)
 
-    #-- Modify the values of the WC input values for validation ? For SM only ? #FIXME
-    # if opts["strategy"] in ["ROLR", "RASCAL"]:
-    #     list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])] = 0
-    #     print(list_xTest_allClasses[0][:5,:])
+    #-- Modification: for training, events drawn from SM (class 0) are really used to train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM) --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
+    if opts["strategy"] in ["ROLR", "RASCAL"]:
+        print('For validation, setting input WC values to 0 for events drawn from SM...')
+        list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
+        # print(list_xTest_allClasses[0][:5,:])
+
+        #-- Events drawn at SM were used in the denominator
+        if opts["nofOutputNodes"]==1: list_yTest_allClasses[0][:] = 1
+        else: list_yTest_allClasses[0][:,0] = 1
+
 
  #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
  #    # #    # #      #    # # #    #   #   # #    # ##   # #
@@ -97,12 +105,9 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(savedModelName)
 
-    #--- Printout : check the outputs of each layer for 2 events
-    check_outputs_eachLayer = False
-    if check_outputs_eachLayer == True:
-        print(x_train[0:1])
-        for ilayer in range(0, len(model.layers)):
-            Printout_Outputs_FirstLayer(model, ilayer, x_train[0:1])
+    #--- Printout : check the outputs of each layer for 2 events #FIXME
+    for ilayer in range(0, len(model.layers)):
+        Printout_Outputs_Layer(model, ilayer, x_train[:1])
 
     #-- Get model predictions for all events, as found in lists created above #Other available functions are: predict_classes, predict_proba, ...
     #Store predictions in 2D lists; 1st element = node ; 2nd element = class (e.g. 'tZq'/'ttZ', or 'SM'/'EFT')
@@ -156,9 +161,4 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
     # print("--------------\n")
 
-    #-- Print predictions for first few events of first process => can compare with predictions obtained for same NN/events using another code
-    # for j in range(x_control_firstNEvents.shape[0]):
-    #     print(x_control_firstNEvents[j])
-    #     print("===> Prediction for event", j," :", model.predict(x_control_firstNEvents)[j][0], '\n')
-
-    return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses
+    return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses

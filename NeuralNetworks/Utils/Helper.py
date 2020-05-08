@@ -127,7 +127,8 @@ def get_normalization_iqr(np_array, q):
 # //--------------------------------------------
 
 #Printout the output of the first (=input) layer here for N events, e.g. to verify that the normalization layer works properly
-def Printout_Outputs_FirstLayer(model, ilayer, xx):
+def Printout_Outputs_Layer(model, ilayer, xx):
+    print('--------------------------------------------')
     get_layer_output = keras.backend.function([model.layers[0].input], [model.layers[ilayer].output])
     layer_output = get_layer_output([xx])[0]
     print("\n", layer_output)
@@ -563,13 +564,16 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
 
     refPointIDs = np.atleast_1d(refPointIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
 
+    if refPointIDs[0] in ["SM", "sm"]:
+        return np.zeros(len(operatorNames_sample)) #SM point <-> all WCs are null
+
     operatorNames_new, operatorWCs_new, _ = Parse_EFTpoint_IDs(refPointIDs)
 
     orderedList_WCvalues_allPoints = []
     for i_ID in range(len(refPointIDs)): #For each point ID
         orderedList_WCvalues = []
-        for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
-            for op_sample in operatorNames_sample: #For each operator found in sample
+        for op_sample in operatorNames_sample: #For each operator found in sample
+            for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
                 if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample): orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
                 elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.fg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample... (check exact naming)', colors.reset); exit(1) #Operator specified in ID not found in sample
 
