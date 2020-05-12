@@ -17,9 +17,7 @@
 
 /** NOTES **
 
-# Include private MC samples in code :
-- only select central/private via samplename => update all name checks
-- what if want to use both ? give priority in plots for central...?
+-
 
 */
 
@@ -1080,7 +1078,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 // #    # #####  #####  #    # ######  ####   ####  ######  ####
 
     			//Disactivate all un-necessary branches ; below, activate only needed ones
-    			tree->SetBranchStatus("*", 0); //disable all branches, speed up
+    			tree->SetBranchStatus("*", 0); //disable all branches by default, speed up
     			// tree->SetBranchStatus("xxx", 1);
 
     			if(makeHisto_inputVars)
@@ -1091,13 +1089,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         tree->SetBranchAddress(total_var_list[i], &total_var_floats[i]);
     				}
     			}
-    			else //Book input variables in same order as trained BDT
+    			else //Book input variables in same order as for MVA training
     			{
                     for(int i=0; i<var_list.size(); i++)
                     {
+                        cout<<"Activate var '"<<var_list[i]<<"'"<<endl;
                         tree->SetBranchStatus(var_list[i], 1);
                         tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
-                        // cout<<"Activate var '"<<var_list[i]<<"'"<<endl;
                     }
     			}
 
@@ -2897,10 +2895,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //--------------------------------------------
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
-    v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
-    // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
-    // v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("PrivMC_tctz"); v_colors.push_back(kBlue);
+    // v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
+    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
+    v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("PrivMC_tctz"); v_colors.push_back(kBlue);
     // v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
 

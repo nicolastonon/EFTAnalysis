@@ -859,7 +859,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
-    # if opts["parameterizedNN"] is True and isControlNorm is True: return #Gain time
+    if opts["makeValPlotsOnly"] is True and isControlNorm is True: return
     if x is None: print('Error, can\'t produce input features plots : x=None !'); return
 
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default

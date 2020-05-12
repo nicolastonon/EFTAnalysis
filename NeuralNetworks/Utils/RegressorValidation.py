@@ -50,8 +50,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
 
     splot = sns.scatterplot(x=truth_data, y=pred_data, hue=class_data, style=class_data)
     leg_handles = splot.get_legend_handles_labels()[0]
-    # splot.legend(leg_handles, ['SM', 'EFT']) #title='New legend'
-    splot.legend(leg_handles, ['EFT', 'SM']) #FIXME, should be opposite...
+    splot.legend(leg_handles, ['EFT', 'SM']) #FIXME -- check
     ax = fig.gca()
     ax.set(xlim=(xmin, xmax))
     ax.set(ylim=(ymin, ymax))
@@ -155,7 +154,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     fig = plt.figure('splot3', figsize=(10, 10))
     # plt.title('Predicted VS True '+nodename)
     plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string
-    plt.ylabel(r'True '+nodename+'r(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
+    plt.ylabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
     xdata = list_xTest_allClasses[1][:1000,-1]
     if opts["nofOutputNodes"] == 1: ydata = list_yTest_allClasses[1][:1000]
     else: ydata = list_yTest_allClasses[1][:1000,0]

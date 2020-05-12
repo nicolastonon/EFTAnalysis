@@ -37,16 +37,16 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 10, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
 "nHiddenLayers": 3, #Number of hidden layers
-"nNeuronsPerLayer": 100, #Number of neurons per hidden layer
+"nNeuronsPerLayer": 50, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
-"activHiddenLayers": 'relu', #Activation function of hidden layers
+"activHiddenLayers": 'tanh', #Activation function of hidden layers
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.3, #Dropout rate (0 <-> disabled)
+"dropoutRate": 0., #Dropout rate (0 <-> disabled)
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
 "maxEventsPerClass": -1, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
@@ -56,14 +56,14 @@ optsTrain = {
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nPointsPerOperator": 10, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 "nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 500, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctZ_5", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+# "refPoint": "rwgt_cpQM_2", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
-"regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
+"regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
 #=== Event preselection ===#
 "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
@@ -141,22 +141,22 @@ _list_features.append("recoTop_Pt")
 _list_features.append("recoTop_Eta")
 # _list_features.append("recoTop_Phi")
 
-# _list_features.append("leptonPt[0]")
-# _list_features.append("leptonPt[1]")
-# _list_features.append("leptonPt[2]")
-# _list_features.append("leptonEta[0]")
-# _list_features.append("leptonEta[1]")
-# _list_features.append("leptonEta[2]")
-# _list_features.append("leptonPhi[0]")
-# _list_features.append("leptonPhi[1]")
-# _list_features.append("leptonPhi[2]")
+_list_features.append("leptonPt[0]")
+_list_features.append("leptonPt[1]")
+_list_features.append("leptonPt[2]")
+_list_features.append("leptonEta[0]")
+_list_features.append("leptonEta[1]")
+_list_features.append("leptonEta[2]")
+_list_features.append("leptonPhi[0]")
+_list_features.append("leptonPhi[1]")
+_list_features.append("leptonPhi[2]")
 
-# _list_features.append("jetPt[0]")
-# _list_features.append("jetEta[0]")
-# _list_features.append("jetPhi[0]")
-# _list_features.append("jetPt[1]")
-# _list_features.append("jetEta[1]")
-# _list_features.append("jetPhi[1]")
+_list_features.append("jetPt[0]")
+_list_features.append("jetEta[0]")
+_list_features.append("jetPhi[0]")
+_list_features.append("jetPt[1]")
+_list_features.append("jetEta[1]")
+_list_features.append("jetPhi[1]")
 
 
 
@@ -189,7 +189,7 @@ from Utils.Helper import *
 from Utils.Model import Create_Model
 from Utils.Callbacks import Get_Callbacks
 from Utils.GetData import Get_Data
-from Utils.Optimizer import Get_Loss_Optim_Metrics
+from Utils.LossOptimMetric import Get_Loss_Optim_Metrics
 from Utils.ColoredPrintout import colors
 from Utils.Validation_Control import *
 from Utils.Predictions import *
@@ -263,8 +263,6 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
 
-    print(y_train); exit(1)
-
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)
 
@@ -316,18 +314,18 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
  #    # #    #  #  #  #          #         #      #    # #    # #    #
   ####  #    #   ##   ######    #          ######  ####  #    # #####
 
-            print('\n'); print(colors.fg.lightblue, "--- Save model...", colors.reset);
+        print('\n'); print(colors.fg.lightblue, "--- Save model...", colors.reset);
 
-            # Serialize full model (arch+weights+config+state of optimizer) to HDF5
-            #Can then get this compiled model with 'model = load_model('xxx.h5')' (see: https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model)
-            model.save(_h5modelName)
+        # Serialize full model (arch+weights+config+state of optimizer) to HDF5
+        #Can then get this compiled model with 'model = load_model('xxx.h5')' (see: https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model)
+        model.save(_h5modelName)
 
-            # Save the model architecture only to json format
-            with open(_weightDir + 'arch_NN.json', 'w') as json_file:
-                json_file.write(model.to_json())
+        # Save the model architecture only to json format
+        with open(_weightDir + 'arch_NN.json', 'w') as json_file:
+            json_file.write(model.to_json())
 
-            # Convert model to estimator and save model as frozen graph for c++
-            with tensorflow.compat.v1.Session() as sess: FreezeSession_and_SaveModel(optsTrain, sess, _weightDir, _h5modelName) #Must first open a new session #Can't manage to run code below without this... (why?)
+        # Convert model to estimator and save model as frozen graph for c++
+        with tensorflow.compat.v1.Session() as sess: FreezeSession_and_SaveModel(optsTrain, sess, _weightDir, _h5modelName) #Must first open a new session #Can't manage to run code below without this... (why?)
 
     elif optsTrain["makeValPlotsOnly"] == True: #Load pre-existing model
 
@@ -409,7 +407,8 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 # //--------------------------------------------
 
 #----------  Manual call to NN training function
-Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+if __name__ == "__main__":
+    Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
 # //--------------------------------------------
 #-- Set up the command line arguments

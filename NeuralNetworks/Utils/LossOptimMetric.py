@@ -21,10 +21,11 @@ def Get_Loss_Optim_Metrics(opts):
 
     #The bigger the LR, the bigger the changes of weights in-between epochs. Too low -> weights don't update. Too large -> Instability
     _lr = 0.001
+    # _lr = 0.01
 
-    _momentum = 0.9 #helps preventing oscillations. Usually 0.5 - 0.9
+    _momentum = 0.5 #helps preventing oscillations. Usually 0.5 - 0.9
     _decay = 0.0 #Decreases the _lr by specified amount after each epoch. Used in similar way as LearningRateScheduler
-    _nesterov = True #improved momentum
+    _nesterov = False #improved momentum
 
     #-- Some possible choices of optimizers
     # optim = RMSprop(lr=_lr)
@@ -39,6 +40,7 @@ def Get_Loss_Optim_Metrics(opts):
     # metrics = 'binary_accuracy' #Calculates the mean accuracy rate across all predictions for binary classification problems.
     # metrics = 'categorical_accuracy'#Calculates the mean accuracy rate across all predictions for multiclass classification problems.
     # metrics = 'mean_squared_error' #Calculates the mean squared error (mse) rate between predicted and target values.
+    # metrics = 'mean_squared_logarithmic_error'
     # metrics = 'mean_absolute_error' #Calculates the mean absolute error (mae) rate between predicted and target values.
     # metrics = 'hinge' #Calculates the hinge loss, which is defined as max(1 - y_true * y_pred, 0).
     # metrics = 'binary_crossentropy' #Calculates the cross-entropy value for binary classification problems.
@@ -55,7 +57,9 @@ def Get_Loss_Optim_Metrics(opts):
             # metrics = 'AUC'
 
     else: #Regression
-        loss = 'mean_squared_error'
+        # loss = 'mean_squared_logarithmic_error'
+        loss = 'mean_absolute_error'
+        # loss = 'mean_squared_error'
         metrics = 'mean_squared_error'
 
     lossWeights = None

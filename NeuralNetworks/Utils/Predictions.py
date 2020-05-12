@@ -83,16 +83,14 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     #-- Sanity checks: make sure no class is empty
     assert all(len(l) for l in list_xTrain_allClasses); assert all(len(l) for l in list_xTest_allClasses)
 
-    #-- Modification: for training, events drawn from SM (class 0) are really used to train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM) --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
+    #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
     if opts["strategy"] in ["ROLR", "RASCAL"]:
         print('For validation, setting input WC values to 0 for events drawn from SM...')
         list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
-        # print(list_xTest_allClasses[0][:5,:])
-
-        #-- Events drawn at SM were used in the denominator
         if opts["nofOutputNodes"]==1: list_yTest_allClasses[0][:] = 1
         else: list_yTest_allClasses[0][:,0] = 1
 
+        # print(list_xTest_allClasses[0][:5,:])
 
  #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
  #    # #    # #      #    # # #    #   #   # #    # ##   # #
@@ -105,9 +103,17 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(savedModelName)
 
-    #--- Printout : check the outputs of each layer for 2 events #FIXME
-    for ilayer in range(0, len(model.layers)):
-        Printout_Outputs_Layer(model, ilayer, x_train[:1])
+    #--- Printout : check the outputs of each layer for 2 events
+    # for ilayer in range(0, len(model.layers)):
+    #     Printout_Outputs_Layer(model, ilayer, x_train[:1])
+
+    #-- Debug: check model predictions for different WC values
+    # list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
+    # print(model.predict(list_xTest_allClasses[0][:10,:]))
+    # list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 5
+    # print(model.predict(list_xTest_allClasses[0][:10,:]))
+
+    # print(model.predict(list_xTest_allClasses[0][:10])) #FIXME
 
     #-- Get model predictions for all events, as found in lists created above #Other available functions are: predict_classes, predict_proba, ...
     #Store predictions in 2D lists; 1st element = node ; 2nd element = class (e.g. 'tZq'/'ttZ', or 'SM'/'EFT')
@@ -141,6 +147,9 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
     # predictions_train = model.predict(x_train) #Too slow, not needed
     # predictions_test = model.predict(x_test)
+
+    #- Modify all list elements at once
+    # list_yTest_allClasses[:] = [[0.5] * len(inner) for inner in list_yTest_allClasses[:]]
 
     # -- Printout of some predictions
     # np.set_printoptions(threshold=5) #If activated, will print full numpy arrays

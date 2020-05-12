@@ -55,7 +55,7 @@ np.set_printoptions(threshold=np.inf) #If activated, will print full numpy array
 # //--------------------------------------------
 
 #Call sub-function to read/store/shape the data
-def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_features, weightDir, ntuplesDir, lumiName):
+def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_features, weightDir, ntuplesDir, lumiName, singleThetaName=""):
 
     #-- Get data from TFiles
     list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_SMweights_allClasses = Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features, opts["cuts"])
@@ -64,13 +64,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
     #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
-    list_x_allClasses, list_weights_allClasses, list_targetClass_allClasses, list_thetas_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses)
-
-    #FIXME #FIXME #FIXME -- debug => regress on dummy value
-    list_jointLR_allClasses[:][:] = 0.5
+    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
 
     #-- Concatenate and reshape arrays
-    x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators)
+    x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, singleThetaName)
 
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
@@ -82,7 +79,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator)
 
     #-- Sanitize data
-    y_process = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
+    y_process = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
+
+    if singleThetaName is not "": #Only for validation, don't need to split between train/test data
+        return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses
 
     #Shuffle and split the data for training / testing
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
@@ -318,7 +318,7 @@ def Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFT
 
 #Properly shape the arrays and concatenate them (for all years, processes, etc.)
 #NB: nominal weights are still returned as a list (want to retain process class info), and get concatenated in dedicated function Get_Events_Weights()
-def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators):
+def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, singleThetaName=""):
 
     #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
     #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
@@ -394,11 +394,13 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     x = np.concatenate(list_x_arrays_allClasses, 0)
     # EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0); EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0); EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
 
+    if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False: print('Warning: len(list_thetas_allClasses)==0...')
+
     if opts["strategy"] == "CARL_singlePoint":
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
     #-- Parameterized NN: pass the values of the WCs as input features
-    elif opts["parameterizedNN"]==True and len(list_thetas_allClasses)>0:
+    elif opts["parameterizedNN"]==True:
         thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
@@ -412,10 +414,14 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
         targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
         x = np.append(x, theta_tmp, axis=1)
 
+        #If making validation plots for SM, still need to append WC values to x (all set to 0)
+        if singleThetaName is "SM" or singleThetaName is "sm":
+            tmp = np.zeros((len(x),len(opts["listOperatorsParam"])))
+            x = np.append(x, tmp, axis=1)
+            targetClass_allClasses = tmp
     # print(x.shape)
 
     return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class
-    # return x, list_weights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, thetas_allClasses, list_nentries_class
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -628,13 +634,13 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 # //--------------------------------------------
 
 #Sanitize the data fed to NN
-def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses):
+def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName=""):
 
     #-- Sanity check (NaN, infinite)
     for l in [x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]:
         if np.isnan(l).any() or not np.isfinite(l).all(): print('\n', colors.fg.red, 'Error : found a NaN or infinite value in 1 array returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
 
-    if opts["strategy"] in ["ROLR", "RASCAL"]:
+    if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
         if np.all(y_process==0):
             print(colors.fg.orange, "WARNING : all the class labels are set to 0. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 1!", colors.reset)
             max_idx = int(len(y_process)/2) #Half events

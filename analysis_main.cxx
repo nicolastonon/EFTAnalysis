@@ -273,7 +273,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
-    bool compare_template_shapes = true;
+    bool compare_template_shapes = false;
 
 //-----------------    OTHER
 
