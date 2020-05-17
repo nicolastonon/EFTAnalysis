@@ -507,7 +507,8 @@ def Compute_JointLR(weights_refPoint, xsec_refPoint, weights_thetas, xsecs_theta
 
     JLRs = np.divide(dw_thetas, dw_ref[:,np.newaxis])
 
-    # print(weights_thetas[0,0]); print(xsecs_thetas[0]); print(weights_refPoint[0]); print(xsec_refPoint); print(JLRs[0,0])
+    # print(weights_thetas[:,0][JLRs[:,0]>1000]); print(xsecs_thetas[0]); print(weights_refPoint[:][JLRs[:,0]>1000]); print(xsec_refPoint); print(JLRs[:,0][JLRs[:,0]>1000])
+    # print(weights_thetas[:5,0]); print(xsecs_thetas[:5]); print(weights_refPoint[:5]); print(xsec_refPoint); print(JLRs[:5,0])
     return JLRs
 
 # //--------------------------------------------
@@ -578,19 +579,23 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
     # print('Baseline weight from extrapol [:5] --> ', weights_baseline[:5])
 
     print("-----------")
-    idx_refPoint = EFT_weightIDs.shape[1]-1 #Last rwgt point
-    print('RefPoint ID : ', EFT_weightIDs[0,idx_refPoint])
-    # lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_5")
-    lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_4.07_ctW_4.43_cpQM_3.7_cpQ3_-1.16_cpt_-1.82 ")
-    effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, lasPoint_WCs) #Get corresponding matrix
+    # idx_refPoint = EFT_weightIDs.shape[1]-1 #Last rwgt point
+    print('RefPoint ID : ', EFT_weightIDs[0,-1])
+    refPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, EFT_weightIDs[0,-1])
+    # refPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_5")
+    # lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_4.07_ctW_4.43_cpQM_3.7_cpQ3_-1.16_cpt_-1.82 ")
+    effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, refPoint_WCs) #Get corresponding matrix
     weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, fit_coeffs) #Get corresponding event weights
     weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
-    print('\nLast point weight from MG [:5] --> ', EFT_weights[:5,idx_refPoint])
-    print('Ref point weight from extrapol [:5] --> ', weights_refPoint[:5])
-    print('Ref point xsec from extrapol [:5] --> ', Extrapolate_EFTxsecs_fromWeights(weights_refPoint))
+    print('\nLast point weight from MG [:5] --> ', EFT_weights[:5,-1])
+    print('Corresponding weight from extrapolation [:5] --> ', weights_refPoint[:5])
+    # print('Corresponding xsec from extrapolation [:5] --> ', Extrapolate_EFTxsecs_fromWeights(weights_refPoint))
 
-    print("-----------")
-    print(colors.fg.red, 'Exiting CrossCheck_FewEvents(), which is for debugging only. Stopping here', colors.reset); exit(1)
+    # for i in range(len(EFT_weights)):
+    #     if (EFT_weights[i,-1]-weights_refPoint[i])/weights_refPoint[i] > 1.1: print(EFT_weights[i,-1], '/', weights_refPoint[i])
+    #     elif i < 10: print('=== ', (EFT_weights[i,-1], '/', weights_refPoint[i]))
+
+    print(colors.fg.red, '-----------\nExiting CrossCheck_FewEvents(), which is for debugging only. Stopping here', colors.reset); exit(1)
     return
 
 # //--------------------------------------------
@@ -716,11 +721,11 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_thetas = Extrapolate_EFTweights(effWC_components_thetas_class, list_EFT_FitCoeffs_allClasses[iclass])
 
             #-- For sample unweighting, need to translate the event weights (at all points thetas and at reference point) into probabilities --> build the sample's PDF (under each hypothesis)
+            #-- Sanitize input data by removing undesired training/testing examples
             #NB: events with large weights may get drawn many times, degrading the NN performance
-            #NB: ignoring negative weights for now #NB: should set too large probas to 0 ?
             probas_thetas = np.copy(weights_thetas)
             probas_refPoint = np.copy(weights_refPoint)
-            probas_thetas[probas_thetas < 0] = 0; probas_refPoint[probas_refPoint < 0] = 0 #Ignore neg weights
+            probas_thetas[probas_thetas < 0] = 0; probas_refPoint[probas_refPoint < 0] = 0 #Ignore events with negative weights
             probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
             #-- Extrapolate the cross section at the reference point and the new points thetas
@@ -770,6 +775,10 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
             if singleThetaName is "":
                 x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
+
+                #FIXME
+                # x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, "rwgt_ctZ_0.5", operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
+
             else:
                 x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
 
@@ -789,6 +798,14 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+ ######   ######## ########     #######  ##     ##    ###    ##    ## ######## #### ######## #### ########  ######
+##    ##  ##          ##       ##     ## ##     ##   ## ##   ###   ##    ##     ##     ##     ##  ##       ##    ##
+##        ##          ##       ##     ## ##     ##  ##   ##  ####  ##    ##     ##     ##     ##  ##       ##
+##   #### ######      ##       ##     ## ##     ## ##     ## ## ## ##    ##     ##     ##     ##  ######    ######
+##    ##  ##          ##       ##  ## ## ##     ## ######### ##  ####    ##     ##     ##     ##  ##             ##
+##    ##  ##          ##       ##    ##  ##     ## ##     ## ##   ###    ##     ##     ##     ##  ##       ##    ##
+ ######   ########    ##        ##### ##  #######  ##     ## ##    ##    ##    ####    ##    #### ########  ######
 
 def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
     """
@@ -815,12 +832,21 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     counter_events_drawnNtimes = np.zeros(len(x)) #Count how many times each event will be provided to NN
     for itheta in range(len(thetas)):
 
+        #-- Could sanitize inputs here, remove events with JLR too large ?
+        # for i in range(len(jointLR_class)):
+        #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
+        # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+
+        if need_jlr: #FIXME
+            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
         if probas_thetas is None: indices_theta = rng.choice(len(x), size=nEventsPerPoint)
         else: indices_theta = rng.choice(len(x), size=nEventsPerPoint, p=probas_thetas[:,itheta])
-        if probas_refPoint is None: indices_refPoint = rng.choice(len(x), size=nEventsPerPoint, p=probas_refPoint)
-        else: indices_refPoint = rng.choice(len(x), size=nEventsPerPoint)
+        if probas_refPoint is None: indices_refPoint = rng.choice(len(x), size=nEventsPerPoint)
+        else: indices_refPoint = rng.choice(len(x), size=nEventsPerPoint, p=probas_refPoint)
 
         #-- Get the features of selected events
         #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
@@ -831,7 +857,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         counter_events_drawnNtimes[indices_refPoint]+= 1
 
         #-- Event weights (all set to 1, since samples are unweighted)
-        # weights_theta = weightsThetas[indices_theta,itheta] #FIXME
+        # weights_theta = weightsThetas[indices_theta,itheta]
         # weights_refPoint = weightsRefPoint[indices_refPoint]
         weights_theta = np.ones(len(x_theta))
         weights_refPoint = np.ones(len(x_refPoint))
@@ -855,10 +881,16 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             jointLR_theta = jointLR[indices_theta,itheta]
             jointLR_refPoint = jointLR[indices_refPoint,itheta]
 
-            #-- For debugging, may want to set all JLR values (on which the NN regresses) to a dummy value
-            # jointLR_theta[:] = 0. #FIXME
-            # jointLR_refPoint[:] = 0.
+            #-- For debugging, may want to set all JLR values to dummy values
+            # jointLR_theta[:] = 0.5 #regress dummy value
+            # jointLR_refPoint[:] = 0.5
             # x_theta[:]*= 2.
+            # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
+            # jointLR_refPoint = np.random.normal(loc=1.5, scale=0.1, size=len(x_refPoint))
+            # jointLR_theta = weightsThetas[indices_theta,itheta] #regress event weight
+            # jointLR_refPoint = weightsRefPoint[indices_refPoint]
+            # jointLR_theta = x_theta[:,0] #regress mtW
+            # jointLR_refPoint = x_refPoint[:,0]
 
             score_allOperators_theta = []; score_allOperators_refPoint = []
             if need_score:
@@ -936,10 +968,13 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
 
     if nEvents is -1: nEvents = len(x)
 
+
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    probas_theta /= probas_theta.sum(axis=0,keepdims=1)
+    if need_jlr: #FIXME
+        probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values
+        probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
     #-- Get the features of selected events
@@ -947,7 +982,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     x_theta = x[indices_theta]
 
     #-- Event weights (all set to 1, since samples are unweighted)
-    # weights_theta = weightsThetas[nEvents,itheta] #FIXME
+    # weights_theta = weightsThetas[nEvents,itheta]
     weights_theta = np.ones(len(x_theta))
 
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)

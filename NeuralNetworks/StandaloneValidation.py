@@ -31,13 +31,14 @@ from Utils.RegressorValidation import *
 
 list_points_val = []
 list_points_val.append("SM") #Keep
+list_points_val.append("rwgt_ctZ_0.5")
 list_points_val.append("rwgt_ctZ_5")
-list_points_val.append("rwgt_ctZ_3")
+# list_points_val.append("rwgt_ctZ_3")
 
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses, list_points_val):
+def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_val):
 
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
@@ -45,30 +46,36 @@ def Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,
     #-- Add option to control nof events to sample per hypothesis
     optsTrain["nEventsStandaloneVal"] = 5000
 
+    #-- Create output dir.
+    standaloneValDir = _weightDir + 'StandaloneVal/'
+    os.makedirs(standaloneValDir, exist_ok=True)
+
     #-- Get data
     x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
     for idx, point in enumerate(list_points_val):
         x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, _ = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
         y_process_tmp = np.squeeze(y_process_tmp); y_process_tmp[:] = idx
-        x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(np.squeeze(y_process_tmp)); PhysicalWeights_all.append(PhysicalWeights_tmp)
+        x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp)
     x=np.concatenate(x_all); y=np.concatenate(y_all); y_process=np.concatenate(y_process_all); PhysicalWeights=np.concatenate(PhysicalWeights_all)
-
-    # x0, y0, y_process0, PhysicalWeights_allClasses0, LearningWeights_allClasses0 = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName="SM")
-    # x1, y1, y_process1, PhysicalWeights_allClasses1, LearningWeights_allClasses1 = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName="rwgt_ctZ_5")
-    # x = np.vstack((x0, x1))
-    # y = np.vstack((y0, y1))
-    # y_process = np.concatenate((np.squeeze(y_process0), np.squeeze(y_process1)))
 
     #--- Load model
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(_h5modelName)
 
+    x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
+
     #-- Get model predictions
     predictions = model.predict(x)
 
+    # print(y[:10])
+    # print(y_process[:10])
+    # print(model.predict(x[:10]))
+
     #-- Create validation plots
-    Make_ScatterPlot_TrueVSPred(optsTrain, _weightDir, y, predictions, y_process)
+    Make_ScatterPlot_TrueVSPred(optsTrain, standaloneValDir, y, predictions, y_process)
+
+    Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions)
 
     return
 
@@ -76,7 +83,7 @@ def Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,
 # //--------------------------------------------
 #Scatterplot
 #See https://seaborn.ppred_data.org/tutorial/distributions.html
-def Make_ScatterPlot_TrueVSPred(opts, weightDir, truth, pred, procClass):
+def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
     """
     Make validation plots for regressor NN using test data. Compare predictions to true target values.
     """
@@ -86,12 +93,8 @@ def Make_ScatterPlot_TrueVSPred(opts, weightDir, truth, pred, procClass):
     nodename='r'
     # if opts['regress_onLogr'] == True: nodename='log(r)'
 
-    xmin=-0.5; xmax=5
-    ymin=-0.5; ymax=5
-
-    standaloneValDir = weightDir + 'StandaloneVal/'
-    os.makedirs(standaloneValDir, exist_ok=True)
-
+    xmin=-1.; xmax=25
+    ymin=-1.; ymax=25
     mycol = 'g'
 
     # print(truth.shape); print(pred.shape); print(procClass.shape)
@@ -124,6 +127,28 @@ def Make_ScatterPlot_TrueVSPred(opts, weightDir, truth, pred, procClass):
     fig.savefig(plotname)
     print(colors.fg.lightgrey, "\nSaved standalone LR scatter plot as :", colors.reset, plotname)
     fig.clear(); plt.close('splot')
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+def Make_Pull_Plot(opts, standaloneValDir, truth, pred):
+    """
+    Plot pull, i.e.: (pred-truth)/truth
+    """
+
+    hpull = TH1F('', '', 50, -10, 10); hpull.Sumw2(); hpull.SetDirectory(0)
+    for idx in range(len(pred)):
+        tmp = (pred[idx] - truth[idx]) / truth[idx]
+        hpull.Fill(tmp, 1.)
+
+    hpull.SetFillColor(18)
+    hpull.SetLineColor(1)
+
+    c1 = ROOT.TCanvas()
+    hpull.Draw("hist")
+    # c1.Update()
+    c1.SaveAs(standaloneValDir + "Pull_plot.png")
 
     return
 

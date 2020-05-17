@@ -113,13 +113,13 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
-    #NB: styling not working properly ? related to figsize... ?
-    # sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB: this also sets plotting options to seaborn's default
-    # plt.tight_layout()
-
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
     Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history)
+
+    #FIXME
+    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
+    exit(1)
 
     Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history)
 
@@ -297,7 +297,6 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
 def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
-
 
     #-- CHANGED: ROC curve can not handle negative weights. Either discard weights, or use absolute
     list_PhysicalWeightsTest_allClasses_abs = np.absolute(list_PhysicalWeightsTest_allClasses)
@@ -614,7 +613,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
     plot_truth_histos = True #True <-> Display truth histos on plot
 
     nbins = 20
-    rmin = 0; rmax = 1
+    rmin = -1.; rmax = 5
     nofOutputNodes = opts["nofOutputNodes"]
 
     if opts["strategy"] in ["ROLR", "RASCAL"]: rmin=-2; rmax=2

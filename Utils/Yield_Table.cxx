@@ -544,8 +544,8 @@ int main(int argc, char **argv)
     v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
     v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
     v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
-    v_samples.push_back("PrivMC_tZq_ctz"); v_label.push_back("PrivMC_tZq_ctz");
-    v_samples.push_back("PrivMC_tZq_ctw"); v_label.push_back("PrivMC_tZq_ctw");
+    v_samples.push_back("PrivMC_ttZ_top19001_fullsim"); v_label.push_back("PrivMC_ttZ_top19001_fullsim");
+    v_samples.push_back("PrivMC_ttZ_test"); v_label.push_back("PrivMC_ttZ_test");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");

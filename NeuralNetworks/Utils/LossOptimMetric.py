@@ -21,7 +21,7 @@ def Get_Loss_Optim_Metrics(opts):
 
     #The bigger the LR, the bigger the changes of weights in-between epochs. Too low -> weights don't update. Too large -> Instability
     _lr = 0.001
-    # _lr = 0.01
+    # _lr = 0.1
 
     _momentum = 0.5 #helps preventing oscillations. Usually 0.5 - 0.9
     _decay = 0.0 #Decreases the _lr by specified amount after each epoch. Used in similar way as LearningRateScheduler
@@ -58,8 +58,10 @@ def Get_Loss_Optim_Metrics(opts):
 
     else: #Regression
         # loss = 'mean_squared_logarithmic_error'
-        loss = 'mean_absolute_error'
-        # loss = 'mean_squared_error'
+        # loss = 'mean_absolute_error'
+        # loss = 'mean_squared_logarithmic_error'
+        loss = 'mean_squared_error'
+
         metrics = 'mean_squared_error'
 
     lossWeights = None

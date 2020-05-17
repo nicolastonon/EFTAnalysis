@@ -88,7 +88,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
 
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
-    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"])
+    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType='quantile')
 
     print(colors.fg.lightblue, "\n===========", colors.reset)
     print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
@@ -721,7 +721,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
     #--- RANGE SCALING
     # a = min ; b = scale
     elif transfType == 'range':
-        scaler = MinMaxScaler(feature_range=(-1, 1)).fit(x_train[:nmax]) #Conpute macro parameters
+        scaler = MinMaxScaler(feature_range=(-0.5, 0.5)).fit(x_train[:nmax]) #Compute macro parameters
         shift_ = scaler.min_
         scale_ = scaler.scale_
         # if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
@@ -732,7 +732,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
     elif transfType == 'gauss':
         scaler = StandardScaler().fit(x_train[:nmax]) #Get params
         shift_ = scaler.mean_
-        scale_ = scaler.scale_ # = np.sqrt(var_)
+        scale_ = scaler.scale_
         if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
         xTrainRescaled = scaler.transform(x_train)
 

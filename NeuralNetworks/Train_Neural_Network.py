@@ -37,13 +37,13 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 100, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 3, #Number of hidden layers
-"nNeuronsPerLayer": 50, #Number of neurons per hidden layer
+"nHiddenLayers": 4, #Number of hidden layers
+"nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
-"activHiddenLayers": 'tanh', #Activation function of hidden layers
+"activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
 "dropoutRate": 0., #Dropout rate (0 <-> disabled)
@@ -56,9 +56,9 @@ optsTrain = {
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"nPointsPerOperator": 2, "minWC": 0.5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": -1, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_cpQM_2", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'

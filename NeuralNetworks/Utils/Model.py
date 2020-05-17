@@ -3,6 +3,7 @@
 import numpy as np
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Lambda, Input, Dense, Dropout, AlphaDropout, Activation, BatchNormalization, LeakyReLU
+from tensorflow.keras.activations import relu
 from tensorflow.keras import regularizers
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LambdaCallback, LearningRateScheduler, ReduceLROnPlateau
@@ -52,8 +53,12 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
     num_input_variables = len(list_features) #Nof input variables to be read by the NN
     # print(num_input_variables)
 
+    #Not recognized by some later code when freezing/saving model
+    # if activHiddenLayers is "lrelu":
+        # activHiddenLayers = LeakyReLU(alpha=0.01)
+        # activHiddenLayers = lambda x: relu(x, alpha=0.1)
+
     myKernelInit = 'he_normal' #Hard-coded here
-    # myKernelInit = 'he_normal'
     # myKernelInit = 'glorot_normal'
     # myKernelInit = 'glorot_uniform'
     # myKernelInit = 'lecun_normal'
@@ -75,12 +80,12 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 # //--------------------------------------------
 # INPUT LAYER
 
-    inp = Input(shape=num_input_variables, name="MYINPUT") #Inactive input layer
+    inp = Input(shape=num_input_variables, name="MYINPUT") #(Inactive) input layer
 
-    X = inp
+    X = inp #First building block of model
 
     if use_normInputLayer == True :
-        X = Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="normalization")(X)
+        X = Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="Feature_normalization")(X)
 
 # //--------------------------------------------
 # HIDDEN LAYERS

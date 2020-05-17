@@ -103,16 +103,17 @@ def normalize2(x_train, x_test):
 #q is the fraction of events that should be in the interval [-1, 1]
 def get_normalization_iqr(np_array, q):
 
-    df = pd.DataFrame(data=np_array[0:,0:]) #Convert to panda DF
+    df = pd.DataFrame(data=np_array[0:,0:]) #Convert to panda DF for easier manipulation
 
-    q = (1 + q) / 2  # Tranform q so it works with quantile
+    q = (1 + q) / 2  #Tranform q from percentage to quantile
+
     newDF = pd.DataFrame()
     for key in df.keys():
-        newDF[key] = df[key].apply(lambda x: np.mean(x[np.nonzero(x)]) if hasattr(x, "__len__") else x)
-    median = newDF.median()
-    l = abs(newDF.quantile(1 - q) - median)
-    r = abs(newDF.quantile(q) - median)
-    maximums = abs(newDF.max())
+        newDF[key] = df[key].apply(lambda x: np.mean(x[np.nonzero(x)]) if hasattr(x, "__len__") else x) #Not sure what is done here
+    median = newDF.median() #Get median
+    l = abs(newDF.quantile(1 - q) - median) #Get lower boundary corresponding to quantile
+    r = abs(newDF.quantile(q) - median) #Get upper boundary corresponding to quantile
+    maximums = abs(newDF.max()) #Also get the maximum value found (if no proper boundary found, can still divide by max value)
     # print('median\n', median)
     # print('maximums\n', maximums)
     for i, (il, ir) in enumerate(zip(l,r)):
@@ -121,7 +122,7 @@ def get_normalization_iqr(np_array, q):
             print(colors.dim, f"[WARNING] feature {df.keys()[i]} has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
             l[i] = maximums[i]; r[i] = maximums[i]
 
-    return median.values, np.maximum(l, r).values
+    return median.values, np.maximum(l, r).values #Return median and quantile boundary for rescaling
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -355,6 +356,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         opts["score_lossWeight"] = 1
 
     if opts["nHiddenLayers"]<0 or opts["nNeuronsPerLayer"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
+
+    if opts["activHiddenLayers"] is "lrelu" or opts["activInputLayer"] is "lrelu":  print(colors.fg.red, 'ERROR : leaky relu not properly implemented yet (see Model.py) !', colors.reset); exit(1)
 
     if len(processClasses_list) == 0:
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)

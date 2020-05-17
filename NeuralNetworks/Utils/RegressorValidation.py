@@ -21,21 +21,28 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     nodename='r'
     # if opts['regress_onLogr'] == True: nodename='log(r)'
 
-    xmin=-0.5; xmax=5
-    ymin=-0.5; ymax=5
+    xmin=-0.; xmax=5
+    ymin=-0.; ymax=5
+    # xmin=-0.; xmax=50
+    # ymin=-0.; ymax=50
 
     mycol = 'g'
 
 # //--------------------------------------------
 #DATA
 
+    # print(list_yTest_allClasses[0].shape); print(list_yTest_allClasses[1].shape)
     if opts["nofOutputNodes"] == 1:
-        truth_data = np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1]))
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1])))
     else:
-        truth_data = np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1]))[:,0]
-    pred_data = np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1]))
-    class_data = np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1]))
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1]))[:,0])
+    pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1])))
+    class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1])))
+    # print(truth_data.shape); print(pred_data.shape); print(class_data.shape)
 
+    quantile = np.quantile(pred_data, 0.995)
+    xmax=abs(quantile)
+    ymax=abs(quantile)
 
 # //--------------------------------------------
 #Scatterplot
@@ -50,7 +57,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
 
     splot = sns.scatterplot(x=truth_data, y=pred_data, hue=class_data, style=class_data)
     leg_handles = splot.get_legend_handles_labels()[0]
-    splot.legend(leg_handles, ['EFT', 'SM']) #FIXME -- check
+    splot.legend(leg_handles, ['EFT', 'SM']) #NB: EFT first because class label is 0
     ax = fig.gca()
     ax.set(xlim=(xmin, xmax))
     ax.set(ylim=(ymin, ymax))
@@ -155,9 +162,9 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     # plt.title('Predicted VS True '+nodename)
     plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
-    xdata = list_xTest_allClasses[1][:1000,-1]
-    if opts["nofOutputNodes"] == 1: ydata = list_yTest_allClasses[1][:1000]
-    else: ydata = list_yTest_allClasses[1][:1000,0]
+    xdata = np.squeeze(list_xTest_allClasses[1][:1000,-1])
+    if opts["nofOutputNodes"] == 1: ydata = np.squeeze(list_yTest_allClasses[1][:1000])
+    else: ydata = np.squeeze(list_yTest_allClasses[1][:1000,0])
     splot3 = sns.scatterplot(x=xdata, y=ydata)
     # ax = fig.gca()
     # ax.set(xlim=(xmin, xmax))
