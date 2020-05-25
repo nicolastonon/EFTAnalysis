@@ -139,6 +139,7 @@ def Printout_Outputs_Layer(model, ilayer, xx):
 
 #Shuffles coherently the rows of N arrays of same length
 def unison_shuffled_copies(*arr):
+    assert len(arr) > 1
     assert all(len(a) for a in arr)
     p = np.random.permutation(len(arr[0]))
     return (a[p] for a in arr)
@@ -308,7 +309,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         shutil.rmtree(weightDir)
         os.makedirs(weightDir, exist_ok=True)
     else:
-        print(colors.fg.orange, "Will only produce validation plots. Reading pre-existing NN model:", colors.reset, h5modelName)
+        print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 
     print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 

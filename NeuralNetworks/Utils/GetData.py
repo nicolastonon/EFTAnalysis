@@ -348,7 +348,9 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
                 if len(list_EFTweights_allClasses[iclass]) <= 1: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses]
                 else: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses,list_thetas_allClasses,list_targetClass_allClasses]
 
-                unison_shuffled_copies(list_tmp)
+                # print(list_weights_allClasses[:5])
+                unison_shuffled_copies(list_tmp) # To verify
+                # print(list_weights_allClasses[:5])
 
                 # list_tmp = [list_x_arrays_allClasses, list_weights_allClasses, list_thetas_allClasses,list_targetClass_allClasses]
                 list_nentries_class[iclass] = maxEvents
@@ -408,9 +410,9 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
             if opts["strategy"] == "RASCAL": scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0); scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
 
-        #Theta has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
+        #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
         theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
-        targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)]
+        if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
         targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
         x = np.append(x, theta_tmp, axis=1)
 
@@ -644,11 +646,11 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         if np.all(y_process==0):
             print(colors.fg.orange, "WARNING : all the class labels are set to 0. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 1!", colors.reset)
             max_idx = int(len(y_process)/2) #Half events
-            y_process[::2]=1 #x[start:stop:step] syntax -> change label of 1 every 2 elements
+            y_process[::2] = 1 #x[start:stop:step] syntax -> change label of 1 every 2 elements
         elif np.all(y_process==1):
             print(colors.fg.orange, "WARNING : all the class labels are set to 1. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 0!", colors.reset)
             max_idx = int(len(y_process)/2) #x[start:stop:step] syntax -> change label of 1 every 2 elements
-            y_process[::2]=0
+            y_process[::2] = 0
 
     return y_process
 

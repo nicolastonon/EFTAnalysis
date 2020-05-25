@@ -4,9 +4,7 @@
 
 """
 #TODO :
-- if parameterized and regress on r,t --> train at mixed points
-- compile(optimizer, loss=None, metrics=None, loss_weights=None, sample_weight_mode=None, weighted_metrics=None, target_tensors=None)
-- model, loss, activ
+-
 """
 
 # //--------------------------------------------
@@ -31,22 +29,22 @@ optsTrain = {
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
-# "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
-"strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+"strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
+# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 100, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 4, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0., #Dropout rate (0 <-> disabled)
+"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
 "maxEventsPerClass": -1, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
@@ -56,8 +54,8 @@ optsTrain = {
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 2, "minWC": 0.5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": -1, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_cpQM_2", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
@@ -88,7 +86,8 @@ _list_processClasses = []
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_ttZ"])
-_list_processClasses.append(["PrivMC_tZq_top19001"])
+# _list_processClasses.append(["PrivMC_tZq_top19001"])
+_list_processClasses.append(["PrivMC_tZq_top19001_fullsim"])
 # _list_processClasses.append(["PrivMC_ttZ_top19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
@@ -115,7 +114,6 @@ _list_labels.append("PrivMC_tZq_top19001")
 #-- Choose input features x
 _list_features = []
 _list_features.append("mTW")
-_list_features.append("maxDijetDelR")
 _list_features.append("dEtaFwdJetBJet")
 _list_features.append("dEtaFwdJetClosestLep")
 _list_features.append("mHT")
@@ -126,13 +124,10 @@ _list_features.append("maxDeepCSV")
 _list_features.append("delRljPrime")
 _list_features.append("delRbjPrime")
 _list_features.append("lAsymmetry")
-_list_features.append("maxDijetMass")
-_list_features.append("maxDijetDelPhi")
 _list_features.append("maxDelPhiLL")
-_list_features.append("cosThetaStar")
 
-# _list_features.append("njets")
-# _list_features.append("nbjets")
+_list_features.append("njets")
+_list_features.append("nbjets")
 
 _list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
@@ -141,25 +136,58 @@ _list_features.append("recoTop_Pt")
 _list_features.append("recoTop_Eta")
 # _list_features.append("recoTop_Phi")
 
-_list_features.append("leptonPt[0]")
-_list_features.append("leptonPt[1]")
-_list_features.append("leptonPt[2]")
-_list_features.append("leptonEta[0]")
-_list_features.append("leptonEta[1]")
-_list_features.append("leptonEta[2]")
-_list_features.append("leptonPhi[0]")
-_list_features.append("leptonPhi[1]")
-_list_features.append("leptonPhi[2]")
 
-_list_features.append("jetPt[0]")
-_list_features.append("jetEta[0]")
-_list_features.append("jetPhi[0]")
-_list_features.append("jetPt[1]")
-_list_features.append("jetEta[1]")
-_list_features.append("jetPhi[1]")
+_list_features.append("maxDijetDelR")
+_list_features.append("maxDijetPt")
+_list_features.append("maxDijetDelPhi")
+_list_features.append("maxDijetMass")
 
+_list_features.append("Top_delRbl")
+_list_features.append("Top_delRbW")
+_list_features.append("delRtjPrime")
+_list_features.append("delRZl")
+_list_features.append("Mass_tZ")
+_list_features.append("Rapidity_tZ")
+_list_features.append("delRtZ")
+_list_features.append("minDelRbL")
+_list_features.append("maxDelRbL")
+_list_features.append("ptHadSum")
+_list_features.append("ptLepSum")
+_list_features.append("ptLepMetSum")
+_list_features.append("maxEtaJet")
+_list_features.append("leptonCharge")
+_list_features.append("deepCSV_2nd")
+_list_features.append("delRtClosestJet")
+_list_features.append("mbjMax")
+_list_features.append("ptlW")
 
-
+_list_features.append("lep1_pt")
+_list_features.append("lep2_pt")
+_list_features.append("lep3_pt");
+_list_features.append("lep1_eta")
+_list_features.append("lep2_eta")
+_list_features.append("lep3_eta")
+_list_features.append("lep1_phi")
+_list_features.append("lep2_phi")
+_list_features.append("lep3_phi")
+_list_features.append("jet1_pt")
+_list_features.append("jet2_pt")
+_list_features.append("jet3_pt")
+_list_features.append("jet4_pt")
+_list_features.append("jet1_eta")
+_list_features.append("jet2_eta")
+_list_features.append("jet3_eta")
+_list_features.append("jet4_eta")
+_list_features.append("jet1_phi")
+_list_features.append("jet2_phi")
+_list_features.append("jet3_phi")
+_list_features.append("jet4_phi")
+_list_features.append("jet1_DeepCSV")
+_list_features.append("jet2_DeepCSV")
+_list_features.append("jet3_DeepCSV")
+_list_features.append("jet4_DeepCSV")
+_list_features.append("cosThetaStarPol")
+_list_features.append("cosThetaStar")
 
 
 

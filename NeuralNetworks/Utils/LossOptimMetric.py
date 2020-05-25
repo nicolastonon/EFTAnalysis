@@ -67,6 +67,7 @@ def Get_Loss_Optim_Metrics(opts):
     lossWeights = None
     if opts["strategy"] == "RASCAL": #2 outputs : [r,t]
         loss = ['mean_squared_error', 'mean_squared_error']
+        # loss = ['mean_squared_logarithmic_error', 'mean_squared_logarithmic_error']
         lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
 
     return loss, optim, metrics, lossWeights

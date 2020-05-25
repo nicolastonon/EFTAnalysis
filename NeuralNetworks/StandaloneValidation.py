@@ -25,15 +25,16 @@ from Train_Neural_Network import optsTrain,_list_lumiYears,_list_labels,_list_fe
 from Utils.Validation_Control import *
 from Utils.Predictions import *
 from Utils.RegressorValidation import *
+from Utils.Helper import unison_shuffled_copies
 
 # //--------------------------------------------
 # //--------------------------------------------
 
 list_points_val = []
-list_points_val.append("SM") #Keep
+# list_points_val.append("SM") #Keep
 list_points_val.append("rwgt_ctZ_0.5")
-list_points_val.append("rwgt_ctZ_5")
 # list_points_val.append("rwgt_ctZ_3")
+list_points_val.append("rwgt_ctZ_5")
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -44,11 +45,15 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
 
     #-- Add option to control nof events to sample per hypothesis
-    optsTrain["nEventsStandaloneVal"] = 5000
+    optsTrain["nEventsStandaloneVal"] = 1000
 
     #-- Create output dir.
     standaloneValDir = _weightDir + 'StandaloneVal/'
     os.makedirs(standaloneValDir, exist_ok=True)
+
+    #--- Load model
+    tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+    model = load_model(_h5modelName)
 
     #-- Get data
     x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]
@@ -57,20 +62,18 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
         x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, _ = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
         y_process_tmp = np.squeeze(y_process_tmp); y_process_tmp[:] = idx
         x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp)
+        # print(x_tmp[:10]); print(y_tmp[:10]); print(model.predict(x_tmp[:10]))
     x=np.concatenate(x_all); y=np.concatenate(y_all); y_process=np.concatenate(y_process_all); PhysicalWeights=np.concatenate(PhysicalWeights_all)
 
-    #--- Load model
-    tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(_h5modelName)
-
-    x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
-
     #-- Get model predictions
-    predictions = model.predict(x)
+    predictions = np.squeeze(model.predict(x))
 
-    # print(y[:10])
-    # print(y_process[:10])
-    # print(model.predict(x[:10]))
+    #-- Alter data for testing/debugging
+    # x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
+
+    # print(y[-10:])
+    # print(y_process[-10:])
+    # print(model.predict(x[-10:]))
 
     #-- Create validation plots
     Make_ScatterPlot_TrueVSPred(optsTrain, standaloneValDir, y, predictions, y_process)
@@ -93,8 +96,8 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
     nodename='r'
     # if opts['regress_onLogr'] == True: nodename='log(r)'
 
-    xmin=-1.; xmax=25
-    ymin=-1.; ymax=25
+    xmin=-1.; xmax=20
+    ymin=-1.; ymax=20
     mycol = 'g'
 
     # print(truth.shape); print(pred.shape); print(procClass.shape)
@@ -107,6 +110,9 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
         truth = truth[:,0]
         pred = pred[:,0]
 
+    truth, pred, procClass = unison_shuffled_copies(truth, pred, procClass)
+    # print(truth.shape); print(pred.shape)
+
 # //--------------------------------------------
 
     fig = plt.figure('splot', figsize=(10, 10))
@@ -114,7 +120,8 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
     plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
 
-    splot = sns.scatterplot(x=truth[:,0], y=pred[:,0], hue=procClass[:])
+    splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted')
+    # splot = sns.scatterplot(x=truth[:,0], y=pred[:,0], hue=procClass[:], palette='muted')
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, list_points_val)
     ax = fig.gca()
@@ -125,7 +132,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
 
     plotname = standaloneValDir + 'StandaloneScatterPlotLR_PredvsTruth.png'
     fig.savefig(plotname)
-    print(colors.fg.lightgrey, "\nSaved standalone LR scatter plot as :", colors.reset, plotname)
+    print(colors.fg.lightgrey, "\nSaved  LR scatter plot as :", colors.reset, plotname)
     fig.clear(); plt.close('splot')
 
     return
@@ -134,27 +141,36 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass):
 # //--------------------------------------------
 def Make_Pull_Plot(opts, standaloneValDir, truth, pred):
     """
-    Plot pull, i.e.: (pred-truth)/truth
+    Plot difference between prediction and truth (error).
     """
 
-    hpull = TH1F('', '', 50, -10, 10); hpull.Sumw2(); hpull.SetDirectory(0)
+    hpull = TH1F('', '', 50, -1, 1); hpull.Sumw2(); hpull.SetDirectory(0)
     for idx in range(len(pred)):
-        tmp = (pred[idx] - truth[idx]) / truth[idx]
+        # tmp = pred[idx] - truth[idx]
+        # tmp = (pred[idx] - truth[idx]) / truth[idx]
+        tmp = (pred[idx] - truth[idx]) / min(pred[idx], truth[idx])
         hpull.Fill(tmp, 1.)
+        # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
 
     hpull.SetFillColor(18)
     hpull.SetLineColor(1)
 
     c1 = ROOT.TCanvas()
     hpull.Draw("hist")
-    # c1.Update()
-    c1.SaveAs(standaloneValDir + "Pull_plot.png")
+    plotname = standaloneValDir + "Pull_plot.png"
+    c1.SaveAs(plotname)
+    print(colors.fg.lightgrey, "\nSaved pull plot as :", colors.reset, plotname)
 
     return
 
 # //--------------------------------------------
 # //--------------------------------------------
 
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 if __name__ == "__main__":
-    print(optsTrain["nEpochs"])
+
     Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses, list_points_val)
