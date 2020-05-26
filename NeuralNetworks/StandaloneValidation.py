@@ -250,7 +250,9 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
             if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
             else: tmp = predictions[y_process==ipt]
-            plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+
+            # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+            plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='bar', log=False, label=leg, edgecolor=col,fill=True)
 
         myxlabel = "Classifier output"
 
