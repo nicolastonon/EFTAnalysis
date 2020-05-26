@@ -839,9 +839,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        if need_jlr: #FIXME
-            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        # if need_jlr: #FIXME
+        #     probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -982,7 +982,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
+    # if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
@@ -998,17 +998,33 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     WCs_theta = np.tile(WCs, (nEvents,1))
 
     #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
-    if theta_name is "SM" or theta_name is "sm": targetClass_theta = np.zeros(len(x_theta))
+    if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
     else: targetClass_theta = np.ones(len(x_theta))
+    #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
+    if opts["strategy"] is "CARL_multiclass":
+        if opts["nofOutputNodes"] == 1:
+            if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
+            else: targetClass_theta = np.ones(len(x_theta))
+        else:
+            targetClass_theta = np.zeros((len(x_theta), opts["nofOutputNodes"]))
+            if theta_name in ["SM", "sm"]: targetClass_theta[:,0] = 1 #First column <-> SM class
+            else:
+                for iop in range(len(operatorNames)):
+                    if WCs[0,iop] != 0:
+                        targetClass_theta[:,iop+1] = 1 #Set class according to which operator is activated #First element corresponds to SM, following elements to EFT operators
+                        break #Can't 'activate' more than 1 class at once ! (should prevent it better)
+
+        targetClass_theta = np.squeeze(targetClass_theta)
 
     #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
-    if opts["strategy"] is "CARL_multiclass": jointLR = np.ones(nEvents)
+    # if opts["strategy"] is "CARL_multiclass": jointLR = np.ones(nEvents)
 
     #-- Augmented data
+    jointLR_theta = np.empty(1)
+    score_allOperators_theta = []
     if need_jlr:
         jointLR_theta = jointLR[indices_theta]
 
-        score_allOperators_theta = []
         if need_score:
             for iop in range(len(opts['listOperatorsParam'])):
                 score_allOperators_theta.append(list_score_allOperators[iop][indices_theta])

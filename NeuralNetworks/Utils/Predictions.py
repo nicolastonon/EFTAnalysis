@@ -35,8 +35,15 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
     maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
+
+    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
+
+# //--------------------------------------------
+
     minWC = opts["minWC"]
     maxWC = opts["maxWC"]
+
+    if opts["parameterizedNN"] == False or opts["makeValPlotsOnly"] == True: useMostExtremeWCvaluesOnly = False
 
     #-- Store the training and testing events into lists, depending on their 'true class' values
     #For 'EFT' class, don't just consider all non-SM events (too much). For now, only consider events generated at boundary values (for all operators)
@@ -46,7 +53,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     list_PhysicalWeightsTrain_allClasses = []; list_PhysicalWeightsTest_allClasses = []
     if opts["nofOutputNodes"] == 1 or opts["regress"] == True: #Binary class label
 
-        if opts["parameterizedNN"] == False:
+        if useMostExtremeWCvaluesOnly is False: #Get predictions for all events
             list_xTrain_allClasses.append(x_train[y_process_train==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1][:maxEvents])
             list_xTrain_allClasses.append(x_train[y_process_train==0][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==0][:maxEvents])
             list_xTest_allClasses.append(x_test[y_process_test==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==1][:maxEvents])

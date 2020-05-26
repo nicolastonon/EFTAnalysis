@@ -410,17 +410,20 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
             if opts["strategy"] == "RASCAL": scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0); scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
 
-        #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
-        theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
-        if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
-        targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
-        x = np.append(x, theta_tmp, axis=1)
-
-        #If making validation plots for SM, still need to append WC values to x (all set to 0)
-        if singleThetaName is "SM" or singleThetaName is "sm":
+        #-- Append WC values to input features, etc.
+        if singleThetaName is "SM" or singleThetaName is "sm": #If making validation plots for SM, still need to append WC values to x (all set to 0)
             tmp = np.zeros((len(x),len(opts["listOperatorsParam"])))
             x = np.append(x, tmp, axis=1)
-            targetClass_allClasses = tmp
+        #FIXME
+        # elif singleThetaName is not "" and opts["strategy"] is "CARL_multiclass": #For standalone val in multiclass, need to evaluate on a single operator (single class), but retain all operators need during training
+        elif singleThetaName is not "": #For standalone val in multiclass, need to evaluate on a single operator (single class), but retain all operators need during training
+            x = np.append(x, thetas_allClasses, axis=1)
+        else: #Otherwise, only consider selected operators
+            #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
+            theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
+            if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
+            targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
+            x = np.append(x, theta_tmp, axis=1)
     # print(x.shape)
 
     return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class

@@ -16,7 +16,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     Make validation plots for regressor NN using test data. Compare predictions to true target values.
     """
 
-    if opts["strategy"] not in ["ROLR", "RASCAL"]: return
+    if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Useful for regressor validation only
 
     nodename='r'
     # if opts['regress_onLogr'] == True: nodename='log(r)'

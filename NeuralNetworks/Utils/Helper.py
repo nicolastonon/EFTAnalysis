@@ -558,6 +558,7 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
     operatorNames = np.array(operatorNames)
     operatorWCs = np.array(operatorWCs)
 
+    # return #FIXME -- why was missing return args ?
     return operatorNames, operatorWCs, idx_SM
 
 # //--------------------------------------------
@@ -586,6 +587,52 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
     orderedList_WCvalues_allPoints = np.asarray(orderedList_WCvalues_allPoints) #List --> array
 
     return orderedList_WCvalues_allPoints
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was training over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
+def AddMissingOperatorsToValPointsNames(opts, list_points):
+
+    for ipt, point in enumerate(list_points): #For each point
+        if point in ["SM", "sm"]: newname = "SM"
+        else:
+            newname = "rwgt"
+            operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(point) #Get the operator names/values of point
+            for opParam in opts["listOperatorsParam"]: #Add each operator used to parameterize the DNN to new name
+                newname+= "_"+opParam+"_"
+                found = False
+                for iOpPoint in range(operatorNames.shape[1]):
+                    if opParam == operatorNames[0,iOpPoint]: #Operator found in point name -> add corresponding value next to operator name
+                        found = True
+                        newname+= str(operatorWCs[0,iOpPoint])
+                        break
+                if not found: newname+= "0" #Operator not found in point name -> add 0 next to operator name
+        # print(newname)
+        list_points[ipt] = newname
+
+    return list_points
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#-- Translate a point name (e.g. 'rwgt_ctZ_3_ctW_5_cpQM_0_cpQ3_0_cpt_0') to a proper plot legend name (e.g. 'ctZ=3,ctW=5')
+def GetLegendNameEFTpoint(list_points):
+
+    legendNames = []
+    for ipt, point in enumerate(list_points):
+        legname = ""
+        if point in ["SM", "sm"]: legname = "SM"
+        else:
+            operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(point)
+            for iOpPoint in range(operatorNames.shape[1]):
+                if operatorWCs[0,iOpPoint] == 0: continue #Don't show null operators
+                if legname is not '': legname+= ','
+                legname+= operatorNames[0,iOpPoint]+'='+str(operatorWCs[0,iOpPoint]).rstrip('0').rstrip('.')
+        # print(legname)
+        legendNames.append(legname)
+
+    return legendNames
 
 # //--------------------------------------------
 # //--------------------------------------------

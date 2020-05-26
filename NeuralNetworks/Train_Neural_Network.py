@@ -30,7 +30,7 @@ optsTrain = {
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
-"strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
+# "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
@@ -52,10 +52,10 @@ optsTrain = {
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 500, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_cpQM_2", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
@@ -67,7 +67,7 @@ optsTrain = {
 "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 
 #=== OTHERS ===#
-"makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
+"makeValPlotsOnly": True, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 }
 
 

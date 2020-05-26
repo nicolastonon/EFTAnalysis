@@ -118,6 +118,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history)
 
     #FIXME
+    Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
     # if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
     # exit(1)
 
