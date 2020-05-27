@@ -776,7 +776,6 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             if singleThetaName is "":
                 x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
 
-                #FIXME
                 # x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, "rwgt_ctZ_5", operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
 
             else:
@@ -990,12 +989,19 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
     x_theta = x[indices_theta]
 
-    #-- Event weights (all set to 1, since samples are unweighted)
+    #-- Event weights (all set to 1, since samples are already unweighted)
     # weights_theta = weightsThetas[nEvents,itheta]
     weights_theta = np.ones(len(x_theta))
 
+    #FIXME #FIXME
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
-    WCs_theta = np.tile(WCs, (nEvents,1))
+    mode_valWC = 2 #0 <-> all WCs to 0 (SM scenario); 1 <-> set WCs according to current scenario (will be diff. for diff. points); 2 <-> set WCs manually (identically for all points)
+    if mode_valWC is 0: WCs_theta = np.tile(WCs, (nEvents,1))
+    elif mode_valWC is 1: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
+    elif mode_valWC is 2:
+        # WCs_theta = np.array([0,3,0,0,0]); WCs_theta = np.tile(WCs_theta, (nEvents,1))
+        WCs_eval = Translate_EFTpointID_to_WCvalues(operatorNames, opts["evalPoint"])
+        WCs_theta = np.tile(WCs_eval, (nEvents,1))
 
     #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
     if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))

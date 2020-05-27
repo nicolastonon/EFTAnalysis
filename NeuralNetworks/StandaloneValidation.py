@@ -30,29 +30,41 @@ from Utils.RegressorValidation import *
 # //--------------------------------------------
 # //--------------------------------------------
 
-#-- List of EFT points to consider for the validation #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
-list_points_val = []
-list_points_val.append("SM") #Keep this
-# list_points_val.append("rwgt_ctZ_0.5")
-list_points_val.append("rwgt_ctZ_3")
-list_points_val.append("rwgt_ctZ_5")
-list_points_val.append("rwgt_ctW_5")
-list_points_val.append("rwgt_ctW_2_cpQ3_4.5")
-# list_points_val.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
+nEventsStandaloneVal = 5000 #Nof events to sample/display per point
+
+#== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'.
+evalPoint = "rwgt_ctW_3"
+
+#== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
+list_points_sampling = []
+list_points_sampling.append("SM") #Keep this
+# list_points_sampling.append("rwgt_ctZ_0.5")
+# list_points_sampling.append("rwgt_ctZ_3")
+# list_points_sampling.append("rwgt_ctZ_5")
+list_points_sampling.append("rwgt_ctW_3")
+# list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
+# list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
+# list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
 
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_val):
+def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal):
 
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
 
-    #-- Add option to control nof events to sample per hypothesis
-    optsTrain["nEventsStandaloneVal"] = 500
+    if optsTrain["parameterizedNN"] is False:
+        print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset)
+        return
 
-    #-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was training over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
-    AddMissingOperatorsToValPointsNames(optsTrain, list_points_val)
+    #-- Add option to control nof events to sample per hypothesis
+    optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal
+    #-- Add option to set point (WC values) at which DNN is to be evaluated
+    optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint) )
+
+    #-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was trained over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
+    AddMissingOperatorsToValPointsNames(optsTrain, list_points_sampling)
 
     #-- Create output dir.
     standaloneValDir = _weightDir + 'StandaloneVal/'
@@ -65,12 +77,12 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     #-- Get data
     x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
-    for idx, point in enumerate(list_points_val):
+    for idx, point in enumerate(list_points_sampling):
         print(colors.fg.lightblue, "=== POINT: ", point, " ===\n", colors.reset)
-        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, _ = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
         y_process_tmp = np.squeeze(y_process_tmp)
 
-        #FIXME -- keep that for multiclass ?
+        #?? Keep that for multiclass ?
         y_process_tmp = np.zeros(len(y_process_tmp)) #1D
         y_process_tmp[:] = idx #Arbitrary identifier
 
@@ -83,6 +95,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
 
     #-- Get model predictions
     predictions = np.squeeze(model.predict(x))
+    # print(predictions)
 
     #-- Alter data for testing/debugging
     # x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
@@ -94,11 +107,11 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
 #-- Create validation plots
 
     #For regressors
-    Make_ScatterPlot_TrueVSPred(optsTrain, standaloneValDir, y, predictions, y_process, list_points_val)
-    Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions, list_points_val)
+    Make_ScatterPlot_TrueVSPred(optsTrain, standaloneValDir, y, predictions, y_process, list_points_sampling)
+    Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions, list_points_sampling)
 
     #For classifiers
-    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, _list_labels, predictions, y_process, list_points_val)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, list_points_sampling)
 
     return
 
@@ -106,7 +119,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
 # //--------------------------------------------
 #Scatterplot
 #See https://seaborn.ppred_data.org/tutorial/distributions.html
-def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, list_points_val):
+def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, list_points_sampling):
     """
     Make validation plots for regressor NN using test data. Compare predictions to true target values.
     """
@@ -143,7 +156,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted')
     # splot = sns.scatterplot(x=truth[:,0], y=pred[:,0], hue=procClass[:], palette='muted')
     leg_handles = splot.get_legend_handles_labels()[0]
-    splot.legend(leg_handles, list_points_val)
+    splot.legend(leg_handles, list_points_sampling)
     ax = fig.gca()
     ax.set(xlim=(xmin, xmax))
     ax.set(ylim=(ymin, ymax))
@@ -159,7 +172,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
 
 # //--------------------------------------------
 # //--------------------------------------------
-def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_val):
+def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     """
     Plot difference between prediction and truth (error).
     """
@@ -189,19 +202,19 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_val):
 # //--------------------------------------------
 
 
-def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_val):
+def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_sampling):
 
     nofOutputNodes = opts["nofOutputNodes"]
 
     #-- Define colors for all validation points
     #See: https://matplotlib.org/3.2.1/gallery/color/colormap_reference.html
-    cols = cm.rainbow(np.linspace(0, 1, len(list_points_val))) #Rainbow
-    # cols = cm.Oranges(np.linspace(0, 1, len(list_points_val))) #Nuances of orange
-    # cols = cm.Pastel1(np.linspace(0, 1, len(list_points_val))) #Pastel
-    # cols = cm.Set1(np.linspace(0, 1, len(list_points_val))) #Qualitative
+    cols = cm.rainbow(np.linspace(0, 1, len(list_points_sampling))) #Rainbow
+    # cols = cm.Oranges(np.linspace(0, 1, len(list_points_sampling))) #Nuances of orange
+    # cols = cm.Pastel1(np.linspace(0, 1, len(list_points_sampling))) #Pastel
+    # cols = cm.Set1(np.linspace(0, 1, len(list_points_sampling))) #Qualitative
 
     #-- Define legend names for all validation points
-    legendNames = GetLegendNameEFTpoint(list_points_val)
+    legendNames = GetLegendNameEFTpoint(list_points_sampling)
 
     for inode in range(nofOutputNodes): #For each output node
 
@@ -231,10 +244,11 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
                     tick.set_color('gray')
 
 
-        for ipt, point in enumerate(list_points_val): #For each validation point
+        for ipt, point in enumerate(list_points_sampling): #For each validation point
 
-            #For each point, get corresponding color and legend nam,e
+            #For each point, get corresponding color and legend name
             col = cols[ipt]
+            if(point is "SM"): col = 'dimgrey'
             leg = legendNames[ipt]
 
             #-- Trick : for training histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
@@ -248,15 +262,25 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             # h.Scale(1./(integ*sf_integral))
 
             #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
-            if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
-            else: tmp = predictions[y_process==ipt]
+            if nofOutputNodes == 1:
+                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
+                else: tmp = predictions[y_process==ipt]
+            else:
+                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt][:,inode]+1) #Transform r -> s
+                else: tmp = predictions[y_process==ipt][:,inode]
 
-            # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
-            plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='bar', log=False, label=leg, edgecolor=col,fill=True)
+            if point is "SM":
+                plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+            else:
+                plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
+
+            # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
         myxlabel = "Classifier output"
 
-        plt.legend(loc='best', fontsize=14.5)
+        # plt.legend(loc='best', fontsize=14.5)
+        plt.legend(fontsize=14, bbox_to_anchor=(1.1, 1.1), loc="upper right")
+        # plt.legend(bbox_to_anchor=(1.1, 1.05))
         # plt.legend(loc='upper center', numpoints=1)
         # plt.title("Output distributions")
         plt.grid(axis='y', alpha=0.75)
@@ -286,4 +310,4 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
 
 if __name__ == "__main__":
 
-    Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses, list_points_val)
+    Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal)

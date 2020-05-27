@@ -1,4 +1,4 @@
-Start of NN training :26-May-2020 (18:30:35)
+Start of NN training :27-May-2020 (12:20:53)
 
 OPTIONS
 ----------------- 
@@ -12,6 +12,7 @@ activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
 dropoutRate --> 0.0
+regularizer --> ['l2', 0.0001]
 maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_test --> -1
@@ -20,7 +21,7 @@ listOperatorsParam --> ['ctZ', 'ctW', 'cpQM', 'cpQ3', 'cpt']
 nPointsPerOperator --> 20
 minWC --> -3
 maxWC --> 3
-nEventsPerPoint --> 500
+nEventsPerPoint --> 5000
 batchSizeEFT --> 512
 refPoint --> SM
 score_lossWeight --> 1
@@ -30,7 +31,7 @@ makeValPlotsOnly --> True
 parameterizedNN --> True
 regress --> False
 nofOutputNodes --> 1
-maxEvents --> 500
+maxEvents --> 5000
 batchSize --> 512
 ----------------- 
 

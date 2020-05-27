@@ -215,7 +215,8 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
     #Legend
     lns = lns1+lns2+lns3
     labs = [l.get_label() for l in lns]
-    plt.legend(lns, labs, loc='upper right')
+    plt.legend(lns, labs, loc='best')
+    # plt.legend(lns, labs, loc='upper right')
 
     timer.start()
     plt.show()
@@ -270,7 +271,7 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
     #Legend
     lns = lns1+lns2+lns3
     labs = [l.get_label() for l in lns]
-    plt.legend(lns, labs, loc='lower center')
+    plt.legend(lns, labs, loc='best')
 
     timer.start()
     plt.show()
@@ -303,9 +304,11 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
     list_PhysicalWeightsTest_allClasses_abs = np.absolute(list_PhysicalWeightsTest_allClasses)
     list_PhysicalWeightsTrain_allClasses_abs = np.absolute(list_PhysicalWeightsTrain_allClasses)
 
+    lw = 2 #linewidth
+
     for inode in range(nofOutputNodes):
 
-        lw = 2 #linewidth
+#-- Binary ROCs
 
         if opts["strategy"] in ["ROLR", "RASCAL"]: #Transformation r->s : s = 1/(r+1) #No sample weights (unweighted samples)
 
@@ -339,13 +342,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
         elif opts["nofOutputNodes"] > 1: # Multiclass: 1 ROC (signal vs All) per node
 
-            fpr = dict()
-            tpr = dict()
-            roc_auc = dict()
-            fpr_train = dict()
-            tpr_train = dict()
-            roc_auc_train = dict()
-
+            fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
             if opts["parameterizedNN"] is False:
                 fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
@@ -386,7 +383,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         plt.xlabel('Signal efficiency')
         plt.ylabel('Background rejection')
         plt.title('')
-        plt.legend(loc="lower left")
+        plt.legend(loc='best')
 
         #Display plot in terminal for quick check (only for first node)
         if inode == 0:
@@ -399,7 +396,52 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         fig.clear()
         plt.close(fig)
 
-    #Multiclass ROC (first node, test data only)
+#-- Multiclass ROCs (first node, test data only) #FIXME fine ?
+        if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
+
+            # Compute ROC curve and ROC area for each class
+            fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
+
+            # Plot ROC curves
+            fig = plt.figure('multiclass')
+            for iclass in range(len(list_labels)): #iclass <-> iterate over all classes (may be signal or bkg); inode <-> current 'signal'
+                if iclass == inode: #current 'signal' (<-> node) vs all
+                    if opts["parameterizedNN"] is False:
+                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                    else:
+                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+                    roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
+                    mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
+                else: #current 'signal' (<-> node) vs specific process
+                    if opts["parameterizedNN"] is False:
+                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[inode],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
+                    else:
+                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])) )
+                    roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
+                    mylabel = 'vs ' + list_labels[iclass]+' (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
+
+                plt.plot(tpr[iclass], 1-fpr[iclass], lw=lw, label=mylabel)
+
+            ax = fig.gca()
+            ax.set_xticks(np.arange(0, 1, 0.1))
+            ax.set_yticks(np.arange(0, 1., 0.1))
+            plt.grid()
+            plt.plot([1, 0], [0, 1], 'k--', lw=lw)
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.0])
+            plt.xlabel('Signal efficiency')
+            plt.ylabel('Background rejection')
+            plt.title('ROC curves for '+list_labels[0]+ ' (test data)')
+            plt.legend(loc='best')
+
+            plotname = weight_dir + 'ROC_NN_'+list_labels[inode]+'_allClasses.png'
+            fig.savefig(plotname)
+            print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
+            fig.clear()
+            plt.close('multiclass')
+
+    #FIXME -- remove
+    '''
     if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
 
         # Compute ROC curve and ROC area for each class
@@ -437,12 +479,6 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
                 roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
                 mylabel = 'vs ' + list_labels[iclass]+' (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
 
-            # fpr_train[iclass], tpr_train[iclass], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,0], np.concatenate(list_predictions_train_allNodes_allClasses[0][iclass]))
-            # roc_auc_train[iclass] = auc(fpr_train[iclass], tpr_train[iclass])
-
-            # plt.plot(tpr_train[iclass], 1-fpr_train[iclass], color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[iclass]))
-            # plt.plot(tpr[iclass], 1-fpr[iclass], color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass]))
-
             plt.plot(tpr[iclass], 1-fpr[iclass], lw=lw, label=mylabel)
 
         ax = fig.gca()
@@ -455,7 +491,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         plt.xlabel('Signal efficiency')
         plt.ylabel('Background rejection')
         plt.title('ROC curves for '+list_labels[0]+ ' (test data)')
-        plt.legend(loc="lower left")
+        plt.legend(loc='best')
 
         timer.start()
         plt.show()
@@ -465,6 +501,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
         fig.clear()
         plt.close('multiclass')
+    '''
 
     return
 
@@ -482,13 +519,13 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
     nofOutputNodes = opts["nofOutputNodes"]
 
-    label_class0 = "Signal"; label_class1 = "Backgrounds"
-
-    if opts["parameterizedNN"] == True: label_class0 = "SM"; label_class1 = "EFT"
-
     for inode in range(nofOutputNodes):
 
-        if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
+        if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: break #Only for r node
+
+        #Class labels (for legend)
+        label_class0 = "Signal"; label_class1 = "Backgrounds"
+        if opts["parameterizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
 
         nbins = 20
         rmin = 0.; rmax = 1.
@@ -579,7 +616,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         myxlabel = "Classifier output"
 
-        plt.legend(loc='upper center', numpoints=1)
+        plt.legend(loc='best', numpoints=1)
         plt.title("Output distributions for Signal & Background")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
@@ -742,7 +779,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         elif opts["strategy"] is "RASCAL": nodename = 'Score_' + opts["listOperatorsParam"][inode-1] #First node is r
 
         # myxlabel = "Regressor output"
-        plt.legend(loc='upper center', numpoints=1)
+        plt.legend(loc='best', numpoints=1)
         plt.title("Regressor output for SM & EFT (test data)")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
@@ -925,7 +962,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             xx = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
             plt.hist(xx[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==1])
             plt.hist(xx[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==0])
-            plt.legend(loc="upper center")
+            plt.legend(loc='best')
 
             os.makedirs(weight_dir + 'features/', exist_ok=True)
             plotname = weight_dir + 'features/'+feature+'.png'

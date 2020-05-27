@@ -35,7 +35,7 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs":30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
 "nHiddenLayers": 3, #Number of hidden layers
@@ -45,6 +45,7 @@ optsTrain = {
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
 "dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"regularizer": ['L2', 0.0001], #Weight regularization ('' <-> None, 'L1','L2','L1L2' <-> apply value given in 2nd arg.)
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
 "maxEventsPerClass": -1, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
@@ -55,11 +56,11 @@ optsTrain = {
 "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 500, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_cpQM_2", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+# "refPoint": "rwgt_ctW_2",
+# "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 

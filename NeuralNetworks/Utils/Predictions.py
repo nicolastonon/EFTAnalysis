@@ -82,7 +82,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
         for inode in range(len(list_labels)): #For each node
 
-            if opts["parameterizedNN"] == False or inode==0: #Use all events for control plots (for non-parameterized NN, and for SM point). ((Specify 'or inode==0' so that 'SM' events fall in this condition and not the next for 'CARL_multiclass' strategy))
+            if opts["parameterizedNN"] == False or inode==0 or useMostExtremeWCvaluesOnly == False: #Use all events for control plots (for non-parameterized NN, and for SM point). ((Specify 'or inode==0' so that 'SM' events fall in this condition and not the next for 'CARL_multiclass' strategy))
                 list_xTrain_allClasses.append(x_train[y_process_train[:,inode]==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train[:,inode]==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train[:,inode]==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train[:,inode]==1][:maxEvents])
                 list_xTest_allClasses.append(x_test[y_process_test[:,inode]==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test[:,inode]==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test[:,inode]==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,inode]==1][:maxEvents])
             elif opts["strategy"] is "CARL_multiclass": #For each EFT operator (not SM = first label!), only use events generated at most extreme EFT point
@@ -95,14 +95,32 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     assert all(len(l) for l in list_xTrain_allClasses); assert all(len(l) for l in list_xTest_allClasses) #No empty list element
 
     #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
-    if opts["strategy"] in ["ROLR", "RASCAL"]: #FIXME
-        print('For validation, setting input WC values to 0 for events drawn from SM...')
-        list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
-        if opts["nofOutputNodes"]==1: list_yTest_allClasses[0][:] = 1
-        else: list_yTest_allClasses[0][:,0] = 1
+    # if opts["strategy"] in ["ROLR", "RASCAL"]:
+    #     print('For validation, setting input WC values to 0 for events drawn from SM...')
+    #     list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
+    #     if opts["nofOutputNodes"]==1: list_yTest_allClasses[0][:] = 1
+    #     else: list_yTest_allClasses[0][:,0] = 1
 
         # print(list_yTest_allClasses[:][:])
         # print(list_yTest_allClasses[0][:15])
+
+    #FIXME -- for all strategies, train+test ? correct way ?
+    if True:
+        print(colors.fg.orange, colors.bold, 'For validation, setting all input WC values to 0 !', colors.reset)
+        for iclass in range(len(list_xTest_allClasses)):
+            list_xTest_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
+            list_xTrain_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
+
+        #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
+        if opts["strategy"] in ["ROLR", "RASCAL"]:
+            if opts["nofOutputNodes"]==1:
+                list_yTest_allClasses[0][:] = 1
+                list_yTrain_allClasses[0][:] = 1
+            else:
+                list_yTest_allClasses[0][:,0] = 1
+                list_yTrain_allClasses[0][:,0] = 1
+
+    # print(list_xTest_allClasses[0][:15])
 
  #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
  #    # #    # #      #    # # #    #   #   # #    # ##   # #

@@ -82,7 +82,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y_process = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
 
     if singleThetaName is not "": #Only for validation, don't need to split between train/test data
-        return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses
+        return x, y, y_process, PhysicalWeights_allClasses, list_labels
 
     #Shuffle and split the data for training / testing
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
@@ -398,7 +398,8 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
 
     if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False: print('Warning: len(list_thetas_allClasses)==0...')
 
-    if opts["strategy"] == "CARL_singlePoint":
+    # if opts["strategy"] == "CARL_singlePoint":
+    if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXMEcarl
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
     #-- Parameterized NN: pass the values of the WCs as input features
@@ -411,13 +412,24 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
             if opts["strategy"] == "RASCAL": scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0); scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
 
         #-- Append WC values to input features, etc.
-        if singleThetaName is "SM" or singleThetaName is "sm": #If making validation plots for SM, still need to append WC values to x (all set to 0)
-            tmp = np.zeros((len(x),len(opts["listOperatorsParam"])))
+        # if singleThetaName is "SM" or singleThetaName is "sm": #If making validation plots for SM, still need to append WC values to x (all set to 0)
+        #     tmp = np.zeros((len(x),len(opts["listOperatorsParam"])))
+        #     x = np.append(x, tmp, axis=1)
+        if singleThetaName is not "": #For standalone val in multiclass, need to evaluate on a single operator (<-> single class), but retain all operators used during training
+            tmp = thetas_allClasses
+
+            #The lines below have 1 purpose: whatever the operators considered in 'singleThetaName' (<-> validation) or 'list_EFTweightIDs_allClasses' (<-> EFT parameterization in sample), we only want to keep the operators which were included in the training phase, for which we need to provide WC values
+            operatorNames_tmp, operatorWCs_tmp, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[0][0][0])
+            indices_opToRemove = []
+            for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D
+                # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
+                if opSample not in str(opts['evalPoint']): indices_opToRemove.append(iOpSample)
+            # print(indices_opToRemove)
+            if len(indices_opToRemove)>0: tmp = np.delete(thetas_allClasses, indices_opToRemove, axis=1)
+
             x = np.append(x, tmp, axis=1)
-        #FIXME
-        # elif singleThetaName is not "" and opts["strategy"] is "CARL_multiclass": #For standalone val in multiclass, need to evaluate on a single operator (single class), but retain all operators need during training
-        elif singleThetaName is not "": #For standalone val in multiclass, need to evaluate on a single operator (single class), but retain all operators need during training
-            x = np.append(x, thetas_allClasses, axis=1)
+            # x = np.append(x, thetas_allClasses, axis=1)
+
         else: #Otherwise, only consider selected operators
             #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
             theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
@@ -543,15 +555,18 @@ def Update_Lists(opts, list_labels, list_features):
 
     if opts["parameterizedNN"] == True:
 
-        list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
+        # list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
+
+        #FIXMEcarl
+        if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
         refName = "SM"
         if opts["refPoint"] is not "SM": refName = "refPoint"
 
         if opts["strategy"] in ["CARL", "ROLR", "RASCAL"]: list_labels = []; list_labels.append(refName); list_labels.append("EFT") #SM vs EFT
-        elif opts["strategy"] == "CARL_multiclass": list_labels = opts["listOperatorsParam"][:]; list_labels.insert(0, refName) #SM vs op1 vs op2 vs ... #NB: must specify '[:]' to create a copy, not a reference
+        elif opts["strategy"] is "CARL_multiclass": list_labels = opts["listOperatorsParam"][:]; list_labels.insert(0, refName) #SM vs op1 vs op2 vs ... #NB: must specify '[:]' to create a copy, not a reference
 
-    elif opts["strategy"] == "CARL_singlePoint":
+    elif opts["strategy"] is "CARL_singlePoint":
         list_labels = []; list_labels.append("SM"); list_labels.append("EFT")#SM vs EFT ref point
 
     return list_labels, list_features

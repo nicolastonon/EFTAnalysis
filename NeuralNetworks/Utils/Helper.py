@@ -360,6 +360,11 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["activHiddenLayers"] is "lrelu" or opts["activInputLayer"] is "lrelu":  print(colors.fg.red, 'ERROR : leaky relu not properly implemented yet (see Model.py) !', colors.reset); exit(1)
 
+    if opts["regularizer"][0] is 'L1': opts["regularizer"][0] = 'l1'
+    elif opts["regularizer"][0] is 'L2': opts["regularizer"][0] = 'l2'
+    elif opts["regularizer"][0] is 'L1L2': opts["regularizer"][0] = 'l1l2'
+    if opts["regularizer"][0] not in ['','l1','l2','l1l2'] or opts["regularizer"][1]<0: print(colors.fg.red, 'ERROR : wrong value for arg. regularizer !', colors.reset); exit(1)
+
     if len(processClasses_list) == 0:
         print(colors.fg.red, 'ERROR : no process class defined...', colors.reset); exit(1)
     elif len(processClasses_list) is not len(labels_list):
@@ -558,7 +563,6 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
     operatorNames = np.array(operatorNames)
     operatorWCs = np.array(operatorWCs)
 
-    # return #FIXME -- why was missing return args ?
     return operatorNames, operatorWCs, idx_SM
 
 # //--------------------------------------------
@@ -578,9 +582,13 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
     for i_ID in range(len(refPointIDs)): #For each point ID
         orderedList_WCvalues = []
         for op_sample in operatorNames_sample: #For each operator found in sample
+            found = False #Check whether operator in sample (needed for EFT parameterization) is found in current point's ID
             for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
-                if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample): orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
+                if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample):
+                    found = True
+                    orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
                 elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.fg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample... (check exact naming)', colors.reset); exit(1) #Operator specified in ID not found in sample
+            if found is False: orderedList_WCvalues.append(0) #If current point's ID does not include an operator found in sample (needed for parameterization), include it and set to 0
 
         orderedList_WCvalues_allPoints.append(orderedList_WCvalues)
 
@@ -594,12 +602,22 @@ def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
 #-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was training over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
 def AddMissingOperatorsToValPointsNames(opts, list_points):
 
+    #If a single point is given in arg, make sure it is treated as a list in the function (and not as a single string) #NB: can't use 'np.atleast_1d' here, because numpy does not treat strings properly (or should convert to object, etc.)
+    if isinstance(list_points, str):
+        tmp = list_points; list_points = []; list_points.append(tmp)
+
+
     for ipt, point in enumerate(list_points): #For each point
         if point in ["SM", "sm"]: newname = "SM"
         else:
             newname = "rwgt"
             operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(point) #Get the operator names/values of point
+
+            for opPoint in operatorNames[0,:]: #Sanity check
+                if opPoint not in opts["listOperatorsParam"]: print(colors.bold, colors.fg.red, 'ERROR : validation point operator ', opPoint, ' was not used in training phase ; can not be used for evaluation', colors.reset); exit(1) #Operator specified in point's name was not used during training phase
+
             for opParam in opts["listOperatorsParam"]: #Add each operator used to parameterize the DNN to new name
+                # print(opParam)
                 newname+= "_"+opParam+"_"
                 found = False
                 for iOpPoint in range(operatorNames.shape[1]):

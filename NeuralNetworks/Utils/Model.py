@@ -65,10 +65,14 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 
     #Regularizers
     #NB : "In practice, if you are not concerned with explicit feature selection, L2 regularization can be expected to give superior performance over L1."
-    # reg = None
     # reg = regularizers.l1(0.001) #Default 0.001
-    reg = regularizers.l2(0.0001) #Default 0.001
+    # reg = regularizers.l2(0.0001) #Default 0.001
     # reg = regularizers.l1_l2(l1=0.01, l2=0.01)
+
+    reg = None
+    if opts["regularizer"][0] is 'l1': reg = regularizers.l1(opts["regularizer"][1])
+    elif opts["regularizer"][1] is 'l2': reg = regularizers.l2(opts["regularizer"][1])
+    elif opts["regularizer"][0] is 'l1l2': reg = regularizers.l1_l2(opts["regularizer"][1])
 
     #Examples of advanced activations (should be added as layers, after dense layers)
     # model.add(LeakyReLU(alpha=0.1))
