@@ -30,21 +30,27 @@ from Utils.RegressorValidation import *
 # //--------------------------------------------
 # //--------------------------------------------
 
-nEventsStandaloneVal = 5000 #Nof events to sample/display per point
+nEventsStandaloneVal = 500 #Nof events to sample/display per point
 
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'.
-evalPoint = "rwgt_ctW_3"
+# evalPoint = "SM"
+evalPoint = "rwgt_ctZ_3"
+# evalPoint = "rwgt_ctZ_5"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
-list_points_sampling.append("SM") #Keep this
-# list_points_sampling.append("rwgt_ctZ_0.5")
-# list_points_sampling.append("rwgt_ctZ_3")
-# list_points_sampling.append("rwgt_ctZ_5")
-list_points_sampling.append("rwgt_ctW_3")
+# list_points_sampling.append("SM") #Keep this
+list_points_sampling.append("rwgt_ctZ_1")
+list_points_sampling.append("rwgt_ctZ_3")
+list_points_sampling.append("rwgt_ctZ_5")
+# list_points_sampling.append("rwgt_ctW_1")
+# list_points_sampling.append("rwgt_ctW_2")
+# list_points_sampling.append("rwgt_ctW_3")
+# list_points_sampling.append("rwgt_ctW_4")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
+# list_points_sampling.append("rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3")
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -112,14 +118,22 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
 
     #For classifiers
     Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, list_points_sampling)
+    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, list_points_sampling)
 
     return
 
 # //--------------------------------------------
 # //--------------------------------------------
-#Scatterplot
-#See https://seaborn.ppred_data.org/tutorial/distributions.html
+
+  ####   ####    ##   ##### ##### ###### #####  #####  #       ####  #####
+ #      #    #  #  #    #     #   #      #    # #    # #      #    #   #
+  ####  #      #    #   #     #   #####  #    # #    # #      #    #   #
+      # #      ######   #     #   #      #####  #####  #      #    #   #
+ #    # #    # #    #   #     #   #      #   #  #      #      #    #   #
+  ####   ####  #    #   #     #   ###### #    # #      ######  ####    #
+
 def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, list_points_sampling):
+#See https://seaborn.ppred_data.org/tutorial/distributions.html
     """
     Make validation plots for regressor NN using test data. Compare predictions to true target values.
     """
@@ -129,8 +143,8 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     nodename='r'
     # if opts['regress_onLogr'] == True: nodename='log(r)'
 
-    xmin=-1.; xmax=20
-    ymin=-1.; ymax=20
+    # xmin=-1.; xmax=20
+    # ymin=-1.; ymax=20
     mycol = 'g'
 
     # print(truth.shape); print(pred.shape); print(procClass.shape)
@@ -143,8 +157,20 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
         truth = truth[:,0]
         pred = pred[:,0]
 
+    truth = np.squeeze(truth); pred = np.squeeze(pred); procClass = np.squeeze(procClass) #Make data 1D
+
     truth, pred, procClass = unison_shuffled_copies(truth, pred, procClass)
     # print(truth.shape); print(pred.shape)
+
+    #Auto-adjust plot range
+    quantileMin = np.quantile(truth, 0.10)
+    quantileMax = np.quantile(truth, 0.90)
+    xmin = math.floor(quantileMin) #Round down
+    xmax = math.ceil(quantileMax) #Round up
+    quantileMin = np.quantile(pred, 0.10)
+    quantileMax = np.quantile(pred, 0.90)
+    ymin = math.floor(quantileMin) #Round down
+    ymax = math.ceil(quantileMax) #Round up
 
 # //--------------------------------------------
 
@@ -153,7 +179,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
 
-    splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted')
+    splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted', s=15) #s <-> point size
     # splot = sns.scatterplot(x=truth[:,0], y=pred[:,0], hue=procClass[:], palette='muted')
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, list_points_sampling)
@@ -168,10 +194,112 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     print(colors.fg.lightgrey, "\nSaved  LR scatter plot as :", colors.reset, plotname)
     fig.clear(); plt.close('splot')
 
+# //--------------------------------------------
+#Jointplot (scatterplot+density)
+
+    #NB: 'jointplot' func creates its own figure (as do: FacetGrid, factorplot, lmplot, PairGrid, pairplot, JointGrid, jointplot.)
+    jplot = sns.jointplot(x=truth, y=pred, color=mycol, alpha=0.5, xlim=(xmin,xmax), ylim=(ymin,ymax))
+    plotname = standaloneValDir + 'JointPlot_PredvsTruth.png'
+    jplot.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved LR joint plot as :", colors.reset, plotname)
+
     return
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, procClass, list_points_sampling):
+#See https://seaborn.ppred_data.org/tutorial/distributions.html
+    """
+    2D scatterplot representing 2 input features in XY, and the DNN response as the z-axis colorbar.
+    Should use this function to represent how the DNN response varies depending on some powerful variables, for events sampled according to a single scenario.
+    """
+
+    nEvents = 150 #Nof events to display
+
+    # cmap = sns.cubehelix_palette(as_cmap=True)
+    cmap = sns.color_palette('coolwarm', 7)
+
+    var1 = "recoZ_Pt"
+    var2 = "Mass_3l"
+
+#Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
+
+    idx1=-1; idx2=-1
+    for i, feature in enumerate(list_features):
+        if feature is var1: idx1=i
+        elif feature is var2: idx2=i
+    if idx1 is -1 or idx2 is -1: print('ERROR : feature not found !'); return
+
+# //--------------------------------------------
+#DATA
+
+    x1 = x[:,idx1]
+    x2 = x[:,idx2]
+
+    x1, x2, pred, procClass = unison_shuffled_copies(x1, x2, pred, procClass)
+    for array in [x1, x2, pred, procClass]:
+        array = array[:nEvents]
+
+    # x1, x2, pred, procClass = unison_shuffled_copies(x1, x2, pred, procClass)
+    # print(x1.shape); print(x2.shape); print(pred.shape); print(procClass.shape)
+
+    #Auto-adjust plot range
+    # minElement = np.amin(x1)
+    quantileMin = np.quantile(x1, 0.10)
+    quantileMax = np.quantile(x1, 0.90)
+    xmin = math.floor(quantileMin) #Round down
+    xmax = math.ceil(quantileMax) #Round up
+    quantileMin = np.quantile(x2, 0.10)
+    quantileMax = np.quantile(x2, 0.90)
+    ymin = math.floor(quantileMin) #Round down
+    ymax = math.ceil(quantileMax) #Round up
+    quantileMin = np.quantile(pred, 0.10)
+    quantileMax = np.quantile(pred, 0.90)
+    zmin = math.floor(quantileMin) #Round down
+    zmax = math.ceil(quantileMax) #Round up
+
+# //--------------------------------------------
+
+    fs = 16 #fontsize
+    pd = 20 #title padding
+    fig = plt.figure('splot', figsize=(15, 10))
+    # plt.tight_layout()
+    plt.title('NN prediction VS ('+var1+','+var2+')', fontsize = 18)
+    plt.xlabel(var1, fontsize=fs, labelpad=pd)
+    plt.ylabel(var2, fontsize=fs, labelpad=pd)
+
+    # splot = sns.scatterplot(x=x1, y=x2, hue=procClass, palette='muted')
+    # splot = sns.scatterplot(x=x1, y=x2, hue=pred, s=50, cmap=cmap)
+    splot = plt.scatter(x1, x2, c=pred, cmap="coolwarm", s=15) #s <-> point size
+    # plt.colorbar(splot)
+    cbar = plt.colorbar(splot)
+    cbar.set_label('NN output value', fontsize=fs, labelpad=pd)
+    # leg_handles = splot.get_legend_handles_labels()[0]
+    # splot.legend(leg_handles, list_points_sampling)
+    ax = fig.gca()
+    ax.set(xlim=(xmin, xmax))
+    ax.set(ylim=(ymin, ymax))
+    plt.clim(zmin, zmax)
+    ax.tick_params(labelsize=20)
+
+    plotname = standaloneValDir + 'StandaloneScatterPlot2Dvar.png'
+    fig.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved  2Dvar scatter plot as :", colors.reset, plotname)
+    fig.clear(); plt.close('splot')
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+ #####  #    # #      #
+ #    # #    # #      #
+ #    # #    # #      #
+ #####  #    # #      #
+ #      #    # #      #
+ #       ####  ###### ######
+
 def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     """
     Plot difference between prediction and truth (error).
@@ -179,11 +307,19 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
 
     if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
 
-    hpull = TH1F('', '', 50, -1, 1); hpull.Sumw2(); hpull.SetDirectory(0)
+    #Transform classifier -> LR
+    # print(truth[:10])
+    # print(pred[:10])
+    # if opts["strategy"] is "classifier" or "CARL" in opts["strategy"]:
+    #     truth = (1 - truth) / truth
+    #     pred = (1 - pred) / pred
+
+    hpull = TH1F('Pull', 'Pull', 30, 0, 3); hpull.Sumw2(); hpull.SetDirectory(0)
     for idx in range(len(pred)):
         # tmp = pred[idx] - truth[idx]
         # tmp = (pred[idx] - truth[idx]) / truth[idx]
-        tmp = (pred[idx] - truth[idx]) / min(pred[idx], truth[idx])
+        # tmp = (pred[idx] - truth[idx]) / min(pred[idx], truth[idx])
+        tmp = (pred[idx]) / truth[idx]
         hpull.Fill(tmp, 1.)
         # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
 
@@ -201,6 +337,12 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
 # //--------------------------------------------
 # //--------------------------------------------
 
+  ####  #    # ###### #####  ##### #####    ##   # #    #
+ #    # #    # #      #    #   #   #    #  #  #  # ##   #
+ #    # #    # #####  #    #   #   #    # #    # # # #  #
+ #    # #    # #      #####    #   #####  ###### # #  # #
+ #    #  #  #  #      #   #    #   #   #  #    # # #   ##
+  ####    ##   ###### #    #   #   #    # #    # # #    #
 
 def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_sampling):
 
@@ -279,7 +421,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
         myxlabel = "Classifier output"
 
         # plt.legend(loc='best', fontsize=14.5)
-        plt.legend(fontsize=14, bbox_to_anchor=(1.1, 1.1), loc="upper right")
+        plt.legend(fontsize=13, bbox_to_anchor=(1.1, 1.1), loc="upper right")
         # plt.legend(bbox_to_anchor=(1.1, 1.05))
         # plt.legend(loc='upper center', numpoints=1)
         # plt.title("Output distributions")

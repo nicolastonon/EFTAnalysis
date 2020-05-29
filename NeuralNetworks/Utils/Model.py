@@ -122,11 +122,11 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
         if opts["strategy"] in ["ROLR", "RASCAL"]:
 
             if regress_onLogr: #Apply linear activation and exponentiate the result to match the target <-> train on log(r)
-                logr = Dense(1, activation="linear")(X)
+                logr = Dense(1, activation="linear", name="linear")(X)
                 r = Lambda(lambda v: K.exp(v), name="likelihood_ratio")(logr)
             else: #Apply linear activation to match the target <-> train on r. Also define log(r), may be needed to compute score
                 r = Dense(1, activation="linear", name="likelihood_ratio")(X)
-                logr = Lambda(lambda v: K.log(v))(r)
+                logr = Lambda(lambda v: K.log(v), name="log")(r)
 
             if opts["strategy"] == "RASCAL": #Ratio+Score. Differentiate 'logr' layer to get the score
                 t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
@@ -135,7 +135,7 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
                 model = Model(inputs=[inp], outputs=[r])
 
         elif opts["strategy"] is "regressor":
-            out = Dense(1, activation="linear")(X)
+            out = Dense(1, activation="linear", name="linear")(X)
             model = Model(inputs=[inp], outputs=[out])
 
         else: print("ERROR: no regressor model defined for this strategy"); exit(1)

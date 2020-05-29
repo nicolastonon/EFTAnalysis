@@ -104,21 +104,23 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
         # print(list_yTest_allClasses[:][:])
         # print(list_yTest_allClasses[0][:15])
 
-    #FIXME -- for all strategies, train+test ? correct way ?
-    if True:
-        print(colors.fg.orange, colors.bold, 'For validation, setting all input WC values to 0 !', colors.reset)
+    #-- HARDCODED #For training, events had WC values corresponding to points considered for training; but for validation, set all WCs to 0 --> Corresponds to evaluating the NN performance for SM point... ?  #FIXME makes sense ?
+    if opts["strategy"] not in ["ROLR", "RASCAL"]:
+        print(colors.fg.orange, colors.bold, '\n! For validation, setting all input WC values to 0 !\n', colors.reset)
         for iclass in range(len(list_xTest_allClasses)):
+            if opts["strategy"] in ["ROLR", "RASCAL"] and iclass > 0: continue #FIXME -- keep WC values for EFT events used in training ??
             list_xTest_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
             list_xTrain_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
 
-        #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
-        if opts["strategy"] in ["ROLR", "RASCAL"]:
-            if opts["nofOutputNodes"]==1:
-                list_yTest_allClasses[0][:] = 1
-                list_yTrain_allClasses[0][:] = 1
-            else:
-                list_yTest_allClasses[0][:,0] = 1
-                list_yTrain_allClasses[0][:,0] = 1
+    #FIXME -- check what to do
+    #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
+    # if opts["strategy"] in ["ROLR", "RASCAL"]:
+    #     if opts["nofOutputNodes"]==1:
+    #         list_yTest_allClasses[0][:] = 1
+    #         list_yTrain_allClasses[0][:] = 1
+    #     else:
+    #         list_yTest_allClasses[0][:,0] = 1
+    #         list_yTrain_allClasses[0][:,0] = 1
 
     # print(list_xTest_allClasses[0][:15])
 

@@ -28,8 +28,8 @@ optsTrain = {
 #=== NN strategy ===#
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
-# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
@@ -38,7 +38,7 @@ optsTrain = {
 "nEpochs":30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 3, #Number of hidden layers
+"nHiddenLayers": 4, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
@@ -53,22 +53,22 @@ optsTrain = {
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-"listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 "nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
-"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctW_2",
+"batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+# "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+"refPoint": "rwgt_ctW_2",
 # "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
-"regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
+"regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
 
 #=== Event preselection ===#
 "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 
 #=== OTHERS ===#
-"makeValPlotsOnly": True, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
+"makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 }
 
 
@@ -89,6 +89,7 @@ _list_processClasses = []
 # _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_top19001"])
 _list_processClasses.append(["PrivMC_tZq_top19001_fullsim"])
+_list_processClasses.append(["PrivMC_ttZ_v3"])
 # _list_processClasses.append(["PrivMC_ttZ_top19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
@@ -101,9 +102,8 @@ _list_processClasses.append(["PrivMC_tZq_top19001_fullsim"])
 _list_labels = []
 # _list_labels.append("tZq")
 # _list_labels.append("ttZ")
-# _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_ttZ")
-_list_labels.append("PrivMC_tZq_top19001")
+_list_labels.append("PrivMC_tZq")
+_list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_top19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_tZq_ctw")
@@ -278,7 +278,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     #-- Initialization, sanity checks
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
     print(colors.fg.lightgrey, '\n===> Saving NN settings to: ', _weightDir + "NN_settings.txt", colors.reset)
-    print(colors.fg.lightgrey, '===> Saving NN features list and node names to: ', _weightDir + "NN_info.txt", colors.reset)
+    print(colors.fg.lightgrey, '\n===> Saving NN features list and node names to: ', _weightDir + "NN_info.txt", colors.reset)
 
                                        #
  ##### #####    ##   # #    #         #     ##### ######  ####  #####

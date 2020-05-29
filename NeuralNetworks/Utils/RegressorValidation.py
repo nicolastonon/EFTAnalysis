@@ -95,7 +95,6 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     # jplot.ax_marg_x.set_xlim(xmin, xmax); jplot.ax_marg_y.set_ylim(ymin, ymax)
     plotname = weight_dir + 'JointPlot_PredvsTruth.png'
     jplot.savefig(plotname)
-    jplot
     print(colors.fg.lightgrey, "\nSaved LR joint plot as :", colors.reset, plotname)
 
 # //--------------------------------------------

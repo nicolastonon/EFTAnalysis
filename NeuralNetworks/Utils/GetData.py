@@ -423,7 +423,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
             indices_opToRemove = []
             for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D
                 # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
-                if opSample not in str(opts['evalPoint']): indices_opToRemove.append(iOpSample)
+                if opSample not in str(opts['evalPoint']) and str(opts['evalPoint']) not in ['SM', 'sm']: indices_opToRemove.append(iOpSample)
             # print(indices_opToRemove)
             if len(indices_opToRemove)>0: tmp = np.delete(thetas_allClasses, indices_opToRemove, axis=1)
 
