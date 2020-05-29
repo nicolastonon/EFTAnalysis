@@ -15,7 +15,7 @@ from ROOT import TMVA, TFile, TTree, TCut, gROOT, TH1, TH1F
 from root_numpy import fill_hist
 from sklearn.metrics import roc_curve, auc, roc_auc_score, accuracy_score, classification_report, confusion_matrix, multilabel_confusion_matrix
 # from sklearn.feature_selection import mutual_info_classif
-from Utils.Helper import close_event, KS_test, Anderson_Darling_test, ChiSquare_test
+from Utils.Helper import close_event, KS_test, Anderson_Darling_test, ChiSquare_test, s_from_r, r_from_s
 from Utils.ColoredPrintout import colors
 from Utils.RegressorValidation import *
 from pandas.plotting import scatter_matrix
@@ -565,14 +565,16 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         #only signal process
         for val, w in zip((list_predictions_train_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTrain_allClasses[inode]): #'zip' stops when the shorter of the lists stops
-            if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+            # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+            if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
             hist_overtrain_train_sig.Fill(val, w)
 
         #only background processes
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
                 for val, w in zip(list_predictions_train_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTrain_allClasses[iclass]):
-                    if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+                    # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+                    if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
                     hist_overtrain_train_bkg.Fill(val, w)
 
         #Normalize

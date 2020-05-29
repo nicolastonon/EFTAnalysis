@@ -78,7 +78,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
 
     #--- Load model
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(_h5modelName)
+    model = load_model(_h5modelName, compile=False) #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     #-- Get data
     x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]
@@ -305,14 +305,12 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     Plot difference between prediction and truth (error).
     """
 
-    if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
+    # if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
 
     #Transform classifier -> LR
-    # print(truth[:10])
-    # print(pred[:10])
-    # if opts["strategy"] is "classifier" or "CARL" in opts["strategy"]:
-    #     truth = (1 - truth) / truth
-    #     pred = (1 - pred) / pred
+    if opts["strategy"] is "classifier" or pts["strategy"] is "CARL":
+        truth = r_from_s(truth)
+        pred = r_from_s(pred)
 
     hpull = TH1F('Pull', 'Pull', 30, 0, 3); hpull.Sumw2(); hpull.SetDirectory(0)
     for idx in range(len(pred)):

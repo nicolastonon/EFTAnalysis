@@ -133,7 +133,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
     #--- Load model
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(savedModelName)
+    model = load_model(savedModelName, compile=False) #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     # for i in range(len(list_xTest_allClasses[1][-100:] )):
     #     if list_yTest_allClasses[1][i] > 15:

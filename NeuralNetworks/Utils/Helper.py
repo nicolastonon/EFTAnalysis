@@ -233,8 +233,7 @@ def Load_PreExisting_Model(h5modelName):
 # //-------------------------------------------
 
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(h5modelName) # model has to be re-loaded
-
+    model = load_model(h5modelName, compile=False) # model has to be re-loaded #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     return model
 
@@ -651,6 +650,16 @@ def GetLegendNameEFTpoint(list_points):
         legendNames.append(legname)
 
     return legendNames
+
+# //--------------------------------------------
+# //--------------------------------------------
+#Convert classifier response (s) <-> likelihood ratio (r)
+
+def s_from_r(r):
+    return np.clip(1.0 / (1.0 + r), 0.0, 1.0)
+
+def r_from_s(s, epsilon=1.0e-6):
+    return np.clip((1.0 - s + epsilon) / (s + epsilon), epsilon, None)
 
 # //--------------------------------------------
 # //--------------------------------------------

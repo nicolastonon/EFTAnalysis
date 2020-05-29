@@ -43,7 +43,8 @@ def FreezeSession_and_SaveModel(opts, sess, weightDir, h5modelName):
     print('\n'); print(colors.fg.lightblue, "--- Freeze graph...", colors.reset); print('\n')
 
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-    model = load_model(h5modelName) # model has to be re-loaded
+    # model = load_model(h5modelName) # model has to be re-loaded
+    model = load_model(h5modelName, compile=False) # model has to be re-loaded #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     # tensorflow.compat.v1.keras.backend.clear_session() #Closing the last session avoids that node names get a suffix appened when opening a new session #Does not work?
     # sess = tensorflow.compat.v1.keras.backend.get_session()

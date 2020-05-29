@@ -1,6 +1,7 @@
 #Define the loss function, optimizer and metric to be used to train the network
 
 from tensorflow.keras.optimizers import SGD, Adam, RMSprop
+from tensorflow.keras import backend as K
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -62,6 +63,8 @@ def Get_Loss_Optim_Metrics(opts):
         # loss = 'mean_squared_logarithmic_error'
         loss = 'mean_squared_error'
 
+        if opts["strategy"] is "ROLR": loss = clipped_mse #use custom (clipped MSE) loss to avoid huge loss values dominating the training
+
         metrics = 'mean_squared_error'
 
     lossWeights = None
@@ -71,6 +74,14 @@ def Get_Loss_Optim_Metrics(opts):
         lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
 
     return loss, optim, metrics, lossWeights
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+# def clipped_mse(y_true, y_pred, min=-10., max=10.):
+def clipped_mse(y_true, y_pred):
+
+    return K.mean(K.square(K.clip(y_pred, -10., 10.) - K.clip(y_true, -10., 10.)), axis=-1)
 
 # //--------------------------------------------
 # //--------------------------------------------

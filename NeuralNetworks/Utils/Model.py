@@ -44,11 +44,11 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
     use_dropout = False
     if dropoutRate > 0: use_dropout = True
 
+    nof_outputs = opts["nofOutputNodes"]
+
 # //--------------------------------------------
 # //--------------------------------------------
 # Automatically set some variables
-
-    nof_outputs = opts["nofOutputNodes"]
 
     num_input_variables = len(list_features) #Nof input variables to be read by the NN
     # print(num_input_variables)
@@ -132,6 +132,7 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
                 t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
                 model = Model(inputs=[inp], outputs=[r, t]) #1 output for r, n_operator outputs for t
             else: #Ratio only
+                # rclip = K.clip(r, min_value=-10, max_value=10) #NB: could clip gradient as such to avoid huge values (but also affects predictions...)
                 model = Model(inputs=[inp], outputs=[r])
 
         elif opts["strategy"] is "regressor":

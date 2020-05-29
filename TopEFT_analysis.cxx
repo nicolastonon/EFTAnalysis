@@ -15,12 +15,6 @@
 
 //--------------------------------------------
 
-/** NOTES **
-
--
-
-*/
-
 #include "TopEFT_analysis.h"
 
 #define MYDEBUG(msg) cout<<endl<<ITAL("-- DEBUG: " << __FILE__ << ":" << __LINE__ <<":")<<FRED(" " << msg  <<"")<<endl

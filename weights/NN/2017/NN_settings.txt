@@ -1,9 +1,9 @@
-Start of NN training :29-May-2020 (09:42:11)
+Start of NN training :29-May-2020 (16:52:51)
 
 OPTIONS
 ----------------- 
-strategy --> CARL_singlePoint
-nEpochs --> 30
+strategy --> ROLR
+nEpochs --> 3
 splitTrainEventFrac --> 0.8
 nHiddenLayers --> 4
 nNeuronsPerLayer --> 100
@@ -21,18 +21,17 @@ listOperatorsParam --> ['ctZ']
 nPointsPerOperator --> 20
 minWC --> -3
 maxWC --> 3
-nEventsPerPoint --> 5000
+nEventsPerPoint --> 3000
 batchSizeEFT --> 5000
-refPoint --> rwgt_ctW_2
+refPoint --> SM
 score_lossWeight --> 1
 regress_onLogr --> True
 cuts --> 1
 makeValPlotsOnly --> False
-parameterizedNN --> False
-regress --> False
+parameterizedNN --> True
+regress --> True
 nofOutputNodes --> 1
-maxEvents --> -1
-batchSize --> 512
+maxEvents --> 3000
+batchSize --> 5000
 ----------------- 
 
-End of NN training and evaluation :29-mai-2020 (09:43:25)

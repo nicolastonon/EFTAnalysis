@@ -264,11 +264,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             t->SetBranchStatus("passedBJets", 1);
     		t->SetBranchAddress("passedBJets", &passedBJets);
 
-            UInt_t njets, nbjets;
-            t->SetBranchStatus("nJets", 1);
-    		t->SetBranchAddress("nJets", &njets);
-            t->SetBranchStatus("nBJets", 1);
-    		t->SetBranchAddress("nBJets", &nbjets);
+            // UInt_t njets, nbjets;
+            // t->SetBranchStatus("nJets", 1);
+    		// t->SetBranchAddress("nJets", &njets);
+            // t->SetBranchStatus("nBJets", 1);
+    		// t->SetBranchAddress("nBJets", &nbjets);
 
             //Study impact of SFs
             Double_t weightPU, weightPrefire, weightMuonLoose, weightMuonTight, weightElectronLoose, weightElectronTight, btagEventWeight[5];
@@ -546,6 +546,7 @@ int main(int argc, char **argv)
     v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
     v_samples.push_back("PrivMC_ttZ_top19001_fullsim"); v_label.push_back("PrivMC_ttZ_top19001_fullsim");
     v_samples.push_back("PrivMC_ttZ_test"); v_label.push_back("PrivMC_ttZ_test");
+    v_samples.push_back("PrivMC_ttZ_v3"); v_label.push_back("PrivMC_ttZ_v3");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");
