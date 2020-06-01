@@ -515,6 +515,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
+#FIXME -- check that I properly inverted train/test distributions
 def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
@@ -560,61 +561,60 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                     tick.set_color('gray')
 
         #-- Trick : for training histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
-        hist_overtrain_train_sig = TH1F('hist_overtrain_train_sig', '', nbins, rmin, rmax); hist_overtrain_train_sig.Sumw2(); hist_overtrain_train_sig.SetDirectory(0)
-        hist_overtrain_train_bkg = TH1F('hist_overtrain_train_bkg', '', nbins, rmin, rmax); hist_overtrain_train_bkg.Sumw2(); hist_overtrain_train_bkg.SetDirectory(0)
+        hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
+        hist_overtrain_bkg = TH1F('hist_overtrain_bkg', '', nbins, rmin, rmax); hist_overtrain_bkg.Sumw2(); hist_overtrain_bkg.SetDirectory(0)
 
         #only signal process
-        for val, w in zip((list_predictions_train_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTrain_allClasses[inode]): #'zip' stops when the shorter of the lists stops
+        for val, w in zip((list_predictions_test_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTest_allClasses[inode]): #'zip' stops when the shorter of the lists stops
             # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
             if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
-            hist_overtrain_train_sig.Fill(val, w)
+            hist_overtrain_sig.Fill(val, w)
 
         #only background processes
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
-                for val, w in zip(list_predictions_train_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTrain_allClasses[iclass]):
+                for val, w in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass]):
                     # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
                     if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
-                    hist_overtrain_train_bkg.Fill(val, w)
+                    hist_overtrain_bkg.Fill(val, w)
 
         #Normalize
-        int_sig = hist_overtrain_train_sig.Integral(0,hist_overtrain_train_sig.GetNbinsX()+1)
-        int_bkg = hist_overtrain_train_bkg.Integral(0,hist_overtrain_train_bkg.GetNbinsX()+1)
+        int_sig = hist_overtrain_sig.Integral(0,hist_overtrain_sig.GetNbinsX()+1)
+        int_bkg = hist_overtrain_bkg.Integral(0,hist_overtrain_bkg.GetNbinsX()+1)
         if int_sig <= 0: int_sig = 1
         if int_bkg <= 0: int_bkg = 1
         sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
-        hist_overtrain_train_sig.Scale(1./(int_sig*sf_integral))
-        hist_overtrain_train_bkg.Scale(1./(int_bkg*sf_integral))
+        hist_overtrain_sig.Scale(1./(int_sig*sf_integral))
+        hist_overtrain_bkg.Scale(1./(int_bkg*sf_integral))
 
-        #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
-        if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_test_allNodes_allClasses[inode][inode]+1) #Transform r -> s
-        else: tmp = list_predictions_test_allNodes_allClasses[inode][inode]
-        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Test)", edgecolor='cornflowerblue',fill=True)
+        #Plot training sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
+        if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][inode]+1) #Transform r -> s
+        else: tmp = list_predictions_train_allNodes_allClasses[inode][inode]
+        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTrain_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Train)", edgecolor='cornflowerblue',fill=True)
 
         #Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
-                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_test_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
-                else: tmp = list_predictions_test_allNodes_allClasses[inode][iclass]
+                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
+                else: tmp = list_predictions_train_allNodes_allClasses[inode][iclass]
                 lists_predictions_bkgs.append(tmp)
-                # lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
-                lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
+                lists_weights_bkg.append(list_PhysicalWeightsTrain_allClasses[iclass])
 
         if len(lists_predictions_bkgs) > 0:
             predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Test)", hatch='/', edgecolor='orangered',fill=False)
+            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Train)", hatch='/', edgecolor='orangered',fill=False)
 
         #Read bin contents/errors
         bin_centres = []; counts_sig = []; err_sig = []; counts_bkg = []; err_bkg = []
-        for ibin in range(1, hist_overtrain_train_sig.GetNbinsX()+1):
-            bin_centres.append(hist_overtrain_train_sig.GetBinCenter(ibin))
-            counts_sig.append(hist_overtrain_train_sig.GetBinContent(ibin)); counts_bkg.append(hist_overtrain_train_bkg.GetBinContent(ibin))
-            err_sig.append(hist_overtrain_train_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_train_bkg.GetBinError(ibin))
+        for ibin in range(1, hist_overtrain_sig.GetNbinsX()+1):
+            bin_centres.append(hist_overtrain_sig.GetBinCenter(ibin))
+            counts_sig.append(hist_overtrain_sig.GetBinContent(ibin)); counts_bkg.append(hist_overtrain_bkg.GetBinContent(ibin))
+            err_sig.append(hist_overtrain_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_bkg.GetBinError(ibin))
 
         #Plot training sig/bkg histos, normalized, with errorbars
-        plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Train)')
-        plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Train)')
+        plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Test)')
+        plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Test)')
 
         myxlabel = "Classifier output"
 

@@ -866,6 +866,8 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 7.;}
     else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
 
+    else if(var == "njets" || var == "nbjets") {nbins = 6; xmin = 0.; xmax = 6;}
+
     // else if(var == "Lep3Pt") {nbins = 20; xmin = 0; xmax = 80;}
 
     else {nbins = 20; xmin = -5.; xmax = 150.;}

@@ -88,7 +88,7 @@ _list_processClasses = []
 # _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_top19001"])
-_list_processClasses.append(["PrivMC_tZq_top19001_fullsim"])
+_list_processClasses.append(["PrivMC_tZq_fullsim"])
 # _list_processClasses.append(["PrivMC_ttZ_v3"])
 # _list_processClasses.append(["PrivMC_ttZ_top19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])

@@ -111,20 +111,20 @@ int main(int argc, char **argv)
     // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
     // thesamplelist.push_back("PrivMC_tZq_top19001"); thesamplegroups.push_back("tZq_EFT_v2");
-    thesamplelist.push_back("PrivMC_tZq_top19001_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
+    thesamplelist.push_back("PrivMC_tZq_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
     // thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
     thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
     // thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
 
     //Signal(s)
-    // thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
-    // thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
+    thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
+    thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
 
     //tX
     thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("tHq"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("tHW"); thesamplegroups.push_back("tX");
-    thesamplelist.push_back("ST"); thesamplegroups.push_back("tX");
+    // thesamplelist.push_back("ST"); thesamplegroups.push_back("tX");
 
     //ttX
     thesamplelist.push_back("ttH"); thesamplegroups.push_back("ttX");
@@ -143,8 +143,8 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VV");
     thesamplelist.push_back("WWW"); thesamplegroups.push_back("VV");
     thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("WZ2l2q"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("ZZ2l2q"); thesamplegroups.push_back("VV");
+    // thesamplelist.push_back("WZ2l2q"); thesamplegroups.push_back("VV");
+    // thesamplelist.push_back("ZZ2l2q"); thesamplegroups.push_back("VV");
 
     //DY (VG?)
     thesamplelist.push_back("DY"); thesamplegroups.push_back("DY");
@@ -197,23 +197,20 @@ int main(int argc, char **argv)
     vector<TString> set_v_add_var_names;
     // set_v_add_var_names.push_back("nMediumBJets");
 
-    // set_v_add_var_names.push_back("NJets"); //new name
-    // set_v_add_var_names.push_back("NBJets"); //new name
     set_v_add_var_names.push_back("channel");
-    set_v_add_var_names.push_back("nJets");
-    set_v_add_var_names.push_back("nBJets");
+    set_v_add_var_names.push_back("njets");
+    set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
     set_v_add_var_names.push_back("recoZ_Mass");
-    set_v_add_var_names.push_back("Mass_tZ"); //NaN?
-    set_v_add_var_names.push_back("cosThetaStarPol"); //NaN?
+    set_v_add_var_names.push_back("Mass_tZ");
+    set_v_add_var_names.push_back("cosThetaStarPol");
     set_v_add_var_names.push_back("maxDijetPt");
     set_v_add_var_names.push_back("maxDijetDelPhi");
     set_v_add_var_names.push_back("minDelRbL");
     set_v_add_var_names.push_back("Top_delRbl");
     set_v_add_var_names.push_back("Top_delRbW");
     set_v_add_var_names.push_back("cosThetaStar");
-
-    // set_v_add_var_names.push_back("maxDelRbL");
+    set_v_add_var_names.push_back("maxDelRbL");
 
 //---------------------------------------------------------------------------
 //  ######  ##    ##  ######  ######## ######## ##     ##    ###    ######## ####  ######   ######
@@ -282,7 +279,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -341,10 +338,7 @@ int main(int argc, char **argv)
     // TRAINING
     //#############################################
 
-    if(train_BDT)
-    {
-        theAnalysis->Train_BDT("", true);
-    }
+    if(train_BDT) {theAnalysis->Train_BDT("", true);}
 
     //#############################################
     //  TEMPLATES CREATION

@@ -2858,6 +2858,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 //Compare shapes of several (hard-coded) samples for some variables
 //Reads pre-existing histograms, which must have been previously produced with Draw_Templates(drawInputVars=True)
+//FIXME -- add ratio pad
 void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TString channel)
 {
 	bool drawInputVars = true;
@@ -2880,8 +2881,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     total_var_list.push_back("maxDelPhiLL");
 
     total_var_list.push_back("recoZ_Mass");
-    total_var_list.push_back("nJets");
-    total_var_list.push_back("nBJets");
+    total_var_list.push_back("njets");
+    total_var_list.push_back("nbjets");
     total_var_list.push_back("maxDelPhiLL");
 
     TString theyear = "2017"; //2016,2017,2018
@@ -2889,12 +2890,13 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //--------------------------------------------
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
-    // v_samples.push_back("tZq"); v_groups.push_back("tZq"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_tZq_top19001_fullsim"); v_groups.push_back("PrivMC_tZq_top19001_fullsim"); v_colors.push_back(kBlue);
+    v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
+    // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_tZq_fullsim"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("PrivMC_tctz"); v_colors.push_back(kBlue);
-    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ"); v_colors.push_back(kBlue);
+    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_ttZ_v3"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
 
     vector<TString> v_syst;
     v_syst.push_back("");
@@ -3182,7 +3184,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 // #    # #    # #   #   ######     ####   ####    #   #       ####    #
 
         mkdir("plots/templates_shapes", 0777);
-        mkdir(("plots/templates_shapes/"+lumiName).Data(), 0777);
+        // mkdir(("plots/templates_shapes/"+lumiName).Data(), 0777);
 
     	//Output
     	TString output_plot_name = "plots/templates_shapes/";
