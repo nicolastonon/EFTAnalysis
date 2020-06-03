@@ -79,7 +79,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator)
 
     #-- Sanitize data
-    y_process = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
+    x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
 
     if singleThetaName is not "": #Only for validation, don't need to split between train/test data
         return x, y, y_process, PhysicalWeights_allClasses, list_labels
@@ -127,7 +127,8 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
         list_x_proc = [] #List of x-arrays storing the values of input features for all events, for all considered years -- 1 array per physics process (sample)
         list_weights_proc = [] #Idem for central event weights
         list_EFTweights_proc = []; list_EFTweightIDs_proc = [] #Idem for EFT reweights
-        for process in procClass: #Loop on physics processes (samples)
+        list_SMweights_proc = [] #Store SM weights for easy access (for private samples only)
+        for iproc, process in enumerate(procClass): #Loop on physics processes (samples)
 
             isPrivMCsample = False
             if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process): #Avoid ambiguities
@@ -136,6 +137,9 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
             elif "PrivMC" in process and "PrivMC" in label: #Check whether EFT reweights should be looked for
                 isPrivMCsample = True
                 # print('process', process, ', label', label, ' --> isPrivMCsample')
+
+            isPureEFT = False
+            if "PrivMC" in label and "_c" in label: isPureEFT = True #Naming convention associated with pure-EFT sample --> no SM point
 
             print(colors.fg.pink, '* Process :', colors.reset, process)
 
@@ -161,22 +165,23 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
-                list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
+                if isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
                 # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
-                list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc = Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, label)
+                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc)
+                list_EFTweights_proc.append(EFTweights_proc_tmp); list_EFTweightIDs_proc.append(EFTweightIDs_proc_tmp); list_SMweights_proc.append(SMweights_proc_tmp)
 
-        #Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 array per process class
+        #-- Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 single array per process class
         list_x_allClasses.append(np.concatenate(list_x_proc))
-        # list_weights_allClasses.append(np.concatenate(list_weights_proc))
 
-        if "PrivMC" in label:
-            list_weights_allClasses.append(np.concatenate(list_EFTweights_proc)[:,0]) #For private EFT samples, only the weights in 'list_EFTweights_proc' make sense (not those in 'list_weights_proc') ; but need single value per event --> use element corresponding to baseline (first column)
-            list_EFTweights_allClasses.append(np.concatenate(list_EFTweights_proc))
-            list_EFTweightIDs_allClasses.append(np.concatenate(list_EFTweightIDs_proc))
-            list_EFTweightIDs_allClasses.append(np.concatenate(list_EFTweightIDs_proc))
-            list_SMweights_allClasses.append(np.concatenate(list_SMweights_proc))
+        # if "PrivMC" in label:
+        if "PrivMC" in label and isPureEFT is False: #For pure-EFT samples, don't care about EFT reweights (only use baseline weights)
+            list_weights_allClasses.append(np.concatenate(list_EFTweights_proc,axis=0)[:,0]) #For private EFT samples, only the weights in 'list_EFTweights_proc' make sense (not those in 'list_weights_proc') ; but need single value per event --> use element corresponding to baseline (first column)
+            list_EFTweights_allClasses.append(np.concatenate(list_EFTweights_proc,axis=0))
+            list_EFTweightIDs_allClasses.append(np.concatenate(list_EFTweightIDs_proc,axis=0))
+            list_SMweights_allClasses.append(np.concatenate(list_SMweights_proc,axis=0))
 
         else:
             weights_tmp = np.concatenate(list_weights_proc)
@@ -192,10 +197,7 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
 # //--------------------------------------------
 
 #For private MC (EFT) samples, retrieve the EFT reweights and their IDs. Directly normalize properly the EFT weights
-def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, label):
-
-    isPureEFT = False
-    if "PrivMC" in label and "_c" in label: isPureEFT = True #Naming convention associated with pure-EFT sample --> no SM point
+def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc):
 
     list_EFTweights_proc = []
     list_EFTweightIDs_proc = []
@@ -221,6 +223,10 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
         #     print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
         #     exit(1)
 
+        #Array of reweights from MG
+        if iproc == 0: weightsProc = list_weights_proc[iyear] #If single process in current class (or first element) -> elements positions in list_weights_proc only depend on year
+        else: weightsProc = list_weights_proc[iproc*len(list_lumiYears) + iyear] #Else, if multiple processes in current class, must also account for previous processes in list and update index position
+
         #Get the EFT reweights IDs
         array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts)) #stack : array of arrays -> 2d array
 
@@ -242,16 +248,16 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
         array_SMweights_proc = np.array([])
         if idx_SM != -1: #Get weights at SM point (and normalize them, cf. below)
             array_SMweights_proc = array_EFTweights_proc[:,i]; #print('idx_SM = ',idx_SM)
-            array_SMweights_proc = array_SMweights_proc * list_weights_proc[iyear]
+            array_SMweights_proc = array_SMweights_proc * weightsProc
             array_SMweights_proc = np.divide(array_SMweights_proc, normWeights_proc)
             array_SMweights_proc = np.divide(array_SMweights_proc, array_EFT_SWE_proc[idx_SM])
         elif not isPureEFT: print(colors.fg.red, 'ERROR: from naming convention, infer that this is a SM+EFT sample. However, the benchmark SM point from MG was not found (needed for proper normalization since the sample xsec is expected to correspond to SM. Abort ! (If this is not the desired behaviour, adapt the code...)', colors.reset); exit(1)
 
-        #-- Normalize EFT weights: rwgt = rwgt_from_MG * (centralEventWeight/weightMENominal) / (SWE_SM)
+        #-- Normalize EFT weights: rwgt = rwgt_from_MG * (centralEventWeight/weightMENominal) / SWE_SM
         #-- 1st term is the MG reweight for a given point idx ; 2nd term corresponds to SF * L * xsec(SM) ; 3rd term is needed for proper normalization, it is the sum of weights before preselection at the SM point (consistent with using the xsec at SM point)
-        array_EFTweights_proc = array_EFTweights_proc * list_weights_proc[iyear][:,None]
-        array_EFTweights_proc = np.divide(array_EFTweights_proc, normWeights_proc[:,None])
-        SWE_SM = array_EFT_SWE_proc[idx_SM]
+        array_EFTweights_proc = array_EFTweights_proc * weightsProc[:,None] #rwgt_from_MG * centralEventWeight
+        array_EFTweights_proc = np.divide(array_EFTweights_proc, normWeights_proc[:,None]) # ... / weightMENominal
+        SWE_SM = array_EFT_SWE_proc[idx_SM] # ... / SWE_SM
         if SWE_SM == 0: SWE_SM = 1 #For pure-EFT samples, SM=0 -> Set to 1 (weights are unphysical anyway)
         array_EFTweights_proc = np.divide(array_EFTweights_proc, SWE_SM)
 
@@ -262,7 +268,8 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
     list_EFTweightIDs_proc.append(array_EFTweightIDs_proc) #Append array of EFT reweights IDs (for given year) to list
     list_SMweights_proc.append(array_SMweights_proc) #Append array of SM reweights (for given year) to list
 
-    return list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc
+    # return list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc
+    return np.concatenate(list_EFTweights_proc,axis=0), np.concatenate(list_EFTweightIDs_proc,axis=0), np.concatenate(list_SMweights_proc,axis=0)
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -283,7 +290,8 @@ def Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFT
     list_EFT_FitCoeffs_allClasses = []
     for iclass in range(len(list_processClasses)): #Loop on classes of physics processes
 
-        if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass]: #Check whether EFT reweights should be looked for
+        # if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass]: #Check whether EFT reweights should be looked for
+        if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass] and "_c" not in list_processClasses[iclass][0]: #Check whether EFT reweights should be looked for
 
             operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0]) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process
             n_components, components = Find_Components(operatorNames[0]) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
@@ -341,21 +349,32 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
         #Skim each process class (keep only maxEvents events) ; skim all relevant arrays coherently
         for iclass in range(len(list_x_arrays_allClasses)):
 
-            if list_nentries_class[iclass] > maxEvents:
+            if list_nentries_class[iclass] > maxEvents: #FIXME -- could not make it work with lists... !
 
                 #-- If only consider part of the process class data, shuffle events, so that the resulting dataset is representative of the event proportions of each process within the class (else, it could happen that e.g. only events from the first process get considered)
                 #NB: only arrays potentially used for training (x, weight, theta, ...) must be shuffled simultaneously
-                if len(list_EFTweights_allClasses[iclass]) <= 1: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses]
-                else: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses,list_thetas_allClasses,list_targetClass_allClasses]
+                # if opts["strategy"] is "classifier" or opts["strategy"] is "regressor" or (np.all(list_EFTweights_allClasses[iclass] == -999)): list_tmp=[list_x_arrays_allClasses,list_weights_allClasses]
+                # else: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses,list_thetas_allClasses,list_targetClass_allClasses]
+                if opts["strategy"] is "classifier" or opts["strategy"] is "regressor" or (np.all(list_EFTweights_allClasses[iclass] == -999)):
+                    list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass] = unison_shuffled_copies(list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass]) # To verify
+                    # list_tmp=[list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass]]
+                    list_x_arrays_allClasses[iclass] = list_x_arrays_allClasses[iclass][0:maxEvents]
+                    list_weights_allClasses[iclass] = list_weights_allClasses[iclass][0:maxEvents]
+                else:
+                    list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass] = unison_shuffled_copies(list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass])
+                    # list_tmp=[list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass]]
+                    list_x_arrays_allClasses[iclass] = list_x_arrays_allClasses[iclass][0:maxEvents]
+                    list_weights_allClasses[iclass] = list_weights_allClasses[iclass][0:maxEvents]
+                    list_thetas_allClasses[iclass] = list_thetas_allClasses[iclass][0:maxEvents]
+                    list_targetClass_allClasses[iclass] = list_targetClass_allClasses[iclass][0:maxEvents]
 
-                # print(list_weights_allClasses[:5])
-                unison_shuffled_copies(list_tmp) # To verify
-                # print(list_weights_allClasses[:5])
-
-                # list_tmp = [list_x_arrays_allClasses, list_weights_allClasses, list_thetas_allClasses,list_targetClass_allClasses]
                 list_nentries_class[iclass] = maxEvents
-                for l in list_tmp:
-                    if len(l)>0: l[iclass] = l[iclass][0:maxEvents]
+
+                # for il in range(len(list_tmp)): #NB: can't do 'for l in list_tmp', since then would create copies rather than modify list elements directly
+                #     if len(list_tmp[il]) > 0:
+                #         list_tmp[il] = list_tmp[il][0:maxEvents]
+                #         print(len(list_tmp[il]))
+                #         print(list_tmp[il][:5])
 
             '''
             #-- Only needed if want to propagate EFT arrays further through the code, and therefore need to shape them properly even when they are empty. Not needed for now
@@ -399,7 +418,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False: print('Warning: len(list_thetas_allClasses)==0...')
 
     # if opts["strategy"] == "CARL_singlePoint":
-    if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXMEcarl
+    if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
     #-- Parameterized NN: pass the values of the WCs as input features
@@ -512,11 +531,11 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
             #Compute scale factors to rescale each class to 'yield_abs_total'
             list_SFs_allClasses = []
             for iclass in range(len(list_processClasses)):
-                if parameterizedNN == False:
-                    list_SFs_allClasses.append(100. / list_yields_abs_allClasses[iclass]) #Compute SF for each process so that its total yield equals N (arbitrary)
-                    # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[iclass])
 
-                print(colors.ital, '* Class', list_labels[iclass], ':', colors.reset)
+                list_SFs_allClasses.append(100. / list_yields_abs_allClasses[iclass]) #Compute SF for each process so that its total yield equals N (arbitrary)
+                # list_SFs_allClasses.append(yield_abs_total / list_yields_abs_allClasses[iclass])
+
+                print(colors.ital, '* Class', list_labels[iclass], '(', len(list_weights_allClasses[iclass]),'entries):', colors.reset)
                 print('Default yield = ', float('%.4g' % list_yields_abs_allClasses[iclass]))
                 print('Rescaling factor = ', float('%.3g' % list_SFs_allClasses[iclass]))
                 print('==> Rescaled yield :', float('%.2g' % (list_yields_abs_allClasses[iclass]*list_SFs_allClasses[iclass])), '\n')
@@ -524,7 +543,7 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
             for iclass in range(len(list_processClasses)):
                 list_LearningWeights_allClasses.append(list_weights_allClasses_abs[iclass]*list_SFs_allClasses[iclass]) #Training weights = phys weights * norm_SF
 
-    else:
+    else: #Parameterized NN
 
         for iclass in range(len(list_processClasses)):
             list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[iclass]))) #Param. NN <-> unweighted samples <-> training weights = 1
@@ -557,7 +576,7 @@ def Update_Lists(opts, list_labels, list_features):
 
         # list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
-        #FIXMEcarl
+        #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
         if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
         refName = "SM"
@@ -657,8 +676,16 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName=""):
 
     #-- Sanity check (NaN, infinite)
-    for l in [x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]:
-        if np.isnan(l).any() or not np.isfinite(l).all(): print('\n', colors.fg.red, 'Error : found a NaN or infinite value in 1 array returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
+    lists_names= ['x', 'y', 'y_process', 'PhysicalWeights_allClasses', 'LearningWeights_allClasses']
+    for il, l in enumerate([x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]):
+        if np.isnan(l).any() or not np.isfinite(l).all():
+            # print('\n', colors.fg.red, 'Error : found a NaN or infinite value in array', lists_names[il],'returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
+            print('\n', colors.fg.red, 'WARNING : found a NaN/inf value in array', lists_names[il],'(returned by Get_Data). Removing this event from all arrays...', colors.reset)
+            for ientry, entry in enumerate(l):
+                if np.isnan(entry).any() or not np.isfinite(entry).all():
+                    print(entry)
+                    x = np.delete(x,ientry,axis=0); y = np.delete(y,ientry,axis=0); y_process = np.delete(y_process,ientry,axis=0); PhysicalWeights_allClasses = np.delete(PhysicalWeights_allClasses,ientry,axis=0); LearningWeights_allClasses = np.delete(LearningWeights_allClasses,ientry,axis=0)
+            # exit(1)
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
         if np.all(y_process==0):
@@ -670,7 +697,7 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             max_idx = int(len(y_process)/2) #x[start:stop:step] syntax -> change label of 1 every 2 elements
             y_process[::2] = 0
 
-    return y_process
+    return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -693,7 +720,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     else: #Specify train/test relative proportions
         _trainsize=opts["splitTrainEventFrac"]; _testsize=1-opts["splitTrainEventFrac"]
 
-    if opts["makeValPlotsOnly"] is True: _trainsize = 0.01 #If not training a NN, keep all data for validation
+    if opts["makeValPlotsOnly"] is True: _trainsize = 0.01 #If not training a NN, use all data for validation (no need for any 'training data')
 
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)

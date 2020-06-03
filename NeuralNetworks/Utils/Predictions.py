@@ -92,7 +92,8 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
                 list_xTest_allClasses.append(x_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_yTest_allClasses.append(y_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents])
 
     #-- Sanity checks: make sure no class is empty
-    assert all(len(l) for l in list_xTrain_allClasses); assert all(len(l) for l in list_xTest_allClasses) #No empty list element
+    assert all(len(l) for l in list_xTrain_allClasses)
+    assert all(len(l) for l in list_xTest_allClasses)
 
     #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
     # if opts["strategy"] in ["ROLR", "RASCAL"]:
@@ -105,7 +106,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
         # print(list_yTest_allClasses[0][:15])
 
     #-- HARDCODED #For training, events had WC values corresponding to points considered for training; but for validation, set all WCs to 0 --> Corresponds to evaluating the NN performance for SM point... ?  #FIXME makes sense ?
-    if opts["strategy"] not in ["ROLR", "RASCAL"]:
+    if opts["parameterizedNN"] and opts["strategy"] not in ["ROLR", "RASCAL"]:
         print(colors.fg.orange, colors.bold, '\n! For validation, setting all input WC values to 0 !\n', colors.reset)
         for iclass in range(len(list_xTest_allClasses)):
             if opts["strategy"] in ["ROLR", "RASCAL"] and iclass > 0: continue #FIXME -- keep WC values for EFT events used in training ??

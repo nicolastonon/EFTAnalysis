@@ -99,9 +99,8 @@ def Get_Callbacks(weight_dir):
     # cp_callback, ckpt_path = Checkpoints(weight_dir) #Not used for now
 
     # callbacks_list = [tensorboard, ES]
+    list = [tensorboard, lrate_plateau, time_callback]
     # list = [tensorboard, lrate_plateau, time_callback, ES]
-    # list = [tensorboard, lrate_plateau, time_callback]
-    list = [tensorboard, lrate_plateau, time_callback, ES]
     # list = [tensorboard, lrate_plateau, time_callback, cp_callback]
     # list = [tensorboard, lrate_plateau, time_callback, MyCustomCallback()]
 

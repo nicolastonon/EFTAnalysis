@@ -117,11 +117,6 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history)
 
-    #FIXME
-    Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
-    # if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
-    # exit(1)
-
     Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history)
 
     Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir)
@@ -396,7 +391,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         fig.clear()
         plt.close(fig)
 
-#-- Multiclass ROCs (first node, test data only) #FIXME fine ?
+#-- Multiclass ROCs (test data only)
         if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
 
             # Compute ROC curve and ROC area for each class
@@ -431,7 +426,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             plt.ylim([0.0, 1.0])
             plt.xlabel('Signal efficiency')
             plt.ylabel('Background rejection')
-            plt.title('ROC curves for '+list_labels[0]+ ' (test data)')
+            plt.title('ROC curves for '+list_labels[inode]+ ' (test data)')
             plt.legend(loc='best')
 
             plotname = weight_dir + 'ROC_NN_'+list_labels[inode]+'_allClasses.png'
@@ -439,69 +434,6 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
             fig.clear()
             plt.close('multiclass')
-
-    #FIXME -- remove
-    '''
-    if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
-
-        # Compute ROC curve and ROC area for each class
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
-        fpr_train = dict()
-        tpr_train = dict()
-        roc_auc_train = dict()
-
-        # Plot ROC curves
-        fig = plt.figure('multiclass')
-        timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
-        timer.add_callback(close_event)
-
-        for iclass in range(len(list_labels)):
-
-            # print(list_predictions_test_allNodes_allClasses[0][iclass])
-            # print(list_truth_Test_allClasses[iclass][:,0])
-            # print(list_predictions_test_allNodes_allClasses[0][iclass].shape)
-            # print(list_truth_Test_allClasses[iclass][:,0].shape)
-
-            if iclass == 0: #first signal vs all
-                if opts["parameterizedNN"] is False:
-                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,0], np.concatenate(list_predictions_test_allNodes_allClasses[0]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
-                else:
-                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,0], np.concatenate(list_predictions_test_allNodes_allClasses[0]))
-                roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
-                mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
-            else: #first signal vs specific process
-                if opts["parameterizedNN"] is False:
-                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[iclass]))[:,0], np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[0],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
-                else:
-                    fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[iclass]))[:,0], np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][iclass])) )
-                roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
-                mylabel = 'vs ' + list_labels[iclass]+' (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
-
-            plt.plot(tpr[iclass], 1-fpr[iclass], lw=lw, label=mylabel)
-
-        ax = fig.gca()
-        ax.set_xticks(np.arange(0, 1, 0.1))
-        ax.set_yticks(np.arange(0, 1., 0.1))
-        plt.grid()
-        plt.plot([1, 0], [0, 1], 'k--', lw=lw)
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.0])
-        plt.xlabel('Signal efficiency')
-        plt.ylabel('Background rejection')
-        plt.title('ROC curves for '+list_labels[0]+ ' (test data)')
-        plt.legend(loc='best')
-
-        timer.start()
-        plt.show()
-
-        plotname = weight_dir + 'ROC_NN_node0_allClasses.png'
-        fig.savefig(plotname)
-        print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
-        fig.clear()
-        plt.close('multiclass')
-    '''
 
     return
 
@@ -821,8 +753,8 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
     list_features = np.array(list_features)
     indices = []
     for ivar in range(len(list_features)):
-        if doNotPlotP4 and list_features[ivar].endswith(('_Phi', ']')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
-        elif opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+        if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
 
     indices = np.array(indices, dtype=int)
     mask = np.ones(len(list_features), np.bool)
@@ -913,8 +845,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     list_features = np.array(list_features)
     indices = []
     for ivar in range(len(list_features)):
-        if doNotPlotP4 and list_features[ivar].endswith(('_Phi', ']')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
-        elif opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+        if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
 
     indices = np.array(indices, dtype=int)
     mask = np.ones(len(list_features), np.bool)
@@ -931,9 +863,9 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     df.insert(loc=0, column='weight', value=weights[:,]) #Only care about first column=main signal (rest -> bkg)
     # print(df); print(df.describe())
 
-    #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(15,15), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(15,15), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
+    #-- Create multiplot #NB: only process columns corresponding to phy vars #FIXME
+    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
 
     if isControlNorm == True: #Control plot, different name, general plot only
         plotname = weight_dir + 'InputFeatures_normTrain.png'

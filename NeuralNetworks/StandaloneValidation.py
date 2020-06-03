@@ -30,23 +30,28 @@ from Utils.RegressorValidation import *
 # //--------------------------------------------
 # //--------------------------------------------
 
-nEventsStandaloneVal = 500 #Nof events to sample/display per point
+nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'.
 # evalPoint = "SM"
 evalPoint = "rwgt_ctZ_3"
+# evalPoint = "rwgt_ctW_3"
+# evalPoint = "rwgt_cpQM_3"
+# evalPoint = "rwgt_cpQ3_3"
+# evalPoint = "rwgt_cpt_3"
 # evalPoint = "rwgt_ctZ_5"
+# evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
-# list_points_sampling.append("SM") #Keep this
-list_points_sampling.append("rwgt_ctZ_1")
-list_points_sampling.append("rwgt_ctZ_3")
-list_points_sampling.append("rwgt_ctZ_5")
-# list_points_sampling.append("rwgt_ctW_1")
-# list_points_sampling.append("rwgt_ctW_2")
+list_points_sampling.append("SM") #Keep this
+# list_points_sampling.append("rwgt_ctZ_1")
+# list_points_sampling.append("rwgt_ctZ_3")
+# list_points_sampling.append("rwgt_ctZ_5")
 # list_points_sampling.append("rwgt_ctW_3")
-# list_points_sampling.append("rwgt_ctW_4")
+# list_points_sampling.append("rwgt_cpQM_3")
+# list_points_sampling.append("rwgt_cpQ3_3")
+# list_points_sampling.append("rwgt_cpt_3")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
@@ -172,6 +177,10 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     ymin = math.floor(quantileMin) #Round down
     ymax = math.ceil(quantileMax) #Round up
 
+    if opts["strategy"] is "ROLR":
+        if xmax > 30: xmax = 30
+        if ymax > 30: ymax = 30
+
 # //--------------------------------------------
 
     fig = plt.figure('splot', figsize=(10, 10))
@@ -179,7 +188,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
 
-    splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted', s=15) #s <-> point size
+    splot = sns.scatterplot(x=truth, y=pred, hue=procClass, palette='muted', s=20) #s <-> point size
     # splot = sns.scatterplot(x=truth[:,0], y=pred[:,0], hue=procClass[:], palette='muted')
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, list_points_sampling)
@@ -308,7 +317,7 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     # if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
 
     #Transform classifier -> LR
-    if opts["strategy"] is "classifier" or pts["strategy"] is "CARL":
+    if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":
         truth = r_from_s(truth)
         pred = r_from_s(pred)
 

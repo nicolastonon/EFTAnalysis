@@ -775,9 +775,6 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
             if singleThetaName is "":
                 x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
-
-                # x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, "rwgt_ctZ_5", operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
-
             else:
                 x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
 
@@ -838,9 +835,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        # if need_jlr: #FIXME
-        #     probas_thetas[jointLR[:,itheta] > 10] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        if need_jlr: #FIXME
+            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -981,7 +978,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    # if need_jlr: probas_theta[jointLR[:,0] > 10] = 0 #Ignore events with extreme JLR values #FIXME
+    if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
@@ -993,13 +990,21 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     # weights_theta = weightsThetas[nEvents,itheta]
     weights_theta = np.ones(len(x_theta))
 
-    #FIXME #FIXME
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
     mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> all WCs to 0 (SM scenario); 2 <-> set WCs according to scenario corresponding to current sample (will differ for different samples)
     if mode_valWC is 0:
         # WCs_theta = np.array([0,3,0,0,0]); WCs_theta = np.tile(WCs_theta, (nEvents,1))
         WCs_eval = Translate_EFTpointID_to_WCvalues(operatorNames, opts["evalPoint"])
         WCs_theta = np.tile(WCs_eval, (nEvents,1))
+        if need_jlr:
+            effWC_components_evalPoint = Get_EffectiveWC_eachComponent(n_components, components, WCs_eval) #Get corresponding matrix
+            weights_evalPoint = Extrapolate_EFTweights(effWC_components_evalPoint, EFT_fitCoeffs) #Get corresponding event weights
+            newXsecs = Extrapolate_EFTxsecs_fromWeights(weights_evalPoint)
+
+            #FIXME -- should evaluate JLR depending on evalPoint or sampling point ??
+            #-- Compute joint likelihood ratio at the new points thetas, for all events
+            jointLR = Compute_JointLR(weights_refPoint, xsecs_refPoint, weights_evalPoint, newXsecs)
+
     elif mode_valWC is 1: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
     elif mode_valWC is 2: WCs_theta = np.tile(WCs, (nEvents,1))
 

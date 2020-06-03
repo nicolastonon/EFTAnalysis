@@ -2,11 +2,6 @@
 # Train fully-connected neural networks with Keras (tensorflow back-end) for classification and regression, with advanced functionnalities for EFT inference
 # //--------------------------------------------
 
-"""
-#TODO :
--
-"""
-
 # //--------------------------------------------
 # //--------------------------------------------
 # //--------------------------------------------
@@ -28,14 +23,14 @@ optsTrain = {
 #=== NN strategy ===#
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
-# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 # "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
-# "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
-"strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+# "strategy": "CARL_multiclass", #BUGGED # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
+# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs":3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 200, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
 "nHiddenLayers": 4, #Number of hidden layers
@@ -44,7 +39,7 @@ optsTrain = {
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization ('' <-> None, 'L1','L2','L1L2' <-> apply value given in 2nd arg.)
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
@@ -56,11 +51,11 @@ optsTrain = {
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": 3000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": -1, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
-"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctW_2",
-# "refPoint": "rwgt_ctZ_10_ctW_10_cpQM_10_cpQ3_10_cpt_10",
+# "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+"refPoint": "rwgt_ctW_5",
+# "refPoint": "rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
 
@@ -85,16 +80,14 @@ _list_lumiYears.append("2017")
 _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
-# _list_processClasses.append(["PrivMC_tZq"])
-# _list_processClasses.append(["PrivMC_ttZ"])
-# _list_processClasses.append(["PrivMC_tZq_top19001"])
 _list_processClasses.append(["PrivMC_tZq_fullsim"])
 # _list_processClasses.append(["PrivMC_ttZ_v3"])
-# _list_processClasses.append(["PrivMC_ttZ_top19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
 # _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["PrivMC_ttZ_ctw"])
+# _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
+# _list_processClasses.append(["PrivMC_tZq_ctw", "PrivMC_ttZ_ctw"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
 
@@ -127,22 +120,10 @@ _list_features.append("delRbjPrime")
 _list_features.append("lAsymmetry")
 _list_features.append("maxDelPhiLL")
 
-_list_features.append("njets")
-_list_features.append("nbjets")
-
-_list_features.append("recoZ_Pt")
-_list_features.append("recoZ_Eta")
-# _list_features.append("recoZ_Phi")
-_list_features.append("recoTop_Pt")
-_list_features.append("recoTop_Eta")
-# _list_features.append("recoTop_Phi")
-
-
 _list_features.append("maxDijetDelR")
 _list_features.append("maxDijetPt")
 _list_features.append("maxDijetDelPhi")
 _list_features.append("maxDijetMass")
-
 _list_features.append("Top_delRbl")
 _list_features.append("Top_delRbW")
 _list_features.append("delRtjPrime")
@@ -152,43 +133,51 @@ _list_features.append("Rapidity_tZ")
 _list_features.append("delRtZ")
 _list_features.append("minDelRbL")
 _list_features.append("maxDelRbL")
-_list_features.append("ptHadSum")
-_list_features.append("ptLepSum")
-_list_features.append("ptLepMetSum")
-_list_features.append("maxEtaJet")
 _list_features.append("leptonCharge")
 _list_features.append("deepCSV_2nd")
+
+_list_features.append("njets")
+_list_features.append("nbjets")
 _list_features.append("delRtClosestJet")
 _list_features.append("mbjMax")
 _list_features.append("ptlW")
-
-_list_features.append("lep1_pt")
-_list_features.append("lep2_pt")
-_list_features.append("lep3_pt");
-_list_features.append("lep1_eta")
-_list_features.append("lep2_eta")
-_list_features.append("lep3_eta")
-_list_features.append("lep1_phi")
-_list_features.append("lep2_phi")
-_list_features.append("lep3_phi")
-_list_features.append("jet1_pt")
-_list_features.append("jet2_pt")
-_list_features.append("jet3_pt")
-_list_features.append("jet4_pt")
-_list_features.append("jet1_eta")
-_list_features.append("jet2_eta")
-_list_features.append("jet3_eta")
-_list_features.append("jet4_eta")
-_list_features.append("jet1_phi")
-_list_features.append("jet2_phi")
-_list_features.append("jet3_phi")
-_list_features.append("jet4_phi")
-_list_features.append("jet1_DeepCSV")
-_list_features.append("jet2_DeepCSV")
-_list_features.append("jet3_DeepCSV")
-_list_features.append("jet4_DeepCSV")
 _list_features.append("cosThetaStarPol")
 _list_features.append("cosThetaStar")
+
+_list_features.append("recoZ_Pt")
+_list_features.append("recoZ_Eta")
+_list_features.append("recoZ_Phi")
+_list_features.append("recoZ_Mass")
+_list_features.append("recoTop_Pt")
+_list_features.append("recoTop_Eta")
+_list_features.append("recoTop_Phi")
+_list_features.append("recoTop_M")
+
+# _list_features.append("lep1_pt")
+# _list_features.append("lep2_pt")
+# _list_features.append("lep3_pt");
+# _list_features.append("lep1_eta")
+# _list_features.append("lep2_eta")
+# _list_features.append("lep3_eta")
+# _list_features.append("lep1_phi")
+# _list_features.append("lep2_phi")
+# _list_features.append("lep3_phi")
+# _list_features.append("jet1_pt")
+# _list_features.append("jet2_pt")
+# _list_features.append("jet3_pt")
+# _list_features.append("jet1_eta")
+# _list_features.append("jet2_eta")
+# _list_features.append("jet3_eta")
+# _list_features.append("jet1_phi")
+# _list_features.append("jet2_phi")
+# _list_features.append("jet3_phi")
+# _list_features.append("jet1_DeepCSV")
+# _list_features.append("jet2_DeepCSV")
+# _list_features.append("jet3_DeepCSV")
+# _list_features.append("jet4_pt")
+# _list_features.append("jet4_eta")
+# _list_features.append("jet4_phi")
+# _list_features.append("jet4_DeepCSV")
 
 
 

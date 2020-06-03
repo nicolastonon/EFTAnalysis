@@ -267,8 +267,15 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         NN_outputLayerName = "";
         nNodes = -1;
         TString file_var_path = "./weights/NN/"+lumiName+"/NN_info.txt";
-        if(!Check_File_Existence(file_var_path) ) {cout<<DIM("NN infos not found ("<<file_var_path<<")")<<endl;}
-        else
+        if(!Check_File_Existence(file_var_path) )
+        {
+            cout<<DIM("NN info file not found ("<<file_var_path<<")")<<endl;
+            file_var_path = "./weights/NN/2017/NN_info.txt";
+            if(!Check_File_Existence(file_var_path) ) {cout<<BOLD(FRED("NN info file "<<file_var_path<<" not found ! Abort "))<<endl; return;}
+            else {cout<<BOLD(FGRN("Reading file "<<file_var_path<<" instead !"))<<endl;}
+        }
+
+        if(Check_File_Existence(file_var_path) )
         {
             cout<<DIM("Reading list of NN input variables from : "<<file_var_path<<"")<<endl;
 
@@ -301,7 +308,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         cout<<DIM("-->  "<<nNodes<<"")<<endl;
         // cout<<"v_inputs_rescaling.first "<<v_inputs_rescaling[0].first<<" / v_inputs_rescaling.second "<<v_inputs_rescaling[0].second<<endl;
 
-        if(NN_inputLayerName == "" || NN_outputLayerName == "" || nNodes == -1) {cout<<endl<<FRED("Warning : wrong NN input/output info !")<<endl;} //Need this info for NN
+        if(NN_inputLayerName == "" || NN_outputLayerName == "" || nNodes == -1) {cout<<endl<<BOLD(FRED("Warning : wrong NN input/output info !"))<<endl;} //Need this info for NN
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -899,7 +906,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
         //--- Load NN model
         TString NNmodel_path = "./weights/NN/"+lumiName+"/model.pb";
-        if(!Check_File_Existence(NNmodel_path) ) {cout<<BOLD(FRED("Model "<<NNmodel_path<<" not found ! Abort"))<<endl; return;}
+        if(!Check_File_Existence(NNmodel_path) )
+        {
+            cout<<BOLD(FRED("Model "<<NNmodel_path<<" not found !"))<<endl;
+
+            NNmodel_path = "./weights/NN/2017/model.pb";
+            if(!Check_File_Existence(NNmodel_path) ) {cout<<BOLD(FRED("Model "<<NNmodel_path<<" not found ! Abort "))<<endl; return;}
+            else {cout<<BOLD(FGRN("Will use model "<<NNmodel_path<<" instead !"))<<endl;}
+        }
 
         clfy1 = new TFModel(NNmodel_path.Data(), var_list.size(), NN_inputLayerName.Data(), nNodes, NN_outputLayerName.Data()); //Specify names of I/O layers, and nof I/O nodes //These names can be read from the 'model.pbtxt' file produced at NN training : look for name of first and last nodes *WHICH IS NOT A TRAINING NODE*
     }
@@ -1567,7 +1581,14 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
 
     bool superimpose_EFThisto = true; //true <-> superimpose shape of EFT histo //FIXME -- improve, remove hardcode
-        TString EFT_point = "rwgt_ctZ_5_ctW_0_cpQM_0_cpQ3_0_cpt_0"; //Name of the EFT point at which to reweight the histo
+        vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
+        v_EFT_samples.push_back("PrivMC_tZq_fullsim");
+        // v_EFT_samples.push_back("PrivMC_ttZ_v3");
+        vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
+        v_EFT_points.push_back("rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctZ_5_ctW_0_cpQM_0_cpQ3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctZ_0_ctW_3_cpQM_0_cpQ3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctZ_0_ctW_5_cpQM_0_cpQ3_0_cpt_0");
 
 //--------------------------------------------
 
@@ -2111,51 +2132,65 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
  // #      #   #  #  #  #  ###    #    # #    # #    # #      #      #
  // #      #    # #   ##   ###     ####  #    # #    # #      ###### ######
 
-        vector<TH1EFT*> v_th1eft; //Store TH1EFT objects
-        vector<TString> v_th1eft_labels; //Corresponding names for legend
-        for(int isample=0; isample<sample_list.size(); isample++)
+        vector<vector<TH1EFT*>> v2_th1eft(v_EFT_points.size()); //Store TH1EFT objects (inner: samples, outer: EFT points)
+        vector<vector<TString>> v2_th1eft_labels(v_EFT_points.size()); //Corresponding names for legend (inner: samples, outer: EFT points)
+        int icolor = 2; //Use different colors for each histo
+        for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
         {
-            if(superimpose_EFThisto && sample_list[isample] == "PrivMC_tZq_top19001") //Hardcoded
+            if(!superimpose_EFThisto) {break;}
+
+            // for(int isample=0; isample<sample_list.size(); isample++)
+            for(int isample=0; isample<v_EFT_samples.size(); isample++)
             {
                 TH1EFT* th1eft_tmp = 0;
 
-                TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample]; //hardcoded
+                // TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "__" + sample_list[isample];
+                // if(!file_input->GetListOfKeys()->Contains(histo_name) )
+                // {
+                //     cout<<DIM("TH1EFT object '"<<histo_name<<"' : not found !")<<endl;
+                //     histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample];
+                // }
 
-                cout<<"TH1EFT_"<<histo_name<<endl;
+                TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + v_EFT_samples[isample]; //Hardcoded, only 2017 for now
+
+                // cout<<"TH1EFT_"<<histo_name<<endl;
                 if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
                 th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
 
                 //Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
-                WCPoint wcp = WCPoint((string) EFT_point, 1.);
+                WCPoint wcp = WCPoint((string) v_EFT_points[ipoint], 1.);
                 th1eft_tmp->Scale(wcp);
                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
 
-                th1eft_tmp->SetLineColor(kRed);
-                th1eft_tmp->SetLineWidth(3);
-                th1eft_tmp->SetLineStyle(2);
+                // th1eft_tmp->SetLineColor(kRed);
+                th1eft_tmp->SetLineColor(icolor);
+                icolor++;
+                th1eft_tmp->SetLineWidth(4);
+                // th1eft_tmp->SetLineStyle(2);
 
-                v_th1eft.push_back(th1eft_tmp);
+                v2_th1eft[ipoint].push_back(th1eft_tmp);
 
-                vector<pair<TString,float>> v = Parse_EFTreweight_ID(EFT_point);
-                TString EFpointlabel;
+                vector<pair<TString,float>> v = Parse_EFTreweight_ID(v_EFT_points[ipoint]);
+                TString EFTpointlabel = "";
                 for(int i=0; i<v.size(); i++)
                 {
                     if(v[i].second != 0)
                     {
-                        if(EFpointlabel != "") {EFpointlabel+= ",";}
-                        EFpointlabel+= v[i].first + "=" + v[i].second;
+                        if(EFTpointlabel != "") {EFTpointlabel+= ",";}
+                        EFTpointlabel+= v[i].first + "=" + v[i].second;
                     }
                 }
-                cout<<"EFpointlabel "<<EFpointlabel<<endl;
+                if(EFTpointlabel == "") {EFTpointlabel = "SM";}
+                // cout<<"EFTpointlabel "<<EFTpointlabel<<endl;
 
                 std::vector<std::string> words;
-                split_string((string) sample_list[isample], words, "_");
+                split_string((string) v_EFT_samples[isample], words, "_");
                 TString leg_name = words.at(1); //should be process name
-                leg_name+= " ("+EFpointlabel+")";
-                v_th1eft_labels.push_back(leg_name);
-            }
-        } //sample loop
+                leg_name+= " ("+EFTpointlabel+")";
+                v2_th1eft_labels[ipoint].push_back(leg_name);
+            } //sample loop
+        } //EFT points loop
 
 
 
@@ -2227,11 +2262,18 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
         float x_left = 0.94-ceil(nSampleGroups/2.)*0.10; //each column allocated same x-space
         // qw = new TLegend(x_left,0.88,0.99,0.99);
         // qw = new TLegend(x_left,0.75,0.95,0.89); //y-space for 2 rows
-        qw = new TLegend(x_left,0.78,0.94,0.87); //y-space for 2 rows
+        if(superimpose_EFThisto)
+        {
+            qw = new TLegend(x_left-0.05,0.72,0.95,0.87); //y-space for 2 rows
+            qw->SetTextSize(0.03);
+        }
+        else
+        {
+            qw = new TLegend(x_left,0.78,0.94,0.87); //y-space for 2 rows
+            qw->SetTextSize(0.04);
+        }
         qw->SetNColumns(ceil(nSampleGroups/2.));
-        // qw->SetLineColor(1);
         qw->SetBorderSize(0);
-		qw->SetTextSize(0.04);
 
 		//--Data on top of legend
         if(use_combine_file && g_data != 0) {qw->AddEntry(g_data, "Data" , "ep");}
@@ -2268,9 +2310,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             else if(MC_samples_legend[i] == "VV" ) {qw->AddEntry(v_MC_histo[i], "VV", "f");}
 		}
 
-        for(int isample=0; isample<v_th1eft.size(); isample++)
+        for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
         {
-            qw->AddEntry(v_th1eft[isample], v_th1eft_labels[isample], "L");
+            for(int isample=0; isample<v2_th1eft[ipoint].size(); isample++)
+            {
+                qw->AddEntry(v2_th1eft[ipoint][isample], v2_th1eft_labels[ipoint][isample], "L");
+            }
         }
 
 
@@ -2357,11 +2402,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 			}
 		}
 
-        for(int i=0; i<v_th1eft.size(); i++)
+        for(int i=0; i<v2_th1eft.size(); i++)
         {
-            if(v_th1eft[i]) {v_th1eft[i]->Draw("same hist");}
+            for(int j=0; j<v2_th1eft[i].size(); j++)
+            {
+                if(v2_th1eft[i][j]) {v2_th1eft[i][j]->Draw("same hist");}
+            }
         }
-
 
 		//Superimpose shape of signal
 		// if(doNot_stack_signal)
@@ -2738,7 +2785,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 		// if(h_sum_data->GetBinContent(h_sum_data->GetNbinsX() ) > h_sum_data->GetBinContent(1) ) {text2.DrawLatex(0.55,0.87,info_data);}
 		// else {text2.DrawLatex(0.20,0.87,info_data);}
-		text2.DrawLatex(0.23,0.86,info_data);
+		if(!superimpose_EFThisto) {text2.DrawLatex(0.23,0.86,info_data);}
 
 
 // #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
@@ -2797,11 +2844,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		delete c1; c1 = NULL;
 		delete qw; qw = NULL;
 		delete stack_MC; stack_MC = NULL;
-        for(int i=0; i<v_th1eft.size(); i++)
+        for(int i=0; i<v2_th1eft.size(); i++)
         {
-            if(v_th1eft[i]) {delete v_th1eft[i];}
+            for(int j=0; j<v2_th1eft[i].size(); j++)
+            {
+                if(v2_th1eft[i][j]) {delete v2_th1eft[i][j];}
+            }
         }
-
 		if(use_combine_file) {delete g_data; g_data = NULL;}
 	} //Var loop
 
@@ -2861,7 +2910,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 //FIXME -- add ratio pad
 void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TString channel)
 {
-	bool drawInputVars = true;
+	bool drawInputVars = false;
 
 	bool normalize = true;
 
@@ -2892,9 +2941,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
     v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
     // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_tZq_fullsim"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
-    // v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("PrivMC_tctz"); v_colors.push_back(kBlue);
-    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed);
+    // v_samples.push_back("PrivMC_tZq_fullsim"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("tZq (ctZ-only)"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_tZq_ctw"); v_groups.push_back("tZq (ctW-only)"); v_colors.push_back(kGreen);
+    v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed+2);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_ttZ_v3"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
 
@@ -2904,8 +2954,21 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
 //--------------------------------------------
 
+    if(!drawInputVars)
+    {
+        total_var_list.clear();
+        if(classifier_name == "BDT") {total_var_list.push_back(classifier_name);}
+        else
+        {
+            for(int inode=0; inode<nNodes; inode++)
+            {
+                total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
+            }
+        }    }
+
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
-	if(drawInputVars) {cout<<FYEL("--- Producing Input Vars Plots / channel : "<<channel<<" ---")<<endl;}
+    if(drawInputVars) {cout<<FYEL("--- Producing Input Vars Plots / channel : "<<channel<<" ---")<<endl;}
+    else {cout<<FYEL("--- Producing Template Plots / channel : "<<channel<<" ---")<<endl;}
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 
 //  ####  ###### ##### #    # #####

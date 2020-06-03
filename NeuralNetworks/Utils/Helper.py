@@ -139,6 +139,8 @@ def Printout_Outputs_Layer(model, ilayer, xx):
 
 #Shuffles coherently the rows of N arrays of same length
 def unison_shuffled_copies(*arr):
+# def unison_shuffled_copies(arr):
+    # print(len(arr))
     assert len(arr) > 1
     assert all(len(a) for a in arr)
     p = np.random.permutation(len(arr[0]))
@@ -370,8 +372,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
 
     for procClass, label in zip(processClasses_list, labels_list):
-        if "PrivMC" in label and len(procClass) > 1:
-            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset); exit(1)
+        if "PrivMC" in label and "_c" not in label and len(procClass) > 1:
+            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset)
+            exit(1)
 
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
