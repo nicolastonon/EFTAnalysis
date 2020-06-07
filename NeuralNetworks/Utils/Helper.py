@@ -396,6 +396,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 
+    if opts["parameterizedNN"] is True and "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) is not 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'Length of [listMinMaxWC] must be twice the length of [listOperatorsParam] (<-> 1 min and 1 max WC value per activated operator) ! Fix [listMinMaxWC], or comment this option to use the values of [minWC,maxWC] for all operators', colors.reset); exit(1)
+
 # //--------------------------------------------
 
     Write_Timestamp_toLogfile(weightDir, 0)
@@ -606,6 +608,7 @@ def AddMissingOperatorsToValPointsNames(opts, list_points):
 
     #If a single point is given in arg, make sure it is treated as a list in the function (and not as a single string) #NB: can't use 'np.atleast_1d' here, because numpy does not treat strings properly (or should convert to object, etc.)
     if isinstance(list_points, str):
+        if list_points is '': return list_points #Option 'evalPoint' may be voluntarily kept empty (see conventions)
         tmp = list_points; list_points = []; list_points.append(tmp)
 
 

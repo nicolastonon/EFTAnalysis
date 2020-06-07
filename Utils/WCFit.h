@@ -258,6 +258,7 @@ public:
     }
 
     // Evaluate the fit at a particular WC phase space point
+    //NB: for each pair of coefficients (c1,c2), will look for the corresponding strengths (WC values) in the name of the input WCPoint
     double evalPoint(WCPoint* pt)
     {
         bool debug = false;
@@ -275,8 +276,9 @@ public:
             n2 = this->names.at(idx_pair.second);
 
             //Read values of WC for evaluated WCPoint
-            x1 = (n1 == kSMstr) ? 1.0 : pt->getStrength(n1);  // Hard set SM value to 1.0 (<-> i.e. 'rwgt_SM' WC can only be set to 1 !)
-            x2 = (n2 == kSMstr) ? 1.0 : pt->getStrength(n2);  // Hard set SM value to 1.0 (<-> i.e. 'rwgt_SM' WC can only be set to 1 !)
+            // Hard set SM value to 1.0 (<-> i.e. 'rwgt_SM' WC can only be set to 1 !)
+            x1 = (n1 == kSMstr) ? 1.0 : pt->getStrength(n1);
+            x2 = (n2 == kSMstr) ? 1.0 : pt->getStrength(n2);
             v += x1*x2*c;
 
             //Useful for fit debugging -> can cross check each coeff
@@ -288,6 +290,7 @@ public:
                 cout<<"v "<<v<<endl;
             }
         }
+
         return v; //Return corresponding fit value (= event weight ?)
     }
 

@@ -43,7 +43,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
     minWC = opts["minWC"]
     maxWC = opts["maxWC"]
 
-    if opts["parameterizedNN"] == False or opts["makeValPlotsOnly"] == True: useMostExtremeWCvaluesOnly = False
+    if opts["parameterizedNN"] == False or opts["makeValPlotsOnly"] == True or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False
 
     #-- Store the training and testing events into lists, depending on their 'true class' values
     #For 'EFT' class, don't just consider all non-SM events (too much). For now, only consider events generated at boundary values (for all operators)
@@ -87,41 +87,12 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
                 list_xTest_allClasses.append(x_test[y_process_test[:,inode]==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test[:,inode]==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test[:,inode]==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,inode]==1][:maxEvents])
             elif opts["strategy"] is "CARL_multiclass": #For each EFT operator (not SM = first label!), only use events generated at most extreme EFT point
                 j = -len(opts["listOperatorsParam"]) -1 + inode #Index j <-> column in array of features corresponding to current operator ==> Only select events for which this operator has its maximum WC value (extremum)
-                # print(j)
                 list_xTrain_allClasses.append(x_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents]); list_yTrain_allClasses.append(y_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_truth_Train_allClasses.append(y_process_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents])
                 list_xTest_allClasses.append(x_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_yTest_allClasses.append(y_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents])
 
     #-- Sanity checks: make sure no class is empty
     assert all(len(l) for l in list_xTrain_allClasses)
     assert all(len(l) for l in list_xTest_allClasses)
-
-    #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
-    # if opts["strategy"] in ["ROLR", "RASCAL"]:
-    #     print('For validation, setting input WC values to 0 for events drawn from SM...')
-    #     list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"]):] = 0
-    #     if opts["nofOutputNodes"]==1: list_yTest_allClasses[0][:] = 1
-    #     else: list_yTest_allClasses[0][:,0] = 1
-
-        # print(list_yTest_allClasses[:][:])
-        # print(list_yTest_allClasses[0][:15])
-
-    #-- HARDCODED #For training, events had WC values corresponding to points considered for training; but for validation, set all WCs to 0 --> Corresponds to evaluating the NN performance for SM point... ?  #FIXME makes sense ?
-    if opts["parameterizedNN"] and opts["strategy"] not in ["ROLR", "RASCAL"]:
-        print(colors.fg.orange, colors.bold, '\n! For validation, setting all input WC values to 0 !\n', colors.reset)
-        for iclass in range(len(list_xTest_allClasses)):
-            if opts["strategy"] in ["ROLR", "RASCAL"] and iclass > 0: continue #FIXME -- keep WC values for EFT events used in training ??
-            list_xTest_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
-            list_xTrain_allClasses[iclass][:,-len(opts["listOperatorsParam"]):] = 0
-
-    #FIXME -- check what to do
-    #-- Modification: for training, events drawn from SM (class 0) were only used as a reference, to actually train on the numerator EFT hypothesis (--> r=p(EFT)/p(SM)). But for validation, want to use sample drawn at SM to represent r=p(SM)/p(SM)=1 --> Manually set true r=1, and set WC values in input to 0 (for proper predictions)
-    # if opts["strategy"] in ["ROLR", "RASCAL"]:
-    #     if opts["nofOutputNodes"]==1:
-    #         list_yTest_allClasses[0][:] = 1
-    #         list_yTrain_allClasses[0][:] = 1
-    #     else:
-    #         list_yTest_allClasses[0][:,0] = 1
-    #         list_yTrain_allClasses[0][:,0] = 1
 
     # print(list_xTest_allClasses[0][:15])
 

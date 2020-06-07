@@ -75,7 +75,7 @@ Long64_t TH1EFT::Merge(TCollection* list)
     return TH1::Merge(list);
 }
 
-Int_t TH1EFT::Fill(Double_t x, Double_t w, WCFit fit)
+Int_t TH1EFT::Fill(Double_t x, Double_t w, WCFit& fit)
 {
     Int_t bin_idx = this->FindFixBin(x) - 1;
     Int_t nhists  = this->hist_fits.size();
@@ -138,12 +138,24 @@ void TH1EFT::Scale(WCPoint wc_pt)
     // Warning: calling GetEntries after a call to this function will return a
     // non-zero value, even if the histogram was never filled.
 
-    for (Int_t i = 1; i <= this->GetNbinsX(); i++) {
+    if(!Check_WCPoint_Operators(wc_pt))
+    {
+        for (Int_t i = 1; i <= this->GetNbinsX(); i++)
+        {
+            this->SetBinContent(i,0);
+        }
+        return;
+    }
+
+    for (Int_t i = 1; i <= this->GetNbinsX(); i++)
+    {
         Double_t new_content = this->GetBinContent(i,wc_pt);
         Double_t new_error = (GetBinFit(i)).evalPointError(&wc_pt);
         this->SetBinContent(i,new_content);
         this->SetBinError(i,new_error);
     }
+
+    return;
 }
 
 // Uniformly scale all fits by amt
@@ -163,5 +175,29 @@ void TH1EFT::DumpFits()
         this->hist_fits.at(i).dump();
     }
 }
+
+//CHANGED -- also check that the name of the input WCPoint does not include any operator not included in the parameterization ! (If there are such operators, they would be simply ignored otherwise, which is dangerous)
+bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
+{
+    WCFit sumfit = this->GetSumFit();
+
+    for(auto& kv: pt.inputs)
+    {
+        // cout<<"kv.first "<<kv.first<<endl;
+        // cout<<"kv.second "<<kv.second<<endl;
+        bool found = false;
+        vector<std::string> names = sumfit.getNames();
+        for(int i=0; i < names.size(); i++) //For each pair of coeffs
+        {
+            // cout<<"name "<<names[i]<<endl;
+            if(kv.first == names[i]) {found = true;}
+        }
+
+        if(!found) {cout<<endl<<"ERROR ! Operator ["<<kv.first<<"] not found in the weight parameterization..."<<endl<<endl; return false;}
+    }
+
+    return true;
+}
+
 
 // */

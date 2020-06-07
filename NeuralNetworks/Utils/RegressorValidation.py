@@ -39,10 +39,12 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1])))
     class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1])))
     # print(truth_data.shape); print(pred_data.shape); print(class_data.shape)
+    print(truth_data[:20]); print(pred_data[:20])
 
-    quantile = np.quantile(pred_data, 0.995)
+    # quantile = np.quantile(pred_data, 0.995)
+    quantile = np.quantile(truth_data, 0.995) #Define axis range based on population of truth values
     xmax=abs(quantile)
-    ymax=abs(quantile)
+    ymax=xmax #Need to have same axes range, so that diagonal represents perfect correlation
 
 # //--------------------------------------------
 #Scatterplot

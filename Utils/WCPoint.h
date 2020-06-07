@@ -46,14 +46,18 @@ public:
         for (uint i = 1; i < words.size(); i+= 2)
         {
             if(i+1 >= words.size()) {std::cout<<"Error : i > words.size() ! Full string : "<<_str<<std::endl; return;} //NT
+            // this->setStrength(words.at(i), std::stod(words.at(i+1)));
 
-            // this->setStrength(words.at(i),std::stod(words.at(i+1)));
+            //FIXME
+            //-- Force WC names to lowercase, to avoid errors (MG sometimes sets reweight names to lowercase by default...)
+            TString ts = words.at(i); ts.ToLower();
+            this->setStrength((std::string) ts, std::stod(words.at(i+1)));
 
-            //NT -- FIXME : alternate naming convention of the type "min2p5"... slower, remove soon
-            TString ts = words.at(i+1);
-            ts.ReplaceAll("min", '-');
-            ts.ReplaceAll("p", '.');
-            this->setStrength(words.at(i), std::stod((std::string) ts));
+            //-- Alternate naming convention of the type "min2p5". Not used anymore
+            // TString ts = words.at(i+1);
+            // ts.ReplaceAll("min", '-');
+            // ts.ReplaceAll("p", '.');
+            // this->setStrength(words.at(i), std::stod((std::string) ts));
         }
     }
 

@@ -63,7 +63,8 @@ def Get_Loss_Optim_Metrics(opts):
         # loss = 'mean_squared_logarithmic_error'
         loss = 'mean_squared_error'
 
-        if opts["strategy"] is "ROLR": loss = clipped_mse #use custom (clipped MSE) loss to avoid huge loss values dominating the training
+        #FIXME
+        # if opts["strategy"] is "ROLR": loss = clipped_mse #use custom (clipped MSE) loss to avoid huge loss values dominating the training
 
         metrics = 'mean_squared_error'
 

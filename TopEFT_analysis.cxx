@@ -1309,6 +1309,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             // std::vector<float> clfy1_outputs = clfy1->evaluate(clfy1_inputs);
                             // for(unsigned i=0; i<clfy1_outputs.size(); i++) {cout<<"clfy1_outputs["<<i<<"] "<<clfy1_outputs[i]<<endl;}
 
+                            //FIXME -- WC values are set to 0 !
                             //Evaluate output nodes values
                             std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
 
@@ -1580,15 +1581,15 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
 
-    bool superimpose_EFThisto = true; //true <-> superimpose shape of EFT histo //FIXME -- improve, remove hardcode
+    bool superimpose_EFThisto = false; //true <-> superimpose shape of EFT histo
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
         v_EFT_samples.push_back("PrivMC_tZq_fullsim");
         // v_EFT_samples.push_back("PrivMC_ttZ_v3");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
         v_EFT_points.push_back("rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_0");
         // v_EFT_points.push_back("rwgt_ctZ_5_ctW_0_cpQM_0_cpQ3_0_cpt_0");
-        v_EFT_points.push_back("rwgt_ctZ_0_ctW_3_cpQM_0_cpQ3_0_cpt_0");
-        v_EFT_points.push_back("rwgt_ctZ_0_ctW_5_cpQM_0_cpQ3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctZ_0_ctW_3_cpQM_0_cpQ3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctZ_0_ctW_5_cpQM_0_cpQ3_0_cpt_0");
 
 //--------------------------------------------
 
@@ -2907,10 +2908,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 //Compare shapes of several (hard-coded) samples for some variables
 //Reads pre-existing histograms, which must have been previously produced with Draw_Templates(drawInputVars=True)
-//FIXME -- add ratio pad
+//== Add ratio pad ==
 void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TString channel)
 {
-	bool drawInputVars = false;
+	bool drawInputVars = true;
 
 	bool normalize = true;
 
@@ -2942,9 +2943,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
     // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_tZq_fullsim"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("tZq (ctZ-only)"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_tZq_ctw"); v_groups.push_back("tZq (ctW-only)"); v_colors.push_back(kGreen);
-    v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed+2);
+    v_samples.push_back("PrivMC_tZq_training"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("tZq (ctZ-only)"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_tZq_ctw"); v_groups.push_back("tZq (ctW-only)"); v_colors.push_back(kGreen);
+    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed+2);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_ttZ_v3"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
 

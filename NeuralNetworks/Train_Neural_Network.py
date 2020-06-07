@@ -23,23 +23,23 @@ optsTrain = {
 #=== NN strategy ===#
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
-"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 # "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", #BUGGED # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
-# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+"strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 200, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 4, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization ('' <-> None, 'L1','L2','L1L2' <-> apply value given in 2nd arg.)
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
@@ -48,13 +48,15 @@ optsTrain = {
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
+# "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctZ'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -3, "maxWC": 3, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-"nEventsPerPoint": -1, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nPointsPerOperator": 10, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+# "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
+"nEventsPerPoint": 2000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
-# "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-"refPoint": "rwgt_ctW_5",
+"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+# "refPoint": "rwgt_ctZ_5",
 # "refPoint": "rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": True, #True <-> NN will regress on log(r) instead of r
@@ -80,7 +82,8 @@ _list_lumiYears.append("2017")
 _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
-_list_processClasses.append(["PrivMC_tZq_fullsim"])
+# _list_processClasses.append(["PrivMC_tZq_fullsim"])
+_list_processClasses.append(["PrivMC_tZq_training"])
 # _list_processClasses.append(["PrivMC_ttZ_v3"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
@@ -135,15 +138,13 @@ _list_features.append("minDelRbL")
 _list_features.append("maxDelRbL")
 _list_features.append("leptonCharge")
 _list_features.append("deepCSV_2nd")
-
 _list_features.append("njets")
 _list_features.append("nbjets")
 _list_features.append("delRtClosestJet")
 _list_features.append("mbjMax")
 _list_features.append("ptlW")
-_list_features.append("cosThetaStarPol")
-_list_features.append("cosThetaStar")
-
+_list_features.append("cosThetaStarPolTop")
+_list_features.append("cosThetaStarPolZ")
 _list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
 _list_features.append("recoZ_Phi")
@@ -181,10 +182,7 @@ _list_features.append("recoTop_M")
 
 
 
-
-
-
-
+# //--------------------------------------------
 # //--------------------------------------------
 #Filtering out manually some unimportant warnings
 # import warnings

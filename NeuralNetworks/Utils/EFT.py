@@ -394,6 +394,7 @@ def Get_ThetaParameters(opts, operatorNames):
     listOperatorsParam : subset of operators on which to train the NN
     operatorNames : all operators found in the sample
     nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the NN will get trained
+    listMinMaxWC : if this option is present, it superseeds the options 'minWC' and 'maxWC' (see above). This list defines the min/max WC values individually for each selected operator
 
     Returns:
     thetas_allOperators (ndarray of shape [n_points, n_operators]) : WC values of all operators, for each point included in NN training
@@ -407,6 +408,8 @@ def Get_ThetaParameters(opts, operatorNames):
     nPointsPerOperator = opts["nPointsPerOperator"]
     minWC = opts["minWC"]
     maxWC = opts["maxWC"]
+    listMinMaxWC = []
+    if "listMinMaxWC" in opts: listMinMaxWC = opts["listMinMaxWC"]
 
     list_thetas_allOperators = []
     list_targetClass = []
@@ -421,22 +424,20 @@ def Get_ThetaParameters(opts, operatorNames):
             targetClass = np.zeros((nPointsPerOperator, opts["nofOutputNodes"])) #SM vs EFT <-> all EFT points have class ID = 0; CARL_multiclass (SM vs op1 vs op2 vs ...) <-> one-hot encoded multilabels. 0=SM (not filled here), 1=operator1 activated, 2=operator2 activated, etc. #NB: in multiclass, for ease, assign 1 column per operator found in sample for now. Later, will remove zero-only columns (<-> only keep operators chosen by user)
 
             for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
-                # print(i_opInSample)
                 # print(operatorNames[i_opInSample])
-                # print(listOperatorsParam[i_op_ToParameterize])
                 # print(listOperatorsParam[i_op_ToParameterize].lower())
 
                 if listOperatorsParam[i_op_ToParameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_ToParameterize].lower() == operatorNames[i_opInSample]:
 
                     iter = 0
-                    for x in np.linspace(minWC, maxWC, num=nPointsPerOperator+1):
+                    for x in np.linspace(minWC, maxWC, num=nPointsPerOperator):
 
-                        if x == 0: continue #skip SM point
+                        if x == 0: x = 0.5 #WC=0 corresponds to SM point (already used as ref.) --> change to dummy non-null value
                         # print('x', x)
 
                         thetas[iter, i_opInSample] = x
                         if opts["nofOutputNodes"] == 1: targetClass[iter] = 0 #Single column <-> any EFT point has label 0 (only SM point has label 1)
-                        else: targetClass[iter, i_opInSample+1] = 1 #Multi-column
+                        else: targetClass[iter, i_opInSample+1] = 1 #Multi-column (1st colum <-> SM)
                         iter+= 1
 
             list_thetas_allOperators.append(thetas)
@@ -450,10 +451,17 @@ def Get_ThetaParameters(opts, operatorNames):
 
         rng = np.random.default_rng() #Init random generator
 
-        thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
-        thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
-        thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
-        targetClasses_allOperators = np.zeros(len(thetas_allOperators)) #Binary label 0=reference point (SM, not filled here), 1=any EFT point
+        if len(listMinMaxWC) is 0: #Use minWC and maxWC values for all selected operators
+            thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
+            thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
+            thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
+        else: #Use individual min/mac WC values for each operator, as defined by user
+            minWC_tmp = np.array([i for i in listMinMaxWC[0::2]]); maxWC_tmp = np.array([i for i in listMinMaxWC[1::2]]) #Store every other element (<-> only min or only max values)
+            thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
+            thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
+            thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
+
+        targetClasses_allOperators = np.zeros(len(thetas_allOperators)) #Binary label: 1=reference point (SM, not filled here), 0=any EFT point
 
         for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parameterization
             if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
@@ -629,7 +637,6 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     listOperatorsParam : list of operators considered in NN training
     list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses : obtained from previous functions
     maxEvents : number of events to sample for each EFT point. Events will be drawn randomly, with replacement, from the entire class sample with the proper probability.
-    nPointsPerOperator, minWC, maxWC : define the interval [min, max, step] in which points will be drawn uniformly, separately for each operator ; these are the EFT points on which the NN will get trained
     singleThetaName: if not "", return data generated at this single point theta (for validation purposes)
 
     Returns:
@@ -835,9 +842,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        if need_jlr: #FIXME
-            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        # if need_jlr: #FIXME
+        #     probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -879,10 +886,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             jointLR_theta = jointLR[indices_theta,itheta]
             jointLR_refPoint = jointLR[indices_refPoint,itheta]
 
-            #-- For debugging, may want to set all JLR values to dummy values
-            # jointLR_theta[:] = 0.5 #regress dummy value
-            # jointLR_refPoint[:] = 0.5
-            # x_theta[:]*= 2.
+            #-- For debugging, may want to set all JLR values to dummy values #FIXME #FIXME
+            jointLR_theta[:] = 0.5 #regress dummy value
+            jointLR_refPoint[:] = 0.5
             # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
             # jointLR_refPoint = np.random.normal(loc=1.5, scale=0.1, size=len(x_refPoint))
             # jointLR_theta = weightsThetas[indices_theta,itheta] #regress event weight
@@ -978,7 +984,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
+    # if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
@@ -991,7 +997,8 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     weights_theta = np.ones(len(x_theta))
 
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
-    mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> all WCs to 0 (SM scenario); 2 <-> set WCs according to scenario corresponding to current sample (will differ for different samples)
+    mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> set WCs according to scenario corresponding to current sample (will differ for different samples); 2 <-> all WCs to 0 (SM scenario)
+    if opts["evalPoint"] == '': mode_valWC = 1 #Allows user to easily select this 'mode'
     if mode_valWC is 0:
         # WCs_theta = np.array([0,3,0,0,0]); WCs_theta = np.tile(WCs_theta, (nEvents,1))
         WCs_eval = Translate_EFTpointID_to_WCvalues(operatorNames, opts["evalPoint"])
@@ -1001,12 +1008,11 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
             weights_evalPoint = Extrapolate_EFTweights(effWC_components_evalPoint, EFT_fitCoeffs) #Get corresponding event weights
             newXsecs = Extrapolate_EFTxsecs_fromWeights(weights_evalPoint)
 
-            #FIXME -- should evaluate JLR depending on evalPoint or sampling point ??
-            #-- Compute joint likelihood ratio at the new points thetas, for all events
+            #-- Compute joint likelihood ratio at the new points thetas, for all events #JLR values depend on 'evalPoint' (not sampling point !)
             jointLR = Compute_JointLR(weights_refPoint, xsecs_refPoint, weights_evalPoint, newXsecs)
 
-    elif mode_valWC is 1: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
-    elif mode_valWC is 2: WCs_theta = np.tile(WCs, (nEvents,1))
+    elif mode_valWC is 1: WCs_theta = np.tile(WCs, (nEvents,1))
+    elif mode_valWC is 2: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
 
     #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
     if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))

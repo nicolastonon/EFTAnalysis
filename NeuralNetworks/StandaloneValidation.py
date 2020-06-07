@@ -32,26 +32,28 @@ from Utils.RegressorValidation import *
 
 nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 
-#== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'.
+#== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
+# evalPoint = ''
 # evalPoint = "SM"
-evalPoint = "rwgt_ctZ_3"
-# evalPoint = "rwgt_ctW_3"
-# evalPoint = "rwgt_cpQM_3"
-# evalPoint = "rwgt_cpQ3_3"
-# evalPoint = "rwgt_cpt_3"
+# evalPoint = "rwgt_ctZ_3"
+evalPoint = "rwgt_ctw_2"
+# evalPoint = "rwgt_cpqm_15"
+# evalPoint = "rwgt_cpq3_15"
+# evalPoint = "rwgt_cpt_15"
 # evalPoint = "rwgt_ctZ_5"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
 list_points_sampling.append("SM") #Keep this
-# list_points_sampling.append("rwgt_ctZ_1")
-# list_points_sampling.append("rwgt_ctZ_3")
-# list_points_sampling.append("rwgt_ctZ_5")
-# list_points_sampling.append("rwgt_ctW_3")
-# list_points_sampling.append("rwgt_cpQM_3")
-# list_points_sampling.append("rwgt_cpQ3_3")
-# list_points_sampling.append("rwgt_cpt_3")
+# list_points_sampling.append("rwgt_ctw_0.5")
+# list_points_sampling.append("rwgt_ctw_1")
+list_points_sampling.append("rwgt_ctw_2")
+# list_points_sampling.append("rwgt_ctw_3")
+# list_points_sampling.append("rwgt_ctw_4")
+# list_points_sampling.append("rwgt_cpqm_15")
+# list_points_sampling.append("rwgt_cpq3_15")
+# list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
@@ -234,6 +236,8 @@ def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, proc
 
 #Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
 
+    if opts["strategy"] is "CARL_multiclass": return
+
     idx1=-1; idx2=-1
     for i, feature in enumerate(list_features):
         if feature is var1: idx1=i
@@ -315,6 +319,7 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     """
 
     # if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
+    if opts["strategy"] is "CARL_multiclass": return
 
     #Transform classifier -> LR
     if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":

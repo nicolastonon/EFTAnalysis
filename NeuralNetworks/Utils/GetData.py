@@ -61,7 +61,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_SMweights_allClasses = Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features, opts["cuts"])
 
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
-    list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
+    list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
     #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
     list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
@@ -90,10 +90,8 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType='quantile')
 
-    print(colors.fg.lightblue, "\n===========", colors.reset)
-    print(colors.fg.lightblue, "-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
-    print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !", colors.reset)
-    print(colors.fg.lightblue, "===========\n", colors.reset)
+    print(colors.fg.lightblue, "\n===========\n-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
+    print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !\n===========\n", colors.reset)
 
     return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, list_labels, list_features
 
@@ -283,7 +281,7 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
 
 #Get the 'fit coefficients' (1 per component entering the squared matrix element of the EFT process) A satisfying : A.T=w, with w the benchmark weights and T the matrix of 'effective WCs' corresponding to the benchmark points.
 #Once these fit coefficients are extracted for a given event, they can be used to extrapolate the event weight at any new EFT point
-def Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses):
+def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses):
 
     # for iclass in range(len(list_EFTweights_allClasses)): list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5] #For debugging
 
@@ -297,6 +295,11 @@ def Get_EFT_FitCoefficients_allEvents(list_processClasses, list_labels, list_EFT
             n_components, components = Find_Components(operatorNames[0]) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
             effWC_components = Get_EffectiveWC_eachComponent(n_components, components, operatorWCs) #Determine the 'effective WC' values associated with each component, for each benchmark point
             fit_coeffs = Get_FitCoefficients(effWC_components, benchmark_weights=list_EFTweights_allClasses[iclass]) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
+
+            #Sanity check: for parameterized strategies, all operators selected by user must be found in sample parameterization (<-> in MG reweight names)
+            if opts["parameterizedNN"] is True:
+                for op in opts["listOperatorsParam"]:
+                    if op not in operatorNames[0,:]: print(colors.fg.red, 'ERROR: operator', op, 'selected in option [listOperatorsParam] not found in event weight parameterization. The operators found in sample are:', operatorNames[0,:],'. Abort !', colors.reset); exit(1)
 
             #-- Debugging
             # print('WCs',effWC_components.shape,  effWC_components[:5])
@@ -417,9 +420,9 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
 
     if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False: print('Warning: len(list_thetas_allClasses)==0...')
 
-    # if opts["strategy"] == "CARL_singlePoint":
-    if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
-        targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
+    # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
+    if opts["strategy"] == "CARL_singlePoint":
+        targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
 
     #-- Parameterized NN: pass the values of the WCs as input features
     elif opts["parameterizedNN"]==True:
@@ -442,7 +445,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
             indices_opToRemove = []
             for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D
                 # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
-                if opSample not in str(opts['evalPoint']) and str(opts['evalPoint']) not in ['SM', 'sm']: indices_opToRemove.append(iOpSample)
+                if opts['evalPoint'] != '' and opSample not in str(opts['evalPoint']) and str(opts['evalPoint']) not in ['SM', 'sm']: indices_opToRemove.append(iOpSample)
             # print(indices_opToRemove)
             if len(indices_opToRemove)>0: tmp = np.delete(thetas_allClasses, indices_opToRemove, axis=1)
 
@@ -577,7 +580,8 @@ def Update_Lists(opts, list_labels, list_features):
         # list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
         #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
-        if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
+        # if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
+        list_features = np.append(list_features, opts["listOperatorsParam"])
 
         refName = "SM"
         if opts["refPoint"] is not "SM": refName = "refPoint"
@@ -676,16 +680,19 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName=""):
 
     #-- Sanity check (NaN, infinite)
+    removeNaN = False
     lists_names= ['x', 'y', 'y_process', 'PhysicalWeights_allClasses', 'LearningWeights_allClasses']
     for il, l in enumerate([x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]):
         if np.isnan(l).any() or not np.isfinite(l).all():
-            # print('\n', colors.fg.red, 'Error : found a NaN or infinite value in array', lists_names[il],'returned by Get_Data(). Please fix that first...', colors.reset); exit(1)
             print('\n', colors.fg.red, 'WARNING : found a NaN/inf value in array', lists_names[il],'(returned by Get_Data). Removing this event from all arrays...', colors.reset)
-            for ientry, entry in enumerate(l):
-                if np.isnan(entry).any() or not np.isfinite(entry).all():
-                    print(entry)
-                    x = np.delete(x,ientry,axis=0); y = np.delete(y,ientry,axis=0); y_process = np.delete(y_process,ientry,axis=0); PhysicalWeights_allClasses = np.delete(PhysicalWeights_allClasses,ientry,axis=0); LearningWeights_allClasses = np.delete(LearningWeights_allClasses,ientry,axis=0)
-            # exit(1)
+            removeNaN = True
+
+    if removeNaN is True:
+        # print(len(x))
+        mask = ~np.isnan(x.reshape(len(x), -1)).any(axis=1) & ~np.isnan(y.reshape(len(y), -1)).any(axis=1) & ~np.isnan(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isnan(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1) #Define mask to remove any event (row) containing a NaN value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
+        # mask = ~np.isnan(x).reshape(len(x), -1).any(axis=1) & ~np.isnan(y).reshape(len(y), -1).any(axis=1) & ~np.isnan(y_process).reshape(len(y_process), -1).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses).reshape(len(PhysicalWeights_allClasses), -1).any(axis=1) & ~np.isnan(LearningWeights_allClasses).reshape(len(LearningWeights_allClasses), -1).any(axis=1)
+        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
+        # print(len(x))
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
         if np.all(y_process==0):
@@ -696,6 +703,11 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             print(colors.fg.orange, "WARNING : all the class labels are set to 1. I notice that you're doing regression, so that may not be an issue. Still, for automated validation plots to work, I will set half the labels to 0!", colors.reset)
             max_idx = int(len(y_process)/2) #x[start:stop:step] syntax -> change label of 1 every 2 elements
             y_process[::2] = 0
+
+    #-- Check for presence of very large weights
+    if(len(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100]) > 0):
+        print('Warning: very large event weights found (global mean = ',np.mean(PhysicalWeights_allClasses),') :')
+        print(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100])
 
     return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses
 
@@ -787,6 +799,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
 
     #Dump shift_ and scale_ params into txtfile
     for ivar in range(len(list_features)):
+        # print('Variable', list_features[ivar])
         text_file.write(list_features[ivar]); text_file.write(' ')
         text_file.write(str(shift_[ivar])); text_file.write(' ')
         text_file.write(str(scale_[ivar])); text_file.write('\n')

@@ -112,7 +112,8 @@ int main(int argc, char **argv)
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
     // thesamplelist.push_back("PrivMC_tZq_top19001"); thesamplegroups.push_back("tZq_EFT_v2");
     // thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
-    thesamplelist.push_back("PrivMC_tZq_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
+    // thesamplelist.push_back("PrivMC_tZq_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
+    thesamplelist.push_back("PrivMC_tZq_training"); thesamplegroups.push_back("PrivMC_tZq_training");
     thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
     // thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
     // thesamplelist.push_back("PrivMC_tZq_ctw"); thesamplegroups.push_back("tZq_ctW");
