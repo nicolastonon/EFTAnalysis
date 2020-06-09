@@ -38,7 +38,8 @@ public:
     }
 
     // Parses a rwgt string id, into the corresponding WC point
-    void parseRwgtId(const std::string& _str) {
+    void parseRwgtId(const std::string& _str)
+    {
         // ex str: "EFTrwgt1_ctG_-1.2_ctW_2.4"
         std::vector<std::string> words;
         split_string(_str, words, "_");

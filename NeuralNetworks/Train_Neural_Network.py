@@ -30,7 +30,7 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 5, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
 "nHiddenLayers": 5, #Number of hidden layers
@@ -85,6 +85,7 @@ _list_processClasses = []
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_fullsim"])
 _list_processClasses.append(["PrivMC_tZq_training"])
+# _list_processClasses.append(["PrivMC_ttZ_training"])
 # _list_processClasses.append(["PrivMC_ttZ_v3"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctw"])
@@ -120,7 +121,7 @@ _list_features.append("lAsymmetry")
 _list_features.append("maxDelPhiLL")
 _list_features.append("maxDeepCSV")
 _list_features.append("deepCSV_2nd")
-_list_features.append("leptonCharge")
+'''
 _list_features.append("njets")
 _list_features.append("nbjets")
 _list_features.append("cosThetaStarPolTop")
@@ -158,6 +159,7 @@ _list_features.append("dEta_tjprime")
 _list_features.append("dEta_bjprime")
 _list_features.append("dEta_lWjprime")
 _list_features.append("dEta_Zjprime")
+'''
 
 # _list_features.append("maxDiJet_dPhi")
 # _list_features.append("maxDiJet_dEta")

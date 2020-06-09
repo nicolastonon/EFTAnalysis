@@ -373,8 +373,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     for procClass, label in zip(processClasses_list, labels_list):
         if "PrivMC" in label and "_c" not in label and len(procClass) > 1:
-            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample', colors.reset)
-            exit(1)
+            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample. Maybe the process class labels must be changed (following conventions, cf. Helper.py)', colors.reset); exit(1)
 
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
@@ -518,7 +517,7 @@ def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
 
 def Parse_EFTpoint_IDs(benchmarkIDs):
     """
-    Parse an array of strings, each corresponding to the name of an EFT point
+    Parse an array of strings, each corresponding to the name of an EFT point.
 
     Parameters:
     benchmarkIDs (ndarray of shape [n_points]) : array of strings, each corresponding to a separate EFT point. Example : 'rwgt_ctZ_5_ctW_3'
@@ -556,7 +555,7 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
 
         list_keys = ID.split('_') #Split string into list of substrings (pairs [name,WC])
         for ikey in range(0, len(list_keys)-1, 2):
-            list_operatorNames.append(list_keys[ikey]) #Operator name
+            list_operatorNames.append(list_keys[ikey].lower()) #Operator name #Force lowercase for cross-samples compatibnility (using Madspin seems to make the reweight names lowercase)
             list_operatorWCs.append(float(list_keys[ikey+1])) #Operator WC
 
         #Append list for each EFT point

@@ -418,7 +418,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
     x = np.concatenate(list_x_arrays_allClasses, 0)
     # EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0); EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0); EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
 
-    if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False: print('Warning: len(list_thetas_allClasses)==0...')
+    if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False and opts["parameterizedNN"] is True: print('Warning: len(list_thetas_allClasses)==0...')
 
     # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
     if opts["strategy"] == "CARL_singlePoint":
