@@ -1,4 +1,5 @@
-#xxx
+#Perform validation independently from the main training code
+#Useful to validate parameterized NN strategies. Sample 'new' data from given SM/EFT points, and evaluate at desired SM/EFT point.
 
 import os
 import ROOT
@@ -36,8 +37,8 @@ nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 # evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctZ_3"
-evalPoint = "rwgt_ctw_2"
-# evalPoint = "rwgt_cpqm_15"
+# evalPoint = "rwgt_ctw_2"
+evalPoint = "rwgt_cpqm_15"
 # evalPoint = "rwgt_cpq3_15"
 # evalPoint = "rwgt_cpt_15"
 # evalPoint = "rwgt_ctZ_5"
@@ -46,14 +47,15 @@ evalPoint = "rwgt_ctw_2"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
 list_points_sampling.append("SM") #Keep this
+# list_points_sampling.append("rwgt_ctz_2")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
-list_points_sampling.append("rwgt_ctw_2")
+# list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
-# list_points_sampling.append("rwgt_cpqm_15")
+list_points_sampling.append("rwgt_cpqm_15")
 # list_points_sampling.append("rwgt_cpq3_15")
-# list_points_sampling.append("rwgt_cpt_15")
+list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
@@ -126,6 +128,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     #For classifiers
     Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, list_points_sampling)
     Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, list_points_sampling)
+    Make_ROCs(optsTrain, standaloneValDir, list_labels, y, predictions, list_points_sampling)
 
     return
 
@@ -452,6 +455,49 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
         fig.clear()
         plt.close('overtrain')
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+  ####  #    # ###### #####  ##### #####    ##   # #    #
+ #    # #    # #      #    #   #   #    #  #  #  # ##   #
+ #    # #    # #####  #    #   #   #    # #    # # # #  #
+ #    # #    # #      #####    #   #####  ###### # #  # #
+ #    #  #  #  #      #   #    #   #   #  #    # # #   ##
+  ####    ##   ###### #    #   #   #    # #    # # #    #
+
+def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, list_points_sampling):
+
+    if "CARL" not in opts["strategy"]: return
+    if "sm" not in list_points_sampling and "SM" not in list_points_sampling: return #Compare EFT to SM
+    lw = 2 #linewidth
+
+    fig = plt.figure('roc')
+
+    fpr, tpr, _ = roc_curve(truth, predictions)
+    roc_auc = auc(fpr, tpr)
+
+    plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
+
+    ax = fig.gca()
+    ax.set_xticks(np.arange(0, 1, 0.1))
+    ax.set_yticks(np.arange(0, 1., 0.1))
+    plt.grid()
+    plt.plot([1, 0], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('Signal efficiency')
+    plt.ylabel('Background rejection')
+    plt.title('')
+    # plt.legend(loc='best')
+
+    plotname = standaloneValDir + 'ROC.png'
+    fig.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
+    fig.clear()
+    plt.close('roc')
 
     return
 

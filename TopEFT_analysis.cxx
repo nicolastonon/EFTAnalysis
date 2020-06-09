@@ -1581,15 +1581,15 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
 
-    bool superimpose_EFThisto = false; //true <-> superimpose shape of EFT histo
+    bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
+        bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
-        v_EFT_samples.push_back("PrivMC_tZq_fullsim");
+        v_EFT_samples.push_back("PrivMC_tZq_training");
         // v_EFT_samples.push_back("PrivMC_ttZ_v3");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
-        v_EFT_points.push_back("rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_0");
-        // v_EFT_points.push_back("rwgt_ctZ_5_ctW_0_cpQM_0_cpQ3_0_cpt_0");
-        // v_EFT_points.push_back("rwgt_ctZ_0_ctW_3_cpQM_0_cpQ3_0_cpt_0");
-        // v_EFT_points.push_back("rwgt_ctZ_0_ctW_5_cpQM_0_cpQ3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_15_cpq3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
 
 //--------------------------------------------
 
@@ -2126,6 +2126,110 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 			}
 		}
 
+
+// # #    # #####  ###### #    #
+// # ##   # #    # #       #  #
+// # # #  # #    # #####    ##
+// # #  # # #    # #        ##
+// # #   ## #    # #       #  #
+// # #    # #####  ###### #    #
+
+        //-- Get indices of particular samples, sum the others into 1 single histo (used for ratio subplot)
+    	TH1F* histo_total_MC = 0; //Sum of all MC samples
+
+    	//Indices of important samples, for specific treatment
+    	int index_tZq_sample = -9;
+        int index_ttZ_sample = -9;
+        int index_tWZ_sample = -9;
+    	int index_NPL_sample = -9;
+
+    	// cout<<"v_MC_histo.size() "<<v_MC_histo.size()<<endl;
+    	// cout<<"MC_samples_legend.size() "<<MC_samples_legend.size()<<endl;
+
+    	//Merge all the MC nominal histograms (contained in v_MC_histo)
+    	for(int i=0; i<v_MC_histo.size(); i++)
+    	{
+    		if(!v_MC_histo[i]) {continue;} //Fakes templates may be null
+
+    		// cout<<"MC_samples_legend[i] "<<MC_samples_legend[i]<<endl;
+
+    		if(MC_samples_legend[i].Contains("tZq") )
+    		{
+    			if(index_tZq_sample<0) {index_tZq_sample = i;}
+    			if(!h_tzq) {h_tzq = (TH1F*) v_MC_histo[i]->Clone();}
+    			else {h_tzq->Add((TH1F*) v_MC_histo[i]->Clone());}
+    			// if(doNot_stack_signal) continue; //don't stack
+    		}
+    		else if(MC_samples_legend[i].EndsWith("ttZ") )
+    		{
+    			if(index_ttZ_sample<0) {index_ttZ_sample = i;}
+    			if(!h_ttz) {h_ttz = (TH1F*) v_MC_histo[i]->Clone();}
+    			else {h_ttz->Add((TH1F*) v_MC_histo[i]->Clone());}
+    			// if(doNot_stack_signal) continue; //don't stack
+    		}
+            else if(MC_samples_legend[i] == "tWZ") {index_tWZ_sample = i;}
+
+    		// cout<<"Adding sample "<<MC_samples_legend[i]<<" to histo_total_MC"<<endl;
+
+    		if(!histo_total_MC) {histo_total_MC = (TH1F*) v_MC_histo[i]->Clone();}
+    		else {histo_total_MC->Add((TH1F*) v_MC_histo[i]->Clone());}
+    	}
+
+        //If histo_total_MC is null, variable was not found, skip it
+        if(!histo_total_MC)
+        {
+            cout<<FRED("Error ! Variable '"<<total_var_list[ivar]<<"' not found ! Skip it...")<<endl;
+            continue;
+        }
+
+
+// ##### #    #  ####  #####   ##    ####  #    #
+//   #   #    # #        #    #  #  #    # #   #
+//   #   ######  ####    #   #    # #      ####
+//   #   #    #      #   #   ###### #      #  #
+//   #   #    # #    #   #   #    # #    # #   #
+//   #   #    #  ####    #   #    #  ####  #    #
+
+		THStack* stack_MC = new THStack;
+
+		//Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
+		//Also add MC histograms to the THStack
+		for(int i=v_MC_histo.size()-1; i>=0; i--)
+		{
+			if(!v_MC_histo[i]) {continue;} //Some templates may be null
+
+            if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
+
+			stack_MC->Add(v_MC_histo[i]);
+			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
+		}
+        if(region=="tWZ") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
+
+		//Set Yaxis maximum & minimum
+		if(use_combine_file && data_notEmpty)
+		{
+			Long64_t locmax = TMath::LocMax(g_data->GetN(), g_data->GetY()); //the corresponding x value can be obtained with double xmax = gr->GetX()[locmax];
+			double ymax = g_data->GetY()[locmax];
+
+			if(ymax > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(ymax*1.3);}
+			else stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);
+		}
+		else if(!use_combine_file && data_notEmpty)
+		{
+			if(h_sum_data->GetMaximum() > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(h_sum_data->GetMaximum()+0.3*h_sum_data->GetMaximum());}
+			else {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
+		}
+        else if(!data_notEmpty) {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
+
+		stack_MC->SetMinimum(0.0001); //Remove '0' label
+
+		if(draw_logarithm)
+		{
+			stack_MC->SetMinimum(0.5);
+			stack_MC->SetMaximum(stack_MC->GetMaximum()*6);
+		}
+
+
  // #####  #####  # #    #         ####    ##   #    # #####  #      ######
  // #    # #    # # #    #        #       #  #  ##  ## #    # #      #
  // #    # #    # # #    #         ####  #    # # ## # #    # #      #####
@@ -2138,7 +2242,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
         int icolor = 2; //Use different colors for each histo
         for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
         {
-            if(!superimpose_EFThisto) {break;}
+            if(!superimpose_EFThist) {break;}
 
             // for(int isample=0; isample<sample_list.size(); isample++)
             for(int isample=0; isample<v_EFT_samples.size(); isample++)
@@ -2163,6 +2267,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 WCPoint wcp = WCPoint((string) v_EFT_points[ipoint], 1.);
                 th1eft_tmp->Scale(wcp);
                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
+
+                if(normalize_EFThist) {th1eft_tmp->Scale(h_sum_data->Integral()/th1eft_tmp->Integral());} //Normalize to integral of data his (arbitrary)
 
                 // th1eft_tmp->SetLineColor(kRed);
                 th1eft_tmp->SetLineColor(icolor);
@@ -2194,63 +2300,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
         } //EFT points loop
 
 
-
- // # #    # #####  ###### #    #
- // # ##   # #    # #       #  #
- // # # #  # #    # #####    ##
- // # #  # # #    # #        ##
- // # #   ## #    # #       #  #
- // # #    # #####  ###### #    #
-
-	//-- Get indices of particular samples, sum the others into 1 single histo (used for ratio subplot)
-		TH1F* histo_total_MC = 0; //Sum of all MC samples
-
-		//Indices of important samples, for specific treatment
-		int index_tZq_sample = -9;
-        int index_ttZ_sample = -9;
-        int index_tWZ_sample = -9;
-		int index_NPL_sample = -9;
-
-		// cout<<"v_MC_histo.size() "<<v_MC_histo.size()<<endl;
-		// cout<<"MC_samples_legend.size() "<<MC_samples_legend.size()<<endl;
-
-		//Merge all the MC nominal histograms (contained in v_MC_histo)
-		for(int i=0; i<v_MC_histo.size(); i++)
-		{
-			if(!v_MC_histo[i]) {continue;} //Fakes templates may be null
-
-			// cout<<"MC_samples_legend[i] "<<MC_samples_legend[i]<<endl;
-
-			if(MC_samples_legend[i].Contains("tZq") )
-			{
-				if(index_tZq_sample<0) {index_tZq_sample = i;}
-				if(!h_tzq) {h_tzq = (TH1F*) v_MC_histo[i]->Clone();}
-				else {h_tzq->Add((TH1F*) v_MC_histo[i]->Clone());}
-				// if(doNot_stack_signal) continue; //don't stack
-			}
-			else if(MC_samples_legend[i].EndsWith("ttZ") )
-			{
-				if(index_ttZ_sample<0) {index_ttZ_sample = i;}
-				if(!h_ttz) {h_ttz = (TH1F*) v_MC_histo[i]->Clone();}
-				else {h_ttz->Add((TH1F*) v_MC_histo[i]->Clone());}
-				// if(doNot_stack_signal) continue; //don't stack
-			}
-            else if(MC_samples_legend[i] == "tWZ") {index_tWZ_sample = i;}
-
-			// cout<<"Adding sample "<<MC_samples_legend[i]<<" to histo_total_MC"<<endl;
-
-			if(!histo_total_MC) {histo_total_MC = (TH1F*) v_MC_histo[i]->Clone();}
-			else {histo_total_MC->Add((TH1F*) v_MC_histo[i]->Clone());}
-		}
-
-        //If histo_total_MC is null, variable was not found, skip it
-        if(!histo_total_MC)
-        {
-            cout<<FRED("Error ! Variable '"<<total_var_list[ivar]<<"' not found ! Skip it...")<<endl;
-            continue;
-        }
-
-
 // ####### #
 //    #    #       ######  ####  ###### #    # #####
 //    #    #       #      #    # #      ##   # #    #
@@ -2263,7 +2312,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
         float x_left = 0.94-ceil(nSampleGroups/2.)*0.10; //each column allocated same x-space
         // qw = new TLegend(x_left,0.88,0.99,0.99);
         // qw = new TLegend(x_left,0.75,0.95,0.89); //y-space for 2 rows
-        if(superimpose_EFThisto)
+        if(superimpose_EFThist)
         {
             qw = new TLegend(x_left-0.05,0.72,0.95,0.87); //y-space for 2 rows
             qw->SetTextSize(0.03);
@@ -2318,54 +2367,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 qw->AddEntry(v2_th1eft[ipoint][isample], v2_th1eft_labels[ipoint][isample], "L");
             }
         }
-
-
-
-// ##### #    #  ####  #####   ##    ####  #    #
-//   #   #    # #        #    #  #  #    # #   #
-//   #   ######  ####    #   #    # #      ####
-//   #   #    #      #   #   ###### #      #  #
-//   #   #    # #    #   #   #    # #    # #   #
-//   #   #    #  ####    #   #    #  ####  #    #
-
-		THStack* stack_MC = new THStack;
-
-		//Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
-		//Also add MC histograms to the THStack
-		for(int i=v_MC_histo.size()-1; i>=0; i--)
-		{
-			if(!v_MC_histo[i]) {continue;} //Some templates may be null
-
-            if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
-
-			stack_MC->Add(v_MC_histo[i]);
-			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
-		}
-        if(region=="tWZ") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
-
-		//Set Yaxis maximum & minimum
-		if(use_combine_file && data_notEmpty)
-		{
-			Long64_t locmax = TMath::LocMax(g_data->GetN(), g_data->GetY()); //the corresponding x value can be obtained with double xmax = gr->GetX()[locmax];
-			double ymax = g_data->GetY()[locmax];
-
-			if(ymax > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(ymax*1.3);}
-			else stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);
-		}
-		else if(!use_combine_file && data_notEmpty)
-		{
-			if(h_sum_data->GetMaximum() > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(h_sum_data->GetMaximum()+0.3*h_sum_data->GetMaximum());}
-			else {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
-		}
-        else if(!data_notEmpty) {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
-
-		stack_MC->SetMinimum(0.0001); //Remove '0' label
-
-		if(draw_logarithm)
-		{
-			stack_MC->SetMinimum(0.5);
-			stack_MC->SetMaximum(stack_MC->GetMaximum()*6);
-		}
 
 
 // #####  #####    ##   #    #
@@ -2439,6 +2440,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
             h_GEN->Draw("hist SAME");
         }
+
 
 // ###### #####  #####   ####  #####   ####      ####  #####   ##    ####  #    #
 // #      #    # #    # #    # #    # #         #        #    #  #  #    # #   #
@@ -2786,7 +2788,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 		// if(h_sum_data->GetBinContent(h_sum_data->GetNbinsX() ) > h_sum_data->GetBinContent(1) ) {text2.DrawLatex(0.55,0.87,info_data);}
 		// else {text2.DrawLatex(0.20,0.87,info_data);}
-		if(!superimpose_EFThisto) {text2.DrawLatex(0.23,0.86,info_data);}
+		if(!superimpose_EFThist) {text2.DrawLatex(0.23,0.86,info_data);}
 
 
 // #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
@@ -2916,24 +2918,51 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 	bool normalize = true;
 
     vector<TString> total_var_list;
-    total_var_list.push_back("maxDijetDelR");
-    total_var_list.push_back("dEtaFwdJetBJet");
-    total_var_list.push_back("dEtaFwdJetClosestLep");
-    total_var_list.push_back("mHT");
     total_var_list.push_back("mTW");
+    total_var_list.push_back("mHT");
     total_var_list.push_back("Mass_3l");
-    total_var_list.push_back("forwardJetAbsEta");
+    total_var_list.push_back("maxEtaJet");
     total_var_list.push_back("jPrimeAbsEta");
-    total_var_list.push_back("maxDeepCSV");
-    total_var_list.push_back("delRljPrime");
     total_var_list.push_back("lAsymmetry");
-    total_var_list.push_back("maxDijetMass");
     total_var_list.push_back("maxDelPhiLL");
-
-    total_var_list.push_back("recoZ_Mass");
+    total_var_list.push_back("maxDeepCSV");
+    total_var_list.push_back("deepCSV_2nd");
+    total_var_list.push_back("leptonCharge");
     total_var_list.push_back("njets");
     total_var_list.push_back("nbjets");
-    total_var_list.push_back("maxDelPhiLL");
+    total_var_list.push_back("cosThetaStarPolTop");
+    total_var_list.push_back("cosThetaStarPolZ");
+    total_var_list.push_back("recoZ_Pt");
+    total_var_list.push_back("recoZ_Eta");
+    total_var_list.push_back("recoZ_M");
+    total_var_list.push_back("recoLepTop_Pt");
+    total_var_list.push_back("recoLepTop_Eta");
+    total_var_list.push_back("recoLepTop_M");
+    total_var_list.push_back("TopZsystem_Pt");
+    total_var_list.push_back("TopZsystem_M");
+    total_var_list.push_back("jprime_Pt");
+    // total_var_list.push_back("recoLepTopLep_Pt");
+    // total_var_list.push_back("recoLepTopLep_Eta");
+    // total_var_list.push_back("mbjMax");
+    // total_var_list.push_back("maxDiJet_pt");
+    // total_var_list.push_back("maxDelRbL");
+    // total_var_list.push_back("dR_tZ");
+    // total_var_list.push_back("dR_ZlW");
+    // total_var_list.push_back("dR_blW");
+    // total_var_list.push_back("dR_bW");
+    // total_var_list.push_back("dR_tClosestLep");
+    // total_var_list.push_back("dR_jprimeClosestLep");
+    // total_var_list.push_back("dEta_jprimeClosestLep");
+    // total_var_list.push_back("dR_tClosestJet");
+    // total_var_list.push_back("dR_tjprime");
+    // total_var_list.push_back("dR_bjprime");
+    // total_var_list.push_back("dR_lWjprime");
+    // total_var_list.push_back("dR_Zjprime");
+    // total_var_list.push_back("maxDiJet_m");
+    // total_var_list.push_back("dEta_tjprime");
+    // total_var_list.push_back("dEta_bjprime");
+    // total_var_list.push_back("dEta_lWjprime");
+    // total_var_list.push_back("dEta_Zjprime");
 
     TString theyear = "2017"; //2016,2017,2018
 
@@ -2966,7 +2995,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
             {
                 total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
             }
-        }    }
+        }
+    }
 
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
     if(drawInputVars) {cout<<FYEL("--- Producing Input Vars Plots / channel : "<<channel<<" ---")<<endl;}

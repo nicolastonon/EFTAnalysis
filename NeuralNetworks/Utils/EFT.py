@@ -1015,13 +1015,14 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     elif mode_valWC is 2: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
 
     #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
-    if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
-    else: targetClass_theta = np.ones(len(x_theta))
+    if theta_name in ["SM", "sm"]: targetClass_theta = np.ones(len(x_theta))
+    else: targetClass_theta = np.zeros(len(x_theta))
+
     #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
     if opts["strategy"] is "CARL_multiclass":
         if opts["nofOutputNodes"] == 1:
-            if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
-            else: targetClass_theta = np.ones(len(x_theta))
+            if theta_name in ["SM", "sm"]: targetClass_theta = np.ones(len(x_theta))
+            else: targetClass_theta = np.zeros(len(x_theta))
         else:
             targetClass_theta = np.zeros((len(x_theta), opts["nofOutputNodes"]))
             if theta_name in ["SM", "sm"]: targetClass_theta[:,0] = 1 #First column <-> SM class

@@ -24,16 +24,16 @@ optsTrain = {
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", #BUGGED # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
-"strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
+# "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 3, #Number of hidden layers
+"nHiddenLayers": 5, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
@@ -49,9 +49,10 @@ optsTrain = {
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['cpqm', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nPointsPerOperator": 40, "minWC": -20, "maxWC": 20, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 2000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
@@ -111,49 +112,76 @@ _list_labels.append("PrivMC_tZq")
 #-- Choose input features x
 _list_features = []
 _list_features.append("mTW")
-_list_features.append("dEtaFwdJetBJet")
-_list_features.append("dEtaFwdJetClosestLep")
 _list_features.append("mHT")
 _list_features.append("Mass_3l")
-_list_features.append("forwardJetAbsEta")
+_list_features.append("maxEtaJet")
 _list_features.append("jPrimeAbsEta")
-_list_features.append("maxDeepCSV")
-_list_features.append("delRljPrime")
-_list_features.append("delRbjPrime")
 _list_features.append("lAsymmetry")
 _list_features.append("maxDelPhiLL")
-
-_list_features.append("maxDijetDelR")
-_list_features.append("maxDijetPt")
-_list_features.append("maxDijetDelPhi")
-_list_features.append("maxDijetMass")
-_list_features.append("Top_delRbl")
-_list_features.append("Top_delRbW")
-_list_features.append("delRtjPrime")
-_list_features.append("delRZl")
-_list_features.append("Mass_tZ")
-_list_features.append("Rapidity_tZ")
-_list_features.append("delRtZ")
-_list_features.append("minDelRbL")
-_list_features.append("maxDelRbL")
-_list_features.append("leptonCharge")
+_list_features.append("maxDeepCSV")
 _list_features.append("deepCSV_2nd")
+_list_features.append("leptonCharge")
 _list_features.append("njets")
 _list_features.append("nbjets")
-_list_features.append("delRtClosestJet")
-_list_features.append("mbjMax")
-_list_features.append("ptlW")
 _list_features.append("cosThetaStarPolTop")
 _list_features.append("cosThetaStarPolZ")
+
 _list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
-_list_features.append("recoZ_Phi")
-_list_features.append("recoZ_Mass")
-_list_features.append("recoTop_Pt")
-_list_features.append("recoTop_Eta")
-_list_features.append("recoTop_Phi")
-_list_features.append("recoTop_M")
+_list_features.append("recoZ_M")
+_list_features.append("recoLepTop_Pt")
+_list_features.append("recoLepTop_Eta")
+_list_features.append("recoLepTop_M")
+_list_features.append("TopZsystem_Pt")
+_list_features.append("TopZsystem_M")
+_list_features.append("jprime_Pt")
+_list_features.append("recoLepTopLep_Pt")
+_list_features.append("recoLepTopLep_Eta")
 
+_list_features.append("mbjMax")
+_list_features.append("maxDiJet_pt")
+_list_features.append("maxDelRbL")
+_list_features.append("dR_tZ")
+_list_features.append("dR_ZlW")
+_list_features.append("dR_blW")
+_list_features.append("dR_bW")
+_list_features.append("dR_tClosestLep")
+_list_features.append("dR_jprimeClosestLep")
+_list_features.append("dEta_jprimeClosestLep")
+_list_features.append("dR_tClosestJet")
+_list_features.append("dR_tjprime")
+_list_features.append("dR_bjprime")
+_list_features.append("dR_lWjprime")
+_list_features.append("dR_Zjprime")
+_list_features.append("maxDiJet_m")
+_list_features.append("dEta_tjprime")
+_list_features.append("dEta_bjprime")
+_list_features.append("dEta_lWjprime")
+_list_features.append("dEta_Zjprime")
+
+# _list_features.append("maxDiJet_dPhi")
+# _list_features.append("maxDiJet_dEta")
+# _list_features.append("maxDiJet_dR")
+
+# _list_features.append("recoZLepMinus_Pt")
+# _list_features.append("recoZLepMinus_Eta")
+# _list_features.append("recoZLepMinus_Phi")
+# _list_features.append("recoZLepPlus_Pt")
+# _list_features.append("recoZLepPlus_Eta")
+# _list_features.append("recoZLepPlus_Phi")
+# _list_features.append("recoLepTopLep_Phi")
+
+# _list_features.append("jprime_Eta")
+# _list_features.append("jprime_Phi")
+# _list_features.append("TopZsystem_Eta")
+# _list_features.append("TopZsystem_Phi")
+# _list_features.append("recoLepTopB_Pt")
+# _list_features.append("recoLepTopB_Eta")
+# _list_features.append("recoLepTopB_Phi")
+# _list_features.append("recoZ_Phi")
+# _list_features.append("recoLepTop_Phi")
+
+#== OR USE 'recoZLepPlus', 'recoZLepMinus', 'recoTopLep' for leptons ? etc.
 # _list_features.append("lep1_pt")
 # _list_features.append("lep2_pt")
 # _list_features.append("lep3_pt");

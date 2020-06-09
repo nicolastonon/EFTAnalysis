@@ -795,8 +795,8 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
         hm.set_yticklabels(hm.get_yticklabels(), fontsize = 14)
     else:
         hm = sns.heatmap(corr, mask=mask_diag, cmap=palette, vmin=-1., vmax=1., center=0, square=True, linewidths=0.5, annot = True, fmt='.1g', cbar_kws={"shrink": .5},)
-        hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 16) #bottom labels
-        hm.set_yticklabels(hm.get_yticklabels(), fontsize = 16)
+        hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 14) #bottom labels
+        hm.set_yticklabels(hm.get_yticklabels(), fontsize = 14)
 
     sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
     # ax.set_ylim(bottom=-0.5, top=len(list_features)+0.5)

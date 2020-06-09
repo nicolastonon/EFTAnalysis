@@ -171,21 +171,27 @@ int main(int argc, char **argv)
 //For NN, will read necessary input files in logfile, and include them automatically
 
     std::vector<TString > thevarlist;
-    thevarlist.push_back("maxDijetDelR");
-    thevarlist.push_back("dEtaFwdJetBJet");
-    thevarlist.push_back("dEtaFwdJetClosestLep");
-    thevarlist.push_back("mHT");
     thevarlist.push_back("mTW");
+    thevarlist.push_back("mHT");
     thevarlist.push_back("Mass_3l");
-    thevarlist.push_back("forwardJetAbsEta");
+    thevarlist.push_back("maxEtaJet");
     thevarlist.push_back("jPrimeAbsEta");
-    thevarlist.push_back("maxDeepCSV");
-    thevarlist.push_back("delRljPrime");
     thevarlist.push_back("lAsymmetry");
-    thevarlist.push_back("maxDijetMass");
     thevarlist.push_back("maxDelPhiLL");
-
-
+    thevarlist.push_back("maxDeepCSV");
+    thevarlist.push_back("deepCSV_2nd");
+    thevarlist.push_back("leptonCharge");
+    thevarlist.push_back("cosThetaStarPolTop");
+    thevarlist.push_back("cosThetaStarPolZ");
+    thevarlist.push_back("recoZ_Pt");
+    thevarlist.push_back("recoZ_Eta");
+    thevarlist.push_back("recoZ_M");
+    thevarlist.push_back("recoLepTop_Pt");
+    thevarlist.push_back("recoLepTop_Eta");
+    thevarlist.push_back("recoLepTop_M");
+    thevarlist.push_back("TopZsystem_Pt");
+    thevarlist.push_back("TopZsystem_M");
+    thevarlist.push_back("jprime_Pt");
 
 //---------------------------------------------------------------------------
 //  #######  ######## ##     ## ######## ########       ##     ##    ###    ########   ######
@@ -206,16 +212,28 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("njets");
     set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
-    set_v_add_var_names.push_back("recoZ_Mass");
-    set_v_add_var_names.push_back("Mass_tZ");
-    set_v_add_var_names.push_back("cosThetaStarPol");
-    set_v_add_var_names.push_back("maxDijetPt");
-    set_v_add_var_names.push_back("maxDijetDelPhi");
-    set_v_add_var_names.push_back("minDelRbL");
-    set_v_add_var_names.push_back("Top_delRbl");
-    set_v_add_var_names.push_back("Top_delRbW");
-    set_v_add_var_names.push_back("cosThetaStar");
+    set_v_add_var_names.push_back("recoLepTopLep_Pt");
+    set_v_add_var_names.push_back("recoLepTopLep_Eta");
+    set_v_add_var_names.push_back("mbjMax");
+    set_v_add_var_names.push_back("maxDiJet_pt");
     set_v_add_var_names.push_back("maxDelRbL");
+    set_v_add_var_names.push_back("dR_tZ");
+    set_v_add_var_names.push_back("dR_ZlW");
+    set_v_add_var_names.push_back("dR_blW");
+    set_v_add_var_names.push_back("dR_bW");
+    set_v_add_var_names.push_back("dR_tClosestLep");
+    set_v_add_var_names.push_back("dR_jprimeClosestLep");
+    set_v_add_var_names.push_back("dEta_jprimeClosestLep");
+    set_v_add_var_names.push_back("dR_tClosestJet");
+    set_v_add_var_names.push_back("dR_tjprime");
+    set_v_add_var_names.push_back("dR_bjprime");
+    set_v_add_var_names.push_back("dR_lWjprime");
+    set_v_add_var_names.push_back("dR_Zjprime");
+    set_v_add_var_names.push_back("maxDiJet_m");
+    set_v_add_var_names.push_back("dEta_tjprime");
+    set_v_add_var_names.push_back("dEta_bjprime");
+    set_v_add_var_names.push_back("dEta_lWjprime");
+    set_v_add_var_names.push_back("dEta_Zjprime");
 
 //---------------------------------------------------------------------------
 //  ######  ##    ##  ######  ######## ######## ##     ##    ###    ######## ####  ######   ######
@@ -276,7 +294,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -284,11 +302,11 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = false; //Plot input variables
+    bool draw_input_vars = true; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
