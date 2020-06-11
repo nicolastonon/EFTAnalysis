@@ -13,8 +13,8 @@ CFLAGS = -c  $(DEBUG) #Compilation options
 LFLAGS = $(DEBUG) -lTMVA
 ROOTFLAGS = `root-config --glibs --cflags`
 
-SCRIPT_PRODUCER = ScriptProducer_GenerateAllDatacards.exe
-GENERATE_DATACARDS = Generate_Datacard_Template.exe
+SCRIPT_PRODUCER = GenerateAllDatacards.exe
+GENERATE_DATACARDS = GenerateDatacardTemplate.exe
 
 #Instructions
 all: $(GENERATE_DATACARDS) $(SCRIPT_PRODUCER)

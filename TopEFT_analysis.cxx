@@ -12,7 +12,6 @@
 
 // SetBranchAddress_SystVariationArray()
 // Merge_Templates_ByProcess()
-
 //--------------------------------------------
 
 #include "TopEFT_analysis.h"
@@ -814,6 +813,25 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 
 void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_inputVars)
 {
+//FIXME
+//TMP TEST
+//--------------------------------------------
+vector<TString> v_EFTpoints;
+v_EFTpoints.push_back("rwgt_ctz_-15");
+v_EFTpoints.push_back("rwgt_ctz_-9");
+v_EFTpoints.push_back("rwgt_ctz_-5");
+v_EFTpoints.push_back("rwgt_ctz_-3");
+v_EFTpoints.push_back("rwgt_ctz_-1");
+v_EFTpoints.push_back("rwgt_ctz_0");
+v_EFTpoints.push_back("rwgt_ctz_1");
+v_EFTpoints.push_back("rwgt_ctz_3");
+v_EFTpoints.push_back("rwgt_ctz_5");
+v_EFTpoints.push_back("rwgt_ctz_9");
+v_EFTpoints.push_back("rwgt_ctz_15");
+
+vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
+//--------------------------------------------
+
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU)
 
@@ -864,7 +882,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 	//Output file name
 	//-- For BDT templates
-    TString cat_tmp = (region=="") ? "" : region+"Cat";
+    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
     // TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
 	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 
@@ -942,10 +960,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	}
 	else
 	{
-        if(classifier_name == "BDT") {total_var_list.push_back(classifier_name);}
+        if(classifier_name == "BDT" || nNodes == 1) {total_var_list.push_back(classifier_name);}
 		else
         {
-            for(int inode=0; inode<nNodes; inode++)
+            for(int inode=0; inode<nNodes; inode++) //Multiclass --> Different label for each output node
             {
                 total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
             }
@@ -1296,25 +1314,18 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         //NB -- slow evaluation ! ==> Don't rescale inputs, add lambda layer in model to rescale inputs !
                         else //NN
                         {
-                            //Convert my vector storing input values into array
-                            // float clfy1_inputs[var_list_floats.size()];
-                            // std::copy(var_list_floats.begin(), var_list_floats.end(), clfy1_inputs);
-                            // cout<<"//-------------------------------------------- "<<endl;
-                            // for(int i=0; i<var_list_floats.size(); i++) {cout<<"clfy1_inputs["<<i<<"] "<<clfy1_inputs[i]<<std::endl;}
-                            // for(int i=0; i<var_list.size(); i++)
-                            // {
-                            //     var_list_floats[i] = Rescale_Input_Variable(var_list_floats[i], v_inputs_rescaling[i].first, v_inputs_rescaling[i].second);
-                            // }
-                            // for(int i=0; i<var_list_floats.size(); i++) {cout<<"clfy1_inputs["<<i<<"] "<<clfy1_inputs[i]<<std::endl;}
-                            // std::vector<float> clfy1_outputs = clfy1->evaluate(clfy1_inputs);
-                            // for(unsigned i=0; i<clfy1_outputs.size(); i++) {cout<<"clfy1_outputs["<<i<<"] "<<clfy1_outputs[i]<<endl;}
-
                             //FIXME -- WC values are set to 0 !
                             //Evaluate output nodes values
                             std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
 
                             for(int ivar=0; ivar<total_var_list.size(); ivar++) {total_var_floats[ivar] = clfy1_outputs[ivar];}
                             // cout<<"ientry "<<ientry<<" ==> "<<clfy1_outputs[0]<<endl;
+
+                            //FIXME -- TEST
+                            if(sample_list[isample] == "PrivMC_tZq_training")
+                            {
+                                Test_SumLR_Scan(v_sumLogLR, clfy1, var_list_floats, v_EFTpoints);
+                            }
                         }
                     }
                     // else
@@ -1337,7 +1348,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     // }
 
                     double weight_tmp = eventWeight*eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
-
                     float w_SMpoint = 0;
                     if(isPrivMC)
                     {
@@ -1433,6 +1443,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						TString output_histo_name;
 
 							output_histo_name = total_var_list[ivar];
+                            if(cat_tmp != "") {output_histo_name+= "_" + cat_tmp;}
 							if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
                             output_histo_name+= "_" + v_lumiYears[iyear];
 							output_histo_name+= "__" + samplename;
@@ -1535,7 +1546,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         Merge_Templates_ByProcess(output_file_name, template_name, total_var_list);
     }
 
-    // Test_TH1EFT();
+//FIXME
+//--------------------------------------------
+for(int ipt=0; ipt<v_EFTpoints.size(); ipt++)
+{
+    cout<<"v_sumLogLR["<<ipt<<"] = "<<v_sumLogLR[ipt]<<endl;
+}
+//--------------------------------------------
 
 	return;
 }
@@ -1619,6 +1636,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	//- or, better, the file produced by Combine from the templates : contains the prefit distributions with total errors, and the postfit distribution
 	//If want postfit plots, must use the Combine file. If want prefit plots, can use both of them (NB : errors will be different)
 
+    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
+
 	//Get input TFile
 	if(!prefit)
 	{
@@ -1631,8 +1650,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	}
 
 	TString input_name = "";
-    TString cat_tmp = (region=="") ? "" : region+"Cat";
-
 	if(use_combine_file)
 	{
         //TRY 1 : look for Combine file
@@ -1742,7 +1759,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	{
         if(classifier_name == "NN")
         {
-            for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));} //1 template per output node
+            for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(classifier_name + (nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
         }
         else {total_var_list.push_back(classifier_name);} //Single BDT template
 	}
@@ -1795,7 +1812,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     			TString dir_hist = "";
     			if(prefit) {dir_hist = "shapes_prefit/";}
     			else {dir_hist = "shapes_fit_s/";}
-    			dir_hist+= classifier_name + template_name + "_" + cat_tmp;
+    			dir_hist+= classifier_name + template_name;
+                if(cat_tmp != "") {dir_hist+= "_" + cat_tmp;}
     			if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan];} //for combine file
                 dir_hist+= "_" + v_lumiYears[iyear] + "/";
     			if(use_combine_file && !file_input->GetDirectory(dir_hist)) {cout<<FRED("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
@@ -1839,7 +1857,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				else
     				{
     					histo_name = total_var_list[ivar];
-    					if(channel != "") {histo_name+= "_" + channel;}
+                        if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
+	                    if(channel != "") {histo_name+= "_" + channel;}
     					histo_name+= + "_" + v_lumiYears[iyear];
                         histo_name+= + "__" + samplename;
     				}
@@ -2021,7 +2040,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     		else
     		{
                 data_histo_name = total_var_list[ivar];
-    			if(channel != "") {data_histo_name+= "_" + channel;}
+                if(cat_tmp != "") {data_histo_name+= "_" + cat_tmp;}
+                if(channel != "") {data_histo_name+= "_" + channel;}
     			data_histo_name+= "_" + v_lumiYears[iyear];
                 data_histo_name+= "__data_obs";
     		}
@@ -2036,7 +2056,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				TString dir_hist = "";
     				if(prefit) {dir_hist = "shapes_prefit/";}
     				else {dir_hist = "shapes_fit_s/";}
-    				dir_hist+= classifier_name + template_name + "_" + cat_tmp;
+                    if(cat_tmp != "") {dir_hist+= "_" + cat_tmp;}
     				if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan] + "/";} //for combine file
                     dir_hist+= v_lumiYears[iyear] + "/";
     				if(!file_input->GetDirectory(dir_hist)) {cout<<ITAL("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
@@ -2211,15 +2231,15 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 			Long64_t locmax = TMath::LocMax(g_data->GetN(), g_data->GetY()); //the corresponding x value can be obtained with double xmax = gr->GetX()[locmax];
 			double ymax = g_data->GetY()[locmax];
 
-			if(ymax > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(ymax*1.3);}
-			else stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);
+			if(ymax > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(ymax*1.4);}
+			else stack_MC->SetMaximum(stack_MC->GetMaximum()*1.4);
 		}
 		else if(!use_combine_file && data_notEmpty)
 		{
-			if(h_sum_data->GetMaximum() > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(h_sum_data->GetMaximum()+0.3*h_sum_data->GetMaximum());}
-			else {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
+			if(h_sum_data->GetMaximum() > stack_MC->GetMaximum() ) {stack_MC->SetMaximum(h_sum_data->GetMaximum()*1.4);}
+			else {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.4);}
 		}
-        else if(!data_notEmpty) {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.5);}
+        else if(!data_notEmpty) {stack_MC->SetMaximum(stack_MC->GetMaximum()*1.4);}
 
 		stack_MC->SetMinimum(0.0001); //Remove '0' label
 
@@ -2928,8 +2948,6 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     total_var_list.push_back("maxDeepCSV");
     total_var_list.push_back("deepCSV_2nd");
     total_var_list.push_back("leptonCharge");
-    total_var_list.push_back("njets");
-    total_var_list.push_back("nbjets");
     total_var_list.push_back("cosThetaStarPolTop");
     total_var_list.push_back("cosThetaStarPolZ");
     total_var_list.push_back("recoZ_Pt");
@@ -2941,43 +2959,50 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     total_var_list.push_back("TopZsystem_Pt");
     total_var_list.push_back("TopZsystem_M");
     total_var_list.push_back("jprime_Pt");
-    // total_var_list.push_back("recoLepTopLep_Pt");
-    // total_var_list.push_back("recoLepTopLep_Eta");
-    // total_var_list.push_back("mbjMax");
-    // total_var_list.push_back("maxDiJet_pt");
-    // total_var_list.push_back("maxDelRbL");
-    // total_var_list.push_back("dR_tZ");
-    // total_var_list.push_back("dR_ZlW");
-    // total_var_list.push_back("dR_blW");
-    // total_var_list.push_back("dR_bW");
-    // total_var_list.push_back("dR_tClosestLep");
-    // total_var_list.push_back("dR_jprimeClosestLep");
-    // total_var_list.push_back("dEta_jprimeClosestLep");
-    // total_var_list.push_back("dR_tClosestJet");
-    // total_var_list.push_back("dR_tjprime");
-    // total_var_list.push_back("dR_bjprime");
-    // total_var_list.push_back("dR_lWjprime");
-    // total_var_list.push_back("dR_Zjprime");
-    // total_var_list.push_back("maxDiJet_m");
-    // total_var_list.push_back("dEta_tjprime");
-    // total_var_list.push_back("dEta_bjprime");
-    // total_var_list.push_back("dEta_lWjprime");
-    // total_var_list.push_back("dEta_Zjprime");
+    total_var_list.push_back("channel");
+    total_var_list.push_back("njets");
+    total_var_list.push_back("nbjets");
+    total_var_list.push_back("metEt");
+
+    // total_var_list.push_back("mTW");
+    // total_var_list.push_back("mHT");
+    // total_var_list.push_back("Mass_3l");
+    // total_var_list.push_back("maxEtaJet");
+    // total_var_list.push_back("jPrimeAbsEta");
+    // total_var_list.push_back("lAsymmetry");
+    // total_var_list.push_back("maxDelPhiLL");
+    // total_var_list.push_back("maxDeepCSV");
+    // total_var_list.push_back("deepCSV_2nd");
+    // total_var_list.push_back("leptonCharge");
+    // total_var_list.push_back("njets");
+    // total_var_list.push_back("nbjets");
+    // total_var_list.push_back("cosThetaStarPolTop");
+    // total_var_list.push_back("cosThetaStarPolZ");
+    // total_var_list.push_back("recoZ_Pt");
+    // total_var_list.push_back("recoZ_Eta");
+    // total_var_list.push_back("recoZ_M");
+    // total_var_list.push_back("recoLepTop_Pt");
+    // total_var_list.push_back("recoLepTop_Eta");
+    // total_var_list.push_back("recoLepTop_M");
+    // total_var_list.push_back("TopZsystem_Pt");
+    // total_var_list.push_back("TopZsystem_M");
+    // total_var_list.push_back("jprime_Pt");
 
     TString theyear = "2017"; //2016,2017,2018
 
 //--------------------------------------------
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
-    v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
+    // v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
     // v_samples.push_back("PrivMC_tZq_top19001"); v_groups.push_back("PrivMC_tZq_top19001_fastsim"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_tZq_fullsim"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
-    v_samples.push_back("PrivMC_tZq_training"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
+    // v_samples.push_back("PrivMC_tZq_training"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_tZq_ctz"); v_groups.push_back("tZq (ctZ-only)"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_tZq_ctw"); v_groups.push_back("tZq (ctW-only)"); v_colors.push_back(kGreen);
-    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed+2);
+    v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed+2);
     // v_samples.push_back("PrivMC_ttZ_top19001"); v_groups.push_back("PrivMC_ttZ_top19001"); v_colors.push_back(kBlue);
     // v_samples.push_back("PrivMC_ttZ_v3"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
+    v_samples.push_back("PrivMC_ttZ_training"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
 
     vector<TString> v_syst;
     v_syst.push_back("");
@@ -3009,6 +3034,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //      # #        #   #    # #####
 // #    # #        #   #    # #
 //  ####  ######   #    ####  #
+
+    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
 
 	//Get input TFile
 	TString input_name;
@@ -3074,6 +3101,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                     h_tmp = 0;
 
                     TString histo_name = total_var_list[ivar];
+                    if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
                     if(channel_list[ichan] != "") {histo_name+= "_" + channel_list[ichan];}
                     // histo_name+= "_" + v_lumiYears[iyear];
                     histo_name+= "_" + theyear;
@@ -3446,6 +3474,8 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 	if(!Check_File_Existence(filename) ) {cout<<endl<<FRED("File "<<filename<<" not found! Abort template merging !")<<endl; return;}
 	TFile* f = TFile::Open(filename, "UPDATE");
 
+    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
+
 	//NB :here the order of loops is important because we sum histograms recursively ! The 'sample_list' loop *must be the most nested one* !
     for(int ivar=0; ivar<total_var_list.size(); ivar++) //There may be more than 1 template, e.g. several NN output nodes
     {
@@ -3487,6 +3517,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
         					if(samplename == "DATA") {samplename = "data_obs";}
 
         					TString histoname = total_var_list[ivar];
+                            if(cat_tmp != "") {histoname+= "_" + cat_tmp;}
         					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
                             histoname+= "_" + v_lumiYears[iyear];
                             histoname+= "__" + samplename;
@@ -3535,6 +3566,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
         						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
         						TString histoname_new = total_var_list[ivar];
+                                if(cat_tmp != "") {histoname_new+= "_" + cat_tmp;}
         						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
                                 histoname_new+= "_" + v_lumiYears[iyear];
         						histoname_new+= "__" + sample_groups[isample];
@@ -3599,61 +3631,53 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
 
-void TopEFT_analysis::Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, const vector<float>& v_SWE, float wgt_baseline, float weightMENominal, float w_SMpoint, int idx_sm)
+void TopEFT_analysis::Test_SumLR_Scan(vector<double>& v_sumLogLR, TFModel* clfy1, vector<float>& var_list_floats, vector<TString>& v_EFTpoints) //, WCFit& eft_fit
 {
-    bool debug = false;
+/*
+    vector<TString> v_EFTpoints;
+    v_EFTpoints.push_back("rwgt_ctz_-5");
+    v_EFTpoints.push_back("rwgt_ctz_-3");
+    v_EFTpoints.push_back("rwgt_ctz_-1");
+    v_EFTpoints.push_back("rwgt_ctz_0");
+    v_EFTpoints.push_back("rwgt_ctz_1");
+    v_EFTpoints.push_back("rwgt_ctz_3");
+    v_EFTpoints.push_back("rwgt_ctz_5");
 
-    // WCFit eft_fit("myfit");
+    vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
 
-    //May only loop on minimal required number of points for WCFit (depends on n.of WCs) -- will get fit warning otherwise
-    //=== WARNING : ASSUMES THAT FIRST WEIGHT is 'rwgt_1', and second is 'rwgt_sm' ===
-    for(int iwgt=1; iwgt<25; iwgt++) //just the necessary nof weights to overconstrain fit with 5 WCs
-    // for(int iwgt=1; iwgt<v_ids->size(); iwgt++)
+    TString filepath = "./outputs/Templates_NN__2017.root";
+    TFile* f = TFile::Open(filepath);
+
+    TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__PrivMC_tZq_training";
+
+    if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
+    TH1EFT* th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
+*/
+
+    for(int ipt=0; ipt<v_EFTpoints.size(); ipt++)
     {
-        float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[idx_sm]);
-        // float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[iwgt]);
-        // float w = v_wgts->at(iwgt) / v_SWE[iwgt];
-        // float w = v_wgts->at(iwgt) / v_SWE[idx_sm];
-        // float w = v_wgts->at(iwgt);
+        double epsilon = pow(10,-9);
 
-        // cout<<"wgt_baseline "<<wgt_baseline<<endl;
-        // cout<<"v_wgts->at(iwgt) "<<v_wgts->at(iwgt)<<endl;
-        // cout<<"v_SWE[iwgt] "<<v_SWE[iwgt]<<endl;
-        // cout<<"w "<<w<<endl;
+        var_list_floats[var_list_floats.size()-1] = Convert_TString_To_Number(v_EFTpoints[ipt].ReplaceAll("rwgt_ctZ_", ""));
 
-        if(ToLower(v_ids->at(iwgt)) == "rwgt_sm") {continue;} //SM point added manually
+        // WCPoint wcp = WCPoint((string) v_EFTpoints[ipt], 1.);
+        // double fit_val = eft_fit.evalPoint(&wcp);
 
-        // double w = wgt_nominal * v_wgts->at(iwgt) / v_SWE[iwgt];
+        std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
 
-        WCPoint wc_pt(v_ids->at(iwgt), w);
+        double val = clfy1_outputs[0];
 
-        eft_fit->points.push_back(wc_pt);
-    }
+        v_sumLogLR[ipt]+= log( (1. - val + epsilon) / (val + epsilon) );
 
-    //-- Include 'manually' the SM point as first element (not included automatically because named 'SM' and not via its operator values)
-    eft_fit->points.insert(eft_fit->points.begin(), eft_fit->points[0]); //Duplicate the first element
-    eft_fit->points[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
-    // eft_fit->points[0].wgt = v_wgts->at(idx_sm); //Set (new) first element to SM weight
-    eft_fit->points[0].wgt = w_SMpoint; //Set (new) first element to SM weight
-
-    eft_fit->fitPoints();
-
-    if(debug) //Printout WC values, compare true weight to corresponding fit result
-    {
-        cout<<"//-------------------------------------------- "<<endl;
-        eft_fit->dump(); //Printout all names and coefficients of WC pairs
-        for (uint i=0; i < eft_fit->points.size(); i++)
+        if(false)
         {
-            WCPoint wc_pt = eft_fit->points.at(i);
-            double fit_val = eft_fit->evalPoint(&wc_pt);
-            wc_pt.dump(); //Printout names and values of all WCs for this point
-            std::cout << "===> " << std::setw(3) << i << ": " << std::setw(12) << wc_pt.wgt << " | " << std::setw(12) << fit_val << " | " << std::setw(12) << (wc_pt.wgt-fit_val) << std::endl; //Printout : i / true weight / evaluated weight / diff
+            for(int inp=0; inp<var_list_floats.size(); inp++)
+            {
+                cout<<inp<<": "<<var_list_floats[inp]<<endl;
+            }
+            cout<<"-->  "<<val<<endl;
         }
-        cout<<endl<<endl<<endl;
     }
-
-    //Fill TH1EFT with SM weight by default
-    // h->Fill(x, wgt_nominal , eft_fit);
 
     return;
 }

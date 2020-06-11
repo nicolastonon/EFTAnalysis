@@ -229,8 +229,9 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 t->GetEntry(0); //Read 1 entry
                 for(int iwgt=0; iwgt<v_reweights_ids->size(); iwgt++)
                 {
+                    // cout<<"iwgt "<<iwgt<<" / "<<v_reweights_ids->at(iwgt)<<endl;
+
                     TString ts = v_reweights_ids->at(iwgt);
-                    // cout<<"ts "<<ts<<endl;
                     if(ts.Contains("_sm", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //Found relevant index, no need to read this branch anymore
                 }
                 if(v_samples[isample].Contains("_c")) {idx_sm = -1;} //Pure-EFT sample
@@ -503,7 +504,7 @@ int main(int argc, char **argv)
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
     bool group_samples_together = true; //true <-> group similar samples together
-    bool remove_totalSF = false; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
+    bool remove_totalSF = true; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
 
     if(argc > 1)
 	{
@@ -539,15 +540,16 @@ int main(int argc, char **argv)
     v_samples.push_back("tZq"); v_label.push_back("tZq");
     v_samples.push_back("ttZ"); v_label.push_back("ttZ");
 
-    v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
-    v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
-    v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
-    v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
-    v_samples.push_back("PrivMC_tZq_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
+    // v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
+    // v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+    // v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
+    // v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
+    // v_samples.push_back("PrivMC_tZq_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
+    // v_samples.push_back("PrivMC_ttZ_fullsim"); v_label.push_back("PrivMC_ttZ_fullsim");
+    // v_samples.push_back("PrivMC_ttZ_test"); v_label.push_back("PrivMC_ttZ_test");
     v_samples.push_back("PrivMC_tZq_training"); v_label.push_back("PrivMC_tZq_training");
-    v_samples.push_back("PrivMC_ttZ_fullsim"); v_label.push_back("PrivMC_ttZ_fullsim");
-    v_samples.push_back("PrivMC_ttZ_test"); v_label.push_back("PrivMC_ttZ_test");
     v_samples.push_back("PrivMC_ttZ_v3"); v_label.push_back("PrivMC_ttZ_v3");
+    v_samples.push_back("PrivMC_ttZ_training"); v_label.push_back("PrivMC_ttZ_training");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");

@@ -1,11 +1,11 @@
-Start of NN training :10-Jun-2020 (00:09:34)
+Start of NN training :10-Jun-2020 (20:48:47)
 
 OPTIONS
 ----------------- 
-strategy --> classifier
-nEpochs --> 5
+strategy --> CARL
+nEpochs --> 20
 splitTrainEventFrac --> 0.8
-nHiddenLayers --> 5
+nHiddenLayers --> 3
 nNeuronsPerLayer --> 100
 activInputLayer --> tanh
 activHiddenLayers --> relu
@@ -17,8 +17,8 @@ maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
-listOperatorsParam --> ['cpqm', 'cpt']
-nPointsPerOperator --> 40
+listOperatorsParam --> ['ctz']
+nPointsPerOperator --> 20
 minWC --> -20
 maxWC --> 20
 nEventsPerPoint --> 2000
@@ -27,12 +27,11 @@ refPoint --> SM
 score_lossWeight --> 1
 regress_onLogr --> True
 cuts --> 1
-makeValPlotsOnly --> False
-parameterizedNN --> False
+makeValPlotsOnly --> True
+parameterizedNN --> True
 regress --> False
-nofOutputNodes --> 3
-maxEvents --> -1
-batchSize --> 512
+nofOutputNodes --> 1
+maxEvents --> 2000
+batchSize --> 5000
 ----------------- 
 
-End of NN training and evaluation :10-juin-2020 (00:11:00)

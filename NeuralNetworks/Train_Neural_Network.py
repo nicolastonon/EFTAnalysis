@@ -30,10 +30,10 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training settings ===#
-"nEpochs": 5, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
 
-"nHiddenLayers": 5, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": 'tanh', #Activation function of input layer
 "activHiddenLayers": 'relu', #Activation function of hidden layers #tanh,relu, ...
@@ -49,10 +49,10 @@ optsTrain = {
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['cpqm', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['cpqm', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctZ','ctW', 'cpQM', 'cpQ3', 'cpt'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 40, "minWC": -20, "maxWC": 20, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nPointsPerOperator": 20, "minWC": -20, "maxWC": 20, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 2000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)

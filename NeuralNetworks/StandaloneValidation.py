@@ -36,9 +36,9 @@ nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-# evalPoint = "rwgt_ctZ_3"
+evalPoint = "rwgt_ctZ_3"
 # evalPoint = "rwgt_ctw_2"
-evalPoint = "rwgt_cpqm_15"
+# evalPoint = "rwgt_cpqm_15"
 # evalPoint = "rwgt_cpq3_15"
 # evalPoint = "rwgt_cpt_15"
 # evalPoint = "rwgt_ctZ_5"
@@ -47,15 +47,15 @@ evalPoint = "rwgt_cpqm_15"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
 list_points_sampling.append("SM") #Keep this
-# list_points_sampling.append("rwgt_ctz_2")
+list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
-list_points_sampling.append("rwgt_cpqm_15")
+# list_points_sampling.append("rwgt_cpqm_15")
 # list_points_sampling.append("rwgt_cpq3_15")
-list_points_sampling.append("rwgt_cpt_15")
+# list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")

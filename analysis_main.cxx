@@ -108,13 +108,9 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("tZq_EFT");
-    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("ttZ_EFT");
-    // thesamplelist.push_back("PrivMC_tZq_top19001"); thesamplegroups.push_back("tZq_EFT_v2");
-    // thesamplelist.push_back("PrivMC_ttZ_top19001"); thesamplegroups.push_back("ttZ_EFT_v2");
-    // thesamplelist.push_back("PrivMC_tZq_fullsim"); thesamplegroups.push_back("tZq_EFT_fullsim");
     thesamplelist.push_back("PrivMC_tZq_training"); thesamplegroups.push_back("PrivMC_tZq_training");
     thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
+    thesamplelist.push_back("PrivMC_ttZ_training"); thesamplegroups.push_back("PrivMC_ttZ_training");
     // thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
     // thesamplelist.push_back("PrivMC_tZq_ctw"); thesamplegroups.push_back("tZq_ctW");
     // thesamplelist.push_back("PrivMC_ttZ_ctz"); thesamplegroups.push_back("ttZ_ctZ");
@@ -306,7 +302,7 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -343,8 +339,7 @@ int main(int argc, char **argv)
 	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region_choice);
 
 //Enable multi-threading (I have 8 available threads)
-    // int nthreads = 4;
-    // ROOT::EnableImplicitMT(nthreads);
+    // int nthreads = 4; ROOT::EnableImplicitMT(nthreads);
 
 //------------------------------------
 //--------------------------------------------

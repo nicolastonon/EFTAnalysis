@@ -117,7 +117,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
             for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
             {
-                TString var = "BDT"+ v_templates[itemplate] + "_" + region_tmp;
+                TString var = v_templates[itemplate] + "_" + region_tmp;
 
     			//Make subdir for single datacards
     			file_out <<"mkdir "<<dir<<endl<<endl;
@@ -125,7 +125,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
     		    // TString file_histos = "../templates/Combine_Input.root";
-    			TString file_histos = "../../../templates/Templates_BDT"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
+    			TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
 
     			cout<<"---> Will use filepath : "<<file_histos<<endl<<endl;
 
@@ -165,7 +165,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
     	    {
-                TString var = "BDT"+ v_templates[itemplate] + "_" + region_tmp;
+                TString var = v_templates[itemplate] + "_" + region_tmp;
 
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
     			{
@@ -314,14 +314,15 @@ int main()
 //--------------------------------------------
     TString lumiName = "Run2"; //'2016','2017','2018','201617','201618','201718','Run2'
 
-    vector<TString> v_templates;
-    v_templates.push_back(""); //Default BDT
+    vector<TString> v_templates; //'NN', 'BDT'
+    v_templates.push_back("NN");
 
-    vector<TString> v_channel;
-    v_channel.push_back("uuu");
-    v_channel.push_back("eeu");
-    v_channel.push_back("uue");
-    v_channel.push_back("eee");
+    vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee' //NB: option to select channel splitting via command line ?
+    v_channel.push_back("all");
+    // v_channel.push_back("uuu");
+    // v_channel.push_back("eeu");
+    // v_channel.push_back("uue");
+    // v_channel.push_back("eee");
 
     vector<TString> v_regions;
 	v_regions.push_back("SR");
