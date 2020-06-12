@@ -36,10 +36,16 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
         truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1])))
     else:
         truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1]))[:,0])
-    pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1])))
-    class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1])))
+
+    if len(list_predictions_test_allNodes_allClasses[0]) > 1: #Concatenate 'sig' and 'bkg'
+        pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1])))
+        class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1])))
+    else: #For simple regressor, there may be only 1 process class to consider
+        pred_data = np.squeeze(list_predictions_test_allNodes_allClasses[0][0])
+        class_data = np.squeeze(list_truth_Test_allClasses[0])
+
     # print(truth_data.shape); print(pred_data.shape); print(class_data.shape)
-    print(truth_data[:20]); print(pred_data[:20])
+    # print(truth_data[:20]); print(pred_data[:20])
 
     # quantile = np.quantile(pred_data, 0.995)
     quantile = np.quantile(truth_data, 0.995) #Define axis range based on population of truth values

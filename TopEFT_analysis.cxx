@@ -71,13 +71,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     }
     if(region=="tWZ") {nSampleGroups++;} //In tWZ region, single out tWZ process from tX
 
- // #      #    # #    # #
- // #      #    # ##  ## #
- // #      #    # # ## # #
- // #      #    # #    # #
- // #      #    # #    # #
- // ######  ####  #    # #
-
+//=== LUMI ===//
 /*
 # Luminosity conventions #
 - The 'v_lumiYears' vector lists the years which are to be considered (its elements can be '2016', '2017' and '2018' - in correct order)
@@ -312,6 +306,23 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
     cout<<endl<<BLINK(BOLD(FBLU("[Luminosity : "<<lumiName<<"]")))<<endl<<endl<<endl;
+
+    //TMP TEST -- to change or remove soon
+    //--------------------------------------------
+    v_EFTpoints.push_back("rwgt_ctz_-15");
+    v_EFTpoints.push_back("rwgt_ctz_-9");
+    v_EFTpoints.push_back("rwgt_ctz_-5");
+    v_EFTpoints.push_back("rwgt_ctz_-3");
+    v_EFTpoints.push_back("rwgt_ctz_-1");
+    v_EFTpoints.push_back("rwgt_ctz_0");
+    v_EFTpoints.push_back("rwgt_ctz_1");
+    v_EFTpoints.push_back("rwgt_ctz_3");
+    v_EFTpoints.push_back("rwgt_ctz_5");
+    v_EFTpoints.push_back("rwgt_ctz_9");
+    v_EFTpoints.push_back("rwgt_ctz_15");
+
+    v_sumLogLR.resize(v_EFTpoints.size()); //Store 1 value per EFT point
+    //--------------------------------------------
 
     usleep(1000000); //Pause for 1s (in microsec)
 }
@@ -813,25 +824,6 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 
 void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_inputVars)
 {
-//FIXME
-//TMP TEST
-//--------------------------------------------
-vector<TString> v_EFTpoints;
-v_EFTpoints.push_back("rwgt_ctz_-15");
-v_EFTpoints.push_back("rwgt_ctz_-9");
-v_EFTpoints.push_back("rwgt_ctz_-5");
-v_EFTpoints.push_back("rwgt_ctz_-3");
-v_EFTpoints.push_back("rwgt_ctz_-1");
-v_EFTpoints.push_back("rwgt_ctz_0");
-v_EFTpoints.push_back("rwgt_ctz_1");
-v_EFTpoints.push_back("rwgt_ctz_3");
-v_EFTpoints.push_back("rwgt_ctz_5");
-v_EFTpoints.push_back("rwgt_ctz_9");
-v_EFTpoints.push_back("rwgt_ctz_15");
-
-vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
-//--------------------------------------------
-
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU)
 
@@ -1321,10 +1313,10 @@ vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
                             for(int ivar=0; ivar<total_var_list.size(); ivar++) {total_var_floats[ivar] = clfy1_outputs[ivar];}
                             // cout<<"ientry "<<ientry<<" ==> "<<clfy1_outputs[0]<<endl;
 
-                            //FIXME -- TEST
+                            //TEST TMP
                             if(sample_list[isample] == "PrivMC_tZq_training")
                             {
-                                Test_SumLR_Scan(v_sumLogLR, clfy1, var_list_floats, v_EFTpoints);
+                                Test_SumLR_Scan(clfy1, var_list_floats);
                             }
                         }
                     }
@@ -1546,9 +1538,9 @@ vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
         Merge_Templates_ByProcess(output_file_name, template_name, total_var_list);
     }
 
-//FIXME
+//TEST TMP
 //--------------------------------------------
-for(int ipt=0; ipt<v_EFTpoints.size(); ipt++)
+for(int ipt=0; ipt<v_sumLogLR.size(); ipt++)
 {
     cout<<"v_sumLogLR["<<ipt<<"] = "<<v_sumLogLR[ipt]<<endl;
 }
@@ -3631,29 +3623,9 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
 
-void TopEFT_analysis::Test_SumLR_Scan(vector<double>& v_sumLogLR, TFModel* clfy1, vector<float>& var_list_floats, vector<TString>& v_EFTpoints) //, WCFit& eft_fit
+//TMP -- To change or remove soon
+void TopEFT_analysis::Test_SumLR_Scan(TFModel* clfy1, vector<float>& var_list_floats) //, WCFit& eft_fit
 {
-/*
-    vector<TString> v_EFTpoints;
-    v_EFTpoints.push_back("rwgt_ctz_-5");
-    v_EFTpoints.push_back("rwgt_ctz_-3");
-    v_EFTpoints.push_back("rwgt_ctz_-1");
-    v_EFTpoints.push_back("rwgt_ctz_0");
-    v_EFTpoints.push_back("rwgt_ctz_1");
-    v_EFTpoints.push_back("rwgt_ctz_3");
-    v_EFTpoints.push_back("rwgt_ctz_5");
-
-    vector<double> v_sumLogLR(v_EFTpoints.size()); //Store 1 value per EFT point
-
-    TString filepath = "./outputs/Templates_NN__2017.root";
-    TFile* f = TFile::Open(filepath);
-
-    TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__PrivMC_tZq_training";
-
-    if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
-    TH1EFT* th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
-*/
-
     for(int ipt=0; ipt<v_EFTpoints.size(); ipt++)
     {
         double epsilon = pow(10,-9);

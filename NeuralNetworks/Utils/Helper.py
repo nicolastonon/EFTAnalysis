@@ -391,7 +391,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
     if (opts["parameterizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
-    elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
+    # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 

@@ -887,13 +887,13 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             jointLR_refPoint = jointLR[indices_refPoint,itheta]
 
             #-- For debugging, may want to set all JLR values to dummy values #FIXME #FIXME
-            jointLR_theta[:] = 0.5 #regress dummy value
-            jointLR_refPoint[:] = 0.5
+            # jointLR_theta[:] = 0.5 #regress dummy value
+            # jointLR_refPoint[:] = 0.5
             # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
             # jointLR_refPoint = np.random.normal(loc=1.5, scale=0.1, size=len(x_refPoint))
             # jointLR_theta = weightsThetas[indices_theta,itheta] #regress event weight
             # jointLR_refPoint = weightsRefPoint[indices_refPoint]
-            # jointLR_theta = x_theta[:,0] #regress mtW
+            # jointLR_theta = x_theta[:,0] #regress first observable (given as input!)
             # jointLR_refPoint = x_refPoint[:,0]
 
             score_allOperators_theta = []; score_allOperators_refPoint = []
@@ -1042,6 +1042,12 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     score_allOperators_theta = []
     if need_jlr:
         jointLR_theta = jointLR[indices_theta]
+
+        #-- For debugging, may want to set all JLR values to dummy values #FIXME #FIXME
+        # jointLR_theta[:] = 0.5 #regress dummy value
+        # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
+        # jointLR_theta = weightsThetas[indices_theta,itheta] #regress event weight
+        # jointLR_theta = x_theta[:,0] #regress first observable (given as input!)
 
         if need_score:
             for iop in range(len(opts['listOperatorsParam'])):

@@ -1,10 +1,27 @@
+#-- Define custom Physics Model
+# Adapted from: https://github.com/cms-govner/EFTFit
+
 import numpy as np
 import ROOT
 import pprint
-ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so')
+from Utils.ColoredPrintout import colors
+ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so') #Library for custom classes WCPoint, WCFit, TH1EFT
 
-from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
-#Based on 'Quadratic' model from HiggsAnalysis.CombinedLimit.QuadraticScaling
+from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel #Based on 'Quadratic' model from HiggsAnalysis.CombinedLimit.QuadraticScaling
+
+#OPTIONS
+# //--------------------------------------------
+SM_name = 'SM' #SM point naming convention
+verbose = 1 #(Dis)activate printouts
+# //--------------------------------------------
+
+######## ######## ######## ##     ##  #######  ########  ######## ##
+##       ##          ##    ###   ### ##     ## ##     ## ##       ##
+##       ##          ##    #### #### ##     ## ##     ## ##       ##
+######   ######      ##    ## ### ## ##     ## ##     ## ######   ##
+##       ##          ##    ##     ## ##     ## ##     ## ##       ##
+##       ##          ##    ##     ## ##     ## ##     ## ##       ##
+######## ##          ##    ##     ##  #######  ########  ######## ########
 
 class EFTModel(PhysicsModel):
     """Apply process scaling due to EFT Wilson Coefficients (WCs).
@@ -20,21 +37,30 @@ class EFTModel(PhysicsModel):
     >>> np.save('scales.npy', scales)
 
     Oversimplified example for running with override options:
-    text2workspace.py EFT_MultiDim_Datacard.txt -P EFTFit.Fitter.EFTModel:eftmodel --PO fits=EFT_Parameterization.npy --PO process=ttZ --PO process=ttW --PO coefficient=cuW -o cuW.root
-    combine -M MultiDimFit ctW.root --setParameterRanges=-4,4
+    text2workspace.py EFT_MultiDim_Datacard.txt -P EFTModel:eftmodel --PO fits=EFT_Parameterization.npy --PO process=tZq --PO coefficient=ctz -o ctz.root
+    combine -M MultiDimFit ctz.root --setParameterRanges ctz=-4,4 --expectSignal=1
     """
 
+
+  ####  #####  ##### #  ####  #    #  ####
+ #    # #    #   #   # #    # ##   # #
+ #    # #    #   #   # #    # # #  #  ####
+ #    # #####    #   # #    # #  # #      #
+ #    # #        #   # #    # #   ## #    #
+  ####  #        #   #  ####  #    #  ####
+
     def setPhysicsOptions(self, options):
+
         self.fits = None # File containing WC parameterizations of each process+bin *with events*!
-        self.wcs = ['ctZ']
-        self.wc_ranges = {  'ctZ':(-6,6)#,    'ctW':(-7,7)
+        self.wcs = ['ctz']
+        self.wc_ranges = {'ctz':(-6,6)#,    'ctW':(-7,7)
                          }
         wcs_override = [] # WCs specified by arguments
         self.procbins = [] # Process+bin combinations (tuple) that we have events for
         procbin_override = [] # Process+bin combinations (tuple) specified by arguments
 
         for option, value in [x.split('=') for x in options]:
-            if option == 'fits': # .npy fit file created with FitConversion16D.py
+            if option == 'fits': # .npy fit file created with FitConversionEFT.py
                 self.fits = value
             elif option == 'wcs': # Override to fit only a subset of WCs
                 wcs_override = value.split(',')
@@ -50,19 +76,28 @@ class EFTModel(PhysicsModel):
         if len(wcs_override)>0: self.wcs = np.intersect1d(self.wcs,wcs_override)
         if len(procbin_override)>0: self.procbins = np.intersect1d(self.procbins,procbins_override)
 
+        if verbose: print('procbins:', self.procbins)
 
+
+  ####  ###### ##### #    # #####
+ #      #        #   #    # #    #
+  ####  #####    #   #    # #    #
+      # #        #   #    # #####
+ #    # #        #   #    # #
+  ####  ######   #    ####  #
 
     def setup(self):
-        print "Setting up fits"
+
+        print(colors.fg.lightblue + "Setting up fits..." + colors.reset)
         fits = np.load(self.fits)[()]
         for procbin in self.procbins:
-            #self.modelBuilder.out.var(procbin)
-            name = 'r_{0}_{1}'.format(procbin[0],procbin[1])
+            name = 'r_{0}_{1}_{2}'.format(procbin[0],procbin[1],procbin[2])
             procbin_name = '_'.join(procbin)
+            if verbose: print('procbin_name', procbin_name)
 
-            if not self.modelBuilder.out.function(name):
+            if not self.modelBuilder.out.function(name): #If r_proc_cat_bin not yet setup
                 # Initialize function pieces
-                constant = '{}'.format(fits[procbin][('sm','sm')]) # constant term (should be 1)
+                constant = '{}'.format(fits[procbin][(SM_name,SM_name)]) # constant term (should be 1)
                 lin_name = procbin_name+"_L" # Name of linear function
                 lin_term = [] # Linear term
                 lin_args = [] # List of wcs in linear term
@@ -73,15 +108,18 @@ class EFTModel(PhysicsModel):
 
                 # Fill function pieces
                 for idx,wc1 in enumerate(self.wcs):
-                    if abs(fits[procbin][('sm',wc1)]) >= 0.001:
-                        lin_term.append('{0}*{1}'.format(round(fits[procbin][('sm',wc1)],4),wc1))
+                    if abs(fits[procbin][(SM_name,wc1)]) >= 0.001:
+                        lin_term.append('{0}*{1}'.format(round(fits[procbin][(SM_name,wc1)],4),wc1))
                         lin_args.append(wc1)
                     for idy,wc2 in enumerate(self.wcs):
                         if (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.001):
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
-                #if procbin[1]=='C_2lss_m_emu_2b_5j': print lin_term, quartic_terms
 
+                if verbose: print('lin_term', lin_term)
+                if verbose: print('quartic_terms', quartic_terms)
+
+                '''
                 # New method of filling quartic terms to autosplit every ~<1000 characters
                 #quartic_master = []
                 #quartic_final = []
@@ -103,6 +141,7 @@ class EFTModel(PhysicsModel):
                 #print "Size of pieces:"
                 #for idx in range(len(quartic_final)):
                 #    print len(quartic_final[idx])
+                '''
 
                 # Compile linear function for combine
                 if lin_term:
@@ -121,34 +160,49 @@ class EFTModel(PhysicsModel):
 
                 # Compile the full function
                 fit_function = "expr::{name}('{fit_terms}',{fit_args})".format(name=name,fit_terms="+".join(fit_terms),fit_args=",".join(fit_terms[1:]))
+                if verbose: print('fit_function', fit_function)
                 quadratic = self.modelBuilder.factory_(fit_function)
 
                 # Export fit function
                 self.modelBuilder.out._import(quadratic)
 
-            #print self.coefficient,"= 0",procbin,a0
-            #print self.coefficient,"= 1",procbin,a0+a1+a2
-        #pprint.pprint(table,indent=1,width=100)
+        print(colors.fg.lightblue + "... Done !" + colors.reset)
 
+
+ #####   ####  #
+ #    # #    # #
+ #    # #    # #
+ #####  #    # #
+ #      #    # #
+ #       ####  #
 
     def doParametersOfInterest(self):
         # user can call combine with `--setPhysicsModelParameterRanges` to set to sensible ranges
         for wc in self.wcs:
             self.modelBuilder.doVar('{0}[0, {1}, {2}]'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]))
-        print "WCs to fit for: "+",".join(self.wcs)
+        print(colors.fg.lightblue + "WCs to fit for: "+colors.reset+",".join(self.wcs))
         self.modelBuilder.doSet('POI', ','.join(self.wcs))
-        #self.modelBuilder.doSet('POI', 'ctW,ctZ')
+        #self.modelBuilder.doSet('POI', 'ctw,ctz')
         self.setup()
 
+
+ #   # # ###### #      #####     ####   ####    ##   #      ######
+  # #  # #      #      #    #   #      #    #  #  #  #      #
+   #   # #####  #      #    #    ####  #      #    # #      #####
+   #   # #      #      #    #        # #      ###### #      #
+   #   # #      #      #    #   #    # #    # #    # #      #
+   #   # ###### ###### #####     ####   ####  #    # ###### ######
+
     def getYieldScale(self, bin, process):
+
         if (process,bin) not in self.procbins:
             return 1
         else:
-            #print 'scaling {0}, {1}'.format(process, bin)
-            #fits = np.load(self.fits)[()]
-            #print self.coefficient,process,bin,fits[self.coefficient][(process,bin)]
             name = 'r_{0}_{1}'.format(process,bin)
             return name
 
+# //--------------------------------------------
+# //--------------------------------------------
 
+print(colors.fg.lightblue + 'Creating custom Physics model...' + colors.reset)
 eftmodel = EFTModel()

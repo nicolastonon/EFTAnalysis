@@ -90,9 +90,11 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
                 list_xTrain_allClasses.append(x_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents]); list_yTrain_allClasses.append(y_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_truth_Train_allClasses.append(y_process_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents])
                 list_xTest_allClasses.append(x_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_yTest_allClasses.append(y_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents])
 
+
     #-- Sanity checks: make sure no class is empty
-    assert all(len(l) for l in list_xTrain_allClasses)
-    assert all(len(l) for l in list_xTest_allClasses)
+    if opts["parameterizedNN"] is True or len(list_labels) > 1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check
+        assert all(len(l) for l in list_xTrain_allClasses)
+        assert all(len(l) for l in list_xTest_allClasses)
 
     # print(list_xTest_allClasses[0][:15])
 

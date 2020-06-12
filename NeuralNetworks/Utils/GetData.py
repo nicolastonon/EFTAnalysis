@@ -76,7 +76,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
-    y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator)
+    y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
 
     #-- Sanitize data
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
@@ -352,7 +352,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
         #Skim each process class (keep only maxEvents events) ; skim all relevant arrays coherently
         for iclass in range(len(list_x_arrays_allClasses)):
 
-            if list_nentries_class[iclass] > maxEvents: #FIXME -- could not make it work with lists... !
+            if list_nentries_class[iclass] > maxEvents: #NB: could not make it work with lists... !
 
                 #-- If only consider part of the process class data, shuffle events, so that the resulting dataset is representative of the event proportions of each process within the class (else, it could happen that e.g. only events from the first process get considered)
                 #NB: only arrays potentially used for training (x, weight, theta, ...) must be shuffled simultaneously
@@ -420,7 +420,7 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
 
     if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False and opts["parameterizedNN"] is True: print('Warning: len(list_thetas_allClasses)==0...')
 
-    # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
+    # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #-- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
     if opts["strategy"] == "CARL_singlePoint":
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
 
@@ -579,8 +579,7 @@ def Update_Lists(opts, list_labels, list_features):
 
         # list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
-        #FIXME -- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
-        # if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
+        # if opts["strategy"] is not "CARL_multiclass": list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features #-- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
         list_features = np.append(list_features, opts["listOperatorsParam"])
 
         refName = "SM"
@@ -606,15 +605,14 @@ def Update_Lists(opts, list_labels, list_features):
 
 #Create and return array 'y' <-> target for classification/regression
 #Also create and return array 'y_process' <-> will keep track of which process each event belongs to (since for regression, target will differ from 0,1)
-def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator):
+def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x):
 
     #-- Binary or multiclass classification between different processes
     if opts["strategy"] is "classifier": #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
 
         #Create array of labels (1 row per event, 1 column per class)
         if opts["nofOutputNodes"] == 1: #binary, single column => sig 1, bkg 0
-            y_integer_sig = np.ones(list_nentries_class[0]) #'1' = signal
-            y = y_integer_sig
+            y = np.ones(list_nentries_class[0]) #'1' = signal
             if len(list_processClasses)>1:
                 y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
                 y = np.concatenate((y, y_integer_bkg), axis=0)
@@ -630,14 +628,16 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 
         y_process = y #Classification <-> target corresponds to process ID
 
-    #-- Regress some quantity (only 0,1 supported for now, for debug)
+    #-- Regress some quantity (only 0,1 supported for now, for debug) #Only 2 process classes supported here yet
     elif opts["strategy"] is "regressor":
+
+        mode = 3 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians ; 2 <-> regress dummy value ; 3 <-> regress some input feature
 
         if opts["nofOutputNodes"] == 1: #Target = 0,1
 
-            mode = 0 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians
-
             if mode == 0:
+
+                #Regress 0, 1
                 y = np.ones(list_nentries_class[0]) #'1' = signal
                 if len(list_processClasses) > 1:
                     y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
@@ -651,6 +651,27 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
                 y_process = np.ones(list_nentries_class[0]) #'1' = signal
                 if len(list_processClasses) > 1:
                     y_integer_bkg = np.random.normal(loc=5, scale=0.1, size=list_nentries_class[1])
+                    y = np.concatenate((y, y_integer_bkg), axis=0)
+                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+
+            elif mode == 2:
+
+                #Regress fixed dummy value
+                dummy = 0.5
+                y = np.full(list_nentries_class[0], dummy)
+                y_process = np.ones(list_nentries_class[0]) #'1' = signal
+                if len(list_processClasses) > 1:
+                    y_integer_bkg = np.full(list_nentries_class[1], dummy)
+                    y = np.concatenate((y, y_integer_bkg), axis=0)
+                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+
+            elif mode == 3:
+
+                #Regress an input feature
+                y = x[:list_nentries_class[0], 0] #First feature
+                y_process = np.ones(list_nentries_class[0]) #'1' = signal
+                if len(list_processClasses) > 1:
+                    y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], 0]
                     y = np.concatenate((y, y_integer_bkg), axis=0)
                     y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
 

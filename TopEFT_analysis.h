@@ -84,7 +84,7 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void Merge_Templates_ByProcess(TString, TString, vector<TString>, bool=false);
 
-    void Test_SumLR_Scan(vector<double>&, TFModel*, vector<float>&, vector<TString>&);
+    void Test_SumLR_Scan(TFModel*, vector<float>&);
 
 //--- MEMBERS
 	bool stop_program;
@@ -146,6 +146,10 @@ class TopEFT_analysis
     double* array_Btag;
     double* array_LepEff_mu;
     double* array_LepEff_el;
+
+    //Test -- to rename or remove
+    vector<TString> v_EFTpoints;
+    vector<double> v_sumLogLR; //Store 1 value per EFT point
 };
 
 #endif

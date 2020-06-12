@@ -129,7 +129,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
 
-    if opts["strategy"] in ["ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
+    if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
 
     return
 
@@ -447,7 +447,6 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-#FIXME -- check that I properly inverted train/test distributions
 def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
@@ -593,6 +592,9 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
     label_class0 = "SM"; label_class1 = "EFT"
     if opts["strategy"] is "regressor": label_class0 = "Signal"; label_class1 = "Backgrounds"
 
+    plotSingleEventClass = False #By default, plot sig+bkg
+    if len(list_predictions_train_allNodes_allClasses[0]) == 1 or len(list_predictions_train_allNodes_allClasses[0][1]) == 0 or len(list_predictions_test_allNodes_allClasses[0][1]) == 0: plotSingleEventClass = True #e.g. for regressor on signle class --> no 'bkg class' to plot
+
     for inode in range(nofOutputNodes):
 
         #Auto-adjust plot range
@@ -610,8 +612,8 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         '''
 
         fig = plt.figure('regressor')
-        timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
-        timer.add_callback(close_event)
+        # timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
+        # timer.add_callback(close_event)
 
         ax = plt.axes()
         ax.set_xlim([rmin,rmax])
@@ -684,15 +686,15 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
                 # plt.hist(y_test[y_process_test==1], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
                 # plt.hist(y_test[y_process_test==0], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
                 plt.hist(list_yTest_allClasses[0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=3.)
-                plt.hist(list_yTest_allClasses[1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
+                if not plotSingleEventClass: plt.hist(list_yTest_allClasses[1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
             else:
                 # plt.hist(y_test[y_process_test==1][:,inode], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
                 # plt.hist(y_test[y_process_test==0][:,inode], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=4.)
                 plt.hist(list_yTest_allClasses[0][:,inode], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=3.)
-                plt.hist(list_yTest_allClasses[1][:,inode], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
+                if not plotSingleEventClass: plt.hist(list_yTest_allClasses[1][:,inode], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Truth)", edgecolor='orangered',fill=False, linewidth=3.)
 
         plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=True, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
-        plt.hist(list_predictions_test_allNodes_allClasses[inode][1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
+        if not plotSingleEventClass: plt.hist(list_predictions_test_allNodes_allClasses[inode][1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=True, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
 
         # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=True, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
         # plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=True, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
@@ -720,9 +722,9 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         plt.xlabel(nodename)
         plt.ylabel('PDF')
 
-        if inode == 0:
-            timer.start()
-            plt.show()
+        # if inode == 0:
+        #     timer.start()
+        #     plt.show()
 
         plotname = weight_dir + 'Regressor_NN_' + nodename + '.png'
         fig.savefig(plotname)
@@ -863,7 +865,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     df.insert(loc=0, column='weight', value=weights[:,]) #Only care about first column=main signal (rest -> bkg)
     # print(df); print(df.describe())
 
-    #-- Create multiplot #NB: only process columns corresponding to phy vars #FIXME
+    #-- Create multiplot #NB: only process columns corresponding to phy vars
     df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
     df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
 

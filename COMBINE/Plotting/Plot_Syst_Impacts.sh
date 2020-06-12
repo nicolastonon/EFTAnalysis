@@ -6,7 +6,7 @@
 
 #Check datacard argument
 if [[ $1 == *".txt" || $1 == *".root" ]] ; then
-    echo "Wrong datacard argument ! You must remove the file extension ! Abort..."
+    echo "Wrong datacard name argument ! You must remove the file extension ! Abort..."
     exit
 fi
 
@@ -37,7 +37,7 @@ elif [ "$2" == "exp" ]; then
 else
     echo "Usage : Plot_Syst_Impacts.sh [datacard name w/o extension] [exp/obs]"
     echo "\$1 => Name of the datacard, without file extension"
-    echo "\$2 => 'exp' or 'obs', depending if you want to use the data or not"
+    echo "\$2 => 'exp' or 'obs', depending whether you want to use data or not"
 fi
 
 #Plotting

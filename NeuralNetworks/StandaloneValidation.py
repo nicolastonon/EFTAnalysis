@@ -36,7 +36,7 @@ nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-evalPoint = "rwgt_ctZ_3"
+evalPoint = "rwgt_ctZ_0.3"
 # evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_cpqm_15"
 # evalPoint = "rwgt_cpq3_15"
@@ -47,7 +47,7 @@ evalPoint = "rwgt_ctZ_3"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
 list_points_sampling.append("SM") #Keep this
-list_points_sampling.append("rwgt_ctz_3")
+# list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
@@ -198,8 +198,8 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, list_points_sampling)
     ax = fig.gca()
-    ax.set(xlim=(xmin, xmax))
-    ax.set(ylim=(ymin, ymax))
+    # ax.set(xlim=(xmin, xmax))
+    # ax.set(ylim=(ymin, ymax))
 
     diag_line, = ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
 
@@ -461,12 +461,12 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
 # //--------------------------------------------
 # //--------------------------------------------
 
-  ####  #    # ###### #####  ##### #####    ##   # #    #
- #    # #    # #      #    #   #   #    #  #  #  # ##   #
- #    # #    # #####  #    #   #   #    # #    # # # #  #
- #    # #    # #      #####    #   #####  ###### # #  # #
- #    #  #  #  #      #   #    #   #   #  #    # # #   ##
-  ####    ##   ###### #    #   #   #    # #    # # #    #
+ #####   ####   ####   ####
+ #    # #    # #    # #
+ #    # #    # #       ####
+ #####  #    # #           #
+ #   #  #    # #    # #    #
+ #    #  ####   ####   ####
 
 def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, list_points_sampling):
 

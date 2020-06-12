@@ -1,3 +1,16 @@
+#-- Perform SM and EFT fits using custom Physics Model
+# Adapted from: https://github.com/cms-govner/EFTFit
+# Batch modes supported are: CRAB3 ('crab') and Condor ('condor')
+
+'''
+#'text2workspace will convert the datacard into a pdf which summaries the analysis'
+- '--just-check-physics-model'
+- '--dump-datacard'
+- '--PO' Pass a given option to the physics model
+- '-P' Pass Physics Model
+- '-v 9' max verbose
+'''
+
 import os
 import stat
 import sys
@@ -10,37 +23,92 @@ import getpass
 import array
 from collections import defaultdict
 
-ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so')
-
-# Batch modes supported are: CRAB3 ('crab') and Condor ('condor')
+######## ######## ######## ######## #### ########
+##       ##          ##    ##        ##     ##
+##       ##          ##    ##        ##     ##
+######   ######      ##    ######    ##     ##
+##       ##          ##    ##        ##     ##
+##       ##          ##    ##        ##     ##
+######## ##          ##    ##       ####    ##
 
 class EFTFit(object):
+
+
+ # #    # # #####
+ # ##   # #   #
+ # # #  # #   #
+ # #  # # #   #
+ # #   ## #   #
+ # #    # #   #
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
         # WCs lists for easy use
         # Full list of opeators
-        self.wcs = ['ctZ'] #Full list
+        self.wcs = ['ctz'] #Full list
         # Default pair of wcs for 2D scans
-        self.scan_wcs = ['ctW','ctZ']
+        self.scan_wcs = ['ctw','ctz']
         # Default wcs to keep track of during 2D scans
         self.wcs_tracked = [] #OTHERS
         # Scan ranges of the wcs
-        self.wc_ranges = {  'ctZ':(-6,6)#,    'ctW':(-7,7)
+        self.wc_ranges = {'ctz':(-5,5) #, 'ctw':(-7,7)
                          }
         # Systematics names except for FR stats. Only used for debug
-        # self.systematics = ['CERR1','CERR2','CMS_eff_em','CMS_scale_j','ChargeFlips','FR_FF','LEPID','MUFR','PDF','PSISR','PFSR','PU',
-                           #  'missing_parton',
-                           #  'QCDscale_V','QCDscale_VV','QCDscale_VVV','QCDscale_tHq','QCDscale_ttG','QCDscale_ttH','QCDscale_ttbar',
-                           #  'hf','hfstats1','hfstats2','lf','lfstats1','lfstats2','lumi_13TeV_2017','pdf_gg','pdf_ggttH','pdf_qgtHq','pdf_qq',
-                           # ]
+        # self.systematics = ['CERR1','CERR2']
         self.systematics = []
+
+
+ #       ####   ####   ####  ###### #####
+ #      #    # #    # #    # #      #    #
+ #      #    # #      #      #####  #    #
+ #      #    # #  ### #  ### #      #####
+ #      #    # #    # #    # #      #   #
+ ######  ####   ####   ####  ###### #    #
+
+        log_file = 'Fitter_out.log'
+
+        FORMAT1 = '%(message)s'
+        FORMAT2 = '[%(levelname)s] %(message)s'
+        FORMAT3 = '[%(levelname)s][%(name)s] %(message)s'
+
+        frmt1 = logging.Formatter(FORMAT1)
+        frmt2 = logging.Formatter(FORMAT2)
+        frmt3 = logging.Formatter(FORMAT3)
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=FORMAT2,
+            filename=log_file,
+            filemode='w'
+        )
+
+        # Configure logging to also output to stdout
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(frmt2)
+        logging.getLogger('').addHandler(console)
+
+ #    # ###### #      #####  ###### #####
+ #    # #      #      #    # #      #    #
+ ###### #####  #      #    # #####  #    #
+ #    # #      #      #####  #      #####
+ #    # #      #      #      #      #   #
+ #    # ###### ###### #      ###### #    #
 
     def log_subprocess_output(self,pipe,level):
         ### Pipes Popen streams to logging class ###
         for line in iter(pipe.readline, ''):
             if level=='info': logging.info(line.rstrip('\n'))
             if level=='err': logging.error(line.rstrip('\n'))
+
+
+ #    #  ####  #####  #    #  ####  #####    ##    ####  ######
+ #    # #    # #    # #   #  #      #    #  #  #  #    # #
+ #    # #    # #    # ####    ####  #    # #    # #      #####
+ # ## # #    # #####  #  #        # #####  ###### #      #
+ ##  ## #    # #   #  #   #  #    # #      #    # #    # #
+ #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
     def makeWorkspaceSM(self, datacard='datacard.txt'):
         ### Generates a workspace from a datacard ###
@@ -52,14 +120,9 @@ class EFTFit(object):
         args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel',
                 #'--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1,0,3]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,3]','--PO','map=.*/ttH:mu_ttH[1,0,3]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
                 #'--PO','map=.*/ttll:mu_ttll[1,0,3]','--PO','map=.*/tHq:mu_ttH[1]','--PO','map=.*/ttlnu:mu_ttlnu[1]','--PO','map=.*/ttH:mu_ttH[1]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                #'--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1]','--PO','map=.*/ttlnu:mu_ttlnu[1]','--PO','map=.*/ttH:mu_ttH[1]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,30]','--PO','map=.*/tHq:mu_ttH[1,0,30]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,30]','--PO','map=.*/ttH:mu_ttH[1,0,30]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,100]','--PO','map=.*/tHq:mu_ttH[1,0,100]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,100]','--PO','map=.*/ttH:mu_ttH[1,0,100]','--PO','map=.*/tllq:mu_tllq[1,0,100]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,30]','--PO','map=.*/tHq:mu_ttH[1,0,30]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,30]','--PO','map=.*/ttH:mu_ttH[1,0,30]','--PO','map=.*/tllq:mu_tllq[1,0,30]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,15]','--PO','map=.*/tHq:mu_ttH[1,0,15]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,15]','--PO','map=.*/ttH:mu_ttH[1,0,15]','--PO','map=.*/tllq:mu_tllq[1,0,15]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,5]','--PO','map=.*/tHq:mu_ttH[1,0,5]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,5]','--PO','map=.*/ttH:mu_ttH[1,0,5]','--PO','map=.*/tllq:mu_tllq[1,0,5]',
                 # '--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1]','--PO','map=.*/ttlnu:mu_ttlnu[1]','--PO','map=.*/ttH:mu_ttH[1]','--PO','map=.*/tllq:mu_tllq[1]',
-                '--PO','map=.*/tzq:mu_tzq[1]',
+                # '--PO','map=.*/tZq:ctz[0]',
+                '--PO','map=.*/tZq:mu_tzq[1,0,5]',
                 '-o','SMWorkspace.root']
 
         logging.info(" ".join(args))
@@ -69,10 +132,36 @@ class EFTFit(object):
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
 
-    def bestFitSM(self, name='.test', freeze=[], autoMaxPOIs=True, other=[]):
-        ### Multidimensional fit ###
+
+    def makeWorkspaceEFT(self, datacard='datacard.txt'):
+        ### Generates a workspace from a datacard and fit parameterization file ###
+        logging.info("Creating workspace")
+        if not os.path.isfile(datacard):
+            logging.error("Datacard does not exist!")
+            sys.exit()
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args=['combine','-d','./SMWorkspace.root','-v','2','--saveFitResult','-M','MultiDimFit','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2']
+        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./EFT_Parameterization.npy','-o','EFTWorkspace.root', '-v 9']
+
+        logging.info(' '.join(args))
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            self.log_subprocess_output(process.stdout,'info')
+            self.log_subprocess_output(process.stderr,'err')
+        process.wait()
+
+
+ #####  ######  ####  #####    ###### # #####
+ #    # #      #        #      #      #   #
+ #####  #####   ####    #      #####  #   #
+ #    # #           #   #      #      #   #
+ #    # #      #    #   #      #      #   #
+ #####  ######  ####    #      #      #   #
+
+    def bestFitSM(self, name='.test', freeze=[], autoMaxPOIs=True, other=[]):
+
+        ### Multidimensional fit ###
+        # CMSSW_BASE = os.getenv('CMSSW_BASE')
+        args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit','--expectSignal=1',]
         if freeze:
             params_all=['mu_tzq']
             fit=list(set(params_all) - set(freeze))
@@ -90,6 +179,44 @@ class EFTFit(object):
         process.wait()
         logging.info("Done with SMFit.")
         self.printBestFitsSM(name)
+
+    def bestFitEFT(self, name='.test', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[]):
+        ### Multidimensional fit ###
+        logging.info("Enter function bestFitEFT()")
+        CMSSW_BASE = os.getenv('CMSSW_BASE')
+        if params_POI == []:
+            params_POI = self.wcs
+        # args=['combine','-d','./EFTWorkspace.root','-v','2','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2']
+        #combine -d ./EFTWorkspace.root -v 2 --saveFitResult -M MultiDimFit -H AsymptoticLimits --cminPoiOnlyFit --expectSignal=1 -n .test -P ctz --trackParameters  --floatOtherPOIs 1 --autoBoundsPOIs=*
+
+        args=['combine','-d','./EFTWorkspace.root','-v','9','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '--expectSignal=1'] #FIXME -- issue with 'saveFitResult', '--trackParameters', ... ?
+        # args=['combine','-d','./datacard.txt','-v','2','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '--expectSignal=1'] #FIXME -- issue with 'saveFitResult', '--trackParameters', ... ?
+        if name:              args.extend(['-n','{}'.format(name)])
+        if params_POI:     args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
+        args.extend(['--trackParameters',','.join([wc for wc in self.wcs if wc not in params_POI])])
+        if startValuesString: args.extend(['--setParameters',startValuesString])
+        if not freeze:        args.extend(['--floatOtherPOIs','1'])
+        if autoBounds:        args.extend(['--autoBoundsPOIs=*'])
+        if other:             args.extend(other)
+
+        logging.info(" ".join(args))
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            self.log_subprocess_output(process.stdout,'info')
+            self.log_subprocess_output(process.stderr,'err')
+        process.wait()
+        logging.info("Done with bestFitEFT.")
+
+        # self.printBestFits(name) #FIXME
+        self.printBestFitsEFT(name)
+
+
+  ####  #####  # #####      ####   ####    ##   #    #
+ #    # #    # # #    #    #      #    #  #  #  ##   #
+ #      #    # # #    #     ####  #      #    # # #  #
+ #  ### #####  # #    #         # #      ###### #  # #
+ #    # #   #  # #    #    #    # #    # #    # #   ##
+  ####  #    # # #####      ####   ####  #    # #    #
 
     def gridScanSM(self, name='.test', batch='', scan_params=['mu_tzq'], params_tracked=[], points=300, freeze=False, other=[]):
         ### Runs deltaNLL Scan in a parameter using CRAB ###
@@ -119,65 +246,7 @@ class EFTFit(object):
         if not batch:
             logging.info("Done with gridScan.")
 
-    def batch1DScanSM(self, basename='.test', batch='', scan_params=[], points=300, freeze=False, other=[]):
-        ### For each SM signal strength, run a 1D deltaNLL Scan.
-        if not scan_params:
-            scan_params = ['mu_tzq']
-
-        for param in scan_params:
-            scanmax = 3
-            if param=='mu_ttH': scanmax = 6
-            if param=='mu_tllq': scanmax = 4
-            self.gridScanSM('{}.{}'.format(basename,param), batch, [param], self.systematics+[params for params in scan_params if params != param], points, freeze, ['--setParameterRanges','{}=0,{}'.format(param,scanmax)]+other)
-
-    def batchRetrieve1DScansSM(self, basename='.test', batch='crab'):
-        ### For each wc, retrieves finished 1D deltaNLL crab jobs, extracts, and hadd's into a single file ###
-        for param in ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']:
-            self.retrieveGridScan('{}.{}'.format(basename,param),batch)
-
-
-
-
-    def makeWorkspaceEFT(self, datacard='datacard.txt'):
-        ### Generates a workspace from a datacard and fit parameterization file ###
-        logging.info("Creating workspace")
-        if not os.path.isfile(datacard):
-            logging.error("Datacard does not exist!")
-            sys.exit()
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./EFT_Parameterization.npy','-o','EFTWorkspace.root']
-
-        logging.info(' '.join(args))
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-
-    def bestFit(self, name='.test', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[]):
-        ### Multidimensional fit ###
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        if params_POI == []:
-            params_POI = self.wcs
-        args=['combine','-d','./EFTWorkspace.root','-v','2','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2']
-        if name:              args.extend(['-n','{}'.format(name)])
-        if params_POI:     args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
-        args.extend(['--trackParameters',','.join([wc for wc in self.wcs if wc not in params_POI])])
-        if startValuesString: args.extend(['--setParameters',startValuesString])
-        if not freeze:        args.extend(['--floatOtherPOIs','1'])
-        if autoBounds:        args.extend(['--autoBoundsPOIs=*'])
-        if other:             args.extend(other)
-
-        logging.info(" ".join(args))
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-        logging.info("Done with bestFit.")
-        self.printBestFits(name)
-
-    def gridScan(self, name='.test', batch='', freeze=False, scan_params=['ctW','ctZ'], params_tracked=[], points=90000, other=[]):
+    def gridScan(self, name='.test', batch='', freeze=False, scan_params=['ctw','ctz'], params_tracked=[], points=90000, other=[]):
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info("Doing grid scan...")
 
@@ -221,6 +290,131 @@ class EFTFit(object):
         if not batch:
             logging.info("Done with gridScan.")
 
+
+ #####    ##   #####  ####  #    #
+ #    #  #  #    #   #    # #    #
+ #####  #    #   #   #      ######
+ #    # ######   #   #      #    #
+ #    # #    #   #   #    # #    #
+ #####  #    #   #    ####  #    #
+
+    def batch1DScanSM(self, basename='.test', batch='', scan_params=[], points=300, freeze=False, other=[]):
+        ### For each SM signal strength, run a 1D deltaNLL Scan.
+        if not scan_params:
+            scan_params = ['mu_tzq']
+
+        for param in scan_params:
+            scanmax = 3
+            if param=='mu_ttH': scanmax = 6
+            if param=='mu_tllq': scanmax = 4
+            self.gridScanSM('{}.{}'.format(basename,param), batch, [param], self.systematics+[params for params in scan_params if params != param], points, freeze, ['--setParameterRanges','{}=0,{}'.format(param,scanmax)]+other)
+
+    def batchRetrieve1DScansSM(self, basename='.test', batch='crab'):
+        ### For each wc, retrieves finished 1D deltaNLL crab jobs, extracts, and hadd's into a single file ###
+        for param in ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']:
+            self.retrieveGridScan('{}.{}'.format(basename,param),batch)
+
+    def batch1DScanEFT(self, basename='.test', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
+        ### For each wc, run a 1D deltaNLL Scan.
+        if not scan_wcs:
+            scan_wcs = self.wcs
+
+        for wc in scan_wcs:
+            self.gridScan('{}.{}'.format(basename,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
+
+    def batch2DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=90000, allPairs=False, other=[]):
+        ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
+
+        # Use EVERY combination of wcs
+        if allPairs:
+            scan_wcs = self.wcs
+
+            for wcs in itertools.combinations(scan_wcs,2):
+                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
+                #print pois, wcs_tracked
+                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+
+        # Use each wc only once
+        if not allPairs:
+            scan_wcs = [('ctw','ctG'),('ctz','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
+            #pairs from AN
+            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctz','ctw'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
+
+            for wcs in scan_wcs:
+                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
+                #print pois, wcs_tracked
+                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+
+    def batch3DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=27000000, allPairs=False, other=[], wc_triplet=[]):
+        ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
+
+        # Use EVERY combination of wcs
+        if allPairs:
+            scan_wcs = self.wcs
+
+            for wcs in itertools.combinations(scan_wcs,2):
+                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
+                #print pois, wcs_tracked
+                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+
+        # Use each wc only once
+        if not allPairs:
+            scan_wcs = [('ctz','ctp','cpt')]
+            if len(wc_triplet)>0: scan_wcs = wc_triplet
+            #scan_wcs = [('ctz','ctw'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
+            #scan_wcs = [('ctw','ctG'),('ctz','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
+
+            for wcs in scan_wcs:
+                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
+                #print pois, wcs_tracked
+                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+
+    def batchResubmit1DScansEFT(self, basename='.EFT.gridScan', scan_wcs=[]):
+        ### For each wc, attempt to resubmit failed CRAB jobs ###
+        if not scan_wcs:
+            scan_wcs = self.wcs
+
+        for wc in scan_wcs:
+            process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wc], stdout=sp.PIPE, stderr=sp.PIPE)
+            with process.stdout,process.stderr:
+                self.log_subprocess_output(process.stdout,'info')
+                self.log_subprocess_output(process.stderr,'err')
+            process.wait()
+
+    def batchResubmit2DScansEFT(self, basename='.EFT.gridScan', allPairs=False):
+        ### For pairs of wcs, attempt to resubmit failed CRAB jobs ###
+
+        # Use EVERY combination of wcs
+        if allPairs:
+            scan_wcs = self.wcs
+
+            for wcs in itertools.combinations(scan_wcs,2):
+                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
+                with process.stdout,process.stderr:
+                    self.log_subprocess_output(process.stdout,'info')
+                    self.log_subprocess_output(process.stderr,'err')
+                process.wait()
+
+        # Use each wc only once
+        if not allPairs:
+            scan_wcs = [('ctz','ctw'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
+            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctz','ctw'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
+
+            for wcs in scan_wcs:
+                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
+                with process.stdout,process.stderr:
+                    self.log_subprocess_output(process.stdout,'info')
+                    self.log_subprocess_output(process.stderr,'err')
+                process.wait()
+
+
+  ####  ###### #####    #####  ######  ####  #####    #    #   ##   #
+ #    # #        #      #    # #      #        #      #    #  #  #  #
+ #      #####    #      #####  #####   ####    #      #    # #    # #
+ #  ### #        #      #    # #           #   #      #    # ###### #
+ #    # #        #      #    # #      #    #   #       #  #  #    # #
+  ####  ######   #      #####  ######  ####    #        ##   #    # ######
+
     def getBestValues2D(self, name, scan_params=[], params_tracked=[]):
         ### Gets values of parameters for grid scan point with best deltaNLL ###
 
@@ -241,7 +435,7 @@ class EFTFit(object):
             if(bestDeltaNLL > limitTree.GetLeaf("deltaNLL").GetValue(0)):
               bestDeltaNLL = limitTree.GetLeaf("deltaNLL").GetValue(0)
               bestEntry=entry
-              #cout << Form("Entry %i deltaNLL=%f, ctW=%f ctZ=%f",bestEntry,bestDeltaNLL,limitTree.GetLeaf("ctW").GetValue(0),limitTree.GetLeaf("ctZ").GetValue(0)) << endl;
+              #cout << Form("Entry %i deltaNLL=%f, ctw=%f ctz=%f",bestEntry,bestDeltaNLL,limitTree.GetLeaf("ctw").GetValue(0),limitTree.GetLeaf("ctz").GetValue(0)) << endl;
 
         limitTree.GetEntry(bestEntry)
         startValues = []
@@ -279,7 +473,7 @@ class EFTFit(object):
                 if(bestDeltaNLL > limitTree.GetLeaf("deltaNLL").GetValue(0)):
                   bestDeltaNLL = limitTree.GetLeaf("deltaNLL").GetValue(0)
                   bestEntry=entry
-                  #cout << Form("Entry %i deltaNLL=%f, ctW=%f ctZ=%f",bestEntry,bestDeltaNLL,limitTree.GetLeaf("ctW").GetValue(0),limitTree.GetLeaf("ctZ").GetValue(0)) << endl;
+                  #cout << Form("Entry %i deltaNLL=%f, ctw=%f ctz=%f",bestEntry,bestDeltaNLL,limitTree.GetLeaf("ctw").GetValue(0),limitTree.GetLeaf("ctz").GetValue(0)) << endl;
 
             limitTree.GetEntry(bestEntry)
 
@@ -289,11 +483,17 @@ class EFTFit(object):
         return ','.join(startValues)
 
 
-    def retrieveGridScan(self, name='.test', batch='crab', user='byates'):#getpass.getuser()):
+ #####  ###### ##### #####  # ###### #    # ######     ####  #####  # #####
+ #    # #        #   #    # # #      #    # #         #    # #    # # #    #
+ #    # #####    #   #    # # #####  #    # #####     #      #    # # #    #
+ #####  #        #   #####  # #      #    # #         #  ### #####  # #    #
+ #   #  #        #   #   #  # #       #  #  #         #    # #   #  # #    #
+ #    # ######   #   #    # # ######   ##   ######     ####  #    # # #####
+
+    def retrieveGridScan(self, name='.test', batch='crab', user='ntonon'):#getpass.getuser()):
         ### Retrieves finished grid jobs, extracts, and hadd's into a single file ###
         taskname = name.replace('.','')
         logging.info("Retrieving gridScan files. Task name: "+taskname)
-
 
         if batch=='crab':
             # Find crab output files (defaults to user's hadoop directory)
@@ -343,99 +543,6 @@ class EFTFit(object):
             if os.path.isfile('condor_{}.sub'.format(name.replace('.',''))):
                 os.rename('condor_{}.sub'.format(name.replace('.','')),'condor{0}/condor_{0}.sub'.format(name))
 
-    def batch1DScanEFT(self, basename='.test', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
-        ### For each wc, run a 1D deltaNLL Scan.
-        if not scan_wcs:
-            scan_wcs = self.wcs
-
-        for wc in scan_wcs:
-            self.gridScan('{}.{}'.format(basename,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
-
-    def batch2DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=90000, allPairs=False, other=[]):
-        ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
-
-        # Use EVERY combination of wcs
-        if allPairs:
-            scan_wcs = self.wcs
-
-            for wcs in itertools.combinations(scan_wcs,2):
-                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
-                #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
-
-        # Use each wc only once
-        if not allPairs:
-            scan_wcs = [('ctW','ctG'),('ctZ','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
-            #pairs from AN
-            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctZ','ctW'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
-
-            for wcs in scan_wcs:
-                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
-                #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
-
-    def batch3DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=27000000, allPairs=False, other=[], wc_triplet=[]):
-        ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
-
-        # Use EVERY combination of wcs
-        if allPairs:
-            scan_wcs = self.wcs
-
-            for wcs in itertools.combinations(scan_wcs,2):
-                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
-                #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
-
-        # Use each wc only once
-        if not allPairs:
-            scan_wcs = [('ctZ','ctp','cpt')]
-            if len(wc_triplet)>0: scan_wcs = wc_triplet
-            #scan_wcs = [('ctZ','ctW'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
-            #scan_wcs = [('ctW','ctG'),('ctZ','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
-
-            for wcs in scan_wcs:
-                wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
-                #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
-
-    def batchResubmit1DScansEFT(self, basename='.EFT.gridScan', scan_wcs=[]):
-        ### For each wc, attempt to resubmit failed CRAB jobs ###
-        if not scan_wcs:
-            scan_wcs = self.wcs
-
-        for wc in scan_wcs:
-            process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wc], stdout=sp.PIPE, stderr=sp.PIPE)
-            with process.stdout,process.stderr:
-                self.log_subprocess_output(process.stdout,'info')
-                self.log_subprocess_output(process.stderr,'err')
-            process.wait()
-
-    def batchResubmit2DScansEFT(self, basename='.EFT.gridScan', allPairs=False):
-        ### For pairs of wcs, attempt to resubmit failed CRAB jobs ###
-
-        # Use EVERY combination of wcs
-        if allPairs:
-            scan_wcs = self.wcs
-
-            for wcs in itertools.combinations(scan_wcs,2):
-                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
-                with process.stdout,process.stderr:
-                    self.log_subprocess_output(process.stdout,'info')
-                    self.log_subprocess_output(process.stderr,'err')
-                process.wait()
-
-        # Use each wc only once
-        if not allPairs:
-            scan_wcs = [('ctZ','ctW'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
-            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctZ','ctW'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
-
-            for wcs in scan_wcs:
-                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
-                with process.stdout,process.stderr:
-                    self.log_subprocess_output(process.stdout,'info')
-                    self.log_subprocess_output(process.stderr,'err')
-                process.wait()
-
     def batchRetrieve1DScansEFT(self, basename='.test', batch='crab', scan_wcs=[]):
         ### For each wc, retrieves finished 1D deltaNLL grid jobs, extracts, and hadd's into a single file ###
         if not scan_wcs:
@@ -455,14 +562,22 @@ class EFTFit(object):
 
         # Use each wc only once
         if not allPairs:
-            scan_wcs = [('ctZ','ctW'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
-            scan_wcs = [('ctW','ctG'),('ctZ','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
+            scan_wcs = [('ctz','ctw'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
+            scan_wcs = [('ctw','ctG'),('ctz','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
             #pairs from AN
-            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctZ','ctW'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
+            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctz','ctw'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
             for wcs in scan_wcs:
                 print wcs
                 print '{}.{}{}'.format(basename,wcs[0],wcs[1]), batch
                 self.retrieveGridScan('{}.{}{}'.format(basename,wcs[0],wcs[1]),batch)
+
+
+ #####  ###### #####  #    #  ####  ##### #  ####  #    #
+ #    # #      #    # #    # #    #   #   # #    # ##   #
+ #    # #####  #    # #    # #        #   # #    # # #  #
+ #####  #      #    # #    # #        #   # #    # #  # #
+ #   #  #      #    # #    # #    #   #   # #    # #   ##
+ #    # ###### #####   ####   ####    #   #  ####  #    #
 
     def reductionFitEFT(self, name='.EFT.Private.Unblinded.Nov16.28redo.Float.cptcpQM', wc='cpt', final=True, from_wcs=[], alreadyRun=True):
         ### Extract a 1D scan from a higher-dimension scan to avoid discontinuities ###
@@ -577,6 +692,14 @@ class EFTFit(object):
         # Write the file
         outFile.Write()
 
+
+  ####   ####  #    # #####    ##   #####  ######    ###### # #####  ####
+ #    # #    # ##  ## #    #  #  #  #    # #         #      #   #   #
+ #      #    # # ## # #    # #    # #    # #####     #####  #   #    ####
+ #      #    # #    # #####  ###### #####  #         #      #   #        #
+ #    # #    # #    # #      #    # #   #  #         #      #   #   #    #
+  ####   ####  #    # #      #    # #    # ######    #      #   #    ####
+
     def compareFitsEFT(self,basename='.EFT.SM.Float'):
         ### Compare results of different 1D EFT scans ###
         tfiles = {}
@@ -613,18 +736,27 @@ class EFTFit(object):
             for trackedwc in trackedwcs:
                 print("Value according to {}: {}".format(trackedwc,bestFits[poiwc][trackedwc]))
 
+
+ #####  #####  # #    # #####
+ #    # #    # # ##   #   #
+ #    # #    # # # #  #   #
+ #####  #####  # #  # #   #
+ #      #   #  # #   ##   #
+ #      #    # # #    #   #
+
     def printBestFitsSM(self, name='.EFT.SM.Float'):
         ### Print a table of SM signal strengths, their best fits, and their uncertainties ###
-        params = ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']
+        # params = ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']
+        params = ['mu_tzq']
 
         fit_array = []
 
         logging.info("Obtaining result of fit: multidimfit{}.root".format(name))
-        fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(name)) #FIXME -- rootname
+        fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(name))
         fit = fit_file.Get('fit_mdf')
 
         for param in params:
-            roorealvar = fit.floatParsFinal().find(param) #FIXME -- should be RooFitResult, not TObject
+            roorealvar = fit.floatParsFinal().find(param)
             if not roorealvar: continue
 
             value = round(roorealvar.getVal(),2)
@@ -641,20 +773,24 @@ class EFTFit(object):
             logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
 
     def printBestFitsEFT(self, basename='.EFT.SM.Float', wcs=[], simultaneous=True):
+        logging.info("Enter function printBestFitsEFT()")
         ### Print a table of wcs, their best fits, and their uncertainties ###
         if not wcs:
             wcs = self.wcs
 
         fit_array = []
 
-        if simultaneous:
+        if simultaneous: # <-> all WCs stored in same file... ?
             logging.info("Obtaining result of fit: multidimfit{}.root".format(basename))
             fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(basename))
             fit = fit_file.Get('fit_mdf')
 
             for wc in wcs:
+                print('wc', wc)
+
                 roorealvar = fit.floatParsFinal().find(wc)
 
+                #Fit parameters
                 value = round(roorealvar.getVal(),6)
                 err_sym =  round(roorealvar.getError(),6)
                 err_low = round(roorealvar.getErrorLo(),6)
@@ -745,40 +881,50 @@ class EFTFit(object):
         for line in fit_array:
             print line
 
+# //--------------------------------------------
+# //--------------------------------------------
+
+##     ##    ###    #### ##    ##
+###   ###   ## ##    ##  ###   ##
+#### ####  ##   ##   ##  ####  ##
+## ### ## ##     ##  ##  ## ## ##
+##     ## #########  ##  ##  ####
+##     ## ##     ##  ##  ##   ###
+##     ## ##     ## #### ##    ##
+
+# //--------------------------------------------
+# //--------------------------------------------
 if __name__ == "__main__":
-    log_file = 'EFTFit_out.log'
 
-    FORMAT1 = '%(message)s'
-    FORMAT2 = '[%(levelname)s] %(message)s'
-    FORMAT3 = '[%(levelname)s][%(name)s] %(message)s'
+    mode = 'EFT' #'SM', 'EFT'
 
-    frmt1 = logging.Formatter(FORMAT1)
-    frmt2 = logging.Formatter(FORMAT2)
-    frmt3 = logging.Formatter(FORMAT3)
+    fitter = EFTFit() #Create object
 
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format=FORMAT2,
-        filename=log_file,
-        filemode='w'
-    )
+# SM fit
+# //--------------------------------------------
+    if mode is 'SM':
+        fitter.makeWorkspaceSM('datacard.txt')
+        fitter.bestFitSM()
+        fitter.gridScanSM(scan_params=['mu_tzq'], points=50)
 
-    # Configure logging to also output to stdout
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    console.setFormatter(frmt2)
-    logging.getLogger('').addHandler(console)
+# EFT fit
+# //--------------------------------------------
+    elif mode is 'EFT':
+        # fitter.makeWorkspaceEFT('datacard.txt')
+        fitter.bestFitEFT()
 
-    fitter = EFTFit()
+    # fitter.batch1DScanEFT() # Freeze other WCs
+    # fitter.getBestValues1DEFT()
 
+# //--------------------------------------------
     #Example of a workflow:
     #fitter.makeWorkspaceEFT('EFT_MultiDim_Datacard.txt')
-    #fitter.bestFit(name='.EFT.SM.Float.preScan', scan_params=['ctW','ctZ','ctp','cpQM','ctG','cbW','cpQ3','cptb','cpt','cQl3i','cQlMi','cQei','ctli','ctei','ctlSi','ctlTi'], freeze=False, autoBounds=True)
+    #fitter.bestFitEFT(name='.EFT.SM.Float.preScan', scan_params=['ctw','ctz','ctp','cpQM','ctG','cbW','cpQ3','cptb','cpt','cQl3i','cQlMi','cQei','ctli','ctei','ctlSi','ctlTi'], freeze=False, autoBounds=True)
     #fitter.gridScan(name='.EFT.SM.Float.gridScan.ctWctZ', batch='crab', scan_wcs=fitter.scan_params, params_tracked=fitter.wcs_tracked, points=50000, freeze=False)
     #fitter.retrieveGridScan(name='.EFT.SM.Float.gridScan.ctWctZ')
     #startValuesString = fitter.getBestValues2D(name='.EFT.SM.Float.gridScan.ctWctZ', scan_params=fitter.scan_wcs, params_tracked=fitter.wcs_tracked)
     #startValuesString = fitter.getBestValues1DEFT(basename='.EFT.SM.Float.gridScan', wcs=fitter.operators)
-    #fitter.bestFit(name='.EFT.SM.Float.postScan', scan_params=fitter.wcs, startValuesString=startValuesString, freeze=False, autoBounds=True)
+    #fitter.bestFitEFT(name='.EFT.SM.Float.postScan', scan_params=fitter.wcs, startValuesString=startValuesString, freeze=False, autoBounds=True)
 
     #logging.info("Logger shutting down!")
     #logging.shutdown()
