@@ -144,8 +144,13 @@ class TopEFT_analysis
     double* array_PU;
     double* array_prefiringWeight;
     double* array_Btag;
-    double* array_LepEff_mu;
-    double* array_LepEff_el;
+    // double* array_LepEff_mu;
+    // double* array_LepEff_el;
+    double* array_LepEffLoose_mu;
+    double* array_LepEffLoose_el;
+    double* array_LepEffTight_mu;
+    double* array_LepEffTight_el;
+
 
     //Test -- to rename or remove
     vector<TString> v_EFTpoints;

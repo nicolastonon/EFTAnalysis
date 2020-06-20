@@ -9,8 +9,28 @@ import numpy
 import itertools
 import subprocess as sp
 from ContourHelper import ContourHelper
+from Utils.ColoredPrintout import colors
+import getopt # command line parser
+import argparse
+
+######## ######## ######## ########  ##        #######  ########
+##       ##          ##    ##     ## ##       ##     ##    ##
+##       ##          ##    ##     ## ##       ##     ##    ##
+######   ######      ##    ########  ##       ##     ##    ##
+##       ##          ##    ##        ##       ##     ##    ##
+##       ##          ##    ##        ##       ##     ##    ##
+######## ##          ##    ##        ########  #######     ##
 
 class EFTPlot(object):
+
+
+ # #    # # #####
+ # ##   # #   #
+ # # #  # #   #
+ # #  # # #   #
+ # #   ## #   #
+ # #    # #   #
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.ContourHelper = ContourHelper()
@@ -18,48 +38,84 @@ class EFTPlot(object):
         self.SMMus = ['mu_tzq']
         self.wcs = ['ctz']
         self.wcs_pairs = [('ctz','ctw')]
-        #self.wcs_pairs = [('ctW','ctG'),('ctZ','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
-        self.wc_ranges = {  'ctW':(-5,5),    'ctZ':(-5,5)
+        self.wc_ranges = {  'ctw':(-6,6),
+                            'ctz':(-10,10)
                          }
-        self.sm_ranges = {  'mu_tzq':(0,5)
+        self.sm_ranges = {  'r_tzq':(0,5)
                          }
         self.histosFileName = 'Histos.root'
-        self.texdic = {'ctW': '#it{c}_{tW}/#Lambda^{2}', 'ctz': '#it{c}_{tZ}/#Lambda^{2}', 'ctp': '#it{c}_{t#varphi}/#Lambda^{2}', 'cpQM': '#it{c}^{-}_{#varphiQ}/#Lambda^{2}', 'ctG': '#it{c}_{tG}/#Lambda^{2}', 'cbW': '#it{c}_{bW}/#Lambda^{2}', 'cpQ3': '#it{c}^{3(#it{l})}_{#varphiQ}/#Lambda^{2}', 'cptb': '#it{c}_{#varphitb}/#Lambda^{2}', 'cpt': '#it{c}_{#varphit}/#Lambda^{2}', 'cQl3': '#it{c}^{3(#it{l})}_{Ql}/#Lambda^{2}', 'cQlM': '#it{c}^{-(#it{l})}_{Ql}/#Lambda^{2}', 'cQe': '#it{c}^{(#it{l})}_{Qe}/#Lambda^{2}', 'ctl': '#it{c}^{(#it{l})}_{tl}/#Lambda^{2}', 'cte': '#it{c}^{(#it{l})}_{te}/#Lambda^{2}', 'ctlS': '#it{c}^{S(#it{l})}_{t}/#Lambda^{2}', 'ctlT': '#it{c}^{T(#it{l})}_{t}/#Lambda^{2}'}
-        self.texdicfrac = {'ctW': '#frac{#it{c}_{tW}}{#Lambda^{2}}', 'ctZ': '#frac{#it{c}_{tZ}}{#Lambda^{2}}', 'ctp': '#frac{#it{c}_{t#varphi}}{#Lambda^{2}}', 'cpQM': '#frac{#it{c}^{-}_{#varphiQ}}{#Lambda^{2}}', 'ctG': '#frac{#it{c}_{tG}}{#Lambda^{2}}', 'cbW': '#frac{#it{c}_{bW}}{#Lambda^{2}}', 'cpQ3': '#frac{#it{c}^{3(#it{l})}_{#varphiQ}}{#Lambda^{2}}', 'cptb': '#frac{#it{c}_{#varphitb}}{#Lambda^{2}}', 'cpt': '#frac{#it{c}_{#varphit}}{#Lambda^{2}}', 'cQl3': '#frac{#it{c}^{3(#it{l})}_{Ql}}{#Lambda^{2}}', 'cQlM': '#frac{#it{c}^{-(#it{l})}_{Ql}}{#Lambda^{2}}', 'cQe': '#frac{#it{c}^{(#it{l})}_{Qe}}{#Lambda^{2}}', 'ctl': '#frac{#it{c}^{(#it{l})}_{tl}}{#Lambda^{2}}', 'cte': '#frac{#it{c}^{(#it{l})}_{te}}{#Lambda^{2}}', 'ctlS': '#frac{#it{c}^{S(#it{l})}_{t}}{#Lambda^{2}}', 'ctlT': '#frac{#it{c}^{T(#it{l})}_{t}}{#Lambda^{2}}'}
+        self.texdic = {'ctw': '#it{c}_{tW}/#Lambda^{2}', 'ctz': '#it{c}_{tZ}/#Lambda^{2}', 'cpqm': '#it{c}^{-}_{#varphiQ}/#Lambda^{2}', 'cpq3': '#it{c}^{3(#it{l})}_{#varphiQ}/#Lambda^{2}', 'cpt': '#it{c}_{#varphit}/#Lambda^{2}'}
+        # self.texdic = {'ctp': '#it{c}_{t#varphi}/#Lambda^{2}', 'ctG': '#it{c}_{tG}/#Lambda^{2}', 'cbW': '#it{c}_{bW}/#Lambda^{2}', 'cptb': '#it{c}_{#varphitb}/#Lambda^{2}', 'cQl3': '#it{c}^{3(#it{l})}_{Ql}/#Lambda^{2}', 'cQlM': '#it{c}^{-(#it{l})}_{Ql}/#Lambda^{2}', 'cQe': '#it{c}^{(#it{l})}_{Qe}/#Lambda^{2}', 'ctl': '#it{c}^{(#it{l})}_{tl}/#Lambda^{2}', 'cte': '#it{c}^{(#it{l})}_{te}/#Lambda^{2}', 'ctlS': '#it{c}^{S(#it{l})}_{t}/#Lambda^{2}', 'ctlT': '#it{c}^{T(#it{l})}_{t}/#Lambda^{2}'}
+        self.texdicfrac = {'ctw': '#frac{#it{c}_{tW}}{#Lambda^{2}}', 'ctz': '#frac{#it{c}_{tZ}}{#Lambda^{2}}', 'cpqm': '#frac{#it{c}^{-}_{#varphiQ}}{#Lambda^{2}}', 'cpq3': '#frac{#it{c}^{3(#it{l})}_{#varphiQ}}{#Lambda^{2}}', 'cpt': '#frac{#it{c}_{#varphit}}{#Lambda^{2}}'}
         self.texdicrev = {v: k for k,v in self.texdic.items()}
 
-        # CMS-required text
+        # CMS default text
+        # //--------------------------------------------
         self.CMS_text = ROOT.TLatex(0.9, 0.95, "CMS Preliminary Simulation")
         self.CMS_text.SetNDC(1)
         self.CMS_text.SetTextSize(0.04)
         self.CMS_text.SetTextAlign(30)
-        self.Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
+        self.Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.5 fb^{-1}")
         self.Lumi_text.SetNDC(1)
         self.Lumi_text.SetTextSize(0.04)
         self.Lumi_text.SetTextAlign(30)
 
+        # Logger
+        # //--------------------------------------------
+        log_file = 'plotter.log'
+
+        FORMAT1 = '%(message)s'
+        FORMAT2 = '[%(levelname)s] %(message)s'
+        FORMAT3 = '[%(levelname)s][%(name)s] %(message)s'
+
+        frmt1 = logging.Formatter(FORMAT1)
+        frmt2 = logging.Formatter(FORMAT2)
+        frmt3 = logging.Formatter(FORMAT3)
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=FORMAT2,
+            filename=log_file,
+            filemode='w'
+        )
+
+        # Configure logging to also output to stdout
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(frmt2)
+        logging.getLogger('').addHandler(console)
+
+        return
 
     def ResetHistoFile(self, name=''):
         ROOT.TFile('Histos{}.root'.format(name),'RECREATE')
         self.histosFileName = 'Histos{}.root'.format(name)
 
+
+ #       #         ######                          #   ######
+ #       #         #     # #       ####  #####    ##   #     #
+ #       #         #     # #      #    #   #     # #   #     #
+ #       #         ######  #      #    #   #       #   #     #
+ #       #         #       #      #    #   #       #   #     #
+ #       #         #       #      #    #   #       #   #     #
+ ####### #######   #       ######  ####    #     ##### ######
+
     def LLPlot1DEFT(self, name='.test', frozen=False, wc='', log=False):
+
+        filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
+
         if not wc:
             logging.error("No WC specified!")
             return
-        # if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name)):
-        if not os.path.exists('./higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.mH120.root does not exist!".format(name))
-            # logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
+        if not os.path.exists(filepath):
+            logging.error("File " + filepath + " does not exist!".format(name))
             return
 
         ROOT.gROOT.SetBatch(True)
-
         canvas = ROOT.TCanvas()
 
         # Get scan tree
-        rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(name))
-        # rootFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
+        rootFile = ROOT.TFile.Open(filepath)
         limitTree = rootFile.Get('limit')
 
         # Get coordinates for TGraph
@@ -77,8 +133,11 @@ class EFTPlot(object):
         del graphnlls,graphwcs
 
         # Squeeze X down to whatever range captures the float points
+        if wc not in self.wc_ranges: print(colors.fg.red + "ERROR: " + wc + " not found in ranges !" + colors.reset)
         xmin = self.wc_ranges[wc][1]
         xmax = self.wc_ranges[wc][0]
+        #print('xmin=', xmin)
+        #print('xmax=', xmax)
         #for idx in range(graph.GetN()):
         #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] < xmin:
         #        xmin = graph.GetX()[idx]
@@ -86,6 +145,7 @@ class EFTPlot(object):
         #        xmax = graph.GetX()[idx]
         graph.GetXaxis().SetRangeUser(xmin,xmax)
         graph.GetYaxis().SetRangeUser(-0.1,10)
+        graph.Draw("AP")
 
         #Change markers from invisible dots to nice triangles
         graph.SetTitle("")
@@ -134,6 +194,94 @@ class EFTPlot(object):
             canvas.Print('{}1DNLL_log.png'.format(wc,'freeze' if frozen else 'float'),'png')
         else:
             canvas.Print('{}1DNLL.png'.format(wc,'freeze' if frozen else 'float'),'png')
+
+        rootFile.Close()
+
+    def LLPlot1DSM(self, name='.SM', param='', log=False):
+        if not param:
+            logging.error("No parameter specified!")
+            return
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
+            logging.error("File higgsCombine{}.MultiDimFit.mH120.root does not exist!".format(name))
+            return
+
+        ROOT.gROOT.SetBatch(True)
+        canvas = ROOT.TCanvas('c','c',800,800)
+
+        # Get scan tree
+        rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(name))
+        limitTree = rootFile.Get('limit')
+
+        # Get coordinates for TGraph
+        graphparamvals = []
+        graphnlls = []
+        for entry in range(limitTree.GetEntries()):
+            limitTree.GetEntry(entry)
+            graphparamvals.append(limitTree.GetLeaf(param).GetValue(0))
+            graphnlls.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
+
+        # Rezero the y axis and make the tgraphs
+        graphnlls = [val-min(graphnlls) for val in graphnlls]
+        graph = ROOT.TGraph(len(graphparamvals),numpy.asarray(graphparamvals),numpy.asarray(graphnlls))
+        graph.Draw("AP")
+        del graphnlls,graphparamvals
+
+        # Squeeze X down to whatever range captures the float points
+        xmin = limitTree.GetMinimum(param)
+        xmax = limitTree.GetMaximum(param)
+        #for idx in range(graph.GetN()):
+        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] < xmin:
+        #        xmin = graph.GetX()[idx]
+        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] > xmax:
+        #        xmax = graph.GetX()[idx]
+        graph.GetXaxis().SetRangeUser(xmin,xmax)
+        graph.GetYaxis().SetRangeUser(-0.1,10)
+
+        #Change markers from invisible dots to nice triangles
+        graph.SetTitle("")
+        graph.SetMarkerStyle(26)
+        graph.SetMarkerSize(1)
+        graph.SetMinimum(-0.1)
+
+        #Add 1-sigma and 2-sigma lines. (Vertical lines were too hard, sadly)
+        canvas.SetGrid(1)
+
+        line68 = ROOT.TLine(xmin,1,xmax,1)
+        line68.Draw('same')
+        line68.SetLineColor(ROOT.kYellow+1)
+        line68.SetLineWidth(3)
+        line68.SetLineStyle(7)
+
+        line95 = ROOT.TLine(xmin,4,xmax,4)
+        line95.Draw('same')
+        line95.SetLineColor(ROOT.kCyan-2)
+        line95.SetLineWidth(3)
+        line95.SetLineStyle(7)
+
+        # Labels
+        Title = ROOT.TLatex(0.5, 0.95, "{} 2#DeltaNLL".format(param))
+        Title.SetNDC(1)
+        Title.SetTextAlign(20)
+        Title.Draw('same')
+        graph.GetXaxis().SetTitle(param)
+
+        # CMS-required text
+        CMS_text = ROOT.TLatex(0.665, 0.93, "CMS Preliminary Simulation")
+        CMS_text.SetNDC(1)
+        CMS_text.SetTextSize(0.02)
+        self.CMS_text.Draw('same')
+        Lumi_text = ROOT.TLatex(0.7, 0.91, "Luminosity = 41.53 fb^{-1}")
+        Lumi_text.SetNDC(1)
+        Lumi_text.SetTextSize(0.02)
+        self.Lumi_text.Draw('same')
+
+        #Check log option, then save as image
+        if log:
+            graph.SetMinimum(0.1)
+            graph.SetLogz()
+            canvas.Print('{}{}_1DNLL_log.png'.format(param,name),'png')
+        else:
+            canvas.Print('{}{}_1DNLL.png'.format(param,name),'png')
 
         rootFile.Close()
 
@@ -274,6 +422,8 @@ class EFTPlot(object):
 
         rootFile1.Close()
         rootFile2.Close()
+
+        return
 
     def OverlayZoomLLPlot1DEFT(self, name1='.test', name2='.test', wc='', log=False):
         if not wc:
@@ -641,94 +791,6 @@ class EFTPlot(object):
         outfile.Close()
 
         ROOT.gStyle.SetPalette(57)
-
-    def LLPlot1DSM(self, name='.test', param='', log=False):
-        if not param:
-            logging.error("No parameter specified!")
-            return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-
-        ROOT.gROOT.SetBatch(True)
-        canvas = ROOT.TCanvas('c','c',800,800)
-
-        # Get scan tree
-        rootFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
-        limitTree = rootFile.Get('limit')
-
-        # Get coordinates for TGraph
-        graphparamvals = []
-        graphnlls = []
-        for entry in range(limitTree.GetEntries()):
-            limitTree.GetEntry(entry)
-            graphparamvals.append(limitTree.GetLeaf(param).GetValue(0))
-            graphnlls.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
-
-        # Rezero the y axis and make the tgraphs
-        graphnlls = [val-min(graphnlls) for val in graphnlls]
-        graph = ROOT.TGraph(len(graphparamvals),numpy.asarray(graphparamvals),numpy.asarray(graphnlls))
-        graph.Draw("AP")
-        del graphnlls,graphparamvals
-
-        # Squeeze X down to whatever range captures the float points
-        xmin = limitTree.GetMinimum(param)
-        xmax = limitTree.GetMaximum(param)
-        #for idx in range(graph.GetN()):
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] < xmin:
-        #        xmin = graph.GetX()[idx]
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] > xmax:
-        #        xmax = graph.GetX()[idx]
-        graph.GetXaxis().SetRangeUser(xmin,xmax)
-        graph.GetYaxis().SetRangeUser(-0.1,10)
-
-        #Change markers from invisible dots to nice triangles
-        graph.SetTitle("")
-        graph.SetMarkerStyle(26)
-        graph.SetMarkerSize(1)
-        graph.SetMinimum(-0.1)
-
-        #Add 1-sigma and 2-sigma lines. (Vertical lines were too hard, sadly)
-        canvas.SetGrid(1)
-
-        line68 = ROOT.TLine(xmin,1,xmax,1)
-        line68.Draw('same')
-        line68.SetLineColor(ROOT.kYellow+1)
-        line68.SetLineWidth(3)
-        line68.SetLineStyle(7)
-
-        line95 = ROOT.TLine(xmin,4,xmax,4)
-        line95.Draw('same')
-        line95.SetLineColor(ROOT.kCyan-2)
-        line95.SetLineWidth(3)
-        line95.SetLineStyle(7)
-
-        # Labels
-        Title = ROOT.TLatex(0.5, 0.95, "{} 2#DeltaNLL".format(param))
-        Title.SetNDC(1)
-        Title.SetTextAlign(20)
-        Title.Draw('same')
-        graph.GetXaxis().SetTitle(param)
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.665, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.7, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        self.Lumi_text.Draw('same')
-
-        #Check log option, then save as image
-        if log:
-            graph.SetMinimum(0.1)
-            graph.SetLogz()
-            canvas.Print('{}{}_1DNLL_log.png'.format(param,name),'png')
-        else:
-            canvas.Print('{}{}_1DNLL.png'.format(param,name),'png')
-
-        rootFile.Close()
 
     def BatchLLPlot1DSM(self, basename='.test', frozen=False, scan_params=[], log=False):
         if not scan_params:
@@ -1732,32 +1794,45 @@ class EFTPlot(object):
         canvas.Print('BestFitPlot.png','png')
 
 
+# //--------------------------------------------
+# //--------------------------------------------
+
+##     ##    ###    #### ##    ##
+###   ###   ## ##    ##  ###   ##
+#### ####  ##   ##   ##  ####  ##
+## ### ## ##     ##  ##  ## ## ##
+##     ## #########  ##  ##  ####
+##     ## ##     ##  ##  ##   ###
+##     ## ##     ## #### ##    ##
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 if __name__ == "__main__":
-    log_file = 'EFTFit_out.log'
 
-    FORMAT1 = '%(message)s'
-    FORMAT2 = '[%(levelname)s] %(message)s'
-    FORMAT3 = '[%(levelname)s][%(name)s] %(message)s'
+# User options
+# //--------------------------------------------
+    mode = 'EFT' #'SM', 'EFT'
+    #exp = True #True <-> Asimov a-priori expected; False <-> observed
 
-    frmt1 = logging.Formatter(FORMAT1)
-    frmt2 = logging.Formatter(FORMAT2)
-    frmt3 = logging.Formatter(FORMAT3)
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format=FORMAT2,
-        filename=log_file,
-        filemode='w'
-    )
-
-    # Configure logging to also output to stdout
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    console.setFormatter(frmt2)
-    logging.getLogger('').addHandler(console)
+# Set up the command line arguments
+# //--------------------------------------------
+    parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
+    parser.add_argument("-m", metavar="m", help="SM or EFT")
+    # parser.add_argument("--verbosity", metavar="level", help="Increase output verbosity")
+    args = parser.parse_args()
+    if args.m: mode = args.m
 
     plotter = EFTPlot()
-    plotter.LLPlot1DEFT('.test',wc='ctz')
-    #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctW','.EFT.SM.Freeze.ctW','ctW')
-    #plotter.Batch2DPlots('.EFT.SM.Float.ctWctZ','.EFT.SM.Float.ctWctZ','.EFT.SM.Float.postScan')
-    #plotter.BatchOverlayLLPlot1D()
+
+# SM fit
+# //--------------------------------------------
+    if mode == 'SM': 
+        plotter.LLPlot1DSM(param='r_tzq')
+
+# EFT fit
+# //--------------------------------------------
+    elif mode == 'EFT':
+        plotter.LLPlot1DEFT('.EFT',wc='ctz')
+
+    #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctz', '.EFT.SM.Freeze.ctz', 'ctz')

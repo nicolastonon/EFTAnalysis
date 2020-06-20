@@ -58,7 +58,7 @@ np.set_printoptions(threshold=np.inf) #If activated, will print full numpy array
 def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_features, weightDir, ntuplesDir, lumiName, singleThetaName=""):
 
     #-- Get data from TFiles
-    list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_SMweights_allClasses = Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features, opts["cuts"])
+    list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_SMweights_allClasses = Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features)
 
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
@@ -76,7 +76,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
-    y, y_process = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
+    y, y_process, x = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
 
     #-- Sanitize data
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
@@ -90,8 +90,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType='quantile')
 
-    print(colors.fg.lightblue, "\n===========\n-- Will use " + str(x_train.shape[0]) + " training events !", colors.reset)
-    print(colors.fg.lightblue, "-- Will use " + str(x_test.shape[0]) + " testing events !\n===========\n", colors.reset)
+    print(colors.fg.lightblue, "\n===========")
+    print("-- Will use " + str(x_train.shape[0]) + " training events !")
+    print("-- Will use " + str(x_test.shape[0]) + " testing events !")
+    print("===========\n", colors.reset)
 
     return x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, list_labels, list_features
 
@@ -106,12 +108,14 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
  #    # ###### #    # #####     #####  #    #   #   #    #
 
 #Read the data from ROOT files and store it in np arrays
-def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features, cuts):
+def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features):
 
     testdirpath = Path(ntuplesDir)
     if not testdirpath.is_dir():
         print('Ntuple dir. '+ntuplesDir+' not found ! Abort !')
         exit(1)
+
+    cuts = opts["cuts"]
 
     list_x_allClasses = [] #List of x-arrays storing the values of input features (for all events, all considered years, all physics processes in a given class) -- 1 array per process class
     list_weights_allClasses = [] #Idem for event weights
@@ -163,7 +167,8 @@ def Read_Data(list_lumiYears, ntuplesDir, list_processClasses, list_labels, list
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
-                if isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts))
+                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
                 else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
                 # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
 
@@ -431,7 +436,10 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
 
         if opts["strategy"] in ["ROLR", "RASCAL"]:
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
-            if opts["strategy"] == "RASCAL": scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0); scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
+            if opts["strategy"] is "RASCAL": #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
+                scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0)
+                if len(scores_allClasses_eachOperator)==1: scores_allClasses_eachOperator = np.squeeze(scores_allClasses_eachOperator, 0) #Squeeze first dimension (<-> if there is a single proc class there was no concatenation --> remove this useless dimension)
+                scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #problems for single operator ?
 
         #-- Append WC values to input features, etc.
         # if singleThetaName is "SM" or singleThetaName is "sm": #If making validation plots for SM, still need to append WC values to x (all set to 0)
@@ -591,6 +599,11 @@ def Update_Lists(opts, list_labels, list_features):
     elif opts["strategy"] is "CARL_singlePoint":
         list_labels = []; list_labels.append("SM"); list_labels.append("EFT")#SM vs EFT ref point
 
+    elif opts["targetVarIdx"] >= 0: #Regressor: use this variable as target --> remove from training features
+        del list_features[opts["targetVarIdx"]] #Remove feature used as target from list
+        if opts["comparVarIdx"] > opts["targetVarIdx"]: opts["comparVarIdx"] = opts["comparVarIdx"] -1; #Remove 1 feature from list --> Need to update other index accordingly
+        # print(list_features)
+
     return list_labels, list_features
 
 # //--------------------------------------------
@@ -631,11 +644,16 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
     #-- Regress some quantity (only 0,1 supported for now, for debug) #Only 2 process classes supported here yet
     elif opts["strategy"] is "regressor":
 
-        mode = 3 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians ; 2 <-> regress dummy value ; 3 <-> regress some input feature
+        mode = 4 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians ; 2 <-> regress dummy value ; 3 <-> regress some input feature; 4 <-> regress on first variable in input list (and remove it for training)
+
+        if opts["targetVarIdx"] > 0: mode = 4 #Regress on target variable selected by user
 
         if opts["nofOutputNodes"] == 1: #Target = 0,1
 
+            print('\n')
             if mode == 0:
+
+                print(colors.ital, 'Regressor mode = 0: Regress on 0 (bkg) and 1 (sig)...', colors.reset)
 
                 #Regress 0, 1
                 y = np.ones(list_nentries_class[0]) #'1' = signal
@@ -646,6 +664,8 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 
             elif mode == 1:
 
+                print(colors.ital, 'Regressor mode = 1: Regress on 2 dummy gaussians for sig/bkg...', colors.reset)
+
                 #Targets randomly sampled around 0,1 -- testing
                 y = np.random.normal(loc=0.2, scale=0.1, size=list_nentries_class[0])
                 y_process = np.ones(list_nentries_class[0]) #'1' = signal
@@ -655,6 +675,8 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
                     y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
 
             elif mode == 2:
+
+                print(colors.ital, 'Regressor mode = 2: Regress on fixed dummy value...', colors.reset)
 
                 #Regress fixed dummy value
                 dummy = 0.5
@@ -667,6 +689,8 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 
             elif mode == 3:
 
+                print(colors.ital, 'Regressor mode = 3: Regress on first input feature (used in training ! for debugging only)...', colors.reset)
+
                 #Regress an input feature
                 y = x[:list_nentries_class[0], 0] #First feature
                 y_process = np.ones(list_nentries_class[0]) #'1' = signal
@@ -674,6 +698,19 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
                     y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], 0]
                     y = np.concatenate((y, y_integer_bkg), axis=0)
                     y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+
+            elif mode == 4:
+
+                print(colors.ital, 'Regressor mode = 4: Regress on user-selected variable', opts["targetVarIdx"], '(not used in training)...', colors.reset)
+
+                #Regress on first input feature, and remove it for training
+                y = x[:list_nentries_class[0], opts["targetVarIdx"]] # Use selected variable as target
+                y_process = np.ones(list_nentries_class[0]) #'1' = signal
+                if len(list_processClasses) > 1:
+                    y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], opts["targetVarIdx"]]
+                    y = np.concatenate((y, y_integer_bkg), axis=0)
+                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+                x = np.delete(x, opts["targetVarIdx"], 1)  # Delete selected variable=column from x
 
             else: print('ERROR ! Not supported yet...'); exit(1)
 
@@ -692,7 +729,7 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
         elif opts["strategy"] == "RASCAL": #Targets are joint likelihood ratio r and score t (1 component per operator)
             y = np.column_stack((jointLR_allClasses, scores_allClasses_eachOperator)); y_process = targetClass_allClasses
 
-    return y, y_process
+    return y, y_process, x
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -758,7 +795,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
-    return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
+    return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=1-_trainsize, shuffle=True)
 
 # //--------------------------------------------
 # //--------------------------------------------

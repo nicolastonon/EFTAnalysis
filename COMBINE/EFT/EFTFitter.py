@@ -21,7 +21,10 @@ import itertools
 import glob
 import getpass
 import array
+from Utils.ColoredPrintout import colors
 from collections import defaultdict
+import getopt # command line parser
+import argparse
 
 ######## ######## ######## ######## #### ########
 ##       ##          ##    ##        ##     ##
@@ -52,7 +55,7 @@ class EFTFit(object):
         # Default wcs to keep track of during 2D scans
         self.wcs_tracked = [] #OTHERS
         # Scan ranges of the wcs
-        self.wc_ranges = {'ctz':(-5,5) #, 'ctw':(-7,7)
+        self.wc_ranges = {'ctz':(-10,10) #, 'ctw':(-7,7)
                          }
         # Systematics names except for FR stats. Only used for debug
         # self.systematics = ['CERR1','CERR2']
@@ -66,7 +69,7 @@ class EFTFit(object):
  #      #    # #    # #    # #      #   #
  ######  ####   ####   ####  ###### #    #
 
-        log_file = 'Fitter_out.log'
+        log_file = 'fitter.log'
 
         FORMAT1 = '%(message)s'
         FORMAT2 = '[%(levelname)s] %(message)s'
@@ -112,20 +115,18 @@ class EFTFit(object):
 
     def makeWorkspaceSM(self, datacard='datacard.txt'):
         ### Generates a workspace from a datacard ###
-        logging.info("Creating workspace")
+        logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
             logging.error("Datacard does not exist!")
             return
         CMSSW_BASE = os.getenv('CMSSW_BASE')
         args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel',
                 #'--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1,0,3]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,3]','--PO','map=.*/ttH:mu_ttH[1,0,3]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                #'--PO','map=.*/ttll:mu_ttll[1,0,3]','--PO','map=.*/tHq:mu_ttH[1]','--PO','map=.*/ttlnu:mu_ttlnu[1]','--PO','map=.*/ttH:mu_ttH[1]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                # '--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1]','--PO','map=.*/ttlnu:mu_ttlnu[1]','--PO','map=.*/ttH:mu_ttH[1]','--PO','map=.*/tllq:mu_tllq[1]',
-                # '--PO','map=.*/tZq:ctz[0]',
-                '--PO','map=.*/tZq:mu_tzq[1,0,5]',
+                # '--PO','map=.*/tZq:mu_tzq[1,0,5]',
+                '--PO','map=.*/PrivMC_tZq_training:r_tzq[1,0,5]',
                 '-o','SMWorkspace.root']
 
-        logging.info(" ".join(args))
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
@@ -133,16 +134,16 @@ class EFTFit(object):
         process.wait()
 
 
-    def makeWorkspaceEFT(self, datacard='datacard.txt'):
+    def makeWorkspaceEFT(self, datacard='datacard.txt', verbosity=2):
         ### Generates a workspace from a datacard and fit parameterization file ###
-        logging.info("Creating workspace")
+        logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
             logging.error("Datacard does not exist!")
             sys.exit()
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./EFT_Parameterization.npy','-o','EFTWorkspace.root', '-v 9']
+        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./EFT_Parameterization.npy','-o','EFTWorkspace.root', '-v', str(verbosity)]
 
-        logging.info(' '.join(args))
+        logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
@@ -157,13 +158,16 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFitSM(self, name='.test', freeze=[], autoMaxPOIs=True, other=[]):
+    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False):
 
         ### Multidimensional fit ###
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit','--expectSignal=1',]
+        if exp:
+            args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit', '-t -1', '--expectSignal=1']
+        else:
+            args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit']
         if freeze:
-            params_all=['mu_tzq']
+            params_all=['r_tzq']
             fit=list(set(params_all) - set(freeze))
             name += '.'
             name += '.'.join(fit)
@@ -171,43 +175,42 @@ class EFTFit(object):
         if freeze:      args.extend(['--freezeParameters',','.join(freeze)])
         if other:       args.extend(other)
 
-        logging.info(" ".join(args))
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
-        logging.info("Done with SMFit.")
+        logging.info(colors.fg.lightblue + "Done with SMFit." + colors.reset)
         self.printBestFitsSM(name)
 
-    def bestFitEFT(self, name='.test', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[]):
+    def bestFitEFT(self, name='.EFT', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2):
         ### Multidimensional fit ###
-        logging.info("Enter function bestFitEFT()")
+        logging.info(colors.fg.lightblue + "Enter function bestFitEFT()\n" + colors.reset)
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        if params_POI == []:
-            params_POI = self.wcs
-        # args=['combine','-d','./EFTWorkspace.root','-v','2','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2']
-        #combine -d ./EFTWorkspace.root -v 2 --saveFitResult -M MultiDimFit -H AsymptoticLimits --cminPoiOnlyFit --expectSignal=1 -n .test -P ctz --trackParameters  --floatOtherPOIs 1 --autoBoundsPOIs=*
+        if params_POI == []: params_POI = self.wcs
 
-        args=['combine','-d','./EFTWorkspace.root','-v','9','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '--expectSignal=1'] #FIXME -- issue with 'saveFitResult', '--trackParameters', ... ?
-        # args=['combine','-d','./datacard.txt','-v','2','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '--expectSignal=1'] #FIXME -- issue with 'saveFitResult', '--trackParameters', ... ?
-        if name:              args.extend(['-n','{}'.format(name)])
-        if params_POI:     args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
-        args.extend(['--trackParameters',','.join([wc for wc in self.wcs if wc not in params_POI])])
-        if startValuesString: args.extend(['--setParameters',startValuesString])
-        if not freeze:        args.extend(['--floatOtherPOIs','1'])
-        if autoBounds:        args.extend(['--autoBoundsPOIs=*'])
-        if other:             args.extend(other)
+        args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2', '--expectSignal=1', '-v', str(verbosity)]
 
-        logging.info(" ".join(args))
+        if name:                args.extend(['-n','{}'.format(name)])
+        if params_POI:          args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
+        if startValuesString:   args.extend(['--setParameters',startValuesString])
+        if not freeze:          args.extend(['--floatOtherPOIs','1'])
+        if autoBounds:          args.extend(['--autoBoundsPOIs=*'])
+        #if exp:                 args.extend(['-t -1'])
+        if other:               args.extend(other)
+        check = True in (wc not in params_POI for wc in self.wcs)
+        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs if wc not in params_POI])])
+        # args.extend(['--setParameterRanges','{}={},{}'.format(param,scanmax)])
+
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
-        logging.info("Done with bestFitEFT.")
+        logging.info(colors.fg.lightblue + "Done with bestFitEFT." + colors.reset)
 
-        # self.printBestFits(name) #FIXME
         self.printBestFitsEFT(name)
 
 
@@ -218,13 +221,15 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScanSM(self, name='.test', batch='', scan_params=['mu_tzq'], params_tracked=[], points=300, freeze=False, other=[]):
+    def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False):
         ### Runs deltaNLL Scan in a parameter using CRAB ###
         ### Can be used to do 2D scans as well ###
         logging.info("Doing grid scan...")
 
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+        if exp: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0', '--toys -1',  '--expectSignal=1']
+        else: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+		
         args.extend(['--points','{}'.format(points)])
         if name:              args.extend(['-n','{}'.format(name)])
         if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
@@ -232,35 +237,42 @@ class EFTFit(object):
         if not freeze:        args.extend(['--floatOtherPOIs','1'])
         if other:             args.extend(other)
         # Common 'other' uses: --setParameterRanges param=min,max
-        if batch=='crab':      args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','custom_crab.py','--split-points','2000'])
+        if batch=='crab':      args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','2000'])
         if batch=='condor':    args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','2000'])
-        logging.info(' '.join(args))
+        logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
-        logging.info("Done with gridScan batch submission.")
+        logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
 
         if not batch:
-            logging.info("Done with gridScan.")
+            logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-    def gridScan(self, name='.test', batch='', freeze=False, scan_params=['ctw','ctz'], params_tracked=[], points=90000, other=[]):
+        return
+
+
+    def gridScan(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[]):
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info("Doing grid scan...")
 
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['combineTool.py','-d',CMSSW_BASE+'/src/EFTFit/Fitter/test/EFTWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+        args = ['combineTool.py','-d',CMSSW_BASE+'/src/EFTAnalysis/COMBINE/EFT/EFTWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+
         args.extend(['--points','{}'.format(points)])
         if name:              args.extend(['-n','{}'.format(name)])
         if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
         if params_tracked: args.extend(['--trackParameters',','.join(params_tracked)])
+        if startValuesString:   args.extend(['--setParameters',startValuesString]) 
+        args.extend(['--expectSignal=1'])        
         if not freeze:        args.extend(['--floatOtherPOIs','1'])
+        if exp:               args.extend(['-t -1'])
         if other:             args.extend(other)
-        if batch=='crab':              args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','custom_crab.py','--split-points','3000'])
+        if batch=='crab':              args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','3000'])
         if batch=='condor':            args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','3000','--dry-run'])
-        logging.info(' '.join(args))
+        logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         # Run the combineTool.py command
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -285,10 +297,10 @@ class EFTFit(object):
                 self.log_subprocess_output(condorsub.stderr,'err')
             condorsub.wait()
 
-        if batch: logging.info("Done with gridScan batch submission.")
+        if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
+        else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-        if not batch:
-            logging.info("Done with gridScan.")
+        return
 
 
  #####    ##   #####  ####  #    #
@@ -301,20 +313,20 @@ class EFTFit(object):
     def batch1DScanSM(self, basename='.test', batch='', scan_params=[], points=300, freeze=False, other=[]):
         ### For each SM signal strength, run a 1D deltaNLL Scan.
         if not scan_params:
-            scan_params = ['mu_tzq']
+            scan_params = ['r_tzq']
 
         for param in scan_params:
             scanmax = 3
-            if param=='mu_ttH': scanmax = 6
-            if param=='mu_tllq': scanmax = 4
+            if param=='r_ttH': scanmax = 6
+            if param=='r_tllq': scanmax = 4
             self.gridScanSM('{}.{}'.format(basename,param), batch, [param], self.systematics+[params for params in scan_params if params != param], points, freeze, ['--setParameterRanges','{}=0,{}'.format(param,scanmax)]+other)
 
     def batchRetrieve1DScansSM(self, basename='.test', batch='crab'):
         ### For each wc, retrieves finished 1D deltaNLL crab jobs, extracts, and hadd's into a single file ###
-        for param in ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']:
+        for param in ['r_ttll','r_ttlnu','r_ttH','r_tllq']:
             self.retrieveGridScan('{}.{}'.format(basename,param),batch)
 
-    def batch1DScanEFT(self, basename='.test', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
+    def batch1DScanEFT(self, basename='.EFT', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
         ### For each wc, run a 1D deltaNLL Scan.
         if not scan_wcs:
             scan_wcs = self.wcs
@@ -447,7 +459,7 @@ class EFTFit(object):
             startValues.append('{}={}'.format(param,value))
         return ','.join(startValues)
 
-    def getBestValues1DEFT(self, basename, wcs=[]):
+    def getBestValues1DEFT(self, basename=".EFT", wcs=[]):
         ### Gets values of WCs for grid scan point with best deltaNLL ###
         if not wcs:
             wcs = self.wcs
@@ -543,7 +555,7 @@ class EFTFit(object):
             if os.path.isfile('condor_{}.sub'.format(name.replace('.',''))):
                 os.rename('condor_{}.sub'.format(name.replace('.','')),'condor{0}/condor_{0}.sub'.format(name))
 
-    def batchRetrieve1DScansEFT(self, basename='.test', batch='crab', scan_wcs=[]):
+    def batchRetrieve1DScansEFT(self, basename='.EFT', batch='crab', scan_wcs=[]):
         ### For each wc, retrieves finished 1D deltaNLL grid jobs, extracts, and hadd's into a single file ###
         if not scan_wcs:
             scan_wcs = self.wcs
@@ -746,8 +758,7 @@ class EFTFit(object):
 
     def printBestFitsSM(self, name='.EFT.SM.Float'):
         ### Print a table of SM signal strengths, their best fits, and their uncertainties ###
-        # params = ['mu_ttll','mu_ttlnu','mu_ttH','mu_tllq']
-        params = ['mu_tzq']
+        params = ['r_tzq']
 
         fit_array = []
 
@@ -772,11 +783,10 @@ class EFTFit(object):
             print row[0],row[1],"+/-",row[2]," ",row[3],"+{}".format(row[4])
             logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
 
-    def printBestFitsEFT(self, basename='.EFT.SM.Float', wcs=[], simultaneous=True):
-        logging.info("Enter function printBestFitsEFT()")
+    def printBestFitsEFT(self, basename='.EFT', wcs=[], simultaneous=True):
+        logging.info(colors.fg.lightblue + "Enter function printBestFitsEFT()\n" + colors.reset)
         ### Print a table of wcs, their best fits, and their uncertainties ###
-        if not wcs:
-            wcs = self.wcs
+        if not wcs: wcs = self.wcs
 
         fit_array = []
 
@@ -786,7 +796,7 @@ class EFTFit(object):
             fit = fit_file.Get('fit_mdf')
 
             for wc in wcs:
-                print('wc', wc)
+                print(colors.fg.orange + 'wc: ' + wc + colors.reset)
 
                 roorealvar = fit.floatParsFinal().find(wc)
 
@@ -815,11 +825,13 @@ class EFTFit(object):
         logging.info("Quick result:")
         for row in fit_array:
             print row[0],"+/-",row[1]
-            logging.debug(row[0],"+/-",row[1])
-        logging.info("WC, Best Fit Value, Symmetric Error, Low side of Asym Error, High side of Asym Error")
+            logging.debug(colors.fg.orange + "{0} +/- {1}".format(row[0],row[1]) + colors.reset)
+        logging.info("WC / Best Fit Value / Symmetric Error / Low side of Asym Error / High side of Asym Error")
         for row in fit_array:
             print ', '.join([str(ele) for ele in row])
             logging.debug(row)
+
+        return
 
     def printIntervalFitsEFT(self, basename='.EFT.SM.Float', wcs=[]):
         ### Print a table of wcs, their best fits, and their uncertainties ###
@@ -836,8 +848,10 @@ class EFTFit(object):
 
             canvas.Clear()
 
-            logging.debug("Obtaining result of scan: higgsCombine{}.{}.MultiDimFit.root".format(basename,wc))
-            fit_file = ROOT.TFile.Open('./higgsCombine{}.{}.MultiDimFit.root'.format(basename,wc))
+            #logging.debug("Obtaining result of scan: higgsCombine{}.{}.MultiDimFit.root".format(basename,wc))
+            #fit_file = ROOT.TFile.Open('./higgsCombine{}.{}.MultiDimFit.root'.format(basename,wc))
+            logging.debug("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root".format(basename))
+            fit_file = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
             limit_tree = fit_file.Get('limit')
 
             limit_tree.Draw('2*deltaNLL:{}>>{}1DNLL(50,{},{})'.format(wc,wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]),'2*deltaNLL>-1','same')
@@ -896,25 +910,42 @@ class EFTFit(object):
 # //--------------------------------------------
 if __name__ == "__main__":
 
+# User options
+# //--------------------------------------------
     mode = 'EFT' #'SM', 'EFT'
+    datacard_path = './datacard.txt'     
+    exp = True #True <-> Asimov a-priori expected; False <-> observed
+
+# Set up the command line arguments
+# //--------------------------------------------
+    parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
+    parser.add_argument("-d", metavar="datacard path", help="Path to the datacard")
+    # parser.add_argument("--verbosity", metavar="level", help="Increase output verbosity")
+    parser.add_argument("-m", metavar="m", help="SM or EFT")
+    args = parser.parse_args()
+    if args.m: mode = args.m
+    if args.d: datacard_path = args.d
 
     fitter = EFTFit() #Create object
 
 # SM fit
 # //--------------------------------------------
-    if mode is 'SM':
-        fitter.makeWorkspaceSM('datacard.txt')
-        fitter.bestFitSM()
-        fitter.gridScanSM(scan_params=['mu_tzq'], points=50)
+    if mode == 'SM':
+        fitter.makeWorkspaceSM(datacard_path)
+        fitter.bestFitSM(exp=exp)
+        fitter.gridScanSM(scan_params=['r_tzq'], points=50, exp=exp)
 
 # EFT fit
 # //--------------------------------------------
-    elif mode is 'EFT':
-        # fitter.makeWorkspaceEFT('datacard.txt')
-        fitter.bestFitEFT()
+    elif mode == 'EFT':
+        fitter.makeWorkspaceEFT(datacard_path)
+        fitter.bestFitEFT(startValuesString='ctz=0', exp=exp, verbosity=2)
+        #fitter.printIntervalFitsEFT(basename='.EFT')
+        fitter.gridScan(scan_params=['ctz'], startValuesString='ctz=0', exp=exp, points=50)
 
-    # fitter.batch1DScanEFT() # Freeze other WCs
-    # fitter.getBestValues1DEFT()
+        # fitter.batch1DScanEFT() # Freeze other WCs
+        # fitter.batchRetrieve1DScansEFT()
+        # fitter.getBestValues1DEFT()
 
 # //--------------------------------------------
     #Example of a workflow:

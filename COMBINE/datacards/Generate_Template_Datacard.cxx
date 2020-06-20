@@ -95,17 +95,18 @@ void Choose_Arguments_From_CommandLine(TString& signal)
 {
     //Choose whether to include shape syst or not
 	cout<<endl<<FYEL("--- What is your SIGNAL ?")<<endl;
+    cout<<"* 'eft'   <-> Signal is SMEFT tZq"<<endl;
     cout<<"* '0'   <-> Signals are tZq + ttZ"<<endl;
     // cout<<"* 'thq' <-> Signals are tHq + tHW"<<endl;
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
 	cin>>signal;
-	while(signal != "tzq" && signal != "ttz" && signal != "0")
+	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft")
 	{
 		cin.clear();
 		cin.ignore(1000, '\n');
 
-		cout<<" Wrong answer ! Need to type '0' or 'tzq' or 'ttz' ! Retry :"<<endl;
+		cout<<" Wrong answer ! Need to type '0' or 'eft' or 'tzq' or 'ttz' ! Retry :"<<endl;
 		cin>>signal;
 	}
 
@@ -418,7 +419,12 @@ int main()
 //--------------------------------------------
 
     vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
-    if(signal == "0") //Signals : tZq+ttZ
+    if(signal == "eft") //Signals : tZq+ttZ
+    {
+        v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    }
+    else if(signal == "0") //Signals : tZq+ttZ
     {
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
@@ -477,7 +483,7 @@ int main()
 
 //--------------------------------------------
     vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
-    v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
+    // v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("prefiringWeight"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagH"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagL"); v_shapeSyst_isCorrelYears.push_back(false);

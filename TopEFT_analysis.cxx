@@ -216,8 +216,12 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     array_PU = NULL;
     array_prefiringWeight = NULL;
     array_Btag = NULL;
-    array_LepEff_mu = NULL;
-    array_LepEff_el = NULL;
+    // array_LepEff_mu = NULL;
+    // array_LepEff_el = NULL;
+    array_LepEffLoose_mu = NULL;
+    array_LepEffLoose_el = NULL;
+    array_LepEffTight_mu = NULL;
+    array_LepEffTight_el = NULL;
 
 	//Store the "cut name" that will be written as a suffix in the name of each output file
 	this->filename_suffix = "";
@@ -859,8 +863,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         array_PU = new double[2];
         array_prefiringWeight = new double[2];
         array_Btag = new double[4];
-        array_LepEff_mu = new double[4];
-        array_LepEff_el = new double[4];
+        // array_LepEff_mu = new double[4];
+        // array_LepEff_el = new double[4];
+        array_LepEffLoose_mu = new double[2];
+        array_LepEffLoose_el = new double[2];
+        array_LepEffTight_mu = new double[2];
+        array_LepEffTight_el = new double[2];
     }
 
 //  ####  ###### ##### #    # #####
@@ -874,8 +882,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 	//Output file name
 	//-- For BDT templates
-    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
     // TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
+    TString cat_tmp = (region=="") ? "SR" : region+"Cat";
 	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 
 	//-- For input vars
@@ -888,13 +896,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     // TString NN_inputLayerName = ""; TString NN_outputLayerName = ""; int nNodes = 1;
     if(!makeHisto_inputVars && classifier_name == "BDT")
     {
-        //NB : TMVA requires floats, and nothing else, to ensure reproducibility of results (training done with floats) => Need to recast e.g. doubles as flots
-        //See : https://sourceforge.net/p/tmva/mailman/message/836453/
+        //NB : TMVA requires floats, and nothing else, to ensure reproducibility of results (training done with floats) => Need to recast e.g. doubles as floats //See: https://sourceforge.net/p/tmva/mailman/message/836453/
         reader = new TMVA::Reader("!Color:!Silent");
 
         // Name & adress of local variables which carry the updated input values during the event loop
-        // NB : the variable names MUST corresponds in name and type to those given in the weight file(s) used -- same order
-        // NB : if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
+        // NB: the variable names MUST corresponds in name and type to those given in the weight file(s) used -- same order
+        // NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
         for(int i=0; i<var_list.size(); i++)
         {
             //cout<<"Added variable "<<var_list[i]<<endl;
@@ -934,7 +941,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 	//Template binning
 	double xmin = -1, xmax = 1;
-	nbins = 10;
+    // nbins = 10;
+    nbins = 1; //FIXME
     if(classifier_name == "NN") {xmin = 0;}
 
 	//Want to plot ALL selected variables
@@ -1253,7 +1261,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			// cout<<"* Tree '"<<systTree_list[itree]<<"' :"<<endl;
 
-    			// int nentries = 10;
+    			// int nentries = 100;
     			int nentries = tree->GetEntries();
                 // if(isPrivMC && nentries > 1000) {nentries = 1000;}
 
@@ -1522,8 +1530,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         delete array_PU; array_PU = NULL;
         delete array_prefiringWeight; array_prefiringWeight = NULL;
         delete array_Btag; array_Btag = NULL;
-        delete array_LepEff_mu; array_LepEff_mu = NULL;
-        delete array_LepEff_el; array_LepEff_el = NULL;
+        // delete array_LepEff_mu; array_LepEff_mu = NULL; delete array_LepEff_el; array_LepEff_el = NULL;
+        delete array_LepEffLoose_mu; array_LepEffLoose_mu = NULL;
+        delete array_LepEffLoose_el; array_LepEffLoose_el = NULL;
+        delete array_LepEffTight_mu; array_LepEffTight_mu = NULL;
+        delete array_LepEffTight_el; array_LepEffTight_el = NULL;
     }
 
 // #    # ###### #####   ####  ######
@@ -1540,10 +1551,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
 //TEST TMP
 //--------------------------------------------
-for(int ipt=0; ipt<v_sumLogLR.size(); ipt++)
-{
-    cout<<"v_sumLogLR["<<ipt<<"] = "<<v_sumLogLR[ipt]<<endl;
-}
+// for(int ipt=0; ipt<v_sumLogLR.size(); ipt++)
+// {
+//     cout<<"ipt "<<ipt<<" ("<<v_EFTpoints[ipt]<<") = "<<v_sumLogLR[ipt]<<endl;
+// }
 //--------------------------------------------
 
 	return;
@@ -1590,15 +1601,17 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
 
-    bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
+    bool superimpose_EFThist = false; //true <-> superimpose shape of EFT hists
         bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
         v_EFT_samples.push_back("PrivMC_tZq_training");
-        // v_EFT_samples.push_back("PrivMC_ttZ_v3");
+        // v_EFT_samples.push_back("PrivMC_ttZ_training");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
-        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_0");
-        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_15_cpq3_0_cpt_0");
-        v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
+        // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctz_2_ctw_0_cpqm_0_cpq3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctz_0_ctw_5_cpqm_0_cpq3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_15_cpq3_0_cpt_0");
+        // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
 
 //--------------------------------------------
 
@@ -2268,7 +2281,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 //     histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample];
                 // }
 
-                TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + v_EFT_samples[isample]; //Hardcoded, only 2017 for now
+                TString histo_name = "TH1EFT_" + total_var_list[ivar];
+                if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
+                if(channel != "") {histo_name+= "_" + channel;}
+                histo_name+= + "_2017__" + v_EFT_samples[isample];
 
                 // cout<<"TH1EFT_"<<histo_name<<endl;
                 if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
@@ -2280,7 +2296,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 th1eft_tmp->Scale(wcp);
                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
 
-                if(normalize_EFThist) {th1eft_tmp->Scale(h_sum_data->Integral()/th1eft_tmp->Integral());} //Normalize to integral of data his (arbitrary)
+                if(normalize_EFThist) {th1eft_tmp->Scale(h_sum_data->Integral()/(2*th1eft_tmp->Integral()));} //Normalize to half-integral of data histogram (arbitrary)
 
                 // th1eft_tmp->SetLineColor(kRed);
                 th1eft_tmp->SetLineColor(icolor);
@@ -3033,11 +3049,11 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 	TString input_name;
 	if(drawInputVars)
 	{
-        input_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";
+        input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix +".root";
 	}
 	else
 	{
-        input_name = "outputs/Templates_" + classifier_name + template_name + "_" + region + "_" + lumiName + filename_suffix + ".root";
+        input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
     }
 
 	if(!Check_File_Existence(input_name))
@@ -3050,6 +3066,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 	//Input file containing histos
 	TFile* file_input = 0;
 	file_input = TFile::Open(input_name);
+    cout<<DIM("Opening file: "<<input_name<<"")<<endl;
 
 	//TH1F* to retrieve distributions
 	TH1F* h_tmp = 0; //Tmp storing histo
@@ -3395,6 +3412,21 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
     }
     else if(systname.BeginsWith("LepEff_mu"))
     {
+        if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_mu; array_name = "varWeightMuonLoose";}
+        else {address_memberArray = array_LepEffTight_mu; array_name = "varWeightMuonTight";}
+        if(systname.EndsWith("Down")) {index = 0;}
+        else if(systname.EndsWith("Up")) {index = 1;}
+    }
+    else if(systname.BeginsWith("LepEff_el"))
+    {
+        if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_mu; array_name = "varWeightElectronLoose";}
+        else {address_memberArray = array_LepEffTight_mu; array_name = "varWeightElectronTight";}
+        if(systname.EndsWith("Down")) {index = 0;}
+        else if(systname.EndsWith("Up")) {index = 1;}
+    }
+    /*
+    else if(systname.BeginsWith("LepEff_mu"))
+    {
         address_memberArray = array_LepEff_mu;
         array_name = "varWeightMuon";
         if(systname.EndsWith("LooseDown")) {index = 0;}
@@ -3411,6 +3443,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         else if(systname.EndsWith("TightDown")) {index = 2;}
         else if(systname.EndsWith("TightUp")) {index = 3;}
     }
+    */
     else{cout<<FRED("ERROR ! Systematic '"<<systname<<"' not included in function SetBranchAddress_SystVariation() from Helper.cxx ! Can *not* compute it !")<<endl; return;}
 
     t->SetBranchStatus(array_name, 1);

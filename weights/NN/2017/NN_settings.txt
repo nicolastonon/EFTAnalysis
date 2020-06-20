@@ -1,38 +1,44 @@
-Start of NN training :12-Jun-2020 (13:22:32)
+Start of NN training :20-Jun-2020 (18:57:53)
 
 OPTIONS
 ----------------- 
-strategy --> classifier
-nEpochs --> 50
+strategy --> regressor
+eventWeightName --> eventWeight/1000
 splitTrainEventFrac --> 0.8
-nHiddenLayers --> 4
-nNeuronsPerLayer --> 100
+nEpochs --> 150
+nHiddenLayers --> 5
+nNeuronsPerLayer --> 80
 activInputLayer --> tanh
 activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.4
-regularizer --> ['l2', 0.0001]
-maxEventsPerClass --> -1
+dropoutRate --> 0.0
+regularizer --> ['', 0.0001]
+maxEventsPerClass --> 1000
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
 listOperatorsParam --> ['ctz']
 nPointsPerOperator --> 100
-minWC --> -5
-maxWC --> 5
-nEventsPerPoint --> 5000
+minWC --> -10
+maxWC --> 10
+nEventsPerPoint --> 1000
 batchSizeEFT --> 5000
 refPoint --> SM
 score_lossWeight --> 1
-regress_onLogr --> True
+regress_onLogr --> False
+targetVarIdx --> 0
+comparVarIdx --> 1
 cuts --> 1
-makeValPlotsOnly --> False
+makeValPlotsOnly --> True
 parameterizedNN --> False
-regress --> False
+regress --> True
 nofOutputNodes --> 1
-maxEvents --> -1
+maxEvents --> 1000
 batchSize --> 512
+loss --> mean_absolute_error
+optim --> <tensorflow.python.keras.optimizer_v2.adam.Adam object at 0x7faae85a15d0>
+metrics --> mean_absolute_error
 ----------------- 
 
-End of NN training and evaluation :12-juin-2020 (13:50:45)
+End of NN training and evaluation :20-juin-2020 (18:58:05)

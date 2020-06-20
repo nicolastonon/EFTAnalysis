@@ -36,11 +36,11 @@ nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-evalPoint = "rwgt_ctZ_0.3"
-# evalPoint = "rwgt_ctw_2"
-# evalPoint = "rwgt_cpqm_15"
-# evalPoint = "rwgt_cpq3_15"
-# evalPoint = "rwgt_cpt_15"
+evalPoint = "rwgt_ctz_5"
+# evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_cpqm_7"
+# evalPoint = "rwgt_cpq3_7"
+# evalPoint = "rwgt_cpt_7"
 # evalPoint = "rwgt_ctZ_5"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
@@ -53,9 +53,9 @@ list_points_sampling.append("SM") #Keep this
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
-# list_points_sampling.append("rwgt_cpqm_15")
-# list_points_sampling.append("rwgt_cpq3_15")
-# list_points_sampling.append("rwgt_cpt_15")
+# list_points_sampling.append("rwgt_cpqm_7")
+# list_points_sampling.append("rwgt_cpq3_7")
+# list_points_sampling.append("rwgt_cpt_7")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
@@ -111,6 +111,8 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     #-- Get model predictions
     predictions = np.squeeze(model.predict(x))
     # print(predictions)
+
+    if optsTrain["strategy"] is "RASCAL": predictions = predictions.T #why needed ?
 
     #-- Alter data for testing/debugging
     # x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
@@ -198,8 +200,8 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, list_points_sampling)
     ax = fig.gca()
-    # ax.set(xlim=(xmin, xmax))
-    # ax.set(ylim=(ymin, ymax))
+    ax.set(xlim=(xmin, xmax))
+    ax.set(ylim=(ymin, ymax))
 
     diag_line, = ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
 

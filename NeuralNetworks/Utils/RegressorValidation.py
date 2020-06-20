@@ -6,12 +6,20 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 from Utils.ColoredPrintout import colors
-from Utils.Helper import close_event
+from Utils.Helper import *
+
+                                    #     #  #####
+ #####  #####  ###### #####         #     # #     #    ##### #####  #    # ##### #    #
+ #    # #    # #      #    #        #     # #            #   #    # #    #   #   #    #
+ #    # #    # #####  #    #        #     #  #####       #   #    # #    #   #   ######
+ #####  #####  #      #    # ###     #   #        #      #   #####  #    #   #   #    #
+ #      #   #  #      #    # ###      # #   #     #      #   #   #  #    #   #   #    #
+ #      #    # ###### #####  ###       #     #####       #   #    #  ####    #   #    #
 
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
+def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
     """
     Make validation plots for regressor NN using test data. Compare predictions to true target values.
     """
@@ -44,6 +52,13 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
         pred_data = np.squeeze(list_predictions_test_allNodes_allClasses[0][0])
         class_data = np.squeeze(list_truth_Test_allClasses[0])
 
+    if opts["comparVarIdx"] >= 0: #Also plot kinReco results
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0], list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
+        pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][0])))
+        class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[0]-1))) #Set different (arbitrary) class values for predictions / comparison variable
+
+    truth_data, pred_data, class_data = unison_shuffled_copies(truth_data, pred_data, class_data) #Randomize events (else, only see latest events on scatteplot)
+
     # print(truth_data.shape); print(pred_data.shape); print(class_data.shape)
     # print(truth_data[:20]); print(pred_data[:20])
 
@@ -63,9 +78,11 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
 
-    splot = sns.scatterplot(x=truth_data, y=pred_data, hue=class_data, style=class_data)
+    nmax=5000 #Can't see if there are too many points
+    splot = sns.scatterplot(x=truth_data[:nmax], y=pred_data[:nmax], hue=class_data[:nmax], style=class_data[:nmax])
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, ['EFT', 'SM']) #NB: EFT first because class label is 0
+    if opts["comparVarIdx"] >= 0: splot.legend(leg_handles, [list_features[opts["comparVarIdx"]], 'NN'])
     ax = fig.gca()
     ax.set(xlim=(xmin, xmax))
     ax.set(ylim=(ymin, ymax))
@@ -165,22 +182,103 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
 # //--------------------------------------------
 #Scatterplot
 
-    fig = plt.figure('splot3', figsize=(10, 10))
-    # plt.title('Predicted VS True '+nodename)
-    plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string
-    plt.ylabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
-    xdata = np.squeeze(list_xTest_allClasses[1][:1000,-1])
-    if opts["nofOutputNodes"] == 1: ydata = np.squeeze(list_yTest_allClasses[1][:1000])
-    else: ydata = np.squeeze(list_yTest_allClasses[1][:1000,0])
-    splot3 = sns.scatterplot(x=xdata, y=ydata)
-    # ax = fig.gca()
-    # ax.set(xlim=(xmin, xmax))
-    # ax.set(ylim=(ymin, ymax))
-    plotname = weight_dir + 'ScatterPlot3LR_PredvsTruth.png'
-    fig.savefig(plotname)
-    print(colors.fg.lightgrey, "\nSaved LR scatter plot3 as :", colors.reset, plotname)
-    fig.clear(); plt.close('splot3')
+    if opts["parameterizedNN"] == True:
+        fig = plt.figure('splot3', figsize=(10, 10))
+        # plt.title('Predicted VS True '+nodename)
+        plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string
+        plt.ylabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
+        xdata = np.squeeze(list_xTest_allClasses[1][:1000,-1])
+        if opts["nofOutputNodes"] == 1: ydata = np.squeeze(list_yTest_allClasses[1][:1000])
+        else: ydata = np.squeeze(list_yTest_allClasses[1][:1000,0])
+        splot3 = sns.scatterplot(x=xdata, y=ydata)
+        # ax = fig.gca()
+        # ax.set(xlim=(xmin, xmax))
+        # ax.set(ylim=(ymin, ymax))
+        plotname = weight_dir + 'ScatterPlot3LR_PredvsTruth.png'
+        fig.savefig(plotname)
+        print(colors.fg.lightgrey, "\nSaved LR scatter plot3 as :", colors.reset, plotname)
+        fig.clear(); plt.close('splot3')
+
+    return
+
 
 # //--------------------------------------------
+# //--------------------------------------------
+
+ #####  #    # #      #
+ #    # #    # #      #
+ #    # #    # #      #
+ #####  #    # #      #
+ #      #    # #      #
+ #       ####  ###### ######
+
+def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses):
+    """
+    Plot difference between prediction and truth.
+    """
+
+    if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
+
+# //--------------------------------------------
+#DATA
+
+    # print(list_yTest_allClasses[0].shape); print(list_yTest_allClasses[1].shape)
+    if opts["nofOutputNodes"] == 1:
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1])))
+    else:
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0],list_yTest_allClasses[1]))[:,0])
+
+    if len(list_predictions_test_allNodes_allClasses[0]) > 1: #Concatenate 'sig' and 'bkg'
+        pred = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][1])))
+        class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[1])))
+    else: #For simple regressor, there may be only 1 process class to consider
+        pred_data = np.squeeze(list_predictions_test_allNodes_allClasses[0][0])
+        class_data = np.squeeze(list_truth_Test_allClasses[0])
+
+    if opts["comparVarIdx"] >= 0: #Also plot kinReco results
+        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0], list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
+        pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][0])))
+        class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[0]-1))) #Set different (arbitrary) class values for predictions / comparison variable
+
+    truth_data, pred_data, class_data = unison_shuffled_copies(truth_data, pred_data, class_data) #Randomize events (else, only see latest events on scatteplot)
+
+# //--------------------------------------------
+
+    #Transform classifier -> LR
+    # if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":
+    #     truth = r_from_s(truth)
+    #     pred = r_from_s(pred)
+
+    nbins = 30
+    xmin = -2; xmax= 2
+
+    hpull = TH1F('Pull', 'Pull', nbins, xmin, xmax); hpull.Sumw2(); hpull.SetDirectory(0)
+    for idx in range(0, len(list_yTest_allClasses[0])):
+        # print('1 idx', idx)
+        tmp = (pred_data[idx] - truth_data[idx]) / truth_data[idx]
+        hpull.Fill(tmp, 1.)
+        # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
+
+    hpull.SetFillColor(18)
+    hpull.SetLineColor(1)
+
+    c = ROOT.TCanvas()
+    hpull.Draw("hist")
+
+    if opts["strategy"] is "regressor" and opts["comparVarIdx"] >= 0: #Superimpose pull plot for comparison variable
+        hpull_comp = TH1F('Pull', 'Pull', nbins, xmin, xmax); hpull_comp.Sumw2(); hpull_comp.SetDirectory(0)
+        for idx in range(len(list_yTest_allClasses[0]), len(pred_data)):
+            # print('2 idx', idx)
+            tmp = (pred_data[idx] - truth_data[idx]) / truth_data[idx]
+            hpull_comp.Fill(tmp, 1.)
+            # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
+
+        # hpull_comp.SetFillColor(18)
+        hpull_comp.SetLineColor(2)
+        hpull_comp.Draw("hist same")
+
+    plotname = weight_dir + "Pull_plot.png"
+    c.SaveAs(plotname)
+    print(colors.fg.lightgrey, "\nSaved pull plot as :", colors.reset, plotname)
 
     return

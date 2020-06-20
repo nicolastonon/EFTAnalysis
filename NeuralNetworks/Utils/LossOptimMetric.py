@@ -59,14 +59,13 @@ def Get_Loss_Optim_Metrics(opts):
 
     else: #Regression
         # loss = 'mean_squared_logarithmic_error'
-        # loss = 'mean_absolute_error'
+        loss = 'mean_absolute_error' #More robust to outliers #FIXME
         # loss = 'mean_squared_logarithmic_error'
-        loss = 'mean_squared_error'
+        # loss = 'mean_squared_error'
 
-        #FIXME
         # if opts["strategy"] is "ROLR": loss = clipped_mse #use custom (clipped MSE) loss to avoid huge loss values dominating the training
 
-        metrics = 'mean_squared_error'
+        metrics = 'mean_absolute_error' #More robust to outliers
 
     lossWeights = None
     if opts["strategy"] == "RASCAL": #2 outputs : [r,t]

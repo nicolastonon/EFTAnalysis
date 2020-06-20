@@ -16,6 +16,7 @@ from scipy.stats import ks_2samp, anderson_ksamp, chisquare
 from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
 from tensorflow.keras.models import load_model
+from Utils.LossOptimMetric import Get_Loss_Optim_Metrics
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -396,6 +397,12 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 
     if opts["parameterizedNN"] is True and "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) is not 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'Length of [listMinMaxWC] must be twice the length of [listOperatorsParam] (<-> 1 min and 1 max WC value per activated operator) ! Fix [listMinMaxWC], or comment this option to use the values of [minWC,maxWC] for all operators', colors.reset); exit(1)
+
+    opts["loss"], opts["optim"], opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
+
+    if opts["strategy"] is "regressor" and ((opts["targetVarIdx"]<0 or opts["comparVarIdx"]<0) or opts["targetVarIdx"] == opts["comparVarIdx"]): print(colors.bold, colors.fg.red, 'Wonr option [targetVarIdx] or [comparVarIdx] !', colors.reset); exit(1)
+    elif opts["strategy"] is not "regressor": #Set default values
+        opts["targetVarIdx"] = -1; opts["comparVarIdx"] = -1
 
 # //--------------------------------------------
 

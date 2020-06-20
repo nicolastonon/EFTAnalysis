@@ -99,11 +99,12 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 
         X = Dense(nNeuronsPerLayer, activation=activHiddenLayers, activity_regularizer=reg, kernel_initializer=kernInit)(X)
 
-        if use_batchNorm==True:
-            X = BatchNormalization()(X)
-
-        if use_dropout==True and iLayer < nHiddenLayers-1: #Don't apply dropout after last hidden layer
+        if use_dropout==True and iLayer < nHiddenLayers-1: #Don't apply dropout after last hidden layer #CHANGED -- apply dropout before BN (else, still get some info from blind nodes passed through BN)
             X = Dropout(dropoutRate)(X)
+
+        # if use_batchNorm==True:
+        if use_batchNorm==True and iLayer < nHiddenLayers-1: #CHANGED -- never add batchNorm before output layer ? From this question (to be verified!): https://stats.stackexchange.com/questions/361700/lack-of-batch-normalization-before-last-fully-connected-layer
+            X = BatchNormalization()(X)
 # //--------------------------------------------
 # OUTPUT LAYER
 
@@ -132,7 +133,7 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
                 t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
                 model = Model(inputs=[inp], outputs=[r, t]) #1 output for r, n_operator outputs for t
             else: #Ratio only
-                # rclip = K.clip(r, min_value=-10, max_value=10) #NB: could clip gradient as such to avoid huge values (but also affects predictions...)
+                # rclip = K.clip(r, min_value=-10, max_value=10) #NB: could clip gradient as such to avoid huge values (but also truncates prediction values... !)
                 model = Model(inputs=[inp], outputs=[r])
 
         elif opts["strategy"] is "regressor":
@@ -162,7 +163,7 @@ def lambda_layer_score(v, theta_dim):
     if grad is None:
         grad = K.zeros_like(theta_dim)
 
-    return grad[:, -theta_dim:] #Only return gradients w.r.t. theory parameters (last input features) --> Nof score outputs = nof operators
+    return grad[:, -theta_dim:] #Only return gradients w.r.t. theory parameters (**must be last input features !!**) --> Nof score outputs = nof operators
 
 # //--------------------------------------------
 # //--------------------------------------------

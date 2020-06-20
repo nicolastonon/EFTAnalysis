@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
     //-- MAIN OPTIONS --
     TString signal_process = "tZq";
-    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    bool use_systematics = true; //true <-> will compute/store systematics selected below
 
     TString region_choice = ""; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ'
 
@@ -109,8 +109,8 @@ int main(int argc, char **argv)
 
     //Private MC production including EFT weights
     thesamplelist.push_back("PrivMC_tZq_training"); thesamplegroups.push_back("PrivMC_tZq_training");
-    thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
     thesamplelist.push_back("PrivMC_ttZ_training"); thesamplegroups.push_back("PrivMC_ttZ_training");
+    // thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
     // thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
     // thesamplelist.push_back("PrivMC_tZq_ctw"); thesamplegroups.push_back("tZq_ctW");
     // thesamplelist.push_back("PrivMC_ttZ_ctz"); thesamplegroups.push_back("ttZ_ctZ");
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
         // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
 
         //-- Implementend as event weights
-        theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
+        // theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
         theSystWeights.push_back("prefiringWeightDown"); theSystWeights.push_back("prefiringWeightUp");
         theSystWeights.push_back("BtagHDown"); theSystWeights.push_back("BtagHUp");
         theSystWeights.push_back("BtagLDown"); theSystWeights.push_back("BtagLUp");
@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 

@@ -125,7 +125,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
     		    // TString file_histos = "../templates/Combine_Input.root";
-    			TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
+                // TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
+                TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
+                TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root";
 
     			cout<<"---> Will use filepath : "<<file_histos<<endl<<endl;
 
@@ -169,7 +171,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
     			{
-    				file_out<<var+"_";
+    				file_out<<var;
     				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
                     file_out<<"_"+v_lumiYears[iyear];
                     file_out<<"=" + dir + v_lumiYears[iyear] + "/"
@@ -316,8 +318,9 @@ int main()
 
     vector<TString> v_templates; //'NN', 'BDT'
     v_templates.push_back("NN");
+    // v_templates.push_back("NN0");
 
-    vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee' //NB: option to select channel splitting via command line ?
+    vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
     v_channel.push_back("all");
     // v_channel.push_back("uuu");
     // v_channel.push_back("eeu");

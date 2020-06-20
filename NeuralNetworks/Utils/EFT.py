@@ -842,9 +842,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        # if need_jlr: #FIXME
-        #     probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        if need_jlr: #FIXME
+            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -978,13 +978,13 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
             #Store score components corresponding to thetas
             for iop in range(len(opts['listOperatorsParam']) ):
                 list_gradweights_operators.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], EFT_fitCoeffs))
-                list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradweights_operators_thetas[iop]))
+                list_gradNewXsecs_operators.append(Extrapolate_EFTxsecs_fromWeights(list_gradweights_operators[iop]))
                 list_score_allOperators.append(Compute_Score_Component(weights_theta, newXsecs, list_gradweights_operators[iop], list_gradNewXsecs_operators[iop]) )
 
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    # if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
+    if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
@@ -998,6 +998,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
 
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
     mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> set WCs according to scenario corresponding to current sample (will differ for different samples); 2 <-> all WCs to 0 (SM scenario)
+
     if opts["evalPoint"] == '': mode_valWC = 1 #Allows user to easily select this 'mode'
     if mode_valWC is 0:
         # WCs_theta = np.array([0,3,0,0,0]); WCs_theta = np.tile(WCs_theta, (nEvents,1))

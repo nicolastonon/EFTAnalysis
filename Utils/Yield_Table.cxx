@@ -504,7 +504,7 @@ int main(int argc, char **argv)
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
     bool group_samples_together = true; //true <-> group similar samples together
-    bool remove_totalSF = true; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
+    bool remove_totalSF = false; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
 
     if(argc > 1)
 	{

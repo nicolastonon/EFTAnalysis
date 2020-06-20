@@ -14,12 +14,12 @@ LFLAGS = $(DEBUG) -lTMVA
 ROOTFLAGS = `root-config --glibs --cflags`
 
 SCRIPT_PRODUCER = GenerateAllDatacards.exe
-GENERATE_DATACARDS = GenerateDatacardTemplate.exe
+GENERATE_DATACARDS = GenerateTemplateDatacard.exe
 
 #Instructions
 all: $(GENERATE_DATACARDS) $(SCRIPT_PRODUCER)
 
-$(GENERATE_DATACARDS):	Generate_Datacard_Template.cxx
+$(GENERATE_DATACARDS):	Generate_Template_Datacard.cxx
 	@g++ $< -o $@ $(ROOTFLAGS) $(LFLAGS)
 	@echo "-- Created executable ./$(GENERATE_DATACARDS) --"
 

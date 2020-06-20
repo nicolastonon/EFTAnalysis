@@ -1,5 +1,6 @@
 #-- Define custom Physics Model
 # Adapted from: https://github.com/cms-govner/EFTFit
+# See: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/physicsmodels/
 
 import numpy as np
 import ROOT
@@ -7,7 +8,8 @@ import pprint
 from Utils.ColoredPrintout import colors
 ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so') #Library for custom classes WCPoint, WCFit, TH1EFT
 
-from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel #Based on 'Quadratic' model from HiggsAnalysis.CombinedLimit.QuadraticScaling
+#Based on 'Quadratic' model: HiggsAnalysis.CombinedLimit.QuadraticScaling
+from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 #OPTIONS
 # //--------------------------------------------
@@ -24,21 +26,21 @@ verbose = 1 #(Dis)activate printouts
 ######## ##          ##    ##     ##  #######  ########  ######## ########
 
 class EFTModel(PhysicsModel):
-    """Apply process scaling due to EFT Wilson Coefficients (WCs).
-
+    """
+    Apply process scaling due to EFT operators.
     This class takes a dictionary of quadratic fits describing how processes are
     scaled as a function of an EFT operator's Wilson coefficient and adds it to
     the workspace. For an example coefficient x, dictionary values should have
     the form `(a, b, c)` where `xsec_NP(x) / xsec_SM = a + bx + cx^2`.
 
-    To produce an example dictionary, for coefficient `ctW`:
+    To produce an example dictionary, for coefficient `cuW`:
     >>> import numpy as np
-    >>> scales = {'ctW': {'ttZ': (1, 0.322778, 653.371), 'ttW': (1, 1.20998, 205.528)}}
+    >>> scales = {'cuW': {'ttZ': (1, 0.322778, 653.371), 'ttW': (1, 1.20998, 205.528)}}
     >>> np.save('scales.npy', scales)
 
-    Oversimplified example for running with override options:
-    text2workspace.py EFT_MultiDim_Datacard.txt -P EFTModel:eftmodel --PO fits=EFT_Parameterization.npy --PO process=tZq --PO coefficient=ctz -o ctz.root
-    combine -M MultiDimFit ctz.root --setParameterRanges ctz=-4,4 --expectSignal=1
+    Example for running:
+    text2workspace.py ttV.txt -P EFTModel:eftmodel --PO scaling=scales.npy --PO process=ttZ --PO process=ttW --PO coefficient=cuW -o cuW.root
+    combine -M MultiDimFit cuW.root --setParameterRanges=-4,4
     """
 
 
@@ -53,12 +55,13 @@ class EFTModel(PhysicsModel):
 
         self.fits = None # File containing WC parameterizations of each process+bin *with events*!
         self.wcs = ['ctz']
-        self.wc_ranges = {'ctz':(-6,6)#,    'ctW':(-7,7)
+        self.wc_ranges = {'ctz':(-10,10)#,    'ctW':(-7,7)
                          }
         wcs_override = [] # WCs specified by arguments
         self.procbins = [] # Process+bin combinations (tuple) that we have events for
         procbin_override = [] # Process+bin combinations (tuple) specified by arguments
 
+        # Option specified when creating workspace, e.g.: '... EFTModel:eftmodel --PO fits=./xxx.npy'
         for option, value in [x.split('=') for x in options]:
             if option == 'fits': # .npy fit file created with FitConversionEFT.py
                 self.fits = value
@@ -67,7 +70,7 @@ class EFTModel(PhysicsModel):
             elif option == 'procbins': # Override to fit only a subset of proc+category combinations
                 procbin_override = value.split(',')
             else:
-                print "Unknown option",option
+                print "Unknown option", option
 
         #If procbins are specified, only use subset that we have fits for.
         #Otherwise, use all of the process+bin combinations that we have fits for.
@@ -76,7 +79,7 @@ class EFTModel(PhysicsModel):
         if len(wcs_override)>0: self.wcs = np.intersect1d(self.wcs,wcs_override)
         if len(procbin_override)>0: self.procbins = np.intersect1d(self.procbins,procbins_override)
 
-        if verbose: print('procbins:', self.procbins)
+        if verbose: print(colors.fg.orange + 'procbins: ' + str(self.procbins) + colors.reset)
 
 
   ####  ###### ##### #    # #####
@@ -91,9 +94,11 @@ class EFTModel(PhysicsModel):
         print(colors.fg.lightblue + "Setting up fits..." + colors.reset)
         fits = np.load(self.fits)[()]
         for procbin in self.procbins:
-            name = 'r_{0}_{1}_{2}'.format(procbin[0],procbin[1],procbin[2])
+            name = 'r_{0}_{1}'.format(procbin[0],procbin[1])
             procbin_name = '_'.join(procbin)
-            if verbose: print('procbin_name', procbin_name)
+            if verbose:
+                print('name', name)
+                print('procbin_name', procbin_name)
 
             if not self.modelBuilder.out.function(name): #If r_proc_cat_bin not yet setup
                 # Initialize function pieces
@@ -119,30 +124,6 @@ class EFTModel(PhysicsModel):
                 if verbose: print('lin_term', lin_term)
                 if verbose: print('quartic_terms', quartic_terms)
 
-                '''
-                # New method of filling quartic terms to autosplit every ~<1000 characters
-                #quartic_master = []
-                #quartic_final = []
-                #for idx,wc1 in enumerate(self.wcs):
-                #    for idy,wc2 in enumerate(self.wcs):
-                #        if (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.001):
-                #            quartic_master.append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
-
-                #quartic_master = '+'.join(quartic_master)
-                #print "Master original size:",len(quartic_master)
-                #while len(quartic_master) >= 1000:
-                #    quarter_tmp = quartic_master[:1000]
-                #    quartic_master = quartic_master[1000:]
-                #    quartic_tmp = quartic_split[0].rsplit('+')
-                #    quartic_final.append(quartic_tmp[0])
-                #    quartic_master += quartic_tmp[1]
-                #quartic_final.append(quartic_master)
-                #print "Quartic pieces:",len(quartic_final)
-                #print "Size of pieces:"
-                #for idx in range(len(quartic_final)):
-                #    print len(quartic_final[idx])
-                '''
-
                 # Compile linear function for combine
                 if lin_term:
                     lin_expr = "expr::{lin_name}('{lin_term}',{lin_args})".format(lin_name=lin_name,lin_term="+".join(lin_term),lin_args=",".join(lin_args))
@@ -160,8 +141,8 @@ class EFTModel(PhysicsModel):
 
                 # Compile the full function
                 fit_function = "expr::{name}('{fit_terms}',{fit_args})".format(name=name,fit_terms="+".join(fit_terms),fit_args=",".join(fit_terms[1:]))
-                if verbose: print('fit_function', fit_function)
-                quadratic = self.modelBuilder.factory_(fit_function)
+                if verbose: print('fit_function', str(fit_function))
+                quadratic = self.modelBuilder.factory_(fit_function) #Create RooFormulaVar object (from string)
 
                 # Export fit function
                 self.modelBuilder.out._import(quadratic)
@@ -177,12 +158,14 @@ class EFTModel(PhysicsModel):
  #       ####  #
 
     def doParametersOfInterest(self):
+        """Create POI and other parameters, and define the POI set."""
+
         # user can call combine with `--setPhysicsModelParameterRanges` to set to sensible ranges
         for wc in self.wcs:
             self.modelBuilder.doVar('{0}[0, {1}, {2}]'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]))
-        print(colors.fg.lightblue + "WCs to fit for: "+colors.reset+",".join(self.wcs))
+            print(colors.fg.lightblue + ' WCs to fit: {0}[0, {1}, {2}]'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]))
+        # print(colors.fg.lightblue + "WCs to fit for: "+colors.reset+",".join(self.wcs))
         self.modelBuilder.doSet('POI', ','.join(self.wcs))
-        #self.modelBuilder.doSet('POI', 'ctw,ctz')
         self.setup()
 
 
@@ -194,12 +177,14 @@ class EFTModel(PhysicsModel):
    #   # ###### ###### #####     ####   ####  #    # ###### ######
 
     def getYieldScale(self, bin, process):
+        "Return the name of a RooAbsReal to scale this yield by or the two special values 1 and 0 (don't scale, and set to zero)"
 
         if (process,bin) not in self.procbins:
+            if verbose: print(colors.fg.orange + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
             return 1
         else:
-            name = 'r_{0}_{1}'.format(process,bin)
-            return name
+            if verbose: print(colors.fg.orange + '* Scaling ({0},{1}) by r_{0}_{1}'.format(process, bin) + colors.reset)
+            return 'r_{0}_{1}'.format(process,bin)
 
 # //--------------------------------------------
 # //--------------------------------------------
