@@ -1601,13 +1601,14 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison...?
 
-    bool superimpose_EFThist = false; //true <-> superimpose shape of EFT hists
+    bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
         bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
         v_EFT_samples.push_back("PrivMC_tZq_training");
         // v_EFT_samples.push_back("PrivMC_ttZ_training");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
-        // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_0");
+        v_EFT_points.push_back("rwgt_ctz_0");
+        v_EFT_points.push_back("rwgt_ctz_5");
         // v_EFT_points.push_back("rwgt_ctz_2_ctw_0_cpqm_0_cpq3_0_cpt_0");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_5_cpqm_0_cpq3_0_cpt_0");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_15_cpq3_0_cpt_0");

@@ -76,7 +76,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
-    y, y_process, x = Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
+    y, y_process, x = Get_Targets(opts, list_features, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
 
     #-- Sanitize data
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
@@ -599,10 +599,12 @@ def Update_Lists(opts, list_labels, list_features):
     elif opts["strategy"] is "CARL_singlePoint":
         list_labels = []; list_labels.append("SM"); list_labels.append("EFT")#SM vs EFT ref point
 
-    elif opts["targetVarIdx"] >= 0: #Regressor: use this variable as target --> remove from training features
-        del list_features[opts["targetVarIdx"]] #Remove feature used as target from list
-        if opts["comparVarIdx"] > opts["targetVarIdx"]: opts["comparVarIdx"] = opts["comparVarIdx"] -1; #Remove 1 feature from list --> Need to update other index accordingly
-        # print(list_features)
+    elif opts["strategy"] is "regressor":
+        if all([idx >= 0 for idx in opts["targetVarIdx"]]): #Regressor: use this/these variable(s) as target(s) --> remove from training features
+            # list_labels = []; [list_labels.append(list_features[v]) for v in opts["targetVarIdx"]] #Make the 'labels' represent the output variables rather than different processes... needed to get correspondance with each output node
+            for idx in sorted(opts["targetVarIdx"], reverse=True): #need to delete in reverse order so that you don't throw off the subsequent indexes.
+                del list_features[idx] #Remove feature(s) used as target(s) from list_features (--> don't use for training)
+                if opts["comparVarIdx"] > idx: opts["comparVarIdx"] = opts["comparVarIdx"] -1; #Removed 1 feature from list --> Need to update other indices accordingly
 
     return list_labels, list_features
 
@@ -618,7 +620,7 @@ def Update_Lists(opts, list_labels, list_features):
 
 #Create and return array 'y' <-> target for classification/regression
 #Also create and return array 'y_process' <-> will keep track of which process each event belongs to (since for regression, target will differ from 0,1)
-def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x):
+def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x):
 
     #-- Binary or multiclass classification between different processes
     if opts["strategy"] is "classifier": #Separate SM processes, or SM/pure-EFT --> Target corresponds to process class itself
@@ -646,75 +648,71 @@ def Get_Targets(opts, list_processClasses, list_nentries_class, targetClass_allC
 
         mode = 4 #0 <-> regress label 0,1 ; 1 <-> regress on 2 gaussians ; 2 <-> regress dummy value ; 3 <-> regress some input feature; 4 <-> regress on first variable in input list (and remove it for training)
 
-        if opts["targetVarIdx"] > 0: mode = 4 #Regress on target variable selected by user
+        if all([idx>=0 for idx in opts["targetVarIdx"]]): mode = 4 #Regress on target variable(s) selected by user
 
-        if opts["nofOutputNodes"] == 1: #Target = 0,1
+        if opts["nofOutputNodes"] != 1 and mode < 4: print('ERROR ! Not supported yet... check Get_Targets()'); exit(1)
 
-            print('\n')
-            if mode == 0:
+        print('\n')
+        if mode == 0:
 
-                print(colors.ital, 'Regressor mode = 0: Regress on 0 (bkg) and 1 (sig)...', colors.reset)
+            print(colors.ital, 'Regressor mode = 0: Regress on 0 (bkg) and 1 (sig)...', colors.reset)
 
-                #Regress 0, 1
-                y = np.ones(list_nentries_class[0]) #'1' = signal
-                if len(list_processClasses) > 1:
-                    y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
-                    y = np.concatenate((y, y_integer_bkg), axis=0)
-                y_process = y #Classification <-> target corresponds to process ID
+            #Regress 0, 1
+            y = np.ones(list_nentries_class[0]) #'1' = signal
+            if len(list_processClasses) > 1:
+                y_integer_bkg = np.zeros(list_nentries_class[1]) #'0' = bkg
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+            y_process = y #Classification <-> target corresponds to process ID
 
-            elif mode == 1:
+        elif mode == 1:
 
-                print(colors.ital, 'Regressor mode = 1: Regress on 2 dummy gaussians for sig/bkg...', colors.reset)
+            print(colors.ital, 'Regressor mode = 1: Regress on 2 dummy gaussians for sig/bkg...', colors.reset)
 
-                #Targets randomly sampled around 0,1 -- testing
-                y = np.random.normal(loc=0.2, scale=0.1, size=list_nentries_class[0])
-                y_process = np.ones(list_nentries_class[0]) #'1' = signal
-                if len(list_processClasses) > 1:
-                    y_integer_bkg = np.random.normal(loc=5, scale=0.1, size=list_nentries_class[1])
-                    y = np.concatenate((y, y_integer_bkg), axis=0)
-                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+            #Targets randomly sampled around 0,1 -- testing
+            y = np.random.normal(loc=0.2, scale=0.1, size=list_nentries_class[0])
+            y_process = np.ones(list_nentries_class[0]) #'1' = signal
+            if len(list_processClasses) > 1:
+                y_integer_bkg = np.random.normal(loc=5, scale=0.1, size=list_nentries_class[1])
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+                y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
 
-            elif mode == 2:
+        elif mode == 2:
 
-                print(colors.ital, 'Regressor mode = 2: Regress on fixed dummy value...', colors.reset)
+            print(colors.ital, 'Regressor mode = 2: Regress on fixed dummy value...', colors.reset)
 
-                #Regress fixed dummy value
-                dummy = 0.5
-                y = np.full(list_nentries_class[0], dummy)
-                y_process = np.ones(list_nentries_class[0]) #'1' = signal
-                if len(list_processClasses) > 1:
-                    y_integer_bkg = np.full(list_nentries_class[1], dummy)
-                    y = np.concatenate((y, y_integer_bkg), axis=0)
-                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+            #Regress fixed dummy value
+            dummy = 0.5
+            y = np.full(list_nentries_class[0], dummy)
+            y_process = np.ones(list_nentries_class[0]) #'1' = signal
+            if len(list_processClasses) > 1:
+                y_integer_bkg = np.full(list_nentries_class[1], dummy)
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+                y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
 
-            elif mode == 3:
+        elif mode == 3:
 
-                print(colors.ital, 'Regressor mode = 3: Regress on first input feature (used in training ! for debugging only)...', colors.reset)
+            print(colors.ital, 'Regressor mode = 3: Regress on first input feature (used in training ! for debugging only)...', colors.reset)
 
-                #Regress an input feature
-                y = x[:list_nentries_class[0], 0] #First feature
-                y_process = np.ones(list_nentries_class[0]) #'1' = signal
-                if len(list_processClasses) > 1:
-                    y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], 0]
-                    y = np.concatenate((y, y_integer_bkg), axis=0)
-                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+            #Regress an input feature
+            y = x[:list_nentries_class[0], 0] #First feature
+            y_process = np.ones(list_nentries_class[0]) #'1' = signal
+            if len(list_processClasses) > 1:
+                y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], 0]
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+                y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
 
-            elif mode == 4:
+        elif mode == 4:
 
-                print(colors.ital, 'Regressor mode = 4: Regress on user-selected variable', opts["targetVarIdx"], '(not used in training)...', colors.reset)
+            print(colors.ital, 'Regressor mode = 4: Regress on user-selected variable', [list_features[i] for i in opts["targetVarIdx"]], '(not used in training)...', colors.reset)
 
-                #Regress on first input feature, and remove it for training
-                y = x[:list_nentries_class[0], opts["targetVarIdx"]] # Use selected variable as target
-                y_process = np.ones(list_nentries_class[0]) #'1' = signal
-                if len(list_processClasses) > 1:
-                    y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], opts["targetVarIdx"]]
-                    y = np.concatenate((y, y_integer_bkg), axis=0)
-                    y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
-                x = np.delete(x, opts["targetVarIdx"], 1)  # Delete selected variable=column from x
-
-            else: print('ERROR ! Not supported yet...'); exit(1)
-
-        else: print('ERROR ! Not supported yet...'); exit(1)
+            #Regress on first input feature, and remove it for training
+            y = x[:list_nentries_class[0], opts["targetVarIdx"]] # Use selected variable(s) as target(s)
+            y_process = np.ones(list_nentries_class[0]) #'1' = signal
+            if len(list_processClasses) > 1:
+                y_integer_bkg = x[list_nentries_class[0]:list_nentries_class[1]+list_nentries_class[1], opts["targetVarIdx"]]
+                y = np.concatenate((y, y_integer_bkg), axis=0)
+                y_process = np.concatenate((y_process, np.zeros(list_nentries_class[1])), axis=0) #'0' = bkg
+            x = np.delete(x, opts["targetVarIdx"], 1)  # Delete selected variable(s)=column(s) from x
 
     #-- For NNs separating SM from EFT, already defined target in dedicated function (not based on 'process class' like for regular classification)
     else:
@@ -790,7 +788,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     else: #Specify train/test relative proportions
         _trainsize=opts["splitTrainEventFrac"]; _testsize=1-opts["splitTrainEventFrac"]
 
-    if opts["makeValPlotsOnly"] is True: _trainsize = 0.01 #If not training a NN, use all data for validation (no need for any 'training data')
+    if opts["makeValPlotsOnly"] is True: _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
 
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
     # x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, EFTweights_train, EFTweights_test, EFTweightIDs_train, EFTweightIDs_test, EFT_FitCoeffs_train, EFT_FitCoeffs_test = train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, EFTweights_allClasses, EFTweightIDs_allClasses, EFT_FitCoeffs_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)

@@ -414,7 +414,7 @@ def Get_ThetaParameters(opts, operatorNames):
     list_thetas_allOperators = []
     list_targetClass = []
 
-#--- Sample thetas uniformly between [min;max], *independently for each operator*. No more than 1 operator activated (non-zero) at once, to qllow for unambiguous labelling
+#--- Sample thetas uniformly between [min;max], *independently for each operator*. No more than 1 operator activated (non-zero) at once, to allow for unambiguous labelling
     if opts["strategy"] == "CARL_multiclass":
 
         for i_op_ToParameterize in range(len(listOperatorsParam)): #Loop on operators selected by user
@@ -435,9 +435,9 @@ def Get_ThetaParameters(opts, operatorNames):
                         if x == 0: x = 0.5 #WC=0 corresponds to SM point (already used as ref.) --> change to dummy non-null value
                         # print('x', x)
 
-                        thetas[iter, i_opInSample] = x
+                        thetas[iter, i_op_ToParameterize] = x
                         if opts["nofOutputNodes"] == 1: targetClass[iter] = 0 #Single column <-> any EFT point has label 0 (only SM point has label 1)
-                        else: targetClass[iter, i_opInSample+1] = 1 #Multi-column (1st colum <-> SM)
+                        else: targetClass[iter, i_op_ToParameterize+1] = 1 #Multi-column (1st colum <-> SM)
                         iter+= 1
 
             list_thetas_allOperators.append(thetas)
@@ -822,7 +822,8 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     Quantities for all events to be considered in the training and validation phases.
     """
 
-    sampleEventsAlsoAtSMpoint = True #True (default) <-> sample N events according to SM pdf (in addition to sampling N events according to the pdf of the EFT point theta) -> twice more events, but found in ref. papers to improve performance (increase sensitivity in SM-enriched region)
+    sampleEventsAlsoAtSMpoint = True #True (default) <-> sample N events according to SM pdf (in addition to sampling N events according to the pdf of the EFT point theta) -> twice more events, but found in ref. papers to improve performance (increase sensitivity in SM-enriched region) #This is required for classifier strategies, but not for regressors for instance
+    if "CARL" in opts["strategy"]: sampleEventsAlsoAtSMpoint = True #This is required for classifier strategies, but not for regressors for instance
 
     rng = np.random.default_rng() #Init random generator
 
@@ -842,9 +843,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        if need_jlr: #FIXME
-            probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        # if need_jlr: #FIXME
+        #     probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
+        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -877,7 +878,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
         if opts["strategy"] is "CARL_multiclass":
             targetClass_theta = np.tile(targetClasses[itheta], (nEventsPerPoint, 1) )
-            if opts["nofOutputNodes"] == 1 or opts["regress"] == True: targetClass_refPoint = np.ones(len(targetClass_theta))
+            if opts["nofOutputNodes"] == 1: targetClass_refPoint = np.ones(len(targetClass_theta))
             else: targetClass_refPoint = np.zeros((targetClass_theta.shape)); targetClass_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
             targetClass_theta = np.squeeze(targetClass_theta); targetClass_refPoint = np.squeeze(targetClass_refPoint)
 
@@ -984,7 +985,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
+    # if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 

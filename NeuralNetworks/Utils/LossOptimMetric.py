@@ -2,6 +2,7 @@
 
 from tensorflow.keras.optimizers import SGD, Adam, RMSprop
 from tensorflow.keras import backend as K
+from Utils.ColoredPrintout import colors
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -20,18 +21,18 @@ from tensorflow.keras import backend as K
 #Define here the loss function / optimizer / metrics to be used to train the model
 def Get_Loss_Optim_Metrics(opts):
 
-    #The bigger the LR, the bigger the changes of weights in-between epochs. Too low -> weights don't update. Too large -> Instability
-    _lr = 0.001
-    # _lr = 0.1
+    _lr = opts["learnRate"]
 
+    #-- These values are hard-coded here
     _momentum = 0.5 #helps preventing oscillations. Usually 0.5 - 0.9
     _decay = 0.0 #Decreases the _lr by specified amount after each epoch. Used in similar way as LearningRateScheduler
     _nesterov = False #improved momentum
 
     #-- Some possible choices of optimizers
-    # optim = RMSprop(lr=_lr)
-    # optim = SGD(lr=_lr, decay=_decay, momentum=_momentum, nesterov=_nesterov)
-    optim = Adam(lr=_lr, decay=_decay) #default lr=0.001
+    if opts["optimizer"] == "Adam": optim = Adam(lr=_lr, decay=_decay) #default lr=0.001
+    elif opts["optimizer"] == "RMSprop": optim = RMSprop(lr=_lr)
+    elif opts["optimizer"] == "SGD": optim = SGD(lr=_lr, decay=_decay, momentum=_momentum, nesterov=_nesterov)
+    else: print(colors.fg.red, "ERROR: unknown optimizer algorithm ", opts["optimizer"], colors.reset); exit(1)
 
     #LOSS -- function used to optimize the model (minimized). Must be differentiable (for gradient method)
     # Examples : binary_crossentropy, categorical_crossentropy, mean_squared_error, , ...
@@ -58,8 +59,8 @@ def Get_Loss_Optim_Metrics(opts):
             # metrics = 'AUC'
 
     else: #Regression
-        # loss = 'mean_squared_logarithmic_error'
-        loss = 'mean_absolute_error' #More robust to outliers #FIXME
+        loss = 'mean_squared_logarithmic_error'
+        # loss = 'mean_absolute_error' #More robust to outliers #FIXME
         # loss = 'mean_squared_logarithmic_error'
         # loss = 'mean_squared_error'
 

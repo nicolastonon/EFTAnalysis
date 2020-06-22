@@ -1,44 +1,45 @@
-Start of NN training :20-Jun-2020 (18:57:53)
+Start of NN training :22-Jun-2020 (14:44:26)
 
 OPTIONS
 ----------------- 
-strategy --> regressor
-eventWeightName --> eventWeight/1000
+strategy --> classifier
+eventWeightName --> 
 splitTrainEventFrac --> 0.8
-nEpochs --> 150
+nEpochs --> 30
 nHiddenLayers --> 5
-nNeuronsPerLayer --> 80
-activInputLayer --> tanh
-activHiddenLayers --> relu
+nNeuronsPerLayer --> 100
+activInputLayer --> 
+activHiddenLayers --> prelu
 use_normInputLayer --> True
 use_batchNorm --> True
 dropoutRate --> 0.0
-regularizer --> ['', 0.0001]
-maxEventsPerClass --> 1000
+regularizer --> ['l2', 0.0001]
+optimizer --> Adam
+learnRate --> 0.001
+maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
-listOperatorsParam --> ['ctz']
-nPointsPerOperator --> 100
+listOperatorsParam --> ['ctz', 'ctw', 'cpq3']
+nPointsPerOperator --> 20
 minWC --> -10
 maxWC --> 10
-nEventsPerPoint --> 1000
-batchSizeEFT --> 5000
+nEventsPerPoint --> 2000
+batchSizeEFT --> 2000
 refPoint --> SM
 score_lossWeight --> 1
 regress_onLogr --> False
-targetVarIdx --> 0
-comparVarIdx --> 1
+targetVarIdx --> []
+comparVarIdx --> -1
 cuts --> 1
-makeValPlotsOnly --> True
+makeValPlotsOnly --> False
 parameterizedNN --> False
-regress --> True
+regress --> False
 nofOutputNodes --> 1
-maxEvents --> 1000
+maxEvents --> -1
 batchSize --> 512
-loss --> mean_absolute_error
-optim --> <tensorflow.python.keras.optimizer_v2.adam.Adam object at 0x7faae85a15d0>
-metrics --> mean_absolute_error
+loss --> binary_crossentropy
+metrics --> binary_accuracy
+NN_strategy --> centralVSpureEFT
 ----------------- 
 
-End of NN training and evaluation :20-juin-2020 (18:58:05)

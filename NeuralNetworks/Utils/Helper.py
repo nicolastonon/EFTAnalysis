@@ -287,7 +287,7 @@ def Get_LumiName(lumi_years):
 # //--------------------------------------------
 
 #Perform sanitify check of user options and set internal options accordingly (updates the option dictionnary given in arg)
-def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, labels_list):
+def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, labels_list, list_features):
 
 # //--------------------------------------------
 #-- Initialization
@@ -321,7 +321,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     #Determine/store number of process classes, depending on strategy
     opts["nofOutputNodes"] = len(processClasses_list) #Multiclass classification --> 1 output node per process class
     if opts["strategy"] is "classifier" and len(processClasses_list) == 2: opts["nofOutputNodes"] = 1 #Binary classification --> single output node needed
-    elif opts["strategy"] is "regressor": opts["nofOutputNodes"] = 1
+    elif opts["strategy"] is "regressor":
+        opts["nofOutputNodes"] = 1
+        if len(opts["targetVarIdx"])>1: opts["nofOutputNodes"] = len(opts["targetVarIdx"])
     elif opts["strategy"] in ["CARL", "CARL_singlePoint"]: opts["nofOutputNodes"] = 1 #Binary classification
     elif opts["strategy"] is "CARL_multiclass":
         if len(opts["listOperatorsParam"]) == 1: opts["nofOutputNodes"] = 1 #Binary classification
@@ -360,7 +362,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["nHiddenLayers"]<0 or opts["nNeuronsPerLayer"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
 
-    if opts["activHiddenLayers"] is "lrelu" or opts["activInputLayer"] is "lrelu":  print(colors.fg.red, 'ERROR : leaky relu not properly implemented yet (see Model.py) !', colors.reset); exit(1)
+    if opts["activHiddenLayers"] is '': print(colors.fg.red, 'ERROR : Empty activation function for hidden layers !', colors.reset); exit(1)
+
+    if opts["optimizer"] not in ['Adam','RMSprop','SGD']: print(colors.fg.red, "ERROR: unknown optimizer algorithm ", opts["optimizer"], colors.reset); exit(1)
+    if opts["learnRate"] <= 0: print(colors.fg.red, "Wrong learning rate value ", opts["learnRate"], colors.reset); exit(1)
 
     if opts["regularizer"][0] is 'L1': opts["regularizer"][0] = 'l1'
     elif opts["regularizer"][0] is 'L2': opts["regularizer"][0] = 'l2'
@@ -398,11 +403,19 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["parameterizedNN"] is True and "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) is not 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'Length of [listMinMaxWC] must be twice the length of [listOperatorsParam] (<-> 1 min and 1 max WC value per activated operator) ! Fix [listMinMaxWC], or comment this option to use the values of [minWC,maxWC] for all operators', colors.reset); exit(1)
 
-    opts["loss"], opts["optim"], opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
+    opts["loss"], _, opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
 
-    if opts["strategy"] is "regressor" and ((opts["targetVarIdx"]<0 or opts["comparVarIdx"]<0) or opts["targetVarIdx"] == opts["comparVarIdx"]): print(colors.bold, colors.fg.red, 'Wonr option [targetVarIdx] or [comparVarIdx] !', colors.reset); exit(1)
-    elif opts["strategy"] is not "regressor": #Set default values
-        opts["targetVarIdx"] = -1; opts["comparVarIdx"] = -1
+    if opts["strategy"] is "regressor" and (not all([idx>=0 for idx in opts["targetVarIdx"]])): print(colors.bold, colors.fg.red, 'Wrong option [targetVarIdx] or [comparVarIdx] !', colors.reset); exit(1)
+    elif opts["strategy"] is not "regressor": opts["targetVarIdx"] = []; opts["comparVarIdx"] = -1 #Set default
+    elif opts["nofOutputNodes"] > 1 and opts["comparVarIdx"]>=0:
+        print(colors.fg.red, '\nNB: there is more than 1 output node --> will *not* compare predictions to selected variable... !', colors.reset)
+        opts["comparVarIdx"] = -1
+    else:
+        print('\n', colors.fg.orange, colors.underline, '-- Will use the following variable(s) as target(s) :', colors.reset, [list_features[opts["targetVarIdx"][idx]] for idx in opts["targetVarIdx"]])
+        if(opts["comparVarIdx"] >= 0): print('\n\n', colors.fg.orange, colors.underline, '-- Will compare predictions to the following variable:', colors.reset, list_features[opts["comparVarIdx"]], '\n\n')
+
+    opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile
+    if centralVSpureEFT is True: opts["NN_strategy"] = "centralVSpureEFT"
 
 # //--------------------------------------------
 

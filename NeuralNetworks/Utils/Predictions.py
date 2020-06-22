@@ -30,13 +30,12 @@ from tensorflow.keras.models import load_model
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName):
+def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName):
 
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
     maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
-    #FIXME
     useMostExtremeWCvaluesOnly = False #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
 
 # //--------------------------------------------
@@ -93,7 +92,7 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
 
 
     #-- Sanity checks: make sure no class is empty
-    if opts["parameterizedNN"] is True or len(list_labels) > 1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check
+    if opts["parameterizedNN"] is True or len(list_processClasses)>1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check
         assert all(len(l) for l in list_xTrain_allClasses)
         assert all(len(l) for l in list_xTest_allClasses)
 
@@ -137,6 +136,8 @@ def Apply_Model_toTrainTestData(opts, list_labels, x_train, x_test, y_train, y_t
         list_predictions_train_class = []; list_predictions_test_class = []
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
+
+            # if opts["strategy"] is "regressor" and iclass>0: continue #hard-coded fix, because in that case the different 'labels' already correspond to different nodes... #FIXME -- change labels/nodes
 
             if opts["nofOutputNodes"] == 1: #Single output node
 

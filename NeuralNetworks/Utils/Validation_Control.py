@@ -43,7 +43,7 @@ from tensorflow.keras.utils import plot_model
 # //--------------------------------------------
 
 #Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
-def Store_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses):
+def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses):
 
     print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset); print('\n')
 
@@ -56,9 +56,13 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_labels, list_predi
     nofOutputNodes = opts["nofOutputNodes"]
 
     nodes_labels = list_labels
-    if opts["strategy"] == "RASCAL":
+    if opts["strategy"] is "RASCAL":
         nodes_labels = ["LR"]
         for op in opts["listOperatorsParam"]: nodes_labels.append(str("Score "+op))
+    elif opts["strategy"] is "regressor":
+        if opts["targetVarIdx"][0] >=0:
+            nodes_labels = []; [nodes_labels.append(list_features[v]) for v in opts["targetVarIdx"]] #1 node per target variable
+        else: nodes_labels = ['target'] #Default target
 
     for inode in range(nofOutputNodes):
 
@@ -119,9 +123,9 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history)
 
-    Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir)
+    Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
 
-    Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir)
+    Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
 
     if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, list_yTest_allClasses, weight_dir, list_xTest_allClasses)
 
@@ -293,13 +297,13 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
  #    #  ####   ####   ####
 
 #See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
-def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, weight_dir):
+def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
 
-    if opts["strategy"] is "regressor" and len(list_labels) == 1: return #No ROC to plot
+    if opts["strategy"] is "regressor": return #No ROC to plot
 
     nofOutputNodes = opts["nofOutputNodes"]
 
-    #-- CHANGED: ROC curve can not handle negative weights. Either discard weights, or use absolute
+    # Caveat: ROC curve can not handle negative weights. Either discard weights, or use absolute...
     list_PhysicalWeightsTest_allClasses_abs = np.absolute(list_PhysicalWeightsTest_allClasses)
     list_PhysicalWeightsTrain_allClasses_abs = np.absolute(list_PhysicalWeightsTrain_allClasses)
 
@@ -346,8 +350,23 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
                 fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
             else:
-                fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
-                fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
+                if opts["strategy"] is "CARL_multiclass" and inode > 0: #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
+
+                    indices_SMevents_test = np.where(list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0); indices_SMevents_test = np.squeeze(indices_SMevents_test) #2D (current_node,indices) --> 1D (indices)
+                    # print('np.shape(indices_SMevents_test)', np.shape(indices_SMevents_test))
+                    truth_test_tmp = np.concatenate((list_truth_Test_allClasses[inode][:,inode], list_truth_Test_allClasses[0][indices_SMevents_test,inode]))
+                    pred_test_tmp = np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode], list_predictions_test_allNodes_allClasses[inode][0][indices_SMevents_test]))
+
+                    indices_SMevents_train = np.where(list_xTrain_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0); indices_SMevents_train = np.squeeze(indices_SMevents_train)
+                    truth_train_tmp = np.concatenate((list_truth_Train_allClasses[inode][:,inode], list_truth_Train_allClasses[0][indices_SMevents_train,inode]))
+                    pred_train_tmp = np.concatenate((list_predictions_train_allNodes_allClasses[inode][inode], list_predictions_train_allNodes_allClasses[inode][0][indices_SMevents_train]))
+
+                    fpr[inode], tpr[inode], _ = roc_curve(truth_test_tmp, pred_test_tmp)
+                    fpr_train[inode], tpr_train[inode], _ = roc_curve(truth_train_tmp, pred_train_tmp)
+
+                else:
+                    fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+                    fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
 
             roc_auc[inode] = auc(fpr[inode], tpr[inode])
             roc_auc_train[inode] = auc(fpr_train[inode], tpr_train[inode])
@@ -366,10 +385,10 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         timer.add_callback(close_event)
 
         if opts["nofOutputNodes"] == 1 or opts["strategy"] in ["ROLR", "RASCAL"]: #single node
-            plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train))
+            if opts["makeValPlotsOnly"] is False: plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train)) #If making validation plots only --> No 'training data'
             plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
         else: #for each node
-            plt.plot(tpr_train[inode], 1-fpr_train[inode], color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[inode]))
+            if opts["makeValPlotsOnly"] is False: plt.plot(tpr_train[inode], 1-fpr_train[inode], color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train[inode]))
             plt.plot(tpr[inode], 1-fpr[inode], color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc[inode]))
 
         ax = fig.gca()
@@ -395,8 +414,8 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         fig.clear()
         plt.close(fig)
 
-#-- Multiclass ROCs (test data only)
-        if (opts["strategy"] is "classifier" or opts["strategy"] is "CARL_multiclass") and nofOutputNodes > 1:
+#-- Multiclass ROCs (using test data only)
+        if nofOutputNodes > 1 and (opts["strategy"] is "classifier" or (opts["strategy"] is "CARL_multiclass" and inode==0)):
 
             # Compute ROC curve and ROC area for each class
             fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
@@ -404,16 +423,23 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             # Plot ROC curves
             fig = plt.figure('multiclass')
             for iclass in range(len(list_labels)): #iclass <-> iterate over all classes (may be signal or bkg); inode <-> current 'signal'
+
                 if iclass == inode: #current 'signal' (<-> node) vs all
-                    if opts["parameterizedNN"] is False:
-                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
-                    else:
-                        fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+                    if opts["parameterizedNN"] is False: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                    elif opts["strategy"] is "CARL_multiclass": continue #For this strategy, 'SM vs all' makes no sense (will never evaluate it on mixture of several operators, only single operators at a time)
+                    else: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
+
                     roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
                     mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
+
                 else: #current 'signal' (<-> node) vs specific process
                     if opts["parameterizedNN"] is False:
                         fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[inode],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
+                    elif opts["strategy"] is "CARL_multiclass": #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
+                        indices_SMevents_test = np.where(list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0); indices_SMevents_test = np.squeeze(indices_SMevents_test) #2D (current_node,indices) --> 1D (indices)
+                        truth_test_tmp = np.concatenate((list_truth_Test_allClasses[iclass][:,inode], list_truth_Test_allClasses[0][indices_SMevents_test,inode]))
+                        pred_test_tmp = np.concatenate((list_predictions_test_allNodes_allClasses[inode][iclass], list_predictions_test_allNodes_allClasses[inode][0][indices_SMevents_test]))
+                        fpr[iclass], tpr[iclass], _ = roc_curve(truth_test_tmp, pred_test_tmp)
                     else:
                         fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])) )
                     roc_auc[iclass] = auc(fpr[iclass], tpr[iclass])
@@ -451,7 +477,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir):
+def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
 
     nofOutputNodes = opts["nofOutputNodes"]
 
@@ -499,19 +525,23 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
         hist_overtrain_bkg = TH1F('hist_overtrain_bkg', '', nbins, rmin, rmax); hist_overtrain_bkg.Sumw2(); hist_overtrain_bkg.SetDirectory(0)
 
-        #only signal process
+        # Only signal process
+        if opts["strategy"] is "regressor" and opts["nofOutputNodes"] > len(list_labels): continue
         for val, w in zip((list_predictions_test_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTest_allClasses[inode]): #'zip' stops when the shorter of the lists stops
             # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
             if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
             hist_overtrain_sig.Fill(val, w)
 
-        #only background processes
+        # Only background processes
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
-                for val, w in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass]):
-                    # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+                if opts["strategy"] is "CARL_multiclass" and inode > 0 and iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
+
+                for val, w, x in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass], list_xTest_allClasses[iclass]):
+                    if opts["strategy"] is "CARL_multiclass" and inode > 0 and x[-len(opts["listOperatorsParam"])-1+inode]==0: continue #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
                     if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
                     hist_overtrain_bkg.Fill(val, w)
+                    # print(inode, iclass, val)
 
         #Normalize
         int_sig = hist_overtrain_sig.Integral(0,hist_overtrain_sig.GetNbinsX()+1)
@@ -531,10 +561,19 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         lists_predictions_bkgs = []; lists_weights_bkg = []
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
-                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
-                else: tmp = list_predictions_train_allNodes_allClasses[inode][iclass]
-                lists_predictions_bkgs.append(tmp)
-                lists_weights_bkg.append(list_PhysicalWeightsTrain_allClasses[iclass])
+                if opts["strategy"] is "CARL_multiclass" and inode>0:
+                    if iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
+                    indices_SMevents = np.where(list_xTrain_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0) #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
+                    pred_tmp = list_predictions_train_allNodes_allClasses[inode][0][indices_SMevents]
+                    w_tmp = list_PhysicalWeightsTrain_allClasses[0][indices_SMevents]
+                elif opts["strategy"] in ["ROLR", "RASCAL"]:
+                    pred_tmp = 1/(list_predictions_train_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
+                    w_tmp = list_PhysicalWeightsTrain_allClasses[iclass]
+                else:
+                    pred_tmp = list_predictions_train_allNodes_allClasses[inode][iclass]
+                    w_tmp = list_PhysicalWeightsTrain_allClasses[iclass]
+                lists_predictions_bkgs.append(pred_tmp)
+                lists_weights_bkg.append(w_tmp)
 
         if len(lists_predictions_bkgs) > 0:
             predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)

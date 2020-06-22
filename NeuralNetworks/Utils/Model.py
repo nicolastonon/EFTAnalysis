@@ -2,10 +2,11 @@
 
 import numpy as np
 from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras.layers import Lambda, Input, Dense, Dropout, AlphaDropout, Activation, BatchNormalization, LeakyReLU
+from tensorflow.keras.layers import Lambda, Input, Dense, Dropout, AlphaDropout, Activation, BatchNormalization, LeakyReLU, PReLU
 from tensorflow.keras.activations import relu
 from tensorflow.keras import regularizers
 from tensorflow.keras.regularizers import l2
+from keras.initializers import Constant
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LambdaCallback, LearningRateScheduler, ReduceLROnPlateau
 from tensorflow.keras import backend as K
 from Utils.Helper import normalize
@@ -50,11 +51,12 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 # //--------------------------------------------
 # Automatically set some variables
 
+    if activHiddenLayers in ['lrelu','prelu']: activHiddenLayers = None #These must be included as a layer, not an activation
+
     num_input_variables = len(list_features) #Nof input variables to be read by the NN
     # print(num_input_variables)
 
-    #Not recognized by some later code when freezing/saving model
-    # if activHiddenLayers is "lrelu":
+    # if activHiddenLayers is "lrelu": #Not recognized by some later code when freezing/saving model... ?
         # activHiddenLayers = LeakyReLU(alpha=0.01)
         # activHiddenLayers = lambda x: relu(x, alpha=0.1)
 
@@ -86,7 +88,6 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 # INPUT LAYER
 
     inp = Input(shape=num_input_variables, name="MYINPUT") #(Inactive) input layer
-
     X = inp #First building block of model
 
     if use_normInputLayer == True :
@@ -97,23 +98,31 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 
     for iLayer in range(nHiddenLayers):
 
-        X = Dense(nNeuronsPerLayer, activation=activHiddenLayers, activity_regularizer=reg, kernel_initializer=kernInit)(X)
+        # Can choose to use different activation for first layer reading input features
+        activ_tmp = activHiddenLayers
+        if iLayer == 0 and activInputLayer != '': activ_tmp = activInputLayer
 
+        # Dense hidden layers
+        X = Dense(nNeuronsPerLayer, activation=activ_tmp, activity_regularizer=reg, kernel_initializer=kernInit)(X)
+        if activ_tmp == 'lrelu': X = LeakyReLU(alpha=0.1)(X) #Arbitrary alpha parameter
+        elif activ_tmp == 'prelu': X = PReLU(alpha_initializer=Constant(value=0.25))(X) #Arbitrary alpha init. as proposed by He et al. (2015)
+
+        # Dropout
         if use_dropout==True and iLayer < nHiddenLayers-1: #Don't apply dropout after last hidden layer #CHANGED -- apply dropout before BN (else, still get some info from blind nodes passed through BN)
             X = Dropout(dropoutRate)(X)
 
-        # if use_batchNorm==True:
+        # Batch normalization
         if use_batchNorm==True and iLayer < nHiddenLayers-1: #CHANGED -- never add batchNorm before output layer ? From this question (to be verified!): https://stats.stackexchange.com/questions/361700/lack-of-batch-normalization-before-last-fully-connected-layer
             X = BatchNormalization()(X)
 # //--------------------------------------------
 # OUTPUT LAYER
 
-    activOutput = "sigmoid" #Default
+    activOutput = "sigmoid" #Default activation
 
-    if opts["regress"] == False: #Classification
+    if opts["regress"] == False: #Classification (sum(P)=1)
 
-        if nof_outputs == 1: activOutput = "sigmoid"
-        else: activOutput = "softmax"
+        if nof_outputs == 1: activOutput = "sigmoid" #Binary
+        else: activOutput = "softmax" #Multiclass
 
         out = Dense(nof_outputs, kernel_initializer=kernInit, activation=activOutput, name="MYOUTPUT")(X)
         model = Model(inputs=[inp], outputs=[out])
@@ -137,7 +146,7 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
                 model = Model(inputs=[inp], outputs=[r])
 
         elif opts["strategy"] is "regressor":
-            out = Dense(1, activation="linear", name="linear")(X)
+            out = Dense(nof_outputs, activation="linear", name="linear")(X)
             model = Model(inputs=[inp], outputs=[out])
 
         else: print("ERROR: no regressor model defined for this strategy"); exit(1)

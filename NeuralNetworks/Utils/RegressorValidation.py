@@ -53,7 +53,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
         class_data = np.squeeze(list_truth_Test_allClasses[0])
 
     if opts["comparVarIdx"] >= 0: #Also plot kinReco results
-        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0], list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
+        truth_data = np.squeeze(np.concatenate((np.squeeze(list_yTest_allClasses[0]), list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
         pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][0])))
         class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[0]-1))) #Set different (arbitrary) class values for predictions / comparison variable
 
@@ -78,7 +78,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
     plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
 
-    nmax=5000 #Can't see if there are too many points
+    nmax=2000 #Can't see if there are too many points
     splot = sns.scatterplot(x=truth_data[:nmax], y=pred_data[:nmax], hue=class_data[:nmax], style=class_data[:nmax])
     leg_handles = splot.get_legend_handles_labels()[0]
     splot.legend(leg_handles, ['EFT', 'SM']) #NB: EFT first because class label is 0
@@ -236,7 +236,7 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
         class_data = np.squeeze(list_truth_Test_allClasses[0])
 
     if opts["comparVarIdx"] >= 0: #Also plot kinReco results
-        truth_data = np.squeeze(np.concatenate((list_yTest_allClasses[0], list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
+        truth_data = np.squeeze(np.concatenate((np.squeeze(list_yTest_allClasses[0]), list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
         pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][0])))
         class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[0]-1))) #Set different (arbitrary) class values for predictions / comparison variable
 
