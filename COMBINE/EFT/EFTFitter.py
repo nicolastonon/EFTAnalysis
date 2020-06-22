@@ -54,8 +54,8 @@ class EFTFit(object):
         self.scan_wcs = ['ctw','ctz']
         # Default wcs to keep track of during 2D scans
         self.wcs_tracked = [] #OTHERS
-        # Scan ranges of the wcs
-        self.wc_ranges = {'ctz':(-10,10) #, 'ctw':(-7,7)
+        # Scan ranges of the wcs #FIXME -- this is actually superseeded by param from EFTModel... ?
+        self.wc_ranges = {'ctz':(-6,6) #, 'ctw':(-7,7)
                          }
         # Systematics names except for FR stats. Only used for debug
         # self.systematics = ['CERR1','CERR2']
@@ -190,7 +190,8 @@ class EFTFit(object):
         CMSSW_BASE = os.getenv('CMSSW_BASE')
         if params_POI == []: params_POI = self.wcs
 
-        args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2', '--expectSignal=1', '-v', str(verbosity)]
+        #args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2', '-v', str(verbosity)]
+	args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '-t','-1', '-v', str(verbosity)]
 
         if name:                args.extend(['-n','{}'.format(name)])
         if params_POI:          args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
@@ -229,7 +230,7 @@ class EFTFit(object):
         CMSSW_BASE = os.getenv('CMSSW_BASE')
         if exp: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0', '--toys -1',  '--expectSignal=1']
         else: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
-		
+
         args.extend(['--points','{}'.format(points)])
         if name:              args.extend(['-n','{}'.format(name)])
         if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
@@ -254,7 +255,7 @@ class EFTFit(object):
         return
 
 
-    def gridScan(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[]):
+    def gridScanEFT(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[]):
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info("Doing grid scan...")
 
@@ -265,8 +266,8 @@ class EFTFit(object):
         if name:              args.extend(['-n','{}'.format(name)])
         if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
         if params_tracked: args.extend(['--trackParameters',','.join(params_tracked)])
-        if startValuesString:   args.extend(['--setParameters',startValuesString]) 
-        args.extend(['--expectSignal=1'])        
+        if startValuesString:   args.extend(['--setParameters',startValuesString])
+        #args.extend(['--expectSignal=1'])
         if not freeze:        args.extend(['--floatOtherPOIs','1'])
         if exp:               args.extend(['-t -1'])
         if other:             args.extend(other)
@@ -332,7 +333,7 @@ class EFTFit(object):
             scan_wcs = self.wcs
 
         for wc in scan_wcs:
-            self.gridScan('{}.{}'.format(basename,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
+            self.gridScanEFT('{}.{}'.format(basename,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
 
     def batch2DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=90000, allPairs=False, other=[]):
         ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
@@ -344,7 +345,7 @@ class EFTFit(object):
             for wcs in itertools.combinations(scan_wcs,2):
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
         # Use each wc only once
         if not allPairs:
@@ -355,7 +356,7 @@ class EFTFit(object):
             for wcs in scan_wcs:
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
     def batch3DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=27000000, allPairs=False, other=[], wc_triplet=[]):
         ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
@@ -367,7 +368,7 @@ class EFTFit(object):
             for wcs in itertools.combinations(scan_wcs,2):
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
         # Use each wc only once
         if not allPairs:
@@ -379,7 +380,7 @@ class EFTFit(object):
             for wcs in scan_wcs:
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScan(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
     def batchResubmit1DScansEFT(self, basename='.EFT.gridScan', scan_wcs=[]):
         ### For each wc, attempt to resubmit failed CRAB jobs ###
@@ -913,7 +914,7 @@ if __name__ == "__main__":
 # User options
 # //--------------------------------------------
     mode = 'EFT' #'SM', 'EFT'
-    datacard_path = './datacard.txt'     
+    datacard_path = './datacard.txt'
     exp = True #True <-> Asimov a-priori expected; False <-> observed
 
 # Set up the command line arguments
@@ -940,22 +941,11 @@ if __name__ == "__main__":
     elif mode == 'EFT':
         fitter.makeWorkspaceEFT(datacard_path)
         fitter.bestFitEFT(startValuesString='ctz=0', exp=exp, verbosity=2)
-        #fitter.printIntervalFitsEFT(basename='.EFT')
-        fitter.gridScan(scan_params=['ctz'], startValuesString='ctz=0', exp=exp, points=50)
+        fitter.gridScanEFT(scan_params=['ctz'], startValuesString='ctz=0', exp=exp, points=100)
 
+        #fitter.printIntervalFitsEFT(basename='.EFT')
         # fitter.batch1DScanEFT() # Freeze other WCs
         # fitter.batchRetrieve1DScansEFT()
         # fitter.getBestValues1DEFT()
 
 # //--------------------------------------------
-    #Example of a workflow:
-    #fitter.makeWorkspaceEFT('EFT_MultiDim_Datacard.txt')
-    #fitter.bestFitEFT(name='.EFT.SM.Float.preScan', scan_params=['ctw','ctz','ctp','cpQM','ctG','cbW','cpQ3','cptb','cpt','cQl3i','cQlMi','cQei','ctli','ctei','ctlSi','ctlTi'], freeze=False, autoBounds=True)
-    #fitter.gridScan(name='.EFT.SM.Float.gridScan.ctWctZ', batch='crab', scan_wcs=fitter.scan_params, params_tracked=fitter.wcs_tracked, points=50000, freeze=False)
-    #fitter.retrieveGridScan(name='.EFT.SM.Float.gridScan.ctWctZ')
-    #startValuesString = fitter.getBestValues2D(name='.EFT.SM.Float.gridScan.ctWctZ', scan_params=fitter.scan_wcs, params_tracked=fitter.wcs_tracked)
-    #startValuesString = fitter.getBestValues1DEFT(basename='.EFT.SM.Float.gridScan', wcs=fitter.operators)
-    #fitter.bestFitEFT(name='.EFT.SM.Float.postScan', scan_params=fitter.wcs, startValuesString=startValuesString, freeze=False, autoBounds=True)
-
-    #logging.info("Logger shutting down!")
-    #logging.shutdown()

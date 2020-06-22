@@ -14,7 +14,7 @@ from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 #OPTIONS
 # //--------------------------------------------
 SM_name = 'SM' #SM point naming convention
-verbose = 1 #(Dis)activate printouts
+verbose = 0 #(Dis)activate printouts
 # //--------------------------------------------
 
 ######## ######## ######## ##     ##  #######  ########  ######## ##
@@ -55,7 +55,7 @@ class EFTModel(PhysicsModel):
 
         self.fits = None # File containing WC parameterizations of each process+bin *with events*!
         self.wcs = ['ctz']
-        self.wc_ranges = {'ctz':(-10,10)#,    'ctW':(-7,7)
+        self.wc_ranges = {'ctz':(-6,6)#,    'ctW':(-7,7)
                          }
         wcs_override = [] # WCs specified by arguments
         self.procbins = [] # Process+bin combinations (tuple) that we have events for

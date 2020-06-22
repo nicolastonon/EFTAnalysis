@@ -1,4 +1,4 @@
-Start of NN training :22-Jun-2020 (14:44:26)
+Start of NN training :22-Jun-2020 (15:00:53)
 
 OPTIONS
 ----------------- 
@@ -43,3 +43,4 @@ metrics --> binary_accuracy
 NN_strategy --> centralVSpureEFT
 ----------------- 
 
+End of NN training and evaluation :22-juin-2020 (15:03:25)

@@ -32,21 +32,24 @@ print(colors.fg.lightblue + "... Done !\n" + colors.reset)
 print(colors.fg.lightblue + "Extracting parameterizations..." + colors.reset)
 
 for key in readfile.GetListOfKeys():
-    if verbose:
-        print('Key', key)
-        print('key.GetName()', key.GetName())
 
-    hist = readfile.Get(key.GetName())
+    name = key.GetName()
+
+    if 'PrivMC' not in name or 'bin' in name: continue #Get parametrization from 'full' TH1EFT histograms only
+
+    if verbose: print('\nkey.GetName()', name)
+
+    hist = readfile.Get(name)
 
     #Get categorical information
-    histname = key.GetName().split('__') #Naming convention: 'categ__proc__syst'
+    histname = name.split('__') #Naming convention: 'categ__proc__syst'
     if verbose: print('histname', histname)
     full_bin_name,process,systematic = '','',''
     if(len(histname)==3): [full_bin_name,process,systematic] = histname
     if(len(histname)==2): [full_bin_name,process] = histname
     #process = process.replace('tllq','tZq')
 
-    #Skip systematic histograms
+    #Skip systematic histograms (only use nominal histograms for parametrization)
     if systematic != '': continue
 
     if verbose:
@@ -54,13 +57,12 @@ for key in readfile.GetListOfKeys():
         print('process', process)
         # print('systematic', systematic)
 
-    #Extract parameterization from TH1EFT objects only
-    if 'TH1EFT' in full_bin_name:
+    #-- Extract parameterization
+    if 'PrivMC' in process and 'bin' not in full_bin_name: #Get parametrization from 'full' TH1EFT histograms only
         if verbose: print('process', process)
 
-        # bin_name_tmp = full_bin_name.split('_')[2] #'TH1EFT_NN_SR_2017_xxx' --> 'SR'
-        bin_name_tmp = full_bin_name.split('_', 1)[1] #'TH1EFT_NN_SR_2017_xxx' --> 'NN_SR_2017' #split(separator, maxsplit)
-        if verbose: print('bin_name_tmp', bin_name_tmp)
+        # bin_name_tmp = full_bin_name.split('_', 1)[1] #'TH1EFT_NN_SR_2017_xxx' --> 'NN_SR_2017' #split(separator, maxsplit)
+        # if verbose: print('bin_name_tmp', bin_name_tmp)
 
         #Loop through bins and extract parameterization
         if verbose: print('hist.GetNbinsX()', hist.GetNbinsX())
@@ -69,8 +71,9 @@ for key in readfile.GetListOfKeys():
             fit = hist.GetBinFit(ibin)
             # fit = hist.GetSumFit()
 
-            bin_name = bin_name_tmp
+            # bin_name = bin_name_tmp
             # bin_name = bin_name_tmp + '_{0}'.format(str(ibin))
+            bin_name = 'bin{0}_'.format(str(ibin)) + full_bin_name
             if verbose: print('bin_name', bin_name)
 
             names = fit.getNames()
@@ -103,6 +106,7 @@ if verbose:
 #Store fits
 np.save('EFT_Parameterization.npy', fits)
 print(colors.fg.lightblue + "\n---> Stored fits in numpy file {}\n".format("EFT_Parameterization.npy") + colors.reset)
+print('(Inspect dictionnary content in file: EFT_Parameterization.txt)\n')
 txt_file = open("EFT_Parameterization.txt", "w")
-txt_file.write(str(fits))
+txt_file.write(str(fits) + '\n')
 txt_file.close()

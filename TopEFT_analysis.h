@@ -120,7 +120,7 @@ class TopEFT_analysis
 
 	bool use_NeuralNetwork;
 	TString classifier_name;
-    TString NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
+    TString NN_strategy, NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
     std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
 

@@ -37,7 +37,7 @@ optsTrain = {
 "nHiddenLayers": 5, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": '', #Activation function of input layer -- not used for now !
-"activHiddenLayers": 'prelu', #Activation function of hidden layers #tanh,relu,lrelu,prelu,...
+"activHiddenLayers": 'lrelu', #Activation function of hidden layers #tanh,relu,lrelu,prelu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
 "dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
@@ -52,8 +52,8 @@ optsTrain = {
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 2000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events

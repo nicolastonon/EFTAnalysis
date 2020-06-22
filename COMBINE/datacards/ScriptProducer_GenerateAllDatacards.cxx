@@ -36,6 +36,8 @@
 #include <fstream>
 #include <vector>
 #include "TString.h"
+#include "TFile.h"
+#include "TH1F.h"
 
 using namespace std;
 
@@ -62,7 +64,7 @@ using namespace std;
 /**
  * Produce script containing the commands to produce the datacards (single and combination) automatically
  */
-void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName)
+void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, char separate_histoBins)
 {
     //Check if use shape syst or not
 	TString systChoice;
@@ -102,6 +104,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 	TString dir = "./datacards_TemplateFit/";
 	// file_out <<"mkdir "<<dir<<endl<<endl;
 
+    int nbins = 1; //If 'separate_histoBins' is selected, will infer binning and create 1 datacard per histo bin
+
 //--------------------------------------------
 //--- First loop over years/regions/templates
 //===> Commands to produce single datacards
@@ -127,23 +131,40 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     		    // TString file_histos = "../templates/Combine_Input.root";
                 // TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
                 TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
-                TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root";
+                TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //Path to write into datacard
 
     			cout<<"---> Will use filepath : "<<file_histos<<endl<<endl;
 
+                TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
+                if(separate_histoBins) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
+                {
+                    TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
+                    TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
+                    if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
+                    // cout<<"hname_tmp "<<hname_tmp<<endl;
+                    TH1F* h_tmp = (TH1F*) f_tmp->Get(hname_tmp);
+                    nbins = h_tmp->GetNbinsX();
+                    delete h_tmp; h_tmp = NULL; f_tmp->Close();
+                    if(nbins == 1) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
+                }
+
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++)
     			{
-    				file_out<<"python Parser_Datacard_Template.py "
-                    + var + " "
-                    + v_channel[ilepchan] + " "
-                    + v_lumiYears[iyear ] + " "
-    				+ file_histos + " "
-    				+ systChoice + " "
-    				+ statChoice + " "
-                    + dir + v_lumiYears[iyear] + " "
-                    // + dir + region_tmp + " "
-                    // + v_regions[iregion] + " "
-    				<<endl;
+                    for(int ibin=1; ibin<nbins+1; ibin++)
+                    {
+                        TString var_tmp = var;
+                        if(separate_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+
+        				file_out<<"python Parser_Datacard_Template.py "
+                        + var_tmp + " "
+                        + v_channel[ilepchan] + " "
+                        + v_lumiYears[iyear] + " "
+        				+ file_histos + " "
+        				+ systChoice + " "
+        				+ statChoice + " "
+                        + dir + v_lumiYears[iyear] + " "
+        				<<endl;
+                    }
     			}
 
     			file_out<<endl<<endl;
@@ -171,14 +192,19 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
     			{
-    				file_out<<var;
-    				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
-                    file_out<<"_"+v_lumiYears[iyear];
-                    file_out<<"=" + dir + v_lumiYears[iyear] + "/"
-                    // file_out<<"=" + dir + region_tmp + "/"
-    				+ "datacard_"+var;
-    				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
-    				file_out<<".txt ";
+                    for(int ibin=1; ibin<nbins+1; ibin++)
+                    {
+                        TString var_tmp = var;
+                        if(separate_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+
+        				file_out<<var_tmp;
+        				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+                        file_out<<"_"+v_lumiYears[iyear];
+                        file_out<<"=" + dir + v_lumiYears[iyear] + "/"
+        				+ "datacard_"+var_tmp;
+        				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+        				file_out<<".txt ";
+                    }
     			}
     		} //template loop
     	} //region loop
@@ -252,7 +278,7 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 //--------------------------------------------
 
 //Ask user to choose options at command line for script generation
-void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName)
+void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, char& separate_histoBins)
 {
     cout<<endl<<FBLU("Choose the luminosity ('Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718') ")<<endl;
     cout<<DIM("('0' <--> 'Run2')")<<endl;
@@ -291,6 +317,18 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cin>>include_statistical;
     }
 
+    //Choose whether to create a single datacard for entire histo, or separate datacards for each histo bin (allows to parametrize each bin independently)
+    cout<<endl<<FYEL("--- Do you want to create separate datacards for each histogram bin ? (y/n)")<<endl;
+    cin>>separate_histoBins;
+    while(separate_histoBins != 'y' && separate_histoBins != 'n')
+    {
+        cin.clear();
+        cin.ignore(1000, '\n');
+
+        cout<<" Wrong answer ! Need to type 'y' or 'n' ! Retry :"<<endl;
+        cin>>separate_histoBins;
+    }
+
     return;
 }
 
@@ -316,7 +354,7 @@ int main()
 //--------------------------------------------
     TString lumiName = "Run2"; //'2016','2017','2018','201617','201618','201718','Run2'
 
-    vector<TString> v_templates; //'NN', 'BDT'
+    vector<TString> v_templates; //'NN', 'BDT', ...
     v_templates.push_back("NN");
     // v_templates.push_back("NN0");
 
@@ -327,20 +365,21 @@ int main()
     // v_channel.push_back("uue");
     // v_channel.push_back("eee");
 
-    vector<TString> v_regions;
+    vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
 	v_regions.push_back("SR");
 
-    char include_systematics = 'n';
-    char include_statistical = 'n';
-//--------------------------------------------
+    char include_systematics = 'n';//'y' <-> datacards will include syst. uncertainties (as specified in template datacard)
+    char include_statistical = 'n';//'y' <-> datacards will include stat. uncertainty (as specified in template datacard)
 
+    char separate_histoBins = 'n'; //'y' <-> create separate datacards for each histogram bin (instead of single datacard for entire histo) --> Allows to parametrize each bin independently
+//--------------------------------------------
 
 //Automated
 //--------------------------------------------
     TString template_name = "0", region = "0";
-    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName);
+    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, separate_histoBins);
 
-	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName);
+	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, separate_histoBins);
 
 	return 0;
 }

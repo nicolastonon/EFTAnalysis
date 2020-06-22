@@ -52,7 +52,8 @@ int CopyFile(TString origin_path, TString dest_path)
 }
 
 //Convert a double into a TString
-// precision --> can choose if TString how many digits the TString should display
+//@ precision --> can choose if TString how many digits the TString should display
+//NB: alternatively, can simply use TString::Form(format,var). Ex: Form("%d", (int) a), Form("%f", (float) f), ...
 TString Convert_Number_To_TString(double number, int precision/*=3*/)
 {
 	stringstream ss;
@@ -837,8 +838,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
 //Use custom color palette
 //-- Idea : take good-looking/efficient color palettes from web and apply it manually
 void Set_Custom_ColorPalette(vector<TColor*> &v_custom_colors, vector<int> &v, vector<TString> v_sampleGroups)
-{
-    // TColor* col = new TColor(1700, 141./255., 211./255., 199./255.);
+{ TColor* col = new TColor(1700, 141./255., 211./255., 199./255.);
     // col.SetRGB(141./255., 211./255., 199./255.);
     // cout<<col->GetNumber()<<endl;
 
@@ -1131,59 +1131,24 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString id)
     return v;
 }
 
-
-//TESTING
-/*
-void Fill_TH1EFT(TH1EFT*& h, float x, vector<string> v_ids, vector<float> v_wgts, float wgt_originalXWGTUP)
+//For each histogram bin: create a new TH1F object, fill it with the content of that single bin, and save it following specific naming convention
+//Splitting histograms per bin may be necessary in some cases in Combine, e.g. if we need to parametrize each bin individually
+void StoreEachHistoBinIndividually(TFile* f, TH1F* h, TString outname)
 {
-    bool debug = false;
+    f->cd();
 
-    float sm_wgt = 0.;
-    std::vector<WCPoint> wc_pts;
-
-    // if(isPrivMC) // Add EFT weights
+    for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
-        for(int iwgt=0; iwgt<v_ids.size(); iwgt++)
-        {
-            // cout<<"v_ids[iwgt] "<<v_ids[iwgt]<<endl;
+        TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
+        h_tmp->SetBinContent(1, h->GetBinContent(ibin)); //Fill new single bin according to considered TH1EFT bin
+        h_tmp->SetBinError(1, h->GetBinError(ibin));
 
-            TString ts = v_ids[iwgt];
-            if(ts.Contains("rwgt_") && ts != "rwgt_1" && ts != "rwgt_SM" && ts != "rwgt_sm")
-            // std::size_t foundstr = v_ids[iwgt].find("rwgt_");// only save EFT weights
-            // if(foundstr != std::string::npos)
-            {
-                WCPoint wc_pt(v_ids[iwgt], v_wgts[iwgt]);
-                wc_pts.push_back(wc_pt);
-                if(wc_pt.isSMPoint()) {sm_wgt = v_wgts[iwgt];}
-            }
-        }
+        TString outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
+        h_tmp->Write(outname_tmp);
+        // cout<<"Wrote histo : "<<output_histo_name<<endl;
+
+        delete h_tmp; h_tmp = NULL;
     }
-    // else
-    // {
-    //     sm_wgt = wgt_originalXWGTUP;
-    //     WCPoint wc_pt("smpt", sm_wgt);
-    //     wc_pts.push_back(wc_pt);
-    // }
-
-    WCFit eft_fit(wc_pts, "");
-
-    if(debug) //Printout WC values, compare true weight to corresponding fit result
-    {
-        cout<<"eft_fit.size() "<<eft_fit.size()<<endl;
-        eft_fit.dump();
-
-        for (uint i=0; i < wc_pts.size(); i++)
-        {
-            WCPoint wc_pt = wc_pts.at(i);
-            double pt_wgt = wc_pt.wgt;
-            double fit_val = eft_fit.evalPoint(&wc_pt);
-            wc_pt.dump();
-            std::cout << std::setw(3) << i << ": " << std::setw(12) << pt_wgt << " | " << std::setw(12) << fit_val << " | " << std::setw(12) << (pt_wgt-fit_val) << std::endl;
-        }
-    }
-
-    h->Fill(x, 1.0 , eft_fit);
 
     return;
 }
-*/

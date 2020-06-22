@@ -99,8 +99,8 @@
     float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
     TString Get_Modified_SystName(TString, TString);
     void Get_Pointer_GENHisto(TH1F*&, TString);
-    // void Fill_TH1EFT(TH1EFT*&, float, std::vector<std::string>, std::vector<float>, float);
     vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
+    void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
 
 //--------------------------------------------
 	//Increment weight of first bin by 'weight'

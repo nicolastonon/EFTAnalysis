@@ -414,7 +414,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print('\n', colors.fg.orange, colors.underline, '-- Will use the following variable(s) as target(s) :', colors.reset, [list_features[opts["targetVarIdx"][idx]] for idx in opts["targetVarIdx"]])
         if(opts["comparVarIdx"] >= 0): print('\n\n', colors.fg.orange, colors.underline, '-- Will compare predictions to the following variable:', colors.reset, list_features[opts["comparVarIdx"]], '\n\n')
 
-    opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile
+    opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile #NB: this parameter is also dumped in "NN_infos.txt" in FreezeSession code
     if centralVSpureEFT is True: opts["NN_strategy"] = "centralVSpureEFT"
 
 # //--------------------------------------------
@@ -428,9 +428,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 
 #Write information related to this NN training
+#NB: also append the names of the input/output nodes in separate output file "NN_info.txt" containing names of input features, etc. (for later use in C++ code)
 def Dump_NN_Options_toLogFile(opts, weightDir):
 
-    #-- Also append the names of the input/output nodes in the file "NN_info.txt" containing input features names, etc. (for later use in C++ code)
     text_file = open(weightDir + "NN_settings.txt", "a+") #Overwrite file
 
     text_file.write("\nOPTIONS\n")

@@ -39,7 +39,7 @@ class EFTPlot(object):
         self.wcs = ['ctz']
         self.wcs_pairs = [('ctz','ctw')]
         self.wc_ranges = {  'ctw':(-6,6),
-                            'ctz':(-10,10)
+                            'ctz':(-6,6)
                          }
         self.sm_ranges = {  'r_tzq':(0,5)
                          }
@@ -1813,7 +1813,6 @@ if __name__ == "__main__":
 # User options
 # //--------------------------------------------
     mode = 'EFT' #'SM', 'EFT'
-    #exp = True #True <-> Asimov a-priori expected; False <-> observed
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1827,7 +1826,7 @@ if __name__ == "__main__":
 
 # SM fit
 # //--------------------------------------------
-    if mode == 'SM': 
+    if mode == 'SM':
         plotter.LLPlot1DSM(param='r_tzq')
 
 # EFT fit

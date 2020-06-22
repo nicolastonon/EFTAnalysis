@@ -68,6 +68,7 @@ def FreezeSession_and_SaveModel(opts, sess, weightDir, h5modelName):
     text_file.write(inputs_names[0]); text_file.write(' -1 -1 \n'); #use end values as flags to signal these lines
     text_file.write(outputs_names[0]); text_file.write(' -2 -2 \n');
     text_file.write(str(opts["nofOutputNodes"])); text_file.write(' -3 -3 \n');
+    text_file.write(str(opts["NN_strategy"])); text_file.write(' -4 -4 \n');
     text_file.close()
 
     return

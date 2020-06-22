@@ -73,24 +73,12 @@ $(YIELD):	Utils/Yield_Table.o Utils/Helper.o
 	@echo ""
 
 #Obtain objects from source and header files
-#NB : only works for .cxx files ! e.g. for .cpp, would need a specific rule
+#NB: only works for .cxx files ! e.g. for .cpp, would need a specific rule
 %.o: %.cxx $(HDRS)
-	@echo "-- Compiling : "$@"--"
+	@echo "-- Compiling : "$@" --"
 	@$(CC) $(ROOTFLAGS) $(CFLAGS) $(LFLAGS) $(INCFLAGS) $< -o $@
 	@echo ""
 # @Example :  g++ `root-config --glibs --cflags` -fPIC -c -g Utils/Helper.cxx -o Utils/Helper.o
-
-#For .cpp files
-# %.o: %.cpp $(HDRS)
-# 	@echo "-- Compiling : "$@"--"
-# 	@$(CC) $(ROOTFLAGS) $(CFLAGS) $(LFLAGS) $(INCFLAGS) $< -o $@
-# 	@echo ""
-
-#For .cc files
-# %.o: %.cc $(HDRS)
-# 	@echo "-- Compiling : "$@"--"
-# 	@$(CC) $(ROOTFLAGS) $(CFLAGS) $(LFLAGS) $(INCFLAGS) $< -o $@
-# 	@echo ""
 
 #Erase all objects and executable
 clean:

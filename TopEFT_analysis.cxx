@@ -260,25 +260,22 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     v_inputs_rescaling.resize(0); var_list_NN.resize(0);
     if(classifier_name == "NN")
     {
-        NN_inputLayerName = "";
-        NN_outputLayerName = "";
-        nNodes = -1;
-        TString file_var_path = "./weights/NN/"+lumiName+"/NN_info.txt";
-        if(!Check_File_Existence(file_var_path) )
+        NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; nNodes = -1;
+        TString file_NNinfo_path = "./weights/NN/"+lumiName+"/NN_info.txt";
+        if(!Check_File_Existence(file_NNinfo_path) )
         {
-            cout<<DIM("NN info file not found ("<<file_var_path<<")")<<endl;
-            file_var_path = "./weights/NN/2017/NN_info.txt";
-            if(!Check_File_Existence(file_var_path) ) {cout<<BOLD(FRED("NN info file "<<file_var_path<<" not found ! Abort "))<<endl; return;}
-            else {cout<<BOLD(FGRN("Reading file "<<file_var_path<<" instead !"))<<endl;}
+            cout<<DIM("NN info file not found ("<<file_NNinfo_path<<")")<<endl;
+            file_NNinfo_path = "./weights/NN/2017/NN_info.txt";
+            if(!Check_File_Existence(file_NNinfo_path) ) {cout<<BOLD(FRED("NN info file "<<file_NNinfo_path<<" not found ! Abort "))<<endl; return;}
+            else {cout<<BOLD(FGRN("Reading file "<<file_NNinfo_path<<" instead !"))<<endl;}
         }
-
-        if(Check_File_Existence(file_var_path) )
+        else
         {
-            cout<<DIM("Reading list of NN input variables from : "<<file_var_path<<"")<<endl;
+            cout<<DIM("Reading list of NN input variables from : "<<file_NNinfo_path<<"")<<endl;
 
-            ifstream file_in(file_var_path);
+            ifstream file_in(file_NNinfo_path);
             string line;
-            while(!file_in.eof( ))
+            while(!file_in.eof())
             {
                 getline(file_in, line);
                 // TString ts_line(line);
@@ -290,6 +287,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                     if(tmp1 == -1 && tmp2 == -1) {NN_inputLayerName = varname;} //Name of input layer
                     else if(tmp1 == -2 && tmp2 == -2) {NN_outputLayerName = varname;} //Name of output layer
                     else if(tmp1 == -3 && tmp2 == -3) {nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
+                    else if(tmp1 == -4 && tmp2 == -4) {NN_strategy = varname;} //NN strategy (e.g. 'CARL'/'ROLR'/'classifier'/...)
                     else
                     {
                         var_list_NN.push_back(varname);
@@ -300,6 +298,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                 }
             }
         }
+        cout<<DIM("-->  "<<NN_strategy<<"")<<endl;
         cout<<DIM("-->  "<<NN_inputLayerName<<"")<<endl;
         cout<<DIM("-->  "<<NN_outputLayerName<<"")<<endl;
         cout<<DIM("-->  "<<nNodes<<"")<<endl;
@@ -940,10 +939,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	TTree* tree(0);
 
 	//Template binning
-	double xmin = -1, xmax = 1;
-    // nbins = 10;
-    nbins = 1; //FIXME
-    if(classifier_name == "NN") {xmin = 0;}
+	double xmin = -1, xmax = 1; //BDT: [-1,1]
+    if(classifier_name == "NN") {xmin = 0;} //NN: [0,1]
+    nbins = 10;
 
 	//Want to plot ALL selected variables
 	vector<TString> total_var_list;
@@ -1119,7 +1117,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			{
                     for(int i=0; i<var_list.size(); i++)
                     {
-                        cout<<"Activate var '"<<var_list[i]<<"'"<<endl;
+                        if(!isample) {cout<<"Activate var '"<<var_list[i]<<"'"<<endl;}
                         tree->SetBranchStatus(var_list[i], 1);
                         tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
                     }
@@ -1452,13 +1450,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     						file_output->cd();
 
-    						v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
-                            // cout<<"Wrote histo : "<<output_histo_name<<endl;
-
-                            if(isPrivMC)
+                            if(isPrivMC) //Private SMEFT samples
                             {
-                                output_histo_name = "TH1EFT_"+ output_histo_name;
+                                // output_histo_name = "TH1EFT_"+ output_histo_name;
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                if(NN_strategy == "centralVSpureEFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                                {
+                                    StoreEachHistoBinIndividually(file_output, (TH1F*) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);
+                                }
 
                                 bool debug = false;
                                 if(debug) //Printout WC values and extrapolated integrals for each benchmark point
@@ -1476,6 +1477,17 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                         std::cout << "===> " << std::setw(3) << i << ": " << std::setw(12) << std::setw(12) << fit_val << std::endl; //Printout : i / true weight / evaluated weight / diff
                                     }
                                     cout<<endl<<endl<<endl;
+                                }
+                            }
+                            else //Central samples
+                            {
+                                v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+                                // cout<<"Wrote histo : "<<output_histo_name<<endl;
+
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                if(NN_strategy == "centralVSpureEFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                                {
+                                    StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);
                                 }
                             }
 
@@ -2282,7 +2294,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 //     histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample];
                 // }
 
-                TString histo_name = "TH1EFT_" + total_var_list[ivar];
+                // TString histo_name = "TH1EFT_" + total_var_list[ivar];
+                TString histo_name = total_var_list[ivar];
                 if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
                 if(channel != "") {histo_name+= "_" + channel;}
                 histo_name+= + "_2017__" + v_EFT_samples[isample];
@@ -3522,92 +3535,107 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 
         				TH1F* h_merging = 0; //Merged histogram
 
-        				for(int isample=0; isample<sample_list.size(); isample++)
-        				{
-        					//-- Protections : not all syst weights apply to all samples, etc.
-                            if(sample_list[isample] == "DATA" && (systTree_list[itree] != "" || syst_list[isyst] != "")) {continue;} //nominal data only
-                            if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
+                        //-- For some NN strategies, need to store all histogram bins separately
+                        int n_singleBins = 0; //Default: will only merge entire histograms //Gets updated below
+                        for(int ibin=0; ibin<n_singleBins+1; ibin++)
+                        {
+            				for(int isample=0; isample<sample_list.size(); isample++)
+            				{
+            					//-- Protections : not all syst weights apply to all samples, etc.
+                                if(sample_list[isample] == "DATA" && (systTree_list[itree] != "" || syst_list[isyst] != "")) {continue;} //nominal data only
+                                if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
 
-        					// cout<<endl<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl;
+            					// cout<<endl<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl;
 
-        					//Check if this sample needs to be merged, i.e. if the samples before/after belong to the same "group of samples"
-        					bool merge_this_sample = false;
-        					if(!isample && sample_groups.size() > 1 && sample_groups[isample+1] == sample_groups[isample]) {merge_this_sample = true;}
-        					else if(isample == sample_list.size()-1 && sample_groups[isample-1] == sample_groups[isample]) {merge_this_sample = true;}
-        					else if(isample > 0 && isample < sample_list.size()-1 && (sample_groups[isample+1] == sample_groups[isample] || sample_groups[isample-1] == sample_groups[isample])) {merge_this_sample = true;}
+            					//Check if this sample needs to be merged, i.e. if the samples before/after belong to the same "group of samples"
+            					bool merge_this_sample = false;
+            					if(!isample && sample_groups.size() > 1 && sample_groups[isample+1] == sample_groups[isample]) {merge_this_sample = true;}
+            					else if(isample == sample_list.size()-1 && sample_groups[isample-1] == sample_groups[isample]) {merge_this_sample = true;}
+            					else if(isample > 0 && isample < sample_list.size()-1 && (sample_groups[isample+1] == sample_groups[isample] || sample_groups[isample-1] == sample_groups[isample])) {merge_this_sample = true;}
 
-        					// cout<<"merge_this_sample "<<merge_this_sample<<endl;
-        					if(!merge_this_sample) {continue;} //Only care about samples to merge : others are already stored in file
+            					// cout<<"merge_this_sample "<<merge_this_sample<<endl;
+            					if(!merge_this_sample) {continue;} //Only care about samples to merge : others are already stored in file
 
-        					TString samplename = sample_list[isample];
-        					if(samplename == "DATA") {samplename = "data_obs";}
+            					TString samplename = sample_list[isample];
+            					if(samplename == "DATA") {samplename = "data_obs";}
 
-        					TString histoname = total_var_list[ivar];
-                            if(cat_tmp != "") {histoname+= "_" + cat_tmp;}
-        					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
-                            histoname+= "_" + v_lumiYears[iyear];
-                            histoname+= "__" + samplename;
-        					if(syst_list[isyst] != "") {histoname+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
-        					else if(systTree_list[itree] != "") {histoname+= "__" + systTree_list[itree];}
-        					// cout<<"histoname "<<histoname<<endl;
+                                // TString histoname = total_var_list[ivar];
+                                TString histoname = (ibin>0 ? (TString) "bin"+Form("%d",ibin)+"_" : "") + total_var_list[ivar]; //If 'n_singleBins==1' --> don't consider separate bins, onyl entire histos
+                                if(cat_tmp != "") {histoname+= "_" + cat_tmp;}
+            					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
+                                histoname+= "_" + v_lumiYears[iyear];
+                                histoname+= "__" + samplename;
+            					if(syst_list[isyst] != "") {histoname+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
+            					else if(systTree_list[itree] != "") {histoname+= "__" + systTree_list[itree];}
+            					// cout<<"histoname "<<histoname<<endl;
 
-        					if(!f->GetListOfKeys()->Contains(histoname) && systTree_list[itree] == "" && syst_list[isyst] == "")
-        					{
-        						cout<<FRED("Histo "<<histoname<<" not found in file "<<filename<<" !")<<endl;
-        					 	continue;
-        					}
+            					if(!f->GetListOfKeys()->Contains(histoname) && systTree_list[itree] == "" && syst_list[isyst] == "")
+            					{
+            						cout<<FRED("Histo "<<histoname<<" not found in file "<<filename<<" !")<<endl;
+            					 	continue;
+            					}
 
-        					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
-        					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
+            					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
+            					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
 
-        					int factor = +1; //Addition
-        					// if(sample_list[isample] == "Fakes_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes)
+                                if(NN_strategy == "centralVSpureEFT") //Special cases: will also merge single-bin histos
+                                {
+                                    if(n_singleBins==0) //Only read the binning from full histograms
+                                    {
+                                        n_singleBins = h_tmp->GetNbinsX(); //Update the limit for the for-loop *within the loop* (--> first read full histo to infer the correct binning)
+                                    }
+                                }
 
-        					if(h_tmp != 0)
-        					{
-        						if(!h_merging) {h_merging = (TH1F*) h_tmp->Clone();}
-        						else {h_merging->Add(h_tmp, factor);}
-        					}
-        					else {cout<<"h_tmp null !"<<endl;}
+            					int factor = +1; //Addition
+            					// if(sample_list[isample] == "Fakes_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes)
 
-        					// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
+            					if(h_tmp != 0)
+            					{
+            						if(!h_merging) {h_merging = (TH1F*) h_tmp->Clone();}
+            						else {h_merging->Add(h_tmp, factor);}
+            					}
+            					else {cout<<"h_tmp null !"<<endl;}
 
-        					delete h_tmp; h_tmp = 0;
-        					if(!h_merging) {cout<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl; cout<<"h_merging is null ! Fix this first"<<endl; return;}
+            					// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
-        					//Check if next sample will be merged with this one, or else if must write the histogram
-        					if(isample < sample_list.size()-1 && sample_groups[isample+1] == sample_groups[isample]) {continue;}
-        					else
-        					{
-        						// if(force_normTemplate_positive)
-        						// {
-        						// 	//If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
-        						// 	if(h_merging->Integral() <= 0)
-        						// 	{
-        						// 		// cout<<endl<<"While merging processes by groups ('Rares'/...) :"<<endl<<FRED(" h_merging->Integral() = "<<h_merging->Integral()<<" (<= 0) ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
-        						// 		Set_Histogram_FlatZero(h_merging, true, "h_merging");
-        						// 		cout<<"(Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<")"<<endl;
-        						// 	}
-        						// }
-        						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
+            					delete h_tmp; h_tmp = 0;
+            					if(!h_merging) {cout<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl; cout<<"h_merging is null ! Fix this first"<<endl; return;}
 
-        						TString histoname_new = total_var_list[ivar];
-                                if(cat_tmp != "") {histoname_new+= "_" + cat_tmp;}
-        						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
-                                histoname_new+= "_" + v_lumiYears[iyear];
-        						histoname_new+= "__" + sample_groups[isample];
-        						if(syst_list[isyst] != "") {histoname_new+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
-        						else if(systTree_list[itree] != "") {histoname_new+= "__" + systTree_list[itree];}
+            					//Check if next sample will be merged with this one, or else if must write the histogram
+            					if(isample < sample_list.size()-1 && sample_groups[isample+1] == sample_groups[isample]) {continue;}
+            					else
+            					{
+            						// if(force_normTemplate_positive)
+            						// {
+            						// 	//If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+            						// 	if(h_merging->Integral() <= 0)
+            						// 	{
+            						// 		// cout<<endl<<"While merging processes by groups ('Rares'/...) :"<<endl<<FRED(" h_merging->Integral() = "<<h_merging->Integral()<<" (<= 0) ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
+            						// 		Set_Histogram_FlatZero(h_merging, true, "h_merging");
+            						// 		cout<<"(Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<")"<<endl;
+            						// 	}
+            						// }
+            						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
-        						f->cd();
-        						h_merging->Write(histoname_new, TObject::kOverwrite);
+                                    // TString histoname_new = total_var_list[ivar];
+                                    TString histoname_new = (ibin>0 ? (TString) "bin"+Form("%d",ibin)+"_" : "") + total_var_list[ivar];
+                                    if(cat_tmp != "") {histoname_new+= "_" + cat_tmp;}
+            						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
+                                    histoname_new+= "_" + v_lumiYears[iyear];
+            						histoname_new+= "__" + sample_groups[isample];
+            						if(syst_list[isyst] != "") {histoname_new+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
+            						else if(systTree_list[itree] != "") {histoname_new+= "__" + systTree_list[itree];}
 
-        						// cout<<"- Writing merged histo "<<histoname_new<<" with integral "<<h_merging->Integral()<<endl;
+            						f->cd();
+            						h_merging->Write(histoname_new, TObject::kOverwrite);
 
-        						delete h_merging; h_merging = 0;
-        					} //write histo
+            						// cout<<"-- Writing merged histo "<<histoname_new<<" with integral "<<h_merging->Integral()<<endl;
 
-        				} //sample loop
+            						delete h_merging; h_merging = 0;
+            					} //write histo
+                            } //sample loop
+                        } //bin loop
+
         			} //syst loop
         		} //tree loop
         	} //channel loop

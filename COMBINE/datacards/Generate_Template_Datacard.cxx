@@ -95,18 +95,19 @@ void Choose_Arguments_From_CommandLine(TString& signal)
 {
     //Choose whether to include shape syst or not
 	cout<<endl<<FYEL("--- What is your SIGNAL ?")<<endl;
-    cout<<"* 'eft'   <-> Signal is SMEFT tZq"<<endl;
+    cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ"<<endl;
+    cout<<"* 'efttzq'   <-> Signal is SMEFT tZq"<<endl;
     cout<<"* '0'   <-> Signals are tZq + ttZ"<<endl;
     // cout<<"* 'thq' <-> Signals are tHq + tHW"<<endl;
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
 	cin>>signal;
-	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft")
+	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft" && signal != "efttzq")
 	{
 		cin.clear();
 		cin.ignore(1000, '\n');
 
-		cout<<" Wrong answer ! Need to type '0' or 'eft' or 'tzq' or 'ttz' ! Retry :"<<endl;
+		cout<<" Wrong answer ! Retry :"<<endl;
 		cin>>signal;
 	}
 
@@ -419,10 +420,15 @@ int main()
 //--------------------------------------------
 
     vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
-    if(signal == "eft") //Signals : tZq+ttZ
+    if(signal == "efttzq") //Signal : tZq
     {
         v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    }
+    else if(signal == "eft") //Signals : tZq+ttZ
+    {
+        v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_ttZ_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
     }
     else if(signal == "0") //Signals : tZq+ttZ
     {
