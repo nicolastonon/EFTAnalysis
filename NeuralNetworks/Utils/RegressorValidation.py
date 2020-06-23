@@ -236,11 +236,9 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
         class_data = np.squeeze(list_truth_Test_allClasses[0])
 
     if opts["comparVarIdx"] >= 0: #Also plot kinReco results
-        truth_data = np.squeeze(np.concatenate((np.squeeze(list_yTest_allClasses[0]), list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
-        pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_predictions_test_allNodes_allClasses[0][0])))
+        truth_data = np.squeeze(np.concatenate((np.squeeze(list_yTest_allClasses[0]),np.squeeze(list_yTest_allClasses[0]))))
+        pred_data = np.squeeze(np.concatenate((list_predictions_test_allNodes_allClasses[0][0],list_xTest_allClasses[0][:,opts["comparVarIdx"]])))
         class_data = np.squeeze(np.concatenate((list_truth_Test_allClasses[0],list_truth_Test_allClasses[0]-1))) #Set different (arbitrary) class values for predictions / comparison variable
-
-    truth_data, pred_data, class_data = unison_shuffled_copies(truth_data, pred_data, class_data) #Randomize events (else, only see latest events on scatteplot)
 
 # //--------------------------------------------
 
@@ -251,16 +249,18 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
 
     nbins = 30
     xmin = -2; xmax= 2
+    norm = True #True <-> normalize histos to unity
 
     hpull = TH1F('Pull', 'Pull', nbins, xmin, xmax); hpull.Sumw2(); hpull.SetDirectory(0)
     for idx in range(0, len(list_yTest_allClasses[0])):
         # print('1 idx', idx)
         tmp = (pred_data[idx] - truth_data[idx]) / truth_data[idx]
         hpull.Fill(tmp, 1.)
-        # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
+        # print('pred_data ', pred_data[idx], 'truth ', truth_data[idx], ' => ', tmp)
 
     hpull.SetFillColor(18)
     hpull.SetLineColor(1)
+    if norm: hpull.Scale(1./hpull.Integral())
 
     c = ROOT.TCanvas()
     hpull.Draw("hist")
@@ -271,12 +271,14 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
             # print('2 idx', idx)
             tmp = (pred_data[idx] - truth_data[idx]) / truth_data[idx]
             hpull_comp.Fill(tmp, 1.)
-            # print('pred ', pred[idx], 'truth ', truth[idx], ' => ', tmp)
+            # print('comp ', pred_data[idx], 'truth ', truth_data[idx], ' => ', tmp)
 
         # hpull_comp.SetFillColor(18)
         hpull_comp.SetLineColor(2)
-        hpull_comp.Draw("hist same")
+        if norm: hpull_comp.Scale(1./hpull_comp.Integral())
+        hpull_comp.Draw("hist sames") #'sames': Same as "SAME" and draw the statistics box
 
+    c.Update()
     plotname = weight_dir + "Pull_plot.png"
     c.SaveAs(plotname)
     print(colors.fg.lightgrey, "\nSaved pull plot as :", colors.reset, plotname)

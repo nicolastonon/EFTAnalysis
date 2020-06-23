@@ -1117,7 +1117,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			{
                     for(int i=0; i<var_list.size(); i++)
                     {
-                        if(!isample) {cout<<"Activate var '"<<var_list[i]<<"'"<<endl;}
+                        if(!isample) {cout<<DIM("Activate var '"<<var_list[i]<<"'")<<endl;}
                         tree->SetBranchStatus(var_list[i], 1);
                         tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
                     }
@@ -1261,7 +1261,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			// int nentries = 100;
     			int nentries = tree->GetEntries();
-                // if(isPrivMC && nentries > 1000) {nentries = 1000;}
 
                 // if(!draw_progress_bar) {cout<<endl<< "--- "<<sample_list[isample]<<" : Processing: " << tree->GetEntries() << " events" << std::endl;}
                 cout<<endl<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
@@ -1456,7 +1455,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
 
                                 //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(NN_strategy == "centralVSpureEFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                                if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
                                 {
                                     StoreEachHistoBinIndividually(file_output, (TH1F*) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);
                                 }
@@ -1485,7 +1484,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 // cout<<"Wrote histo : "<<output_histo_name<<endl;
 
                                 //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(NN_strategy == "centralVSpureEFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                                if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
                                 {
                                     StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);
                                 }
@@ -3537,7 +3536,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 
                         //-- For some NN strategies, need to store all histogram bins separately
                         int n_singleBins = 0; //Default: will only merge entire histograms //Gets updated below
-                        for(int ibin=0; ibin<n_singleBins+1; ibin++)
+                        for(int ibin=0; ibin<n_singleBins+2; ibin++) //Convention (depending on NN_strategy): bin=0 <-> merge full histogram; bin=N+1 <-> merge histo stored as single bin (counting exp.)
                         {
             				for(int isample=0; isample<sample_list.size(); isample++)
             				{
@@ -3559,8 +3558,10 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
             					TString samplename = sample_list[isample];
             					if(samplename == "DATA") {samplename = "data_obs";}
 
-                                // TString histoname = total_var_list[ivar];
-                                TString histoname = (ibin>0 ? (TString) "bin"+Form("%d",ibin)+"_" : "") + total_var_list[ivar]; //If 'n_singleBins==1' --> don't consider separate bins, onyl entire histos
+                                TString histoname = "";
+                                if(n_singleBins > 0 && ibin>0 && ibin<=n_singleBins) {histoname+= (TString) "bin"+Form("%d",ibin)+"_";}
+                                else if(n_singleBins > 0 && ibin==n_singleBins+1) {histoname+= "countExp_";}
+                                histoname+= total_var_list[ivar];
                                 if(cat_tmp != "") {histoname+= "_" + cat_tmp;}
             					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
                                 histoname+= "_" + v_lumiYears[iyear];
@@ -3578,7 +3579,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
             					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
             					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
 
-                                if(NN_strategy == "centralVSpureEFT") //Special cases: will also merge single-bin histos
+                                if(this->NN_strategy == "MVA_EFT") //Special cases: will also merge single-bin histos
                                 {
                                     if(n_singleBins==0) //Only read the binning from full histograms
                                     {
@@ -3617,8 +3618,10 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
             						// }
             						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
-                                    // TString histoname_new = total_var_list[ivar];
-                                    TString histoname_new = (ibin>0 ? (TString) "bin"+Form("%d",ibin)+"_" : "") + total_var_list[ivar];
+                                    TString histoname_new = "";
+                                    if(n_singleBins > 0 && ibin>0 && ibin<=n_singleBins) {histoname_new+= (TString) "bin"+Form("%d",ibin)+"_";}
+                                    else if(n_singleBins > 0 && ibin==n_singleBins+1) {histoname_new+= "countExp_";}
+                                    histoname_new+= total_var_list[ivar];
                                     if(cat_tmp != "") {histoname_new+= "_" + cat_tmp;}
             						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
                                     histoname_new+= "_" + v_lumiYears[iyear];

@@ -1133,17 +1133,30 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString id)
 
 //For each histogram bin: create a new TH1F object, fill it with the content of that single bin, and save it following specific naming convention
 //Splitting histograms per bin may be necessary in some cases in Combine, e.g. if we need to parametrize each bin individually
+//Also store entire histogram content as a single bin, to allow comparison with a basic counting experiment
 void StoreEachHistoBinIndividually(TFile* f, TH1F* h, TString outname)
 {
     f->cd();
-
-    for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
+    for(int ibin=0; ibin<h->GetNbinsX()+1; ibin++)
     {
         TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
-        h_tmp->SetBinContent(1, h->GetBinContent(ibin)); //Fill new single bin according to considered TH1EFT bin
-        h_tmp->SetBinError(1, h->GetBinError(ibin));
+        TString outname_tmp = "";
 
-        TString outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
+        if(!ibin) //ibin=0 --> Store entire histo content as single bin, to make counting experiment
+        {
+            Double_t integral=0, error=0;
+            integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);
+            h_tmp->SetBinContent(1, integral);
+            h_tmp->SetBinError(1, error);
+            outname_tmp = "countExp_" + outname;
+        }
+        else //Store content of each histogram bin separately
+        {
+            h_tmp->SetBinContent(1, h->GetBinContent(ibin)); //Fill new single bin according to considered TH1EFT bin
+            h_tmp->SetBinError(1, h->GetBinError(ibin));
+            outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
+        }
+
         h_tmp->Write(outname_tmp);
         // cout<<"Wrote histo : "<<output_histo_name<<endl;
 

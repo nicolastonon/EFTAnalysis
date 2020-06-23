@@ -59,8 +59,8 @@ def Get_Loss_Optim_Metrics(opts):
             # metrics = 'AUC'
 
     else: #Regression
-        loss = 'mean_squared_logarithmic_error'
-        # loss = 'mean_absolute_error' #More robust to outliers #FIXME
+        # loss = 'mean_squared_logarithmic_error'
+        loss = 'mean_absolute_error' #More robust to outliers
         # loss = 'mean_squared_logarithmic_error'
         # loss = 'mean_squared_error'
 
