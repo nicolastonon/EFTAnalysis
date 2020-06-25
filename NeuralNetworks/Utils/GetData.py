@@ -154,26 +154,31 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
 
                 # print(colors.fg.lightgrey, '* Opening file:', colors.reset, ' ', filepath)
                 file = TFile.Open(filepath)
-                tree = file.Get('result')
-                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )\n\n') #Dummy variable, just to read the nof entries
+                # tree = file.Get('result')
+                tree = file.Get(opts["TTree"])
+
+                nevents = None
+                if opts["parameterizedNN"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
+                wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
+                if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
+                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(', tree2array(tree, branches=wname_tmp, selection=cuts, start=0,stop=nevents).shape[0], 'entries )\n\n') #Dummy variable, just to read the nof entries
 
                 # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts)) #Store values of input features into array, append to list
 
                 #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
                 #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
-                x_tmp = tree2array(tree, branches=list_features, selection=cuts)
+                x_tmp = tree2array(tree, branches=list_features, selection=cuts, start=0,stop=nevents)
                 x_tmp = np.column_stack([x_tmp[name] for name in x_tmp.dtype.names]) #1D --> 2D
                 x_tmp = x_tmp.astype(np.float32) #Convert all to floats
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
-                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts))
-                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
-                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts))
-                # list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts))
+                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts, start=0,stop=nevents))
+                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts, start=0,stop=nevents))
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
-                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc)
+                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc, nevents)
                 list_EFTweights_proc.append(EFTweights_proc_tmp); list_EFTweightIDs_proc.append(EFTweightIDs_proc_tmp); list_SMweights_proc.append(SMweights_proc_tmp)
 
         #-- Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 single array per process class
@@ -200,7 +205,7 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
 # //--------------------------------------------
 
 #For private MC (EFT) samples, retrieve the EFT reweights and their IDs. Directly normalize properly the EFT weights
-def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc):
+def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc, nevents):
 
     list_EFTweights_proc = []
     list_EFTweightIDs_proc = []
@@ -213,7 +218,8 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
             exit(1)
 
         file = TFile.Open(filepath)
-        tree = file.Get('result')
+        # tree = file.Get('result')
+        tree = file.Get(opts["TTree"])
         # print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
 
         #NB: don't want to store EFT reweights IDs for all events (always same names)
@@ -231,11 +237,11 @@ def Read_Data_EFT_File(list_lumiYears, list_weights_proc, ntuplesDir, process, c
         else: weightsProc = list_weights_proc[iproc*len(list_lumiYears) + iyear] #Else, if multiple processes in current class, must also account for previous processes in list and update index position
 
         #Get the EFT reweights IDs
-        array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts)) #stack : array of arrays -> 2d array
+        array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array
 
         #Get the EFT reweights, and normalization factor (because will multiply by baseline weight as a trick to apply the SFs to all weights ; must then divide by baseline weight 'weightMENominal')
-        array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts)) #stack : array of arrays -> 2d array
-        normWeights_proc = tree2array(tree, branches="weightMENominal", selection=cuts) #Normalization factors
+        array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array
+        normWeights_proc = tree2array(tree, branches="weightMENominal", selection=cuts, start=0,stop=nevents) #Normalization factors
 
         #Get the sums of weights (before any preselection) corresponding to each EFT point
         hist = file.Get("EFT_SumWeights") #Sums of weights for each EFT reweight is stored in histogram, read it

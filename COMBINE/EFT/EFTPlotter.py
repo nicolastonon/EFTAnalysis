@@ -2,6 +2,7 @@
 # Adapted from: https://github.com/cms-govner/EFTFit
 
 import ROOT
+from ROOT import TCanvas, TGraph, gStyle
 import logging
 import os
 import sys
@@ -12,6 +13,130 @@ from ContourHelper import ContourHelper
 from Utils.ColoredPrintout import colors
 import getopt # command line parser
 import argparse
+import numpy as np
+
+ #    # ###### #      #####  ###### #####
+ #    # #      #      #    # #      #    #
+ ###### #####  #      #    # #####  #    #
+ #    # #      #      #####  #      #####
+ #    # #      #      #      #      #   #
+ #    # ###### ###### #      ###### #    #
+
+# Get the X positions at which the log-likelihood function intersects a given y-line (only keep first and last intersections. There may be more if the function has several minima)
+def Get_Intersection_X(graph, y_line):
+
+    xmin, xmax, y_tmp = ROOT.Double(0), ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+    graph.GetPoint(0, xmin, y_tmp) #First point
+    graph.GetPoint(graph.GetN()-1, xmax, y_tmp) #Last point
+    # print('xmin', xmin, 'xmax', xmax)
+
+    list_X_intersects = []
+    step = 0.01 #Desired precision in X
+    for x in np.arange(xmin, xmax, step):
+        # print('x', x)
+        y_tmp = graph.Eval(x)
+        # print('y_tmp', y_tmp)
+        # print('abs(y_tmp-y_line)', abs(y_tmp-y_line))
+        if abs(y_tmp-y_line) < step*2: #Arbitrary threshold to define intersection
+            list_X_intersects.append(x)
+            # x+= 5*step #Avoid returning several x positions in a row
+
+    list_X_intersects = [list_X_intersects[idx] for idx in [0,len(list_X_intersects)-1]]
+
+    # print(list_X_intersects)
+    return list_X_intersects
+
+
+def Get_Operator_LegName(name):
+
+    if name == 'ctz': return 'C_{tZ} (#Lambda/TeV)^{2}'
+    elif name == 'ctw': return 'C_{tW} (#Lambda/TeV)^{2}'
+    elif name == 'cpq3': return 'C^{3}_{#phiQ} (#Lambda/TeV)^{2}'
+    elif name == 'cpqm': return 'C^{-}_{#phiQ} (#Lambda/TeV)^{2}'
+    elif name == 'cpt': return 'C_{#phit} (#Lambda/TeV)^{2}'
+
+    return name
+
+
+  ####  ##### #   # #      # #    #  ####
+ #        #    # #  #      # ##   # #    #
+  ####    #     #   #      # # #  # #
+      #   #     #   #      # #  # # #  ###
+ #    #   #     #   #      # #   ## #    #
+  ####    #     #   ###### # #    #  ####
+
+def Load_Canvas_Style():
+
+    gStyle.SetCanvasBorderMode(0)
+    gStyle.SetCanvasColor(0)
+    gStyle.SetCanvasDefH(600)
+    gStyle.SetCanvasDefW(600)
+    gStyle.SetCanvasDefX(0)
+    gStyle.SetCanvasDefY(0)
+    gStyle.SetPadBorderMode(0)
+    gStyle.SetPadColor(0)
+    gStyle.SetPadGridX(0)
+    gStyle.SetPadGridY(0)
+    gStyle.SetGridColor(0)
+    gStyle.SetGridStyle(3)
+    gStyle.SetGridWidth(1)
+    gStyle.SetFrameBorderMode(0)
+    gStyle.SetFrameBorderSize(1)
+    gStyle.SetFrameFillColor(0)
+    gStyle.SetFrameFillStyle(0)
+    gStyle.SetFrameLineColor(1)
+    gStyle.SetFrameLineStyle(1)
+    gStyle.SetFrameLineWidth(1)
+    gStyle.SetHistLineColor(1)
+    gStyle.SetHistLineStyle(0)
+    gStyle.SetHistLineWidth(1)
+    gStyle.SetEndErrorSize(2)
+    gStyle.SetOptFit(1011)
+    gStyle.SetFitFormat("5.4g")
+    gStyle.SetFuncColor(2)
+    gStyle.SetFuncStyle(1)
+    gStyle.SetFuncWidth(1)
+    gStyle.SetOptDate(0)
+    gStyle.SetOptFile(0)
+    gStyle.SetOptStat(0)
+    gStyle.SetStatColor(0)
+    gStyle.SetStatFont(42)
+    gStyle.SetStatFontSize(0.04)
+    gStyle.SetStatTextColor(1)
+    gStyle.SetStatFormat("6.4g")
+    gStyle.SetStatBorderSize(1)
+    gStyle.SetStatH(0.1)
+    gStyle.SetStatW(0.15)
+    gStyle.SetPadTopMargin(0.07)
+    gStyle.SetPadBottomMargin(0.13)
+    gStyle.SetPadLeftMargin(0.16)
+    gStyle.SetPadRightMargin(0.03)
+    # gStyle.SetOptTitle(0)
+    gStyle.SetOptTitle(1)
+    gStyle.SetTitleFont(42)
+    gStyle.SetTitleColor(1)
+    gStyle.SetTitleTextColor(1)
+    gStyle.SetTitleFillColor(10)
+    gStyle.SetTitleFontSize(0.05)
+    gStyle.SetTitleColor(1, "XYZ")
+    gStyle.SetTitleFont(42, "XYZ")
+    gStyle.SetTitleSize(0.06, "XYZ")
+    gStyle.SetTitleXOffset(0.9)
+    gStyle.SetTitleYOffset(1.25)
+    gStyle.SetLabelColor(1, "XYZ")
+    gStyle.SetLabelFont(42, "XYZ")
+    gStyle.SetLabelOffset(0.007, "XYZ")
+    gStyle.SetLabelSize(0.05, "XYZ")
+    gStyle.SetAxisColor(1, "XYZ")
+    gStyle.SetStripDecimals(1)
+    gStyle.SetTickLength(0.03, "XYZ")
+    gStyle.SetNdivisions(510, "XYZ")
+    gStyle.SetPadTickX(1)
+    gStyle.SetPadTickY(1)
+    gStyle.SetOptLogx(0)
+    gStyle.SetOptLogy(0)
+    gStyle.SetOptLogz(0)
+    gStyle.SetPaperSize(20.,20.)
 
 ######## ######## ######## ########  ##        #######  ########
 ##       ##          ##    ##     ## ##       ##     ##    ##
@@ -22,7 +147,6 @@ import argparse
 ######## ##          ##    ##        ########  #######     ##
 
 class EFTPlot(object):
-
 
  # #    # # #####
  # ##   # #   #
@@ -38,8 +162,8 @@ class EFTPlot(object):
         self.SMMus = ['mu_tzq']
         self.wcs = ['ctz']
         self.wcs_pairs = [('ctz','ctw')]
-        self.wc_ranges = {  'ctw':(-6,6),
-                            'ctz':(-6,6)
+        self.wc_ranges = {  'ctz':(-6,6),
+                            'ctw':(-6,6)
                          }
         self.sm_ranges = {  'r_tzq':(0,5)
                          }
@@ -100,7 +224,15 @@ class EFTPlot(object):
  #       #         #       #      #    #   #       #   #     #
  ####### #######   #       ######  ####    #     ##### ######
 
-    def LLPlot1DEFT(self, name='.test', frozen=False, wc='', log=False):
+
+ ###### ###### #####
+ #      #        #
+ #####  #####    #
+ #      #        #
+ #      #        #
+ ###### #        #
+
+    def LLPlot1DEFT(self, name='.EFT', frozen=False, wc='', log=False):
 
         filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
 
@@ -112,90 +244,189 @@ class EFTPlot(object):
             return
 
         ROOT.gROOT.SetBatch(True)
-        canvas = ROOT.TCanvas()
+        c = ROOT.TCanvas('','',1000,800)
+        c.SetGrid(1)
+        c.SetTopMargin(0.1)
+        l = c.GetLeftMargin()
 
         # Get scan tree
         rootFile = ROOT.TFile.Open(filepath)
         limitTree = rootFile.Get('limit')
 
         # Get coordinates for TGraph
-        graphwcs = []
-        graphnlls = []
+        WC_values = []; NLL_values = []
         for entry in range(limitTree.GetEntries()):
             limitTree.GetEntry(entry)
-            graphwcs.append(limitTree.GetLeaf(wc).GetValue(0))
-            graphnlls.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
+            WC_values.append(limitTree.GetLeaf(wc).GetValue(0))
+            NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
 
-        # Rezero the y axis and make the tgraphs
-        graphnlls = [val-min(graphnlls) for val in graphnlls]
-        graph = ROOT.TGraph(len(graphwcs),numpy.asarray(graphwcs),numpy.asarray(graphnlls))
-        graph.Draw("AP")
-        del graphnlls,graphwcs
+        NLL_values = [val-min(NLL_values) for val in NLL_values]
+        graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
+        graph.Draw("AL") #A:axes, P: markers, L:line
+        del NLL_values, WC_values
+
+
+        for ipt in range(graph.GetN()):
+            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            graph.GetPoint(ipt, x, y)
+            # print(x, y)
+            if ipt==0 and x==0: graph.RemovePoint(ipt)
 
         # Squeeze X down to whatever range captures the float points
-        if wc not in self.wc_ranges: print(colors.fg.red + "ERROR: " + wc + " not found in ranges !" + colors.reset)
-        xmin = self.wc_ranges[wc][1]
-        xmax = self.wc_ranges[wc][0]
-        #print('xmin=', xmin)
-        #print('xmax=', xmax)
-        #for idx in range(graph.GetN()):
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] < xmin:
-        #        xmin = graph.GetX()[idx]
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] > xmax:
-        #        xmax = graph.GetX()[idx]
-        graph.GetXaxis().SetRangeUser(xmin,xmax)
-        graph.GetYaxis().SetRangeUser(-0.1,10)
-        graph.Draw("AP")
+        # if wc not in self.wc_ranges: print(colors.fg.red + "ERROR: " + wc + " not found in ranges !" + colors.reset)
+        # xmin = self.wc_ranges[wc][1]
+        # xmax = self.wc_ranges[wc][0]
+        # graph.GetXaxis().SetRangeUser(xmin,xmax)
+        xmin = graph.GetXaxis().GetXmin()
+        xmax = graph.GetXaxis().GetXmax()
+        graph.SetMinimum(0.001) #Don't display 0 label
+        graph.SetMaximum(10.)
 
-        #Change markers from invisible dots to nice triangles
         graph.SetTitle("")
-        graph.SetMarkerStyle(26)
+        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
+        graph.SetMarkerStyle(8)
         graph.SetMarkerSize(1)
-        graph.SetMinimum(-0.1)
+        # graph.GetXaxis().SetTitle(wc)
+        graph.GetXaxis().SetTitle(Get_Operator_LegName(wc))
+        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(wc))
 
-        #Add 1-sigma and 2-sigma lines. (Vertical lines were too hard, sadly)
-        canvas.SetGrid(1)
+        yval_68 = 1 #68% CL <-> 1 sigma <-> nll=1
+        yval_95 = 3.84 #95% CL <-> ~2 sigma <-> nll=3.84
+        # yval_2sigmas = 4 #~95.45% CL <-> 2 sigma <-> nll=4
 
-        line68 = ROOT.TLine(xmin,1,xmax,1)
-        line68.Draw('same')
-        line68.SetLineColor(ROOT.kYellow+1)
-        line68.SetLineWidth(3)
-        line68.SetLineStyle(7)
+        # Display vertical lines each time the NLL function interesects the 95% CL threshold
+        list_X_intersects95 = Get_Intersection_X(graph, yval_95)
+        lines_X_intersects95 = []
+        if len(list_X_intersects95) > 0:
+            for i,x in enumerate(list_X_intersects95):
+                lines_X_intersects95.append(ROOT.TLine(x,0,x,yval_95))
+                # lines_X_intersects95[i].Draw('same') #Draw last
+                lines_X_intersects95[i].SetLineColor(ROOT.kRed+1)
+                lines_X_intersects95[i].SetLineWidth(3)
+                lines_X_intersects95[i].SetLineStyle(7)
 
-        line95 = ROOT.TLine(xmin,4,xmax,4)
-        line95.Draw('same')
-        line95.SetLineColor(ROOT.kCyan-2)
-        line95.SetLineWidth(3)
-        line95.SetLineStyle(7)
+        # Display vertical lines each time the NLL function interesects the 68% CL threshold
+        list_X_intersects68 = Get_Intersection_X(graph, yval_68)
+        lines_X_intersects68 = []
+        if len(list_X_intersects68) > 0:
+            for i,x in enumerate(list_X_intersects68):
+                lines_X_intersects68.append(ROOT.TLine(x,0,x,yval_68))
+                # lines_X_intersects95[i].Draw('same') #Draw last
+                lines_X_intersects68[i].SetLineColor(ROOT.kRed+1)
+                lines_X_intersects68[i].SetLineWidth(3)
+                lines_X_intersects68[i].SetLineStyle(7)
 
-        # Labels
-        Title = ROOT.TLatex(0.5, 0.95, "{} 2#DeltaNLL".format(wc))
-        Title.SetNDC(1)
-        Title.SetTextAlign(20)
-        Title.Draw('same')
-        graph.GetXaxis().SetTitle(wc)
+        # Filled TGraph -- shaded area below NLL function representing 2sigmas area
+        fgraph95 = graph.Clone()
+        ipt = 0
+        while ipt<fgraph95.GetN():
+        # for ipt in range(fgraph95.GetN()):
+            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            fgraph95.GetPoint(ipt, x, y)
+            # print(x, y)
+            if x<=list_X_intersects95[0] or x>=list_X_intersects95[1] or (x==0 and y==0):
+                # print('ipt', ipt)
+                fgraph95.RemovePoint(ipt)
+            else: ipt+= 1
 
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        CMS_text.SetTextAlign(30)
-        self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        Lumi_text.SetTextAlign(30)
-        self.Lumi_text.Draw('same')
+        fgraph95.SetPoint(0, list_X_intersects95[0], 0) #Add first point at y=0
+        # fgraph95.InsertPointBefore(0, list_X_intersects95[0], 0) #Add first point at y=0
+        fgraph95.InsertPointBefore(1, list_X_intersects95[0], yval_95) #Add second point at y=Y
+        fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], yval_95) #Add first-to-last point at y=Y
+        fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], 0) #Add last point at y=0
+
+        # fgraph95.SetFillColor(18)
+        fgraph95.SetFillColorAlpha(ROOT.kRed+1, 0.55)
+        # fgraph95.SetFillStyle(3004)
+        fgraph95.SetFillStyle(3001)
+        fgraph95.Draw("F same")
+
+        #-- Idem for 68% CL
+        fgraph68 = graph.Clone()
+        ipt = 0
+        while ipt<fgraph68.GetN():
+            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            fgraph68.GetPoint(ipt, x, y)
+            # print(x, y)
+            if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
+                # print('ipt', ipt)
+                fgraph68.RemovePoint(ipt)
+            else: ipt+= 1
+
+        # for ipt in range(fgraph68.GetN()):
+        #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+        #     fgraph68.GetPoint(ipt, x, y)
+        #     print(x, y)
+
+        fgraph68.SetPoint(0, list_X_intersects68[0], 0) #Add first point at y=0
+        fgraph68.InsertPointBefore(1, list_X_intersects68[0], yval_68) #Add second point at y=Y
+        fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], yval_68) #Add first-to-last point at y=Y
+        fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], 0) #Add last point at y=0
+
+        fgraph68.SetFillColor(12)
+        fgraph68.SetFillStyle(3001)
+        fgraph68.Draw("F same")
+
+        for iline in range(len(lines_X_intersects95)):
+            lines_X_intersects95[iline].Draw('same')
+
+        # 1 sigma line
+        line_Y_1sigma = ROOT.TLine(xmin,yval_68,xmax,yval_68)
+        line_Y_1sigma.Draw('same')
+        line_Y_1sigma.SetLineColor(12) #Grey
+        # line_Y_1sigma.SetLineColor(ROOT.kRed+1)
+        line_Y_1sigma.SetLineWidth(3)
+        line_Y_1sigma.SetLineStyle(7)
+
+        # 2 sigma line #NB: for 95% CL (exclusion limits), use 3.84 instead of 4
+        line_Y_2sigmas = ROOT.TLine(xmin,yval_95,xmax,yval_95)
+        line_Y_2sigmas.Draw('same')
+        line_Y_2sigmas.SetLineColor(ROOT.kRed+1)
+        line_Y_2sigmas.SetLineWidth(3)
+        line_Y_2sigmas.SetLineStyle(7)
+
+        leg = ROOT.TLegend(0.45,0.70,0.75,0.87)
+        leg.AddEntry(graph, "Profiled log-likelihood", "L")
+        leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
+        leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
+        leg.Draw("same")
+
+        cmsText = "CMS";
+        latex = ROOT.TLatex()
+        latex.SetNDC();
+        latex.SetTextColor(ROOT.kBlack);
+        latex.SetTextFont(61);
+        latex.SetTextAlign(11);
+        latex.SetTextSize(0.06);
+        latex.DrawLatex(l+0.01, 0.92, cmsText)
+
+        extraText = "Preliminary simulation";
+        latex.SetTextFont(52);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(l+0.12, 0.92, extraText)
+
+        latex.SetTextFont(42);
+        latex.SetTextAlign(31);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
         #Check log option, then save as image
         if log:
             graph.SetMinimum(0.1)
             graph.SetLogz()
-            canvas.Print('{}1DNLL_log.png'.format(wc,'freeze' if frozen else 'float'),'png')
+            c.Print('{}1DNLL_log.png'.format(wc,'freeze' if frozen else 'float'),'png')
         else:
-            canvas.Print('{}1DNLL.png'.format(wc,'freeze' if frozen else 'float'),'png')
+            c.Print('{}1DNLL.png'.format(wc,'freeze' if frozen else 'float'),'png')
 
         rootFile.Close()
+
+  ####  #    #
+ #      ##  ##
+  ####  # ## #
+      # #    #
+ #    # #    #
+  ####  #    #
 
     def LLPlot1DSM(self, name='.SM', param='', log=False):
         if not param:
@@ -1823,6 +2054,7 @@ if __name__ == "__main__":
     if args.m: mode = args.m
 
     plotter = EFTPlot()
+    Load_Canvas_Style()
 
 # SM fit
 # //--------------------------------------------

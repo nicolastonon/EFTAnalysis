@@ -5,6 +5,7 @@ from Utils.ColoredPrintout import colors
 import numpy as np
 import os
 import ROOT
+from ROOT import TH1F
 import sys
 print(colors.fg.lightblue + "Importing libraries..." + colors.reset)
 ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so')
@@ -35,10 +36,13 @@ for key in readfile.GetListOfKeys():
 
     name = key.GetName()
 
-    if 'PrivMC' not in name or 'bin' in name: continue #Get parametrization from 'full' TH1EFT histograms only
+    classname = key.GetClassName()
+    # print(classname)
+
+    # if 'PrivMC' not in name or 'bin' in name or 'countExp' in name: continue #Extract parametrizations from 'full' TH1EFT histograms only (--> per bin !)
+    if classname != "TH1EFT" or 'TH1EFT_' not in name : continue #Extract parametrizations from full, nominal TH1EFT histograms only. Extract per-bin and total parametrizations
 
     if verbose: print('\nkey.GetName()', name)
-
     hist = readfile.Get(name)
 
     #Get categorical information
@@ -59,24 +63,26 @@ for key in readfile.GetListOfKeys():
 
     #-- Extract parameterization
     if 'PrivMC' in process and 'bin' not in full_bin_name: #Get parametrization from 'full' TH1EFT histograms only
-        if verbose: print('process', process)
 
-        # bin_name_tmp = full_bin_name.split('_', 1)[1] #'TH1EFT_NN_SR_2017_xxx' --> 'NN_SR_2017' #split(separator, maxsplit)
+        full_bin_name = full_bin_name.split('_', 1)[1] #'TH1EFT_NN_SR_2017_xxx' --> 'NN_SR_2017' #split(separator, maxsplit)
         # if verbose: print('bin_name_tmp', bin_name_tmp)
 
-        #Loop through bins and extract parameterization
+        #Loop through bins and extract parameterization -- arbitrary naming conventions are enforced and must be consistent with datacard/rootfile
         if verbose: print('hist.GetNbinsX()', hist.GetNbinsX())
-        for ibin in range(1, hist.GetNbinsX()+1):
+        for ibin in range(0, hist.GetNbinsX()+1):
             if verbose: print('ibin', ibin)
-            fit = hist.GetBinFit(ibin)
-            # fit = hist.GetSumFit()
 
-            # bin_name = bin_name_tmp
-            # bin_name = bin_name_tmp + '_{0}'.format(str(ibin))
-            bin_name = 'bin{0}_'.format(str(ibin)) + full_bin_name
+            if ibin==0: #Convention: always extract the total parametrization (for simple counting experiment)
+                fit = hist.GetSumFit()
+                bin_name = 'countExp_'  + full_bin_name #Full histo
+            else: #Extract the per-bin parametrization
+                fit = hist.GetBinFit(ibin)
+                bin_name = 'bin{0}_'.format(str(ibin)) + full_bin_name
+
             if verbose: print('bin_name', bin_name)
 
             names = fit.getNames()
+            if verbose: print('len(names)', len(names))
             if len(names)==0 or fit.getCoefficient(SM_name,SM_name)==0: continue
             elif len(names)!=0 and fit.getCoefficient(SM_name,SM_name)==0:
                 for op1 in operators:
@@ -86,6 +92,7 @@ for key in readfile.GetListOfKeys():
                             print "    "+process,categ
                             print "    "+op1,op2," ",round(fit.getCoefficient(op1,op2), 8)
             elif (process,bin_name) not in fits.keys(): fits[(process,bin_name)]={}
+            if verbose: print('fits[(process,bin_name)]', fits[(process,bin_name)])
 
             #For given bin,
             for op1 in operators:

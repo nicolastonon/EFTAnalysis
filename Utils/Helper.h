@@ -88,6 +88,10 @@
     void Compare_Histograms(TString, TString, TString, TString);
     float Rescale_Input_Variable(float, float, float);
     void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int);
+    void Set_Histogram_FlatZero(TH1F*&, TString="", bool=false);
+    void Get_Mirror_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
+	void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
+    void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 
 //-- Analysis-specific helper functions
     bool Apply_CommandArgs_Choices(int, char **, std::vector<TString>&, TString&);

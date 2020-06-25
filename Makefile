@@ -56,18 +56,18 @@ $(MY_ANALYSIS): Utils/TH1EFT.cxx Utils/CMSSW_TensorFlow.o Utils/TFModel.o Utils/
 	@echo "###################################""#"
 	@echo ""
 
-$(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o
+$(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o $(LIB)
 	@echo "###################################"
 	@echo "-- Creating executable $(ROCS) --"
-	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS)
+	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) -L. $(LIB)
 	@echo "-- Done --"
 	@echo "###################################"
 	@echo ""
 
-$(YIELD):	Utils/Yield_Table.o Utils/Helper.o
+$(YIELD):	Utils/Yield_Table.o Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo "-- Creating executable ./$(YIELD) --"
-	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)
+	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS) -L. $(LIB)
 	@echo "-- Done --"
 	@echo "###################################""#"
 	@echo ""

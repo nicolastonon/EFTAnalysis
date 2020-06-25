@@ -1,5 +1,6 @@
 #Specific validation functions for regressor NN
 
+import ROOT
 import numpy as np
 import seaborn as sns
 import matplotlib
@@ -74,9 +75,14 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
     fig = plt.figure('splot', figsize=(10, 10))
     # timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
     # timer.add_callback(close_event)
-    plt.title('Predicted VS True '+nodename)
-    plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
-    plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
+    if opts["strategy"] in ["ROLR","RASCAL"]:
+        plt.title('Predicted VS True '+nodename)
+        plt.xlabel(r'True '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string
+        plt.ylabel(r'Learned '+nodename+r'(x|$\theta_0,\theta_1$)', fontsize=15) # add 'r' in front <-> interpreted as raw string #color='darkorange'
+    else:
+        plt.title('Predictions VS Truth')
+        plt.xlabel('Truth', fontsize=15)
+        plt.ylabel('Prediction', fontsize=15)
 
     nmax=2000 #Can't see if there are too many points
     splot = sns.scatterplot(x=truth_data[:nmax], y=pred_data[:nmax], hue=class_data[:nmax], style=class_data[:nmax])
@@ -284,3 +290,104 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
     print(colors.fg.lightgrey, "\nSaved pull plot as :", colors.reset, plotname)
 
     return
+
+
+  ####  ##### #    # ###### #####   ####
+ #    #   #   #    # #      #    # #
+ #    #   #   ###### #####  #    #  ####
+ #    #   #   #    # #      #####       #
+ #    #   #   #    # #      #   #  #    #
+  ####    #   #    # ###### #    #  ####
+
+# Adapted from code by Sebastian
+def doEvaluationPlots(yTest, yPredicted, weightTest, weight_dir):
+
+    if not os.path.exists(weight_dir):
+        os.makedirs(weight_dir)
+
+    #-- Truth/pred distributions
+    # f = plt.figure()
+    # values, bins, patches = plt.hist(yTest, bins=30, range=(0,1), label="true", alpha=0.5)
+    # values2, bins2, patches2 = plt.hist(yPredicted, bins=30, range=(0,1), label="reco", alpha=0.5)
+    # plt.legend(loc = "best")
+    # plt.ylabel('Events')
+    # plt.xlabel('Variable')
+    # f.savefig(weight_dir+"distributions_truePred.png")
+
+    #-- Pred VS Truth and (Truth-Pred) VS Truth scatter plots
+    histo = ROOT.TH2F("", "", 500, 0, 1, 1000, -1, 1)
+    histo.SetDirectory(0)
+    histoRecoGen = ROOT.TH2F("", "", 500, 0, 1, 500, 0, 1)
+    histoRecoGen.SetDirectory(0)
+    histoRecoGen2 = ROOT.TH2F("", "", 10, 0, 1, 10, 0, 1)
+    histoRecoGen2.SetDirectory(0)
+    # print (yTest.shape, yPredicted.shape)
+    for true, pred, weight in zip(yTest, yPredicted, weightTest):
+        diff = true-pred
+        histo.Fill(diff, true, weight)
+        histoRecoGen.Fill(pred, true, weight)
+        histoRecoGen2.Fill(pred, true, weight)
+
+    c = ROOT.TCanvas("c1","c1",800,800)
+
+    histo.GetXaxis().SetRangeUser(350,1500)
+    histo.GetYaxis().SetRangeUser(-1200,1200)
+    histo.SetStats(0)
+    histo.Draw("colz")
+    c.SaveAs(weight_dir+"TruthRecoDiff2D.png")
+    c.Clear()
+
+    histoRecoGen.Draw("colz")
+    corrLatex = ROOT.TLatex()
+    corrLatex.SetTextSize(0.65 * corrLatex.GetTextSize())
+    corrLatex.DrawLatexNDC(0.65, 0.85, str(np.round(histoRecoGen.GetCorrelationFactor(),3)))
+    c.SaveAs(weight_dir+"TruthReco2D.png")
+    c.Clear()
+
+    #-- Proportion of events per 2D truth/pred bin
+    histoRecoGen2.Scale(1./histoRecoGen2.Integral())
+    histoRecoGen2.Scale(100.)
+    ROOT.gStyle.SetPaintTextFormat("1.2f");
+    histoRecoGen2.SetStats(0)
+    histoRecoGen2.SetMarkerSize(1)
+    histoRecoGen2.Draw("colz text")
+    c.SaveAs(weight_dir+"Response.png")
+    c.Clear()
+
+    # style.style1d()
+    # s = style.style1d()
+    c=ROOT.TCanvas()
+    Xnb=20
+    Xr1=0.
+    Xr2=1.
+    dXbin=(Xr2-Xr1)/((Xnb));
+    titleRMSVsGen_ptTop_full ="; Truth;RMS"
+    titleMeanVsGen_ptTop_full ="; Truth;Mean"
+    h_RMSVsGen_=ROOT.TH1F()
+    h_RMSVsGen_.SetDirectory(0)
+    h_RMSVsGen_.SetBins(Xnb,Xr1,Xr2)
+    h_RMSVsGen_.SetTitleOffset(2.0)
+    h_RMSVsGen_.GetXaxis().SetTitleOffset(1.20)
+    h_RMSVsGen_.GetYaxis().SetTitleOffset(1.30)
+    h_RMSVsGen_.SetTitle(titleRMSVsGen_ptTop_full);
+    h_RMSVsGen_.SetStats(0)
+    h_meanVsGen_=ROOT.TH1F()
+    h_meanVsGen_.SetDirectory(0)
+    h_meanVsGen_.SetBins(Xnb,Xr1,Xr2)
+    h_meanVsGen_.SetTitleOffset(2.0)
+    h_meanVsGen_.GetXaxis().SetTitleOffset(1.20)
+    h_meanVsGen_.GetYaxis().SetTitleOffset(1.30)
+    h_meanVsGen_.SetTitle(titleMeanVsGen_ptTop_full)
+    h_meanVsGen_.SetStats(0)
+    for i in range(Xnb):
+        h_RMSVsGen_.SetBinContent(i+1,(histo.ProjectionY("_py",histo.GetXaxis().FindFixBin(Xr1+i*dXbin) ,histo.GetXaxis().FindFixBin(Xr1+(i+1)*dXbin),"")).GetRMS());
+        h_RMSVsGen_.SetBinError(i+1,(histo.ProjectionY("_py",histo.GetXaxis().FindFixBin(Xr1+i*dXbin) ,histo.GetXaxis().FindFixBin(Xr1+(i+1)*dXbin),"")).GetRMSError());
+        h_meanVsGen_.SetBinContent(i+1,(histo.ProjectionY("_py",histo.GetXaxis().FindFixBin(Xr1+i*dXbin) ,histo.GetXaxis().FindFixBin(Xr1+(i+1)*dXbin),"")).GetMean());
+        h_meanVsGen_.SetBinError(i+1,(histo.ProjectionY("_py",histo.GetXaxis().FindFixBin(Xr1+i*dXbin) ,histo.GetXaxis().FindFixBin(Xr1+(i+1)*dXbin),"")).GetMeanError());
+    h_RMSVsGen_.SetStats(0)
+    h_RMSVsGen_.Draw()
+    c.SaveAs(weight_dir+"rms.png")
+    c.Clear()
+    h_meanVsGen_.SetStats(0)
+    h_meanVsGen_.Draw()
+    c.SaveAs(weight_dir+"mean.png")

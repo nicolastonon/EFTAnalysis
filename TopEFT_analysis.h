@@ -82,7 +82,7 @@ class TopEFT_analysis
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
-    void Merge_Templates_ByProcess(TString, TString, vector<TString>, bool=false);
+    void Merge_Templates_ByProcess(TString, TString, vector<TString>, bool=true);
 
     void Test_SumLR_Scan(TFModel*, vector<float>&);
 

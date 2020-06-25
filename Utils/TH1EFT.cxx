@@ -27,11 +27,11 @@ void TH1EFT::SetBins(Int_t nx, Double_t xmin, Double_t xmax)
 
     hist_fits.clear();
     WCFit new_fit;
-    for (Int_t i = 0; i < nx; i++) {
-        this->hist_fits.push_back(new_fit);
-    }
+    for (Int_t i = 0; i < nx; i++) {this->hist_fits.push_back(new_fit);}
 
     TH1::SetBins(nx, xmin, xmax);
+
+    return;
 }
 
 Bool_t TH1EFT::Add(const TH1 *h1, Double_t c1)
@@ -118,18 +118,10 @@ WCFit TH1EFT::GetSumFit()
 // Returns a bin scaled by the the corresponding fit evaluated at a particular WC point
 Double_t TH1EFT::GetBinContent(Int_t bin, WCPoint wc_pt)
 {
-    if (this->GetBinFit(bin).getDim() <= 0) {
-        // We don't have a fit for this bin, return regular bin contents
-        return GetBinContent(bin);
-    }
+    if(GetBinContent(bin) == 0) {return 0.;}
+    if(this->GetBinFit(bin).getDim() <= 0) {return GetBinContent(bin);} // We don't have a fit for this bin, return regular bin contents
 
-    double scale_value = this->GetBinFit(bin).evalPoint(&wc_pt);
-    Double_t num_events = GetBinContent(bin);
-    if (num_events == 0) {
-        return 0.0;
-    }
-
-    return scale_value;
+    return this->GetBinFit(bin).evalPoint(&wc_pt);
 }
 
 //NB : only name of WCPoint matters (not its weight)
@@ -176,7 +168,6 @@ void TH1EFT::DumpFits()
     }
 }
 
-//CHANGED -- also check that the name of the input WCPoint does not include any operator not included in the parameterization ! (If there are such operators, they would be simply ignored otherwise, which is dangerous)
 bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
 {
     WCFit sumfit = this->GetSumFit();
@@ -199,5 +190,10 @@ bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
     return true;
 }
 
+//Set the WCFit object associated with the given bin
+void TH1EFT::Set_WCFit_Bin(int ibin, WCFit fit)
+{
+    this->hist_fits.at(ibin-1) = fit; //Bins start at 1; hist_fits indices start at 0
 
-// */
+    return;
+}

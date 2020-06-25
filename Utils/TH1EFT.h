@@ -1,5 +1,9 @@
 // https://root.cern.ch/root/html534/guides/users-guide/AddingaClass.html
 
+//TODO:
+//- Ways to deal with under/overflow ?
+
+
 #ifndef TH1EFT_H_
 #define TH1EFT_H_
 
@@ -15,7 +19,7 @@ class TH1EFT : public TH1D
 {
     public:
 
-        // ROOT needs these:
+        // ROOT needs these
         TH1EFT();
         ~TH1EFT();
 
@@ -23,7 +27,6 @@ class TH1EFT : public TH1D
         TH1EFT(const char *name, const char *title, Int_t nbinsx, Double_t xlow, Double_t xup);
 
         std::vector<WCFit> hist_fits;
-        //TODO(maybe?): Add over/underflow bin fit functions and update Fill to use them accordingly
         WCFit overflow_fit;
         WCFit underflow_fit;
 
@@ -35,7 +38,6 @@ class TH1EFT : public TH1D
         WCFit GetBinFit(Int_t bin);
         WCFit GetSumFit();
         Double_t GetBinContent(Int_t bin, WCPoint wc_pt);
-        //TH1EFT* Scale(WCPoint wc_pt);
         void Scale(WCPoint wc_pt);
         void ScaleFits(double amt);
         void DumpFits();
@@ -44,6 +46,7 @@ class TH1EFT : public TH1D
         void SetBins (Int_t nx, Double_t xmin, Double_t xmax);  // overriding virtual function from TH1
         Bool_t Add(const TH1 *h1, Double_t c1=1); // overriding virtual function from TH1
         Long64_t Merge(TCollection* list);
+        void Set_WCFit_Bin(int, WCFit);
 
         ClassDef(TH1EFT,1) // Needed to include custom class within ROOT
 };

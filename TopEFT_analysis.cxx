@@ -8,10 +8,10 @@
 
 // Draw_Templates
 
-// Compare_TemplateShapes_Processes()
+// Compare_TemplateShapes_Processes
 
-// SetBranchAddress_SystVariationArray()
-// Merge_Templates_ByProcess()
+// Merge_Templates_ByProcess
+// SetBranchAddress_SystVariationArray
 //--------------------------------------------
 
 #include "TopEFT_analysis.h"
@@ -1439,7 +1439,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     					{
     						TString output_histo_name;
 
-							output_histo_name = total_var_list[ivar];
+                            output_histo_name = total_var_list[ivar];
                             if(cat_tmp != "") {output_histo_name+= "_" + cat_tmp;}
 							if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
                             output_histo_name+= "_" + v_lumiYears[iyear];
@@ -1449,16 +1449,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     						file_output->cd();
 
-                            if(isPrivMC) //Private SMEFT samples
+                            if(isPrivMC && syst_list[isyst]=="") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc.
                             {
-                                // output_histo_name = "TH1EFT_"+ output_histo_name;
-                                v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+                                if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
 
-                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
-                                {
-                                    StoreEachHistoBinIndividually(file_output, (TH1F*) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);
-                                }
+                                v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write("TH1EFT_"+output_histo_name); //Store with specific prefix
 
                                 bool debug = false;
                                 if(debug) //Printout WC values and extrapolated integrals for each benchmark point
@@ -1478,16 +1473,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     cout<<endl<<endl<<endl;
                                 }
                             }
-                            else //Central samples
-                            {
-                                v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
-                                // cout<<"Wrote histo : "<<output_histo_name<<endl;
 
-                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
-                                {
-                                    StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);
-                                }
+                            if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+
+                            v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+                            // cout<<"Wrote histo : "<<output_histo_name<<endl;
+
+                            //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                            if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                            {
+                                StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);
                             }
 
     						delete v3_histo_chan_syst_var[ichan][isyst][ivar]; v3_histo_chan_syst_var[ichan][isyst][ivar] = NULL;
@@ -1557,7 +1552,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     if(!makeHisto_inputVars) //For COMBINE fit, want to directly merge contributions from different processes into single histograms
     {
-        Merge_Templates_ByProcess(output_file_name, template_name, total_var_list);
+        Merge_Templates_ByProcess(output_file_name, template_name, total_var_list, true);
     }
 
 //TEST TMP
@@ -2286,20 +2281,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             {
                 TH1EFT* th1eft_tmp = 0;
 
-                // TString histo_name = "TH1EFT_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "__" + sample_list[isample];
-                // if(!file_input->GetListOfKeys()->Contains(histo_name) )
-                // {
-                //     cout<<DIM("TH1EFT object '"<<histo_name<<"' : not found !")<<endl;
-                //     histo_name = "TH1EFT_" + total_var_list[ivar] + "_2017__" + sample_list[isample];
-                // }
-
-                // TString histo_name = "TH1EFT_" + total_var_list[ivar];
-                TString histo_name = total_var_list[ivar];
+                TString histo_name = "TH1EFT_" + total_var_list[ivar];
                 if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
                 if(channel != "") {histo_name+= "_" + channel;}
                 histo_name+= + "_2017__" + v_EFT_samples[isample];
-
                 // cout<<"TH1EFT_"<<histo_name<<endl;
+
                 if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
                 th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
@@ -3505,7 +3492,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
  * ===> In addition to individual histos, also merge the relevant subprocesses together and store the merged histos
  * NB : here the order of loops is important because we sum histograms recursively, and the 'sample_list' loop must be the most nested one !
  */
-void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString template_name, vector<TString> total_var_list, bool force_normTemplate_positive/*=false*/)
+void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString template_name, vector<TString> total_var_list, bool force_normTemplate_positive/*=true*/)
 {
 	cout<<FYEL("==> Merging some templates in file : ")<<filename<<endl;
 
@@ -3535,9 +3522,10 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
         				TH1F* h_merging = 0; //Merged histogram
 
                         //-- For some NN strategies, need to store all histogram bins separately
-                        int n_singleBins = 0; //Default: will only merge entire histograms //Gets updated below
-                        for(int ibin=0; ibin<n_singleBins+2; ibin++) //Convention (depending on NN_strategy): bin=0 <-> merge full histogram; bin=N+1 <-> merge histo stored as single bin (counting exp.)
+                        int n_singleBins = 0; //Default: will only merge: a) entire histograms, b) histograms stored as single bin //Gets updated below depending on strategy
+                        for(int ibin=-1; ibin<n_singleBins+1; ibin++) //Convention (depending on NN_strategy): bin=-1 <-> merge full histogram; bin=0 <-> merge histo stored as single bin (counting exp.)
                         {
+                            // cout<<"ibin "<<ibin<<" ("<<"n_singleBins "<<n_singleBins<<")"<<endl;
             				for(int isample=0; isample<sample_list.size(); isample++)
             				{
             					//-- Protections : not all syst weights apply to all samples, etc.
@@ -3558,9 +3546,9 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
             					TString samplename = sample_list[isample];
             					if(samplename == "DATA") {samplename = "data_obs";}
 
-                                TString histoname = "";
-                                if(n_singleBins > 0 && ibin>0 && ibin<=n_singleBins) {histoname+= (TString) "bin"+Form("%d",ibin)+"_";}
-                                else if(n_singleBins > 0 && ibin==n_singleBins+1) {histoname+= "countExp_";}
+                                TString histoname = ""; //Default: merge full histograms
+                                if(ibin==0) {histoname+= "countExp_";} //Merge full histos stored as single bins (counting exp.)
+                                else if(n_singleBins > 0 && ibin>0) {histoname+= (TString) "bin"+Form("%d",ibin)+"_";} //Merge bin per bin
                                 histoname+= total_var_list[ivar];
                                 if(cat_tmp != "") {histoname+= "_" + cat_tmp;}
             					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
@@ -3581,7 +3569,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 
                                 if(this->NN_strategy == "MVA_EFT") //Special cases: will also merge single-bin histos
                                 {
-                                    if(n_singleBins==0) //Only read the binning from full histograms
+                                    if(n_singleBins==0 && ibin==-1) //Only read the binning from full histograms
                                     {
                                         n_singleBins = h_tmp->GetNbinsX(); //Update the limit for the for-loop *within the loop* (--> first read full histo to infer the correct binning)
                                     }
@@ -3606,28 +3594,28 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
             					if(isample < sample_list.size()-1 && sample_groups[isample+1] == sample_groups[isample]) {continue;}
             					else
             					{
-            						// if(force_normTemplate_positive)
-            						// {
-            						// 	//If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
-            						// 	if(h_merging->Integral() <= 0)
-            						// 	{
-            						// 		// cout<<endl<<"While merging processes by groups ('Rares'/...) :"<<endl<<FRED(" h_merging->Integral() = "<<h_merging->Integral()<<" (<= 0) ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
-            						// 		Set_Histogram_FlatZero(h_merging, true, "h_merging");
-            						// 		cout<<"(Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<")"<<endl;
-            						// 	}
-            						// }
-            						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
-
                                     TString histoname_new = "";
-                                    if(n_singleBins > 0 && ibin>0 && ibin<=n_singleBins) {histoname_new+= (TString) "bin"+Form("%d",ibin)+"_";}
-                                    else if(n_singleBins > 0 && ibin==n_singleBins+1) {histoname_new+= "countExp_";}
+                                    if(ibin==0) {histoname_new+= "countExp_";} //Merge full histos stored as single bins (counting exp.)
+                                    else if(n_singleBins > 0 && ibin>0) {histoname_new+= (TString) "bin"+Form("%d",ibin)+"_";} //Merge bin per bin
                                     histoname_new+= total_var_list[ivar];
                                     if(cat_tmp != "") {histoname_new+= "_" + cat_tmp;}
-            						if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
+                                    if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
                                     histoname_new+= "_" + v_lumiYears[iyear];
-            						histoname_new+= "__" + sample_groups[isample];
-            						if(syst_list[isyst] != "") {histoname_new+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
-            						else if(systTree_list[itree] != "") {histoname_new+= "__" + systTree_list[itree];}
+                                    histoname_new+= "__" + sample_groups[isample];
+                                    if(syst_list[isyst] != "") {histoname_new+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
+                                    else if(systTree_list[itree] != "") {histoname_new+= "__" + systTree_list[itree];}
+
+            						if(force_normTemplate_positive)
+            						{
+            							//If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+            							if(h_merging->Integral() <= 0)
+            							{
+            								// cout<<endl<<"While merging processes by groups ('Rares'/...) :"<<endl<<FRED(" h_merging->Integral() = "<<h_merging->Integral()<<" (<= 0) ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
+            								Set_Histogram_FlatZero(h_merging, histoname_new, false);
+            								cout<<"(Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<")"<<endl;
+            							}
+            						}
+            						// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
             						f->cd();
             						h_merging->Write(histoname_new, TObject::kOverwrite);
@@ -3647,7 +3635,8 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString templa
 
 	f->Close();
 
-	cout<<endl<<FYEL("... Done")<<endl<<endl<<endl;
+    cout<<endl<<FYEL("Updated file: " )<<filename<<endl<<endl<<endl;
+    cout<<endl<<FYEL("... Done")<<endl<<endl<<endl;
 
 	return;
 }

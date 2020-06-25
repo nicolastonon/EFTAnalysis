@@ -634,6 +634,102 @@ void Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, co
     return;
 }
 
+/**
+ * Set histo to a flat distribution close to zero
+ * This is used e.g. to avoid having any histo with norm <= 0, to avoid combine crashes
+ */
+void Set_Histogram_FlatZero(TH1F*& h, TString name/*=""*/, bool printout/*=false*/)
+{
+	if(printout)
+	{
+		cout<<endl<<FRED("Histo "<<name<<" has integral = "<<h->Integral()<<" <= 0 ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
+	}
+
+	for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
+	{
+		h->SetBinContent(ibin, pow(10, -9));
+
+		if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, 0.1);}
+	}
+
+	return;
+}
+
+//Get mirror histo (rescaled to nominal if necessary)
+//As done by Benjamin/ttH : https://github.com/stiegerb/cmgtools-lite/blob/80X_M17_tHqJan30_bbcombination/TTHAnalysis/python/plotter/makeShapeCardsTHQ.py#L609-L633
+//Directly modify the histos passed in args
+void Get_Mirror_Histogram(TH1F*& hcentral, TH1F*& hvariation, TH1F*& hmirror, bool is_ShapeOnly)
+{
+	hmirror = 0; //empty at beginning
+	hmirror = (TH1F*) hcentral->Clone(); //Get binning, etc.
+
+	//Rescale variation to nominal (shape-only)
+    if(is_ShapeOnly) {hvariation->Scale(hcentral->Integral() / hvariation->Integral());}
+
+	for(int ibin=1; ibin<=hcentral->GetNbinsX(); ibin++)
+	{
+		double yA = hvariation->GetBinContent(ibin); //'up = alternate'
+		double y0 = hcentral->GetBinContent(ibin); //'central'
+		double yM = y0; //'down = mirror'
+
+		if(y0 > 0 && yA > 0) {yM = y0 * y0/yA;}
+		else if(yA == 0) {yM = 2*y0;}
+
+		hmirror->SetBinContent(ibin, yM);
+	}
+
+    if(is_ShapeOnly) {hmirror->Scale(hcentral->Integral() / hmirror->Integral());} //Rescale mirror to nominal (shape-only)
+	else //Mirror normalization, cf github
+	{
+    	double mirror_norm = pow(hcentral->Integral(), 2) / hvariation->Integral();
+		hmirror->Scale(mirror_norm / hvariation->Integral());
+	}
+
+	return;
+}
+
+//Get mirror histo, as done by ttH2017 :  https://github.com/CERN-PH-CMG/cmgtools-lite/blob/759bdc4213c50db48cb695ae498f7a97794a1410/TTHAnalysis/python/plotter/uncertaintyFile.py#L106
+//Directly modify the hdown histo
+void Get_TemplateSymm_Histogram(TH1F*& hcentral, TH1F*& hvariation, TH1F*& hmirror, bool is_ShapeOnly)
+{
+	hmirror = 0; //empty at beginning
+	hmirror = (TH1F*) hcentral->Clone();
+
+    if(hcentral->Integral() <= 0 || hvariation->Integral() <= 0) {return;}
+
+	//Protection -- check if I artificially set the bin to a float ~null distribution
+	//If that is the case, just do mirror = central
+	if(hcentral->Integral() == hcentral->GetNbinsX() * hcentral->GetBinContent(1) || hvariation->Integral() == hvariation->GetNbinsX() * hvariation->GetBinContent(1))
+	{
+		return;
+	}
+
+	hmirror->Multiply(hmirror);
+	hmirror->Divide(hvariation);
+
+	// cout<<"hmirror->Integral() "<<hmirror->Integral()<<endl;
+
+	return;
+}
+
+/**
+ * In FCNC analysis, we want to reuse the closure shape systematics from ttH, even though they were derived in different regions
+ * Thus we want to inflate these systematics by 20%. Can be done in datacard parser for norm syst. For shape syst, check the different (syst - nominal) in each bin, and inflate by 20%
+ */
+void Inflate_Syst_inShapeTemplate(TH1F*& h_toInflate, TH1F* h_nominal, float inflation_factor)
+{
+	if(!h_toInflate || !h_nominal || !h_toInflate->GetEntries() || !h_nominal->GetEntries()) {cout<<"Error in Inflate_Syst_inShapeTemplate() !"<<endl; return;}
+
+	for(int ibin=1; ibin<h_toInflate->GetNbinsX()+1; ibin++)
+	{
+		//syst - nominal
+		float diff_bin = h_toInflate->GetBinContent(ibin) - h_nominal->GetBinContent(ibin);
+
+		h_toInflate->SetBinContent(ibin, h_toInflate->GetBinContent(ibin) + inflation_factor * diff_bin); //+- X%, depending on direction of variation
+	}
+
+	return;
+}
 
 //--------------------------------------------
 //    ###    ##    ##    ###    ##       ##    ##  ######  ####  ######
@@ -1157,8 +1253,10 @@ void StoreEachHistoBinIndividually(TFile* f, TH1F* h, TString outname)
             outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
         }
 
+        if(h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+
         h_tmp->Write(outname_tmp);
-        // cout<<"Wrote histo : "<<output_histo_name<<endl;
+        // cout<<"Wrote histo : "<<outname_tmp<<endl;
 
         delete h_tmp; h_tmp = NULL;
     }
