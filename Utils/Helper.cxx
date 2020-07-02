@@ -1263,3 +1263,40 @@ void StoreEachHistoBinIndividually(TFile* f, TH1F* h, TString outname)
 
     return;
 }
+
+//Get the arbitrary x-axis value corresponding to the jet and bjet multiplicities of the event
+//Logic: check if njets<=min, >=max, or ==x for any other multiplicity in-between to determine event bin
+float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_max, int njets_min, int njets_max)
+{
+    // int nbjets_min = 1, nbjets_max = 2;
+    // int njets_min = 2, njets_max = 6;
+
+    int bin = 0; //will return bin x-axis value, assuming fix width of 1
+
+    bool stop_loop = false;
+
+    {
+        for(int ibjet=nbjets_min; ibjet<=nbjets_max; ibjet++) //Loop on possible nbjets values
+        {
+            if(stop_loop) {break;} //Bin found
+
+            for(int ijet=njets_min; ijet<=njets_max; ijet++) //Loop on possible njets values
+            {
+                if(nbjets==ibjet || (nbjets<=nbjets_min && ibjet==nbjets_min) || (nbjets>=nbjets_max && ibjet==nbjets_max)) //nbjets categ found
+                {
+                    if(njets==ijet || (njets<=njets_min && ijet==njets_min) || (njets>=njets_max && ijet==njets_max)) //njets categ found
+                    {
+                        stop_loop = true; break; //Bin found
+                    }
+                }
+
+                bin++; //Bin not found, increment
+            }
+        }
+    }
+    if(!stop_loop) {cout<<BOLD(FRED("Warning: jet category not found ! Return -1"))<<endl; return -1.;} //Category not found
+
+    // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<bin + 0.5<<endl;
+
+    return bin + 0.5; //Assume bin width of 1. --> add event in center of bin
+}

@@ -833,13 +833,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     bool use_specificMVA_eachYear = false;
 //--------------------------------------------
 
+    if(template_name == "" && classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value not supported !"))<<endl; return;}
+    if(template_name=="") {template_name = classifier_name;}
+
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 	if(makeHisto_inputVars) {cout<<FYEL("--- Producing Input variables histograms ---")<<endl;}
-	else if(template_name == "") {cout<<FYEL("--- Producing "<<template_name<<" Templates ---")<<endl;}
-	else {cout<<BOLD(FRED("--- ERROR : invalid arguments ! Exit !"))<<endl; cout<<"Valid template names are : ttbar / ttV / 2D / 2Dlin !"<<endl; return;}
+	else {cout<<FYEL("--- Producing ["<<template_name<<"] Templates ---")<<endl;}
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
-
-	if(classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value not supported !"))<<endl; return;}
 
     TString restore_classifier_name = classifier_name;
 	if(makeHisto_inputVars) {classifier_name = "";} //For naming conventions
@@ -883,7 +883,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	//-- For BDT templates
     // TString cat_tmp = (region=="") ? "allEvents" : region+"Cat";
     TString cat_tmp = (region=="") ? "SR" : region+"Cat";
-	TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
+    // TString output_file_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
+    TString output_file_name = "outputs/Templates_" + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 
 	//-- For input vars
 	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix +".root";}
@@ -938,10 +939,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	TFile* file_input;
 	TTree* tree(0);
 
+    //Define ranges of jet/bjets multiplciities -- for 'categ' templates only
+    int nbjets_min=1, nbjets_max=2, njets_min=2, njets_max=6;
+
 	//Template binning
-	double xmin = -1, xmax = 1; //BDT: [-1,1]
-    if(classifier_name == "NN") {xmin = 0;} //NN: [0,1]
     nbins = 10;
+	double xmin = -1, xmax = 1; //BDT: [-1,1]
+    if(template_name == "NN") {xmin = 0;} //NN: [0,1]
+    else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
 
 	//Want to plot ALL selected variables
 	vector<TString> total_var_list;
@@ -958,14 +963,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	}
 	else
 	{
-        if(classifier_name == "BDT" || nNodes == 1) {total_var_list.push_back(classifier_name);}
-		else
+        if(template_name=="NN") //May consider multi-nodes
         {
             for(int inode=0; inode<nNodes; inode++) //Multiclass --> Different label for each output node
             {
                 total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
             }
         }
+		else {total_var_list.push_back(template_name);}
 	}
     vector<float> total_var_floats(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
 
@@ -1105,6 +1110,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			tree->SetBranchStatus("*", 0); //disable all branches by default, speed up
     			// tree->SetBranchStatus("xxx", 1);
 
+                float njets, nbjets; //Needed for 'categ' templates
     			if(makeHisto_inputVars)
     			{
     				for(int i=0; i<total_var_list.size(); i++)
@@ -1115,11 +1121,21 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			}
     			else //Book input variables in same order as for MVA training
     			{
-                    for(int i=0; i<var_list.size(); i++)
+                    if(template_name=="BDT" || template_name=="NN") //Activate input features needed for MVA evaluation (same as used for training)
                     {
-                        if(!isample) {cout<<DIM("Activate var '"<<var_list[i]<<"'")<<endl;}
-                        tree->SetBranchStatus(var_list[i], 1);
-                        tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
+                        for(int i=0; i<var_list.size(); i++)
+                        {
+                            if(!isample) {cout<<DIM("Activate var '"<<var_list[i]<<"'")<<endl;}
+                            tree->SetBranchStatus(var_list[i], 1);
+                            tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
+                        }
+                    }
+                    else if(template_name=="categ") //Need to read jet/bjet multiplicities of each event
+                    {
+                        tree->SetBranchStatus("njets", 1);
+                        tree->SetBranchAddress("njets", &njets);
+                        tree->SetBranchStatus("nbjets", 1);
+                        tree->SetBranchAddress("nbjets", &nbjets);
                     }
     			}
 
@@ -1306,10 +1322,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				//Get MVA value to make template
                     if(!makeHisto_inputVars)
                     {
-                        if(classifier_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(MVA_method_name);}
+                        if(template_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(MVA_method_name);} //BDT output value
 
                         //NB -- slow evaluation ! ==> Don't rescale inputs, add lambda layer in model to rescale inputs !
-                        else //NN
+                        else if(template_name == "NN") //NN output value
                         {
                             //FIXME -- WC values are set to 0 !
                             //Evaluate output nodes values
@@ -1324,25 +1340,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 Test_SumLR_Scan(clfy1, var_list_floats);
                             }
                         }
+                        else if(template_name == "categ") //Arbitrary binning depending on jets/bjets multiplicities
+                        {
+                            total_var_floats[0] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
+                            // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<total_var_floats[0]<<endl;
+                        }
+                        else {cout<<BOLD(FRED("ERROR: wrong template_name value !"))<<endl; return;}
                     }
-                    // else
-                    // {
-                    //     for(int ivar=0; ivar<total_var_list.size(); ivar++)
-                    //     {
-                    //         //-- Rescale input variables here, to plot them and make sure they are properly rescaled
-                    //         // cout<<"//--------------------------------------------"<<endl;
-                    //         // cout<<"sample_list["<<isample<<"] "<<sample_list[isample]<<endl;
-                    //         // cout<<"total_var_list["<<ivar<<"] "<<total_var_list[ivar]<<endl;
-                    //         // cout<<"total_var_floats["<<ivar<<"] "<<total_var_floats[ivar]<<endl;
-                    //         // cout<<"v_inputs_rescaling["<<ivar<<"].first "<<v_inputs_rescaling[ivar].first<<endl;
-                    //         // cout<<"v_inputs_rescaling["<<ivar<<"].second "<<v_inputs_rescaling[ivar].second<<endl;
-                    //         // total_var_floats[ivar] = Rescale_Input_Variable(total_var_floats[ivar], v_inputs_rescaling[ivar].first, v_inputs_rescaling[ivar].second);
-                    //         // cout<<"===> total_var_floats["<<ivar<<"] "<<total_var_floats[ivar]<<endl;
-                    //
-                    //         //Some special variables are already read, must get their proper values
-                    //         // if(total_var_list[ivar] == "channel") {total_var_floats[ivar] = channel;}
-                    //     }
-                    // }
 
                     double weight_tmp = eventWeight*eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
                     float w_SMpoint = 0;
@@ -1395,6 +1399,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 if(isPrivMC)
                                 {
                                     float w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+
+                                    if(sample_list[isample] == "PrivMC_ttZ_training") {w_SMpoint*= 0.361;} //FIXME -- hardcoded scale-factor for ttZ SMEFT sample
 
                                     Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint);
                                     Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);
@@ -1552,7 +1558,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     if(!makeHisto_inputVars) //For COMBINE fit, want to directly merge contributions from different processes into single histograms
     {
-        Merge_Templates_ByProcess(output_file_name, template_name, total_var_list, true);
+        Merge_Templates_ByProcess(output_file_name, total_var_list, template_name, true);
     }
 
 //TEST TMP
@@ -1622,10 +1628,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 //--------------------------------------------
 
+    if(template_name == "" && classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value not supported !"))<<endl; return;}
+    if(template_name=="") {template_name = classifier_name;}
+
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 	if(drawInputVars) {cout<<FYEL("--- Producing Input Variables Plots / channel : "<<channel<<" ---")<<endl;}
-	else if(template_name == "") {cout<<FYEL("--- Producing "<<classifier_name<<" Template Plots ---")<<endl;}
-	else {cout<<FRED("--- ERROR : invalid args !")<<endl;}
+    else {cout<<FYEL("--- Producing "<<classifier_name<<" Template Plots ---")<<endl;}
+    // else {cout<<FRED("--- ERROR : invalid args !")<<endl;}
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 
 	if(drawInputVars)
@@ -1633,7 +1642,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		classifier_name = ""; //For naming conventions
 		use_combine_file = false;
 		if(drawInputVars && !prefit) {cout<<"Error ! Can not draw postfit input vars yet !"<<endl; return;}
-		if(template_name == "categ" && !prefit) {cout<<"Can not plot yields per subcategory using the Combine output file ! Will plot [PREFIT] instead of [POSTFIT] !"<<endl; prefit = true;}
+		// if(template_name == "categ" && !prefit) {cout<<"Can not plot yields per subcategory using the Combine output file ! Will plot [PREFIT] instead of [POSTFIT] !"<<endl; prefit = true;}
 	}
 
 //  ####  ###### ##### #    # #####
@@ -1706,7 +1715,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";}
 		else //Templates
 		{
-			input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
+            input_name = "outputs/Templates_" + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
 		}
 
         cout<<DIM("Trying file "<<input_name<<"...")<<endl;
@@ -1715,7 +1724,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_Run2" + filename_suffix + ".root";}
             else //Templates
             {
-                input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
+                input_name = "outputs/Templates_" + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
             }
 
             cout<<DIM("Trying file "<<input_name<<"...")<<endl;
@@ -1824,7 +1833,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     			TString dir_hist = "";
     			if(prefit) {dir_hist = "shapes_prefit/";}
     			else {dir_hist = "shapes_fit_s/";}
-    			dir_hist+= classifier_name + template_name;
+                dir_hist+= template_name;
+                // dir_hist+= classifier_name + template_name;
                 if(cat_tmp != "") {dir_hist+= "_" + cat_tmp;}
     			if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan];} //for combine file
                 dir_hist+= "_" + v_lumiYears[iyear] + "/";
@@ -2647,16 +2657,17 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
 			if(template_name == "categ") //Vertical text X labels (categories names)
 			{
-				histo_ratio_data->GetXaxis()->SetTitle("Categ.");
-				histo_ratio_data->GetXaxis()->SetLabelSize(0.08);
-				histo_ratio_data->GetXaxis()->SetLabelOffset(0.02);
+                //Hard-coded -- should automate labels
+                {
+                    const char *labels[10]  = {"1bj,2j","1bj,3j","1bj,4j","1bj,5j","1bj,6j","2bj,2j","2bj,3j","2bj,4j","2bj,5j","2bj,6j"};
+                    for(int i=1;i<=10;i++) {histo_ratio_data->GetXaxis()->SetBinLabel(i,labels[i-1]);}
+                }
 
-				// int nx = 2;
-				// if(nLep_cat == "2l")
-				// {
-				// 	const char *labels[5]  = {"ee", "e#mu bl", "e#mu bt", "#mu#mu bl", "#mu#mu bt"};
-				// 	for(int i=1;i<=5;i++) {histo_ratio_data->GetXaxis()->SetBinLabel(i,labels[i-1]);}
-				// }
+                histo_ratio_data->GetXaxis()->SetTitle("");
+                // histo_ratio_data->GetXaxis()->SetTitle("Categ.");
+				histo_ratio_data->GetXaxis()->SetLabelSize(0.06);
+				histo_ratio_data->GetXaxis()->SetLabelOffset(0.02);
+                histo_ratio_data->LabelsOption("v", "X"); //X labels vertical
 			}
 		}
 
@@ -3492,7 +3503,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
  * ===> In addition to individual histos, also merge the relevant subprocesses together and store the merged histos
  * NB : here the order of loops is important because we sum histograms recursively, and the 'sample_list' loop must be the most nested one !
  */
-void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, TString template_name, vector<TString> total_var_list, bool force_normTemplate_positive/*=true*/)
+void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString> total_var_list, TString template_name, bool force_normTemplate_positive)
 {
 	cout<<FYEL("==> Merging some templates in file : ")<<filename<<endl;
 

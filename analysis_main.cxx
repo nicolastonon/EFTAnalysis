@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 //---------------------------------------------------------------------------
 //  #######  ########  ######## ####  #######  ##    ##  ######
 // ##     ## ##     ##    ##     ##  ##     ## ###   ## ##    ##
-// ##     ## ##     ##    ##     ##  ##     ## ####  ## ##
+// ##     ## ##     ##    ##      ##     ## ####  ## ##
 // ##     ## ########     ##     ##  ##     ## ## ## ##  ######
 // ##     ## ##           ##     ##  ##     ## ##  ####       ##
 // ##     ## ##           ##     ##  ##     ## ##   ### ##    ##
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 
     //--- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "";
+    TString template_name = "categ";
     bool show_pulls_ratio = false;
 
     //-- Other options

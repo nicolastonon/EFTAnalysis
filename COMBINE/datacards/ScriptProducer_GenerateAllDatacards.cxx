@@ -153,6 +153,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     			{
                     for(int ibin=1; ibin<nbins+1; ibin++)
                     {
+                        if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
+
                         TString var_tmp = var;
                         if(mode_histoBins==1 && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                         else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
@@ -196,6 +198,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     			{
                     for(int ibin=1; ibin<nbins+1; ibin++)
                     {
+                        if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
+
                         TString var_tmp = var;
                         if(mode_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                         else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
@@ -357,12 +361,11 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
 
 int main()
 {
-//Can set options here (can be modified at command line)
+// Can set options here
 //--------------------------------------------
-    TString lumiName = "Run2"; //'2016','2017','2018','201617','201618','201718','Run2'
-
     vector<TString> v_templates; //'NN', 'BDT', ...
-    v_templates.push_back("NN");
+    v_templates.push_back("categ");
+    // v_templates.push_back("NN");
     // v_templates.push_back("NN0");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
@@ -373,7 +376,11 @@ int main()
     // v_channel.push_back("eee");
 
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
-	v_regions.push_back("SR");
+    v_regions.push_back("SR");
+
+// Modified at command-line
+//--------------------------------------------
+    TString lumiName = "Run2"; //'2016','2017','2018','201617','201618','201718','Run2'
 
     char include_systematics = 'n';//'y' <-> datacards will include syst. uncertainties (as specified in template datacard)
     char include_statistical = 'n';//'y' <-> datacards will include stat. uncertainty (as specified in template datacard)

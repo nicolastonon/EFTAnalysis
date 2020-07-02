@@ -36,26 +36,26 @@ nEventsStandaloneVal = 5000 #Nof events to sample/display per point
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-evalPoint = "rwgt_ctz_5"
-# evalPoint = "rwgt_ctw_3"
-# evalPoint = "rwgt_cpqm_7"
-# evalPoint = "rwgt_cpq3_7"
-# evalPoint = "rwgt_cpt_7"
+# evalPoint = "rwgt_ctz_3"
+evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_cpqm_5"
+# evalPoint = "rwgt_cpq3_5"
+# evalPoint = "rwgt_cpt_5"
 # evalPoint = "rwgt_ctZ_5"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
 list_points_sampling.append("SM") #Keep this
-# list_points_sampling.append("rwgt_ctz_3")
+list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-# list_points_sampling.append("rwgt_ctw_3")
+list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
-# list_points_sampling.append("rwgt_cpqm_7")
-# list_points_sampling.append("rwgt_cpq3_7")
-# list_points_sampling.append("rwgt_cpt_7")
+list_points_sampling.append("rwgt_cpqm_5")
+list_points_sampling.append("rwgt_cpq3_5")
+list_points_sampling.append("rwgt_cpt_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
 # list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
@@ -67,7 +67,7 @@ list_points_sampling.append("SM") #Keep this
 def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal):
 
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
-    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels)
+    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
     if optsTrain["parameterizedNN"] is False:
         print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset)
