@@ -64,7 +64,7 @@ using namespace std;
 /**
  * Produce script containing the commands to produce the datacards (single and combination) automatically
  */
-void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins)
+void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded)
 {
     //Check if use shape syst or not
 	TString systChoice;
@@ -89,6 +89,16 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     //     }
     //     else {v_regions.resize(0); v_regions.push_back(region);}
     // }
+
+    //FIXME -- hardcoded !! tmp test
+    if(scan_operator_hardcoded)
+    {
+        v_templates.resize(0);
+        for(int istep=-5; istep<=5; istep++)
+        {
+            v_templates.push_back("NN_"+std::to_string(istep));
+        }
+    }
 
     vector<TString> v_lumiYears;
     if(lumiName.Contains("2016") ) {v_lumiYears.push_back("2016");}
@@ -133,7 +143,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
                 TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //Path to write into datacard
 
-    			cout<<"---> Will use filepath : "<<file_histos<<endl<<endl;
+    			cout<<endl<<FYEL("---> Will use filepath : "<<file_histos<<"")<<endl<<endl;
 
                 TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
                 if(mode_histoBins==1) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
@@ -287,8 +297,8 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 //Ask user to choose options at command line for script generation
 void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, int& mode_histoBins)
 {
-    cout<<endl<<FBLU("Choose the luminosity ('Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718') ")<<endl;
-    cout<<DIM("('0' <--> 'Run2')")<<endl;
+    cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
+    cout<<ITAL(DIM(<<"['Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718'] ... "));
     cin>>lumiName;
     while(lumiName != "0" && lumiName != "Run2" && lumiName != "2016" && lumiName != "2017" && lumiName != "2018" && lumiName != "201617" && lumiName != "201618" && lumiName != "201718")
     {
@@ -301,7 +311,8 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     if(lumiName == "0") {lumiName = "Run2";}
 
 	//Choose whether to include shape syst or not
-	cout<<endl<<FYEL("--- Do you want to include the *shape* systematics as nuisances in the datacards ? (y/n)")<<endl;
+	cout<<endl<<FYEL("=== Include "<<UNDL(<<"shape"))<<FYEL(" systematics in the datacards ? ===")<<endl;
+    cout<<ITAL(DIM(<<"['y'/'n'] ... "));
 	cin>>include_systematics;
 	while(include_systematics != 'y' && include_systematics != 'n')
 	{
@@ -313,7 +324,8 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
 	}
 
     //Choose whether to include statistic uncert. or not (e.g. for pulls of NPs, need to remove them, else too long)
-    cout<<endl<<FYEL("--- Do you want to include the *statistical* uncert. in the datacards ? (y/n)")<<endl;
+    cout<<endl<<FYEL("=== Include "<<UNDL(<<"statistical"))<<FYEL(" uncertainties in the datacards ? ===")<<endl;
+    cout<<ITAL(DIM(<<"['y'/'n'] ... "));
     cin>>include_statistical;
     while(include_statistical != 'y' && include_statistical != 'n')
     {
@@ -325,10 +337,11 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     }
 
     //Choose whether to create a single datacard for entire histo, or separate datacards for each histo bin (allows to parametrize each bin independently)
-    cout<<endl<<FYEL("--- Do you want to create separate datacards for each histogram bin ?")<<endl;
-    cout<<"0 <-> use full MVA distribution (default)"<<endl;
-    cout<<"1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations"<<endl;
-    cout<<"2 <-> entire histogram treated as single bin (counting experiment)"<<endl;
+    cout<<endl<<FYEL("=== Create separate datacards for each histogram bin ? ===")<<endl;
+    cout<<ITAL(DIM("0 <-> use full MVA distribution (default)"))<<endl;
+    cout<<ITAL(DIM("1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations"))<<endl;
+    cout<<ITAL(DIM("2 <-> entire histogram treated as single bin (counting experiment)"))<<endl;
+    cout<<ITAL(DIM(<<"... "));
 
     cin>>mode_histoBins;
     while(mode_histoBins != 0 && mode_histoBins != 1 && mode_histoBins != 2)
@@ -364,8 +377,8 @@ int main()
 // Can set options here
 //--------------------------------------------
     vector<TString> v_templates; //'NN', 'BDT', ...
-    v_templates.push_back("categ");
-    // v_templates.push_back("NN");
+    // v_templates.push_back("categ");
+    v_templates.push_back("NN");
     // v_templates.push_back("NN0");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
@@ -377,6 +390,8 @@ int main()
 
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
     v_regions.push_back("SR");
+
+    bool scan_operator_hardcoded = true; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
 // Modified at command-line
 //--------------------------------------------
@@ -393,7 +408,7 @@ int main()
     TString template_name = "0", region = "0";
     Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins);
 
-	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins);
+	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded);
 
 	return 0;
 }

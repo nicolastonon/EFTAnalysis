@@ -78,7 +78,7 @@ def Get_Callbacks(weight_dir):
     #Create logfile for Tensorboard, allowing to get visualization of training/test metrics
     #Usage : tensorboard --logdir=/full_path_to_your_logs --port 0
     dirlog = weight_dir + 'logs'
-    tensorboard = TensorBoard(log_dir=dirlog, histogram_freq=0, write_graph=True, write_images=True)
+    tensorboard = TensorBoard(log_dir=dirlog, histogram_freq=1, write_graph=True, write_images=True, update_freq='epoch')
 
     #Reduce learning rate when reach metrics plateau
     lrate_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, mode='auto', min_delta=1e-4, cooldown=0, min_lr=1e-6)

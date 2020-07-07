@@ -432,7 +432,8 @@ def Get_ThetaParameters(opts, operatorNames):
                     iter = 0
                     for x in np.linspace(minWC, maxWC, num=nPointsPerOperator):
 
-                        if x == 0: x = 0.5 #WC=0 corresponds to SM point (already used as ref.) --> change to dummy non-null value
+                        if opts['refPoint'] == 'SM' and x == 0: continue #WC=0 corresponds to SM point (already used as ref.)
+                        # if opts['refPoint'] == 'SM' and x == 0: x = 3. #WC=0 corresponds to SM point (already used as ref.) --> change to dummy non-null value
                         # print('x', x)
 
                         thetas[iter, i_op_ToParameterize] = x
@@ -455,13 +456,14 @@ def Get_ThetaParameters(opts, operatorNames):
             thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
             thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
             thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
+
         else: #Use individual min/mac WC values for each operator, as defined by user
             minWC_tmp = np.array([i for i in listMinMaxWC[0::2]]); maxWC_tmp = np.array([i for i in listMinMaxWC[1::2]]) #Store every other element (<-> only min or only max values)
             thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
             thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
             thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
 
-        targetClasses_allOperators = np.zeros(len(thetas_allOperators)) #Binary label: 1=reference point (SM, not filled here), 0=any EFT point
+        targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label: 0=reference point (SM, not filled here), 1=EFT points
 
         for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parameterization
             if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
@@ -492,7 +494,6 @@ def Get_ThetaParameters(opts, operatorNames):
 
 #These 2 functions compute joint quantities with which the data can be augmented to follow the 'gold mining' approach (train NN to regress on true likelihood ratio by using optimally the reweighting informating from generator)
 #More info can be found in the reference summary article: https://arxiv.org/abs/1805.00020
-
 def Compute_JointLR(weights_refPoint, xsec_refPoint, weights_thetas, xsecs_thetas):
     """
     Compute the 'joint likelihood ratio' (JLR) quantity between 2 EFT hypotheses, defined as (M^2_0/xsec_0) / (M^2_1/xsec_1). The reference hypothesis theta1 at denominator is fixed, and not trained upon. Reminder: taking advantage of the LR property: LR(hA,hB) = LR(hA,h0) / LR(hB,h0)
@@ -710,12 +711,12 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        #-- For non-parameterized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM, build lists differently
+        #-- For non-parameterized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
         if parameterizedNN == False:
             weights_thetas = list_SMweights_allClasses[iclass] #Will compare SM to EFT ref point
             weights_allThetas_class = np.concatenate((weights_thetas, weights_refPoint))
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
-            targetClasses_allThetas_class = np.concatenate( (np.ones(len(list_x_allClasses[iclass])), np.zeros(len(list_x_allClasses[iclass]))) )
+            targetClasses_allThetas_class = np.concatenate( (np.zeros(len(list_x_allClasses[iclass])), np.ones(len(list_x_allClasses[iclass]))) ) #0 <-> SM; 1 <-> ref. point
 
         #-- Parameterized NN
         else:
@@ -822,7 +823,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     Quantities for all events to be considered in the training and validation phases.
     """
 
-    sampleEventsAlsoAtSMpoint = True #True (default) <-> sample N events according to SM pdf (in addition to sampling N events according to the pdf of the EFT point theta) -> twice more events, but found in ref. papers to improve performance (increase sensitivity in SM-enriched region) #This is required for classifier strategies, but not for regressors for instance
+    sampleEventsAlsoAtSMpoint = True #True (default) <-> sample N events according to SM pdf (in addition to sampling N events according to the pdf of the EFT point theta) -> twice more events, but found in ref. papers to improve performance (increase sensitivity in SM-enriched region) #This is the necessary default for classifier strategies, but not for regressors for instance
     if "CARL" in opts["strategy"]: sampleEventsAlsoAtSMpoint = True #This is required for classifier strategies, but not for regressors for instance
 
     rng = np.random.default_rng() #Init random generator
@@ -843,9 +844,10 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        # if need_jlr: #FIXME
-        #     probas_thetas[jointLR[:,itheta] > 50] = 0; probas_refPoint[jointLR[:,itheta] > 50] = 0 #Ignore events with extreme JLR values
-        #     probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training
+        if need_jlr and max_jlr>0: #FIXME
+            probas_thetas[jointLR[:,itheta] > max_jlr] = 0; probas_refPoint[jointLR[:,itheta] > max_jlr] = 0 #Ignore events with extreme JLR values
+            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -872,9 +874,9 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         WCs_theta = np.tile(thetas[itheta,:], (nEventsPerPoint,1))
         WCs_refPoint = WCs_theta
 
-        #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
-        targetClass_theta = np.zeros(len(x_theta))
-        targetClass_refPoint = np.ones(len(x_refPoint))
+        #-- Target class: 0 <-> event drawn from reference point; 1 <-> event drawn from thetas
+        targetClass_refPoint = np.zeros(len(x_refPoint))
+        targetClass_theta = np.ones(len(x_theta))
         #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
         if opts["strategy"] is "CARL_multiclass":
             targetClass_theta = np.tile(targetClasses[itheta], (nEventsPerPoint, 1) )
@@ -985,7 +987,8 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    # if need_jlr: probas_theta[jointLR[:,0] > 50] = 0 #Ignore events with extreme JLR values #FIXME
+    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training
+    if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
 
@@ -1016,15 +1019,15 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     elif mode_valWC is 1: WCs_theta = np.tile(WCs, (nEvents,1))
     elif mode_valWC is 2: WCs_theta = np.zeros((nEvents,len(opts["listOperatorsParam"])))
 
-    #-- Target class: 0 <-> event drawn from thetas; 1 <-> event drawn from reference point
-    if theta_name in ["SM", "sm"]: targetClass_theta = np.ones(len(x_theta))
-    else: targetClass_theta = np.zeros(len(x_theta))
+    #-- Target class: 0 <-> event drawn from reference point; 1 <-> event drawn from thetas
+    if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
+    else: targetClass_theta = np.ones(len(x_theta))
 
     #Special case: in 'CARL_multiclass', activate only 1 EFT operator at once. Use targetClass to keep track of which one (-> one-hot multiclass target)
     if opts["strategy"] is "CARL_multiclass":
         if opts["nofOutputNodes"] == 1:
-            if theta_name in ["SM", "sm"]: targetClass_theta = np.ones(len(x_theta))
-            else: targetClass_theta = np.zeros(len(x_theta))
+            if theta_name in ["SM", "sm"]: targetClass_theta = np.zeros(len(x_theta))
+            else: targetClass_theta = np.ones(len(x_theta))
         else:
             targetClass_theta = np.zeros((len(x_theta), opts["nofOutputNodes"]))
             if theta_name in ["SM", "sm"]: targetClass_theta[:,0] = 1 #First column <-> SM class

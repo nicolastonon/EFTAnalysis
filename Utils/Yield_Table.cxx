@@ -1,41 +1,6 @@
-#include <TROOT.h>
-#include <TChain.h>
-#include <TFile.h>
-#include <TH1F.h>
-#include <TStyle.h>
-#include <TCanvas.h>
-#include <TLorentzVector.h>
-#include "TTree.h"
-#include "TString.h"
-
-#include <iostream>
-#include <cstdlib>
-#include <iomanip>
-#include <map>
-#include <string>
-#include <cmath>
-#include <sstream>
-#include <fstream>
-
 #include "Helper.h"
 
-#include <cassert> 	//Can be used to terminate program if argument is not true.
-//Ex : assert(test > 0 && "Error message");
-#include <sys/stat.h> // to be able to use mkdir
-
 using namespace std;
-
-//--------------------------------------------
-// ##     ## ######## ##       ########  ######## ########
-// ##     ## ##       ##       ##     ## ##       ##     ##
-// ##     ## ##       ##       ##     ## ##       ##     ##
-// ######### ######   ##       ########  ######   ########
-// ##     ## ##       ##       ##        ##       ##   ##
-// ##     ## ##       ##       ##        ##       ##    ##
-// ##     ## ######## ######## ##        ######## ##     ##
-//--------------------------------------------
-
-
 
 //--------------------------------------------
 // ##    ## #### ######## ##       ########     ########    ###    ########  ##       ########
@@ -46,7 +11,6 @@ using namespace std;
 //    ##     ##  ##       ##       ##     ##       ##    ##     ## ##     ## ##       ##
 //    ##    #### ######## ######## ########        ##    ##     ## ########  ######## ########
 //--------------------------------------------
-
 
 void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TString region, TString signal, TString lumi, bool group_samples_together, bool remove_totalSF, TString channel)
 {

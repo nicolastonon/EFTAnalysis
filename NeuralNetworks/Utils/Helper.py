@@ -9,6 +9,7 @@ import tensorflow
 import keras
 import pandas as pd
 import re
+import math
 import os
 import shutil
 from datetime import datetime
@@ -243,7 +244,15 @@ def Load_PreExisting_Model(h5modelName):
 # //--------------------------------------------
 # //--------------------------------------------
 
+def truncate(number, digits) -> float:
+    stepper = 10.0 ** digits
+    return math.trunc(stepper * number) / stepper
 
+def trunc_np(values, decs=0):
+    return np.trunc(values*10**decs)/(10**decs)
+
+# //--------------------------------------------
+# //--------------------------------------------
 
 
 
@@ -364,7 +373,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["activHiddenLayers"] is '': print(colors.fg.red, 'ERROR : Empty activation function for hidden layers !', colors.reset); exit(1)
 
-    if opts["optimizer"] not in ['Adam','RMSprop','SGD']: print(colors.fg.red, "ERROR: unknown optimizer algorithm ", opts["optimizer"], colors.reset); exit(1)
+    if opts["optimizer"] not in ['Adam','Adadelta','AdaBound','RMSprop','SGD']: print(colors.fg.red, "ERROR: unknown optimizer algorithm", opts["optimizer"], colors.reset); exit(1)
     if opts["learnRate"] <= 0: print(colors.fg.red, "Wrong learning rate value ", opts["learnRate"], colors.reset); exit(1)
 
     if opts["regularizer"][0] is 'L1': opts["regularizer"][0] = 'l1'
@@ -467,6 +476,59 @@ def Write_Timestamp_toLogfile(weightDir, status):
     text_file.close()
 
     return
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Get_ListPointsSampling_SingleOp(operator_scan, range_step):
+    '''
+    Set list of 'WC points' for which output plots will be produced.
+
+    Return list of point names, and the corresponding WC values.
+    '''
+
+    list_points_sampling = ['SM']
+    WCs = [0]
+
+    nPoints = 1 + (range_step[1] - range_step[0]) / range_step[2]
+    # print('nPoints', nPoints)
+    for x in np.linspace(range_step[0], range_step[1], num=int(nPoints)):
+        # print('x', x)
+        # if x==0: continue
+        point = 'rwgt_' + operator_scan + '_' + str(x)
+        list_points_sampling.append(point)
+        WCs.append(x)
+
+    # print('list_points_sampling: ', list_points_sampling)
+    return list_points_sampling, WCs
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs):
+
+    delay = 90 #in 1/100th of a second
+    outname = standaloneValDir+'Overtrain_paramNN.gif' #Output name
+
+    cmd = 'convert -delay ' + str(delay) + ' -loop 0 '
+
+    for ipt in range(len(list_points_sampling)):
+        if ipt==0: continue #Don't want SM point
+        plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[0] + '_' + operator_scan + str(WCs[ipt]) + '.png'
+        cmd+= plotname + ' '
+
+    cmd+= outname
+    # print(cmd)
+    os.system(cmd)
+
+    #Additional command to add the same gif in reverse, and overwrite => continuous loop without break
+    cmd = "convert " + outname +  " -coalesce -duplicate 1,-2-1 -quiet -layers OptimizePlus -loop 0 " + outname
+    # print(cmd)
+    os.system(cmd)
+
+    print(colors.fg.lightgrey,'\n---> Created animated GIF: ', colors.reset, outname)
+
+    return
+
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -633,7 +695,6 @@ def AddMissingOperatorsToValPointsNames(opts, list_points):
         if list_points is '': return list_points #Option 'evalPoint' may be voluntarily kept empty (see conventions)
         tmp = list_points; list_points = []; list_points.append(tmp)
 
-
     for ipt, point in enumerate(list_points): #For each point
         if point in ["SM", "sm"]: newname = "SM"
         else:
@@ -670,6 +731,7 @@ def GetLegendNameEFTpoint(list_points):
         if point in ["SM", "sm"]: legname = "SM"
         else:
             operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(point)
+            # print('operatorNames', operatorNames)
             for iOpPoint in range(operatorNames.shape[1]):
                 if operatorWCs[0,iOpPoint] == 0: continue #Don't show null operators
                 if legname is not '': legname+= ','

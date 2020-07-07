@@ -87,6 +87,9 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #Shuffle and split the data for training / testing
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
 
+    # FIXME --very hardcoded: emphasize events with ctW<1
+    # LearningWeights_train[np.where(np.abs(x_train[:,x_train.shape[1]-1])<1)]*= 5
+
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType='quantile')
 
@@ -133,8 +136,9 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
         for iproc, process in enumerate(procClass): #Loop on physics processes (samples)
 
             isPrivMCsample = False
-            if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process): #Avoid ambiguities
-                print('\n', colors.fg.red, 'Error : keyword \'PrivMC\' must be present both in process and class names, or not at all', colors.reset)
+            if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process):
+                print('process', process); print('label', label)
+                print('\n', colors.fg.red, 'Error : keyword \'PrivMC\' must be present both in process and class names, or not at all', colors.reset) #Avoid ambiguities
 
             elif "PrivMC" in process and "PrivMC" in label: #Check whether EFT reweights should be looked for
                 isPrivMCsample = True
@@ -599,11 +603,13 @@ def Update_Lists(opts, list_labels, list_features):
         refName = "SM"
         if opts["refPoint"] is not "SM": refName = "refPoint"
 
-        if opts["strategy"] in ["CARL", "ROLR", "RASCAL"]: list_labels = []; list_labels.append(refName); list_labels.append("EFT") #SM vs EFT
+        if opts["strategy"] in ["CARL", "ROLR", "RASCAL"]: list_labels = []; list_labels.append("EFT"); list_labels.append(refName) #1=EFT, 0=SM
+        # if opts["strategy"] in ["CARL", "ROLR", "RASCAL"]: list_labels = []; list_labels.append(refName); list_labels.append("EFT") #SM vs EFT
         elif opts["strategy"] is "CARL_multiclass": list_labels = opts["listOperatorsParam"][:]; list_labels.insert(0, refName) #SM vs op1 vs op2 vs ... #NB: must specify '[:]' to create a copy, not a reference
 
     elif opts["strategy"] is "CARL_singlePoint":
-        list_labels = []; list_labels.append("SM"); list_labels.append("EFT")#SM vs EFT ref point
+        list_labels = []; list_labels.append("EFT"); list_labels.append("SM") #1=EFT, 0=SM
+        # list_labels = []; list_labels.append("SM"); list_labels.append("EFT") #SM vs EFT ref point
 
     elif opts["strategy"] is "regressor":
         if all([idx >= 0 for idx in opts["targetVarIdx"]]): #Regressor: use this/these variable(s) as target(s) --> remove from training features

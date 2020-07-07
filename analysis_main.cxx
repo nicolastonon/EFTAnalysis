@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
     //-- MAIN OPTIONS --
     TString signal_process = "tZq";
-    bool use_systematics = true; //true <-> will compute/store systematics selected below
+    bool use_systematics = false; //true <-> will compute/store systematics selected below
 
     TString region_choice = ""; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ'
 
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 
     //--- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "categ";
+    TString template_name = "";
     bool show_pulls_ratio = false;
 
     //-- Other options

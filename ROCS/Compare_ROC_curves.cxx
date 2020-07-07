@@ -18,36 +18,9 @@
 
 #include "../Utils/Helper.h"
 
-#include <iostream>
-#include <cstdlib>
-#include <map>
-#include <string>
-#include <iomanip>
-#include <cmath>
-#include <sstream>
-
-#include "TFile.h"
-#include "TTree.h"
-#include "TLegend.h"
-#include "TString.h"
-#include "TLatex.h"
-#include "TCanvas.h"
-#include "TGraphErrors.h"
-#include "TF1.h"
-#include "TH1F.h"
-#include "TH2F.h"
-#include "TLine.h"
-#include "TStyle.h"
-
-#include <cassert>     //Can be used to terminate program if argument is not true.
-//Ex : assert(test > 0 && "Error message");
-#include <sys/stat.h> // to be able to use mkdir
-
 #define DEBUG false
 
 using namespace std;
-
-
 
 //--------------------------------------------
 // ##     ## ######## ##       ########  ######## ########     ######## ##     ## ##    ##  ######   ######
@@ -58,8 +31,6 @@ using namespace std;
 // ##     ## ##       ##       ##        ##       ##    ##     ##       ##     ## ##   ### ##    ## ##    ##
 // ##     ## ######## ######## ##        ######## ##     ##    ##        #######  ##    ##  ######   ######
 //--------------------------------------------
-
-
 
 /**
  * Sum all histograms from a vector into a single histogram, passed via pointer reference in argument
@@ -91,6 +62,8 @@ void Sum_Histograms(TH1F* &h, vector<TH1F*> v_histos)
  */
 int Get_Color(int index)
 {
+    int palette=1;
+
 	vector<int> v_colors;
 
 	//-- Can uncomment these 4 lines to get 2*2 same colors (4 ROCs total)
@@ -100,16 +73,34 @@ int Get_Color(int index)
 	// v_colors.push_back(kBlue);
 
 	//-- Can use this palette to get 4*2 same colors (8+ ROCs)
-	v_colors.push_back(kRed);
-	v_colors.push_back(kBlue);
-	v_colors.push_back(kGreen+1);
-	v_colors.push_back(kBlack);
-	v_colors.push_back(kRed);
-	v_colors.push_back(kBlue);
-	v_colors.push_back(kGreen+1);
-	v_colors.push_back(kBlack);
-	v_colors.push_back(kViolet-1);
-	v_colors.push_back(kOrange-1);
+    if(palette==0)
+    {
+        v_colors.push_back(kRed);
+        v_colors.push_back(kBlue);
+        v_colors.push_back(kGreen+1);
+        v_colors.push_back(kBlack);
+        v_colors.push_back(kRed);
+        v_colors.push_back(kBlue);
+        v_colors.push_back(kGreen+1);
+        v_colors.push_back(kBlack);
+        v_colors.push_back(kViolet-1);
+        v_colors.push_back(kOrange-1);
+    }
+    else
+    {
+        v_colors.push_back(kBlack);
+        v_colors.push_back(kRed);
+        v_colors.push_back(kRed-2);
+        v_colors.push_back(kPink);
+        v_colors.push_back(kBlue+4);
+        v_colors.push_back(kBlue-4);
+        v_colors.push_back(kBlue-8);
+        v_colors.push_back(kViolet);
+        v_colors.push_back(kYellow+2);
+        v_colors.push_back(kGreen+2);
+        v_colors.push_back(kGreen-3);
+        v_colors.push_back(kCyan);
+    }
 
 	if(index < v_colors.size() ) {return v_colors[index];}
 	else {return index;}
@@ -467,6 +458,9 @@ bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg
 	if(h_sig->GetNbinsX() != h_bkg->GetNbinsX()) {cout<<BOLD(FRED("Different nbins for sig & bkg histograms ! Abort"))<<endl;}
 	if(nbins < 50) {cout<<"Warning : only "<<nbins<<" bins in histograms (Low precision) !"<<endl;}
 
+    bool invert_ROC = true; //The convention used on the plot is such that we need the signal distributions to be 'more to the right' w.r.t. the bkg distribution. Otherwise, we need to take the symmetric curve w.r.t. the diagonal
+    if(h_sig->GetMean() < h_bkg->GetMean()) {invert_ROC = false;}
+
     AUC = 0; //Also compute the area under curve
 	double integral_sig = h_sig->Integral();
 	double integral_bkg = h_bkg->Integral();
@@ -487,8 +481,8 @@ bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg
         // cout<<"ibin "<<ibin<<endl; cout<<"eff_sig_tmp "<<eff_sig_tmp<<endl; cout<<"eff_bkg_tmp "<<eff_bkg_tmp<<endl;
 
 		//Fill efficiency graph
-        // g->SetPoint(ibin-1, 1-eff_sig_tmp, eff_bkg_tmp);
-        g->SetPoint(ibin-1, eff_sig_tmp, 1-eff_bkg_tmp);
+        if(invert_ROC) {g->SetPoint(ibin-1, eff_sig_tmp, 1-eff_bkg_tmp);}
+        else {g->SetPoint(ibin-1, 1-eff_sig_tmp, eff_bkg_tmp);}
 	}
 
     //ROOT's TGraph->Integral() computes the integral of the closed polygon defined by first/lasrt points
@@ -683,8 +677,10 @@ void Superimpose_ROC_Curves(vector<TGraph*> v_graph, vector<TString> v_label, ve
 	h_axis->GetYaxis()->SetTickLength(0.04);
 
     float y_min_leg = 0.4 - v_graph.size() * 0.05;
+    if(y_min_leg < 0.01) {y_min_leg=0.01;}
 	TLegend* legend = new TLegend(0.19, y_min_leg, 0.60, 0.45);
     legend->SetTextSize(0.03);
+    if(v_graph.size()>8) {legend->SetTextSize(0.02);}
     legend->SetLineColor(kGray);
 
 	h_axis->Draw(); //Draw axis first
@@ -701,16 +697,17 @@ void Superimpose_ROC_Curves(vector<TGraph*> v_graph, vector<TString> v_label, ve
 
 	for(int igraph=0; igraph<v_graph.size(); igraph++)
 	{
-		v_graph[igraph]->SetLineColorAlpha(Get_Color(igraph), 0.75);
+        // v_graph[igraph]->SetLineColor(Get_Color(igraph));
+        v_graph[igraph]->SetLineColorAlpha(Get_Color(igraph), 0.75);
 		v_graph[igraph]->SetLineWidth(4);
 
 		//-- dashed lines for some ROCs ?
         // if(igraph > 1)
-		if(igraph > 3)
+		if(igraph >= v_graph.size()/2)
 		{
-			v_graph[igraph]->SetLineColorAlpha(Get_Color(igraph), 0.75);
-			v_graph[igraph]->SetLineStyle(8);
-		}
+			// v_graph[igraph]->SetLineStyle(8);
+            v_graph[igraph]->SetLineWidth(4);
+        }
 
 		// cout<<"v_AUC[igraph] "<<v_AUC[igraph]<<endl;
         // cout<<"v_label[igraph] "<<v_label[igraph]<<endl;
@@ -804,9 +801,11 @@ int main(int argc, char **argv)
 //-- Select options
 //--------------------------------------------
 	vector<TString> v_processes; //For DNNs, must declare all process classes to define 'background' properly //Not used for BDT (signal vs bkg)
-    v_processes.push_back("tZq");
+    // v_processes.push_back("tZq");
     // v_processes.push_back("ttZ");
-    v_processes.push_back("Backgrounds");
+    // v_processes.push_back("Backgrounds");
+    v_processes.push_back("SM");
+    v_processes.push_back("EFT");
 
     TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
 
@@ -830,16 +829,38 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
 //--------------------------------------------
-    v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
-    v_Filelabel.push_back("BDT "+lumiYear);
-    v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
+    // v_filepath.push_back("../outputs/BDT_"+v_processes[0]+"_"+lumiYear+".root");
+    // v_Filelabel.push_back("BDT "+lumiYear);
+    // v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
 
-    v_filepath.push_back("../outputs/DNN_"+v_processes[0]+"_"+lumiYear+".root");
-    v_Filelabel.push_back("DNN "+lumiYear);
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+".root");
+    // v_Filelabel.push_back("NN "+lumiYear);
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_feature.root");
+    // v_Filelabel.push_back("Z_pt");
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw1.root");
+    v_Filelabel.push_back("NN 5");
     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw-5.root");
+    // v_Filelabel.push_back("NN -5");
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt_ctw1.root");
+    v_Filelabel.push_back("Zpt 5");
+    v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    // for(int i=-5; i<=5; i++)
+    // {
+    //     v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw"+std::to_string(i)+".root");
+    //     v_Filelabel.push_back("NN ctz_"+std::to_string(i));
+    //     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+    // }
+
 //--------------------------------------------
 
-//-- Run main function
+//== Run main function ==
 //--------------------------------------------
 
 	Make_Plot(v_filepath, v_Filelabel, v_isTMVA_file, v_isTrainSample, region, v_processes, superimpose_allNodes_DNN, lumiYear, cuts);

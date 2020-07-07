@@ -52,7 +52,7 @@ Bool_t TH1EFT::Add(const TH1 *h1, Double_t c1)
         this->underflow_fit.addFit( ((TH1EFT*)h1)->underflow_fit );
     }
 
-    return TH1::Add(h1,c1); // I think this should work
+    return TH1::Add(h1,c1);
 }
 
 // Custom merge function for using hadd
@@ -122,6 +122,14 @@ Double_t TH1EFT::GetBinContent(Int_t bin, WCPoint wc_pt)
     if(this->GetBinFit(bin).getDim() <= 0) {return GetBinContent(bin);} // We don't have a fit for this bin, return regular bin contents
 
     return this->GetBinFit(bin).evalPoint(&wc_pt);
+}
+
+//FIXME -- overloading
+Double_t TH1EFT::GetBinContent(Int_t bin, std::string wc_pt_name)
+{
+    if(wc_pt_name=="") {return this->TH1D::GetBinContent(bin);}
+    WCPoint wc_pt(wc_pt_name);
+    return this->TH1EFT::GetBinContent(bin, wc_pt);
 }
 
 //NB : only name of WCPoint matters (not its weight)

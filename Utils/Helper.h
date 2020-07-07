@@ -45,6 +45,7 @@
 
 #include "TStyle.h"
 #include "TCanvas.h"
+#include "TString.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TH3F.h"
@@ -52,85 +53,144 @@
 #include "TTree.h"
 #include "TPad.h"
 #include "TLegend.h"
+#include "TLatex.h"
 #include "TLine.h"
 #include "TGraphAsymmErrors.h"
 #include <TObjArray.h>
 #include <TObjString.h>
 
-//Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/master)
+//Custom classes for EFT
 #include "split_string.h"
 #include "TH1EFT.h"
-// #include "WCPoint.h"
-// #include "WCFit.h"
-
-//-- Low-level helper functions
-    bool Check_File_Existence(const TString&);
-    int MoveFile(TString, TString);
-    int CopyFile(TString, TString);
-	TString Convert_Number_To_TString(double, int=3);
-	float Convert_TString_To_Number(TString);
-	float Find_Number_In_TString(TString);
-	TString Convert_Sign_To_Word(TString);
-	std::pair<TString,TString> Break_Cuts_In_Two(TString);
-    bool Is_Event_Passing_Cut(TString, double);
-    double Compute_RangeScaled_Value(double, double, double, double, double);
-    double Compute_StdDevScaled_Value(double, double, double);
-    bool Get_Dir_Content(std::string, std::vector<TString>&);
-    TString Split_TString_Into_Keys(TString, TString);
-
-//-- Basic analysis helper functions
-    void Fill_Last_Bin_TH1F(TH1F*, double); //Increment last bin of histo by specified weight
-    void Fill_First_Bin_TH1F(TH1F*, double); //Increment first bin of histo by specified weight
-    void Load_Canvas_Style();
-	TString Combine_Naming_Convention(TString);
-    void Extract_Ranking_Info(TString, TString);
-    void Get_Ranking_Vectors(TString, std::vector<TString>&, std::vector<double>&);
-    void Compare_Histograms(TString, TString, TString, TString);
-    float Rescale_Input_Variable(float, float, float);
-    void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int);
-    void Set_Histogram_FlatZero(TH1F*&, TString="", bool=false);
-    void Get_Mirror_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
-	void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
-    void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
-
-//-- Analysis-specific helper functions
-    bool Apply_CommandArgs_Choices(int, char **, std::vector<TString>&, TString&);
-    void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, int, bool);
-    // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
-    bool Get_Variable_Range(TString, int&, double&, double&);
-    TString Get_Variable_Name(TString);
-    TString Get_Category_Boolean_Name(TString);
-    float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
-    TString Get_Modified_SystName(TString, TString);
-    void Get_Pointer_GENHisto(TH1F*&, TString);
-    vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
-    void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
-    float Get_x_jetCategory(float, float, int, int, int, int);
 
 //--------------------------------------------
-	//Increment weight of first bin by 'weight'
-	//Inline functions must be declared in header file
-	inline void Fill_TH1F_UnderOverflow(TH1F* h, double value, double weight)
-	{
-		if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight);} //overflow in last bin
-		else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight);} //underflow in first bin
-		else {h->Fill(value, weight);}
+//-- Low-level helper functions
+bool Check_File_Existence(const TString&);
+int MoveFile(TString, TString);
+int CopyFile(TString, TString);
+TString Convert_Number_To_TString(double, int=3);
+float Convert_TString_To_Number(TString);
+float Find_Number_In_TString(TString);
+TString Convert_Sign_To_Word(TString);
+std::pair<TString,TString> Break_Cuts_In_Two(TString);
+bool Is_Event_Passing_Cut(TString, double);
+double Compute_RangeScaled_Value(double, double, double, double, double);
+double Compute_StdDevScaled_Value(double, double, double);
+bool Get_Dir_Content(std::string, std::vector<TString>&);
+TString Split_TString_Into_Keys(TString, TString);
 
-		return;
-	};
+//-- Basic analysis helper functions
+void Fill_Last_Bin_TH1F(TH1F*, double); //Increment last bin of histo by specified weight
+void Fill_First_Bin_TH1F(TH1F*, double); //Increment first bin of histo by specified weight
+void Load_Canvas_Style();
+TString Combine_Naming_Convention(TString);
+void Extract_Ranking_Info(TString, TString);
+void Get_Ranking_Vectors(TString, std::vector<TString>&, std::vector<double>&);
+void Compare_Histograms(TString, TString, TString, TString);
+float Rescale_Input_Variable(float, float, float);
+void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int);
+// void Set_Histogram_FlatZero(TH1F*&, TString="", bool=false);
+void Get_Mirror_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
+void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
+void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 
-    inline void Fill_TH1EFT_UnderOverflow(TH1EFT* h, double value, float weight, WCFit fit)
+//-- Analysis-specific helper functions
+bool Apply_CommandArgs_Choices(int, char **, std::vector<TString>&, TString&);
+void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, int, bool);
+// void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
+bool Get_Variable_Range(TString, int&, double&, double&);
+TString Get_Variable_Name(TString);
+TString Get_Category_Boolean_Name(TString);
+float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
+TString Get_Modified_SystName(TString, TString);
+void Get_Pointer_GENHisto(TH1F*&, TString);
+vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
+// void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
+// template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
+float Get_x_jetCategory(float, float, int, int, int, int);
+//--------------------------------------------
+
+//--------------------------------------------
+//IN-PLACE IMPLEMENTATION
+//Inline functions must be declared in header file
+//Template functions: the compiler must be able to see the implementation in order to generate code for all specializations in your code
+
+//Increment weight of first bin by 'weight'
+inline void Fill_TH1F_UnderOverflow(TH1F* h, double value, double weight)
+{
+	if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight);} //overflow in last bin
+	else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight);} //underflow in first bin
+	else {h->Fill(value, weight);}
+
+	return;
+};
+
+inline void Fill_TH1EFT_UnderOverflow(TH1EFT* h, double value, float weight, WCFit fit)
+{
+    if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //overflow in last bin
+    else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //underflow in first bin
+    else {h->Fill(value, weight, fit);}
+    return;
+};
+
+inline void Fill_TH1F_NoUnderOverflow(TH1F* h, double value, double weight)
+{
+    if(value < h->GetXaxis()->GetXmax() && value > h->GetXaxis()->GetXmin() ) {h->Fill(value, weight);}
+    return;
+};
+
+
+template <class T> void Set_Histogram_FlatZero(T*& h, TString name="", bool printout=false)
+{
+    if(printout)
     {
-        if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //overflow in last bin
-        else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //underflow in first bin
-        else {h->Fill(value, weight, fit);}
-        return;
-    };
+    	cout<<endl<<FRED("Histo "<<name<<" has integral = "<<h->Integral()<<" <= 0 ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
+    }
 
-    inline void Fill_TH1F_NoUnderOverflow(TH1F* h, double value, double weight)
+    for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
-        if(value < h->GetXaxis()->GetXmax() && value > h->GetXaxis()->GetXmin() ) {h->Fill(value, weight);}
-        return;
-    };
+    	h->SetBinContent(ibin, pow(10, -9));
+
+    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, 0.1);}
+    }
+
+    return;
+};
+
+template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString outname)
+{
+    f->cd();
+    for(int ibin=0; ibin<h->GetNbinsX()+1; ibin++)
+    {
+        T* h_tmp = new T("", "", 1, 0, 1);
+        // TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
+        TString outname_tmp = "";
+
+        if(!ibin) //ibin=0 --> Store entire histo content as single bin, to make counting experiment
+        {
+            Double_t integral=0, error=0;
+            integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);
+            h_tmp->SetBinContent(1, integral);
+            h_tmp->SetBinError(1, error);
+            outname_tmp = "countExp_" + outname;
+        }
+        else //Store content of each histogram bin separately
+        {
+            h_tmp->SetBinContent(1, h->GetBinContent(ibin)); //Fill new single bin according to considered TH1EFT bin
+            h_tmp->SetBinError(1, h->GetBinError(ibin));
+            outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
+        }
+
+        if(h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+
+        h_tmp->Write(outname_tmp);
+        // cout<<"Wrote histo : "<<outname_tmp<<endl;
+
+        delete h_tmp; h_tmp = NULL;
+    }
+
+    return;
+};
+//--------------------------------------------
 
 #endif

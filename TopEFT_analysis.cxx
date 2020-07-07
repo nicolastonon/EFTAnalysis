@@ -248,7 +248,6 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                 TString cut1 = Break_Cuts_In_Two(v_cut_def[ivar]).first, cut2 = Break_Cuts_In_Two(v_cut_def[ivar]).second;
                 tmp = "_" + v_cut_name[ivar] + Convert_Sign_To_Word(cut1) + Convert_Number_To_TString(Find_Number_In_TString(cut1));
                 tmp+= "OR" + Convert_Sign_To_Word(cut2) + Convert_Number_To_TString(Find_Number_In_TString(cut2));
-
             }
 
 			this->filename_suffix+= tmp;
@@ -965,14 +964,24 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	{
         if(template_name=="NN") //May consider multi-nodes
         {
-            for(int inode=0; inode<nNodes; inode++) //Multiclass --> Different label for each output node
+            //Parametrized NN: associate 1 'variable' per WC value to scan
+            if(this->NN_strategy == "MVA_param")
             {
-                total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
+                for(int i=-5; i<=5; i++) {total_var_list.push_back(template_name + "_" + to_string(i));}
+            }
+            else //Non-parametrized
+            {
+                if(nNodes==1) {total_var_list.push_back(template_name);} //Binary
+                else //Multiclass --> Different label for each output node
+                {
+                    for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(template_name + Convert_Number_To_TString(inode));}
+                }
             }
         }
 		else {total_var_list.push_back(template_name);}
 	}
     vector<float> total_var_floats(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
+    float WC_value = -5; //Lowest WC value for scan -- assume integer steps
 
 // #    #      ##      #    #    #
 // ##  ##     #  #     #    ##   #
@@ -1265,6 +1274,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     if(idx_sm == -1) {cout<<BOLD(FRED("Error : SM reweight not found in private samle ! Abort ! "))<<endl; return;}
                 }
 
+                //Warning for now
+                if(!makeHisto_inputVars && template_name == "NN"  && this->NN_strategy == "MVA_param") {cout<<BOLD(FRED("WARNING: template code not yet suited to deal with Parametrized NN... WCs are set to 0 by default !!"))<<endl;}
+
 
 // ###### #    # ###### #    # #####    #       ####   ####  #####
 // #      #    # #      ##   #   #      #      #    # #    # #    #
@@ -1325,9 +1337,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(template_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(MVA_method_name);} //BDT output value
 
                         //NB -- slow evaluation ! ==> Don't rescale inputs, add lambda layer in model to rescale inputs !
-                        else if(template_name == "NN") //NN output value
+                        //FIXME -- WC values are set to 0 ! (parametrized NN)
+                        else if(template_name == "NN") //NN output value //Default
                         {
-                            //FIXME -- WC values are set to 0 !
                             //Evaluate output nodes values
                             std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
 
@@ -1335,10 +1347,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             // cout<<"ientry "<<ientry<<" ==> "<<clfy1_outputs[0]<<endl;
 
                             //TEST TMP
-                            if(sample_list[isample] == "PrivMC_tZq_training")
-                            {
-                                Test_SumLR_Scan(clfy1, var_list_floats);
-                            }
+                            // if(sample_list[isample] == "PrivMC_tZq_training")
+                            // {
+                            //     Test_SumLR_Scan(clfy1, var_list_floats);
+                            // }
                         }
                         else if(template_name == "categ") //Arbitrary binning depending on jets/bjets multiplicities
                         {
@@ -1396,6 +1408,18 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             for(int ivar=0; ivar<total_var_list.size(); ivar++)
                             {
+                                // cout<<"ivar "<<ivar<<endl;
+                                if(template_name == "NN" && this->NN_strategy=="MVA_param")
+                                {
+                                    var_list_floats[var_list_floats.size()-1] = WC_value+ivar;
+                                    // for(int iv=0; iv<var_list_floats.size(); iv++) {cout<<"var_list_floats[iv] "<<var_list_floats[iv]<<endl;}
+
+                                    //Evaluate output nodes values
+                                    std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
+                                    total_var_floats[ivar] = clfy1_outputs[0];
+                                    // cout<<"total_var_floats[ivar] "<<total_var_floats[ivar]<<endl;
+                                }
+
                                 if(isPrivMC)
                                 {
                                     float w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
@@ -1413,7 +1437,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				} //subcat/chan loop
 
                     if(eft_fit) {delete eft_fit; eft_fit = NULL;}
-
     			} //TTree entries loop
     //--------------------------------------------
 
@@ -1459,7 +1482,17 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             {
                                 if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
 
-                                v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write("TH1EFT_"+output_histo_name); //Store with specific prefix
+                                if(this->NN_strategy == "MVA_param") //ParametrizedNN: rescale TH1EFT according to current WC value
+                                {
+                                    WCPoint wcp = WCPoint((string) ("rwgt_ctz_"+Convert_Number_To_TString(WC_value+ivar)), 1.);
+                                    v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(wcp);
+                                }
+
+                                v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+                                // v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write("TH1EFT_"+output_histo_name); //Store with specific prefix
+
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") {StoreEachHistoBinIndividually(file_output, v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
 
                                 bool debug = false;
                                 if(debug) //Printout WC values and extrapolated integrals for each benchmark point
@@ -1479,16 +1512,15 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     cout<<endl<<endl<<endl;
                                 }
                             }
-
-                            if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
-
-                            v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
-                            // cout<<"Wrote histo : "<<output_histo_name<<endl;
-
-                            //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                            if(this->NN_strategy == "MVA_EFT") //NN trained to separate central sample events (SM) from private pure-EFT events
+                            else
                             {
-                                StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);
+                                if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+
+                                v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
+                                // cout<<"Wrote histo : "<<output_histo_name<<endl;
+
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
                             }
 
     						delete v3_histo_chan_syst_var[ichan][isyst][ivar]; v3_histo_chan_syst_var[ichan][isyst][ivar] = NULL;
@@ -1497,10 +1529,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				} //syst loop
     			} //chan loop
 
-                if(isPrivMC) {delete v_wgts; delete v_ids;}
-
     			// cout<<"Done with "<<sample_list[isample]<<" sample"<<endl;
 
+                if(isPrivMC) {delete v_wgts; delete v_ids;}
     			tree->ResetBranchAddresses(); //Detach tree from local variables (safe)
     			delete tree; tree = NULL;
     		} //end tree loop
@@ -2651,7 +2682,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             histo_ratio_data->GetXaxis()->SetTitle(total_var_list[ivar]);
 
             //Hardcode NN output nodes names...?
-            if(total_var_list[ivar] == "NN0") {histo_ratio_data->GetXaxis()->SetTitle("NN (tZq node)");}
+            if(total_var_list[ivar] == "NN") {histo_ratio_data->GetXaxis()->SetTitle("NN output");}
+            else if(total_var_list[ivar] == "NN0") {histo_ratio_data->GetXaxis()->SetTitle("NN (tZq node)");}
             else if(total_var_list[ivar] == "NN1" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("NN (ttZ node)");}
             else if(total_var_list[ivar] == "NN2" && nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("NN (Bkgs node)");}
 
@@ -3035,9 +3067,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         if(classifier_name == "BDT") {total_var_list.push_back(classifier_name);}
         else
         {
-            for(int inode=0; inode<nNodes; inode++)
+            if(nNodes==1) {total_var_list.push_back(classifier_name);}
+            else
             {
-                total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));
+                for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(classifier_name + Convert_Number_To_TString(inode));}
             }
         }
     }
@@ -3536,6 +3569,8 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString
                         int n_singleBins = 0; //Default: will only merge: a) entire histograms, b) histograms stored as single bin //Gets updated below depending on strategy
                         for(int ibin=-1; ibin<n_singleBins+1; ibin++) //Convention (depending on NN_strategy): bin=-1 <-> merge full histogram; bin=0 <-> merge histo stored as single bin (counting exp.)
                         {
+                            if(this->NN_strategy != "MVA_EFT" && template_name != "categ" && ibin==0) {continue;} //Don't store histos for counting experiment in this config
+
                             // cout<<"ibin "<<ibin<<" ("<<"n_singleBins "<<n_singleBins<<")"<<endl;
             				for(int isample=0; isample<sample_list.size(); isample++)
             				{
@@ -3578,7 +3613,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString
             					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
             					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
 
-                                if(this->NN_strategy == "MVA_EFT") //Special cases: will also merge single-bin histos
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") //Special cases: will also merge single-bin histos
                                 {
                                     if(n_singleBins==0 && ibin==-1) //Only read the binning from full histograms
                                     {

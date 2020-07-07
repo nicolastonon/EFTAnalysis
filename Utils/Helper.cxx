@@ -634,27 +634,6 @@ void Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, co
     return;
 }
 
-/**
- * Set histo to a flat distribution close to zero
- * This is used e.g. to avoid having any histo with norm <= 0, to avoid combine crashes
- */
-void Set_Histogram_FlatZero(TH1F*& h, TString name/*=""*/, bool printout/*=false*/)
-{
-	if(printout)
-	{
-		cout<<endl<<FRED("Histo "<<name<<" has integral = "<<h->Integral()<<" <= 0 ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
-	}
-
-	for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
-	{
-		h->SetBinContent(ibin, pow(10, -9));
-
-		if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, 0.1);}
-	}
-
-	return;
-}
-
 //Get mirror histo (rescaled to nominal if necessary)
 //As done by Benjamin/ttH : https://github.com/stiegerb/cmgtools-lite/blob/80X_M17_tHqJan30_bbcombination/TTHAnalysis/python/plotter/makeShapeCardsTHQ.py#L609-L633
 //Directly modify the histos passed in args
@@ -1225,43 +1204,6 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString id)
     }
 
     return v;
-}
-
-//For each histogram bin: create a new TH1F object, fill it with the content of that single bin, and save it following specific naming convention
-//Splitting histograms per bin may be necessary in some cases in Combine, e.g. if we need to parametrize each bin individually
-//Also store entire histogram content as a single bin, to allow comparison with a basic counting experiment
-void StoreEachHistoBinIndividually(TFile* f, TH1F* h, TString outname)
-{
-    f->cd();
-    for(int ibin=0; ibin<h->GetNbinsX()+1; ibin++)
-    {
-        TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
-        TString outname_tmp = "";
-
-        if(!ibin) //ibin=0 --> Store entire histo content as single bin, to make counting experiment
-        {
-            Double_t integral=0, error=0;
-            integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);
-            h_tmp->SetBinContent(1, integral);
-            h_tmp->SetBinError(1, error);
-            outname_tmp = "countExp_" + outname;
-        }
-        else //Store content of each histogram bin separately
-        {
-            h_tmp->SetBinContent(1, h->GetBinContent(ibin)); //Fill new single bin according to considered TH1EFT bin
-            h_tmp->SetBinError(1, h->GetBinError(ibin));
-            outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
-        }
-
-        if(h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
-
-        h_tmp->Write(outname_tmp);
-        // cout<<"Wrote histo : "<<outname_tmp<<endl;
-
-        delete h_tmp; h_tmp = NULL;
-    }
-
-    return;
 }
 
 //Get the arbitrary x-axis value corresponding to the jet and bjet multiplicities of the event

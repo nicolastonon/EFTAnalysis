@@ -31,13 +31,14 @@ from Utils.RegressorValidation import *
 # //--------------------------------------------
 # //--------------------------------------------
 
-nEventsStandaloneVal = 5000 #Nof events to sample/display per point
+nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-# evalPoint = "rwgt_ctz_3"
-evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_ctz_1"
+evalPoint = "rwgt_ctw_1"
+# evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_cpqm_5"
 # evalPoint = "rwgt_cpq3_5"
 # evalPoint = "rwgt_cpt_5"
@@ -46,20 +47,24 @@ evalPoint = "rwgt_ctw_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = []
-list_points_sampling.append("SM") #Keep this
-list_points_sampling.append("rwgt_ctz_3")
+list_points_sampling.append("SM") #Keep this !
+# list_points_sampling.append("rwgt_ctz_1")
+# list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
-# list_points_sampling.append("rwgt_ctw_1")
+list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-list_points_sampling.append("rwgt_ctw_3")
+# list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
-list_points_sampling.append("rwgt_cpqm_5")
-list_points_sampling.append("rwgt_cpq3_5")
-list_points_sampling.append("rwgt_cpt_5")
+# list_points_sampling.append("rwgt_ctw_5")
+# list_points_sampling.append("rwgt_cpqm_5")
+# list_points_sampling.append("rwgt_cpq3_5")
+# list_points_sampling.append("rwgt_cpt_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
-# list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0")
-# list_points_sampling.append("rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0")
-# list_points_sampling.append("rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3")
+
+scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
+operator_scan = 'ctw' #Operator to scan
+range_step = [-5, 5, 1] #Range in which to scan operator
+only_SM_events = False #True <-> sample same SM events for each input WC value to test
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -73,10 +78,15 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
         print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset)
         return
 
-    #-- Add option to control nof events to sample per hypothesis
-    optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal
-    #-- Add option to set point (WC values) at which DNN is to be evaluated
-    optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint) )
+    optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal # Add option to control nof events to sample per hypothesis
+    optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint)) # Add option to set point (WC values) at which DNN is to be evaluated
+
+    if scan_singleOperator:
+        ymax = -1 #Trick to keep same y-axis for each single plot
+        idx_opScan = -1
+        list_points_sampling, WCs = Get_ListPointsSampling_SingleOp(operator_scan, range_step)
+        for idx_op,opParam in enumerate(optsTrain["listOperatorsParam"]): #Find index of feature corresponding to the WC that we scan
+            if operator_scan == opParam: idx_opScan = idx_op
 
     #-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was trained over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
     AddMissingOperatorsToValPointsNames(optsTrain, list_points_sampling)
@@ -85,41 +95,58 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     standaloneValDir = _weightDir + 'StandaloneVal/'
     os.makedirs(standaloneValDir, exist_ok=True)
 
-    #--- Load model
+    #-- Load model
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(_h5modelName, compile=False) #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     #-- Get data
-    x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]
+    x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]; pred_all=[]; list_labels=['SM']
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
     for idx, point in enumerate(list_points_sampling):
         print(colors.fg.lightblue, "=== POINT: ", point, " ===\n", colors.reset)
-        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, _ = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
         y_process_tmp = np.squeeze(y_process_tmp)
+        pred_tmp = np.squeeze(model.predict(x_tmp))
+        if idx>0: list_labels.append('EFT') #Trick: in main code, order is [EFT=1,SM=0]; but here we include SM first. Use 1 convention or the other depending on function...
 
-        #?? Keep that for multiclass ?
+        # (Need to keep that for multiclass ?)
         y_process_tmp = np.zeros(len(y_process_tmp)) #1D
-        y_process_tmp[:] = idx #Arbitrary identifier
+        y_process_tmp[:] = idx #Set to arbitrary identifier
 
-        x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp)
+        x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp); pred_all.append(pred_tmp)
         # print(x_tmp[:5]); print(y_tmp[:5]); print(y_process_tmp[:5]); print(model.predict(x_tmp[:5]))
+
+        if scan_singleOperator:
+            if point=='SM':
+                x_SM=np.copy(x_tmp); y_process_SM=np.copy(y_process_tmp); PhysicalWeights_SM=np.copy(PhysicalWeights_tmp)
+                if only_SM_events:
+                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Always keep default SM distribution as reference
+                    pred_SM = np.squeeze(model.predict(x_SM))
+                # print(x_SM[0,:])
+            else:
+                if only_SM_events: #Always keep default SM distribution as reference; compare to SM events, but with input WC value corresponding to current step (--> same events, no stat. fluctuations)
+                    x_tmp=np.copy(x_SM); x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]; pred_tmp = np.squeeze(model.predict(x_tmp)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
+                else:
+                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]; pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
+                Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['SM','EFT'], [[pred_SM,pred_tmp]], [PhysicalWeights_SM,PhysicalWeights_tmp], [x_SM,x_tmp], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
+                x_tmp=np.concatenate((x_SM,x_tmp)); y_process_tmp=np.concatenate((y_process_SM,y_process_tmp)); pred_tmp=np.concatenate((pred_SM,pred_tmp))
+                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, ['SM',point], True, operator_scan, WCs, idx, ymax)
+
+    if scan_singleOperator:
+        Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs)
+        return
+
     x=np.concatenate(x_all)
     y=np.concatenate(y_all)
     y_process=np.concatenate(y_process_all)
     PhysicalWeights=np.concatenate(PhysicalWeights_all)
-
-    #-- Get model predictions
-    predictions = np.squeeze(model.predict(x))
-    # print(predictions)
+    predictions=np.concatenate(pred_all)
 
     if optsTrain["strategy"] is "RASCAL": predictions = predictions.T #why needed ?
 
     #-- Alter data for testing/debugging
     # x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
-
-    # print(y[-10:])
-    # print(y_process[-10:])
-    # print(model.predict(x[-10:]))
+    # print(y[-10:]); print(y_process[-10:]); print(model.predict(x[-10:]))
 
 #-- Create validation plots
 
@@ -131,6 +158,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, list_points_sampling)
     Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, list_points_sampling)
     Make_ROCs(optsTrain, standaloneValDir, list_labels, y, predictions, list_points_sampling)
+    Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, list_labels, [pred_all], PhysicalWeights_all, x_all)
 
     return
 
@@ -327,9 +355,9 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     if opts["strategy"] is "CARL_multiclass": return
 
     #Transform classifier -> LR
-    if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":
-        truth = r_from_s(truth)
-        pred = r_from_s(pred)
+    # if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":
+    #     truth = r_from_s(truth)
+    #     pred = r_from_s(pred)
 
     hpull = TH1F('Pull', 'Pull', 30, 0, 3); hpull.Sumw2(); hpull.SetDirectory(0)
     for idx in range(len(pred)):
@@ -361,9 +389,15 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_sampling):
+def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_sampling, scan=False, operator_scan='', WCs=[], idx=-1, ymax=-1):
+    '''
+    Plot output distributions for points in 'list_points_sampling'.
+
+    scan: True <-> only consider a single EFT point at a time. Save separate plots.
+    '''
 
     nofOutputNodes = opts["nofOutputNodes"]
+    # print(list_points_sampling)
 
     #-- Define colors for all validation points
     #See: https://matplotlib.org/3.2.1/gallery/color/colormap_reference.html
@@ -379,8 +413,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
 
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
 
-        nbins = 20
-        rmin = 0.; rmax = 1.
+        nbins = 20; rmin = 0.; rmax = 1.
 
         fig = plt.figure('overtrain')
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
@@ -399,39 +432,33 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             ax.tick_params(colors='gray', direction='out')
             for tick in ax.get_xticklabels():
                 tick.set_color('gray')
-                for tick in ax.get_yticklabels():
-                    tick.set_color('gray')
+                for tick in ax.get_yticklabels(): tick.set_color('gray')
 
 
         for ipt, point in enumerate(list_points_sampling): #For each validation point
+            # print('Point: ', point)
+
+            if point=='' or (scan==True and ipt>0 and point=='SM'): continue #Don't plot SM twice
 
             #For each point, get corresponding color and legend name
             col = cols[ipt]
             if(point is "SM"): col = 'dimgrey'
             leg = legendNames[ipt]
 
-            #-- Trick : for training histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
-            # h = TH1F('h', '', nbins, rmin, rmax); h.Sumw2(); h.SetDirectory(0)
-            # for pred in predictions:
-            #     if opts["strategy"] in ["ROLR", "RASCAL"]: pred = 1/(pred+1) #Transform r -> s
-            #     h.Fill(pred, 1.)
-            # integ = h.Integral(0,h.GetNbinsX()+1)
-            # if integ <= 0: integ = 1
-            # sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
-            # h.Scale(1./(integ*sf_integral))
-
-            #Plot testing sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
+            #-- Plot normalized TEST sig/bkg histos (no errors displayed -> don't need TH1Fs)
             if nofOutputNodes == 1:
                 if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
-                else: tmp = predictions[y_process==ipt]
+                else:
+                    if scan and ipt>0: tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
+                    else: tmp = predictions[y_process==ipt]
             else:
                 if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt][:,inode]+1) #Transform r -> s
-                else: tmp = predictions[y_process==ipt][:,inode]
+                else:
+                    if scan and ipt>0: tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
+                    else: tmp = predictions[y_process==ipt]
 
-            if point is "SM":
-                plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
-            else:
-                plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
+            if point is "SM": plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+            else: plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
             # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
@@ -447,18 +474,22 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
         plt.xlabel(myxlabel)
         plt.ylabel('PDF')
 
-        if inode == 0:
+        if ymax != -1: plt.ylim([0.,ymax])
+        elif scan: ymax = ax.get_ylim()[1] #Save ymax <-> keep same axis for all plots in scan
+
+        if inode == 0 and scan is False:
             timer.start()
             plt.show()
 
-        plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[inode] + '.png'
+        plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[inode]
+        if scan: plotname+= '_' + operator_scan + str(WCs[idx])
+        plotname+= '.png'
         fig.savefig(plotname)
-        # print("Saved Overtraining plot as : " + plotname)
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
         fig.clear()
         plt.close('overtrain')
 
-    return
+    return ymax
 
 # //--------------------------------------------
 # //--------------------------------------------

@@ -22,7 +22,7 @@ optsTrain = {
 
 #=== NTuple settings ===#
 "TTree": 'result', # Name of the root TTree containing input features
-"eventWeightName": 'eventWeight', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
+"eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
@@ -34,18 +34,18 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training/architecture settings ===#
-"splitTrainEventFrac": 0.75, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 100, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
+"nEpochs": 60, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
-"nHiddenLayers": 4, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
-"activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use activHiddenLayers
-"activHiddenLayers": 'lrelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,...
+"activInputLayer": '', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use activHiddenLayers
+"activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
-"optimizer": "Adam", #Optimization algorithm: 'Adam','SGD',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
+"optimizer": "Adam", #Optimization algorithm: 'Adam','Adadelta','SGD',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence.
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
@@ -54,16 +54,16 @@ optsTrain = {
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-"listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 50, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
-"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 5000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"nEventsPerPoint": 3000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"batchSizeEFT": 756, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctz_5",
-# "refPoint": "rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0",
+# "refPoint": "rwgt_ctz_10",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
@@ -81,7 +81,7 @@ optsTrain = {
 
 
 # Analysis options
-# //--------------------------------------------
+# //-------------------------------------------
 
 # -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
@@ -145,7 +145,6 @@ _list_features.append("cosThetaStarPolZ")
 
 _list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
-_list_features.append("recoZ_M")
 _list_features.append("recoLepTop_Pt")
 _list_features.append("recoLepTop_Eta")
 _list_features.append("recoLepTop_M")
@@ -166,6 +165,7 @@ _list_features.append("dR_tClosestLep")
 _list_features.append("dR_jprimeClosestLep")
 _list_features.append("dEta_jprimeClosestLep")
 _list_features.append("dR_tClosestJet")
+
 _list_features.append("dR_tjprime")
 _list_features.append("dR_bjprime")
 _list_features.append("dR_lWjprime")
@@ -175,6 +175,7 @@ _list_features.append("dEta_bjprime")
 _list_features.append("dEta_lWjprime")
 # '''
 
+# _list_features.append("recoZ_M")
 # _list_features.append("dR_tZ")
 # _list_features.append("dEta_Zjprime")
 # _list_features.append("dEta_tjprime")
@@ -483,14 +484,16 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print(colors.fg.orange, '\t Results & Control Plots', colors.reset)
     print(colors.bg.orange, colors.bold, "##############################################", colors.reset, '\n')
 
+    print(colors.fg.lightgrey, "\nOpen Tensorboard dir. with:",colors.reset,colors.ital,'tensorboard --logdir='+_weightDir+'logs'+' --port 0\n', colors.reset)
+
     #-- Get control results (printouts, plots, histos)
     list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_processClasses, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName)
 
     #-- Store NN predictions for train/test datasets, for later use
-    Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses)
+    Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, _list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_xTrain_allClasses)
 
     #-- Create several validation plots automatically
-    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, _metrics, _weightDir, score, history)
+    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, _metrics, _weightDir, model, score, history)
 
     Write_Timestamp_toLogfile(_weightDir, 1) #Write final timestamp before exit
 

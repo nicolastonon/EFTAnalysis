@@ -36,7 +36,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
 
     maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
-    useMostExtremeWCvaluesOnly = False #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
+    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
 
 # //--------------------------------------------
 

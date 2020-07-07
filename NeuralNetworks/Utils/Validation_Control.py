@@ -1,4 +1,6 @@
-#Create control plots, ROC histos, etc.
+'''
+Create validation plots: overtraining distributions, loss, metrics, ROCs, input correlations, etc.
+'''
 
 import os
 import ROOT
@@ -6,6 +8,7 @@ import numpy as np
 import keras
 import math
 import json
+import shap
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -43,15 +46,28 @@ from tensorflow.keras.utils import plot_model
 # //--------------------------------------------
 
 #Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
-def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses):
+def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses=[], list_PhysicalWeightsTrain_allClasses=[], list_xTrain_allClasses=[], scan=False, op='', WC=''):
 
-    print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset); print('\n')
+    print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset)
+
+    idx_compare_ROC_inputFeature = 12 #If >0, will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
+    xmin_feature = 0; xmax_feature = 500 #Hard-codeed feature histogram range
 
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
+    store_trainHisto = True
+    if len(list_predictions_train_allNodes_allClasses)==0: store_trainHisto = False #Only considering 'test' events
+
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
     rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
+    if scan: rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+"_"+op+WC+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
+
+    # Comparison with input feature: store in separate file
+    if idx_compare_ROC_inputFeature>0:
+        rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+'.root'
+        if scan: rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+"_"+op+WC+".root"
+        fout_feature = ROOT.TFile(rootfile_outname_feature, "RECREATE")
 
     nofOutputNodes = opts["nofOutputNodes"]
 
@@ -65,30 +81,51 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
         else: nodes_labels = ['target'] #Default target
 
     for inode in range(nofOutputNodes):
+        if len(list_predictions_test_allNodes_allClasses)==1 and inode>0: break
 
-        hist_TrainingEvents_allClasses = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2()
-        hist_TestingEvents_allClasses = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_allClasses', '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2()
+
+        fout.cd()
+        outname = 'hist_train_NODE_'+nodes_labels[inode]+'_allClasses'
+        if store_trainHisto: hist_TrainingEvents_allClasses = TH1F(outname, '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2(); hist_TrainingEvents_allClasses.SetDirectory(0)
+        outname = 'hist_test_NODE_'+nodes_labels[inode]+'_allClasses'
+        hist_TestingEvents_allClasses = TH1F(outname, '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2(); hist_TestingEvents_allClasses.SetDirectory(0)
 
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
 
-            hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2()
-            fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
-            hist_TrainingEvents_class.Write()
+            fout.cd()
 
-            hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2()
+            if store_trainHisto:
+                hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2(); hist_TrainingEvents_class.SetDirectory(0)
+                fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+                hist_TrainingEvents_class.Write()
+
+            hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Write()
 
-            fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+            if store_trainHisto: fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
             fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
 
-        hist_TrainingEvents_allClasses.Write()
-        hist_TestingEvents_allClasses.Write()
+            # Also store histogram for selected input feature, for ROC comparison
+            if idx_compare_ROC_inputFeature>0 and inode==0:
+
+                fout_feature.cd()
+
+                if store_trainHisto:
+                    hist_TrainingEvents_class_feature = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, xmin_feature, xmax_feature); hist_TrainingEvents_class_feature.Sumw2(); hist_TrainingEvents_class_feature.SetDirectory(0)
+                    fill_hist(hist_TrainingEvents_class_feature, list_xTrain_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+                    hist_TrainingEvents_class_feature.Write()
+
+                hist_TestingEvents_class_feature = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, xmin_feature, xmax_feature); hist_TestingEvents_class_feature.Sumw2(); hist_TestingEvents_class_feature.SetDirectory(0)
+                fill_hist(hist_TestingEvents_class_feature, list_xTest_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
+                hist_TestingEvents_class_feature.Write()
 
     fout.Close()
-    # print("Saved output ROOT file containing Keras Predictions as histograms : " + rootfile_outname)
     print(colors.fg.lightgrey, "\nSaved output ROOT file containing Keras Predictions as histograms :", colors.reset, rootfile_outname, '\n')
+    if idx_compare_ROC_inputFeature>0:
+        fout_feature.Close()
+        print(colors.fg.lightgrey, "Saved output ROOT file containing Keras Predictions as histograms (for comparison with single feature) :", colors.reset, rootfile_outname_feature, '\n')
 
     return
 
@@ -113,7 +150,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 # //--------------------------------------------
 
 # Call all sub-functions
-def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, score=None, history=None):
+def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, model, score=None, history=None):
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
@@ -137,6 +174,8 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
         Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClasses, list_yTest_allClasses, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
         Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses)
         doEvaluationPlots(list_yTest_allClasses[0], list_predictions_test_allNodes_allClasses[0][0], list_PhysicalWeightsTest_allClasses[0], weight_dir)
+
+    Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features)
 
     return
 
@@ -336,15 +375,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             roc_auc = auc(fpr, tpr)
             roc_auc_train = auc(fpr_train, tpr_train)
 
-            """
-            fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
-            roc_auc = auc(fpr, tpr)
-
-            fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
-            roc_auc_train = auc(fpr_train, tpr_train)
-            """
-
-        elif opts["nofOutputNodes"] > 1: # Multiclass: 1 ROC (signal vs All) per node
+        elif opts["nofOutputNodes"] > 1: #Multiclass: 1 ROC (signal vs All) per node
 
             fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
             if opts["parameterizedNN"] is False:
@@ -371,14 +402,6 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
             roc_auc[inode] = auc(fpr[inode], tpr[inode])
             roc_auc_train[inode] = auc(fpr_train[inode], tpr_train[inode])
-
-            """
-            fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
-            roc_auc[inode] = auc(fpr[inode], tpr[inode])
-
-            fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]))
-            roc_auc_train[inode] = auc(fpr_train[inode], tpr_train[inode])
-            """
 
         # Plot ROC curves
         fig = plt.figure()
@@ -488,7 +511,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         #Class labels (for legend)
         label_class0 = "Signal"; label_class1 = "Backgrounds"
-        if opts["parameterizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+        if opts["parameterizedNN"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+        # if opts["parameterizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
 
         nbins = 20
         rmin = 0.; rmax = 1.
@@ -522,43 +546,12 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 for tick in ax.get_yticklabels():
                     tick.set_color('gray')
 
-        #-- Trick : for training histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
-        hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
-        hist_overtrain_bkg = TH1F('hist_overtrain_bkg', '', nbins, rmin, rmax); hist_overtrain_bkg.Sumw2(); hist_overtrain_bkg.SetDirectory(0)
-
-        # Only signal process
-        if opts["strategy"] is "regressor" and opts["nofOutputNodes"] > len(list_labels): continue
-        for val, w in zip((list_predictions_test_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTest_allClasses[inode]): #'zip' stops when the shorter of the lists stops
-            # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
-            if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
-            hist_overtrain_sig.Fill(val, w)
-
-        # Only background processes
-        for iclass in range(0, len(list_labels)):
-            if iclass != inode:
-                if opts["strategy"] is "CARL_multiclass" and inode > 0 and iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
-
-                for val, w, x in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass], list_xTest_allClasses[iclass]):
-                    if opts["strategy"] is "CARL_multiclass" and inode > 0 and x[-len(opts["listOperatorsParam"])-1+inode]==0: continue #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
-                    if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
-                    hist_overtrain_bkg.Fill(val, w)
-                    # print(inode, iclass, val)
-
-        #Normalize
-        int_sig = hist_overtrain_sig.Integral(0,hist_overtrain_sig.GetNbinsX()+1)
-        int_bkg = hist_overtrain_bkg.Integral(0,hist_overtrain_bkg.GetNbinsX()+1)
-        if int_sig <= 0: int_sig = 1
-        if int_bkg <= 0: int_bkg = 1
-        sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
-        hist_overtrain_sig.Scale(1./(int_sig*sf_integral))
-        hist_overtrain_bkg.Scale(1./(int_bkg*sf_integral))
-
-        #Plot training sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
+        #-- Plot TRAIN sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
         if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][inode]+1) #Transform r -> s
         else: tmp = list_predictions_train_allNodes_allClasses[inode][inode]
-        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTrain_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Train)", edgecolor='cornflowerblue',fill=True)
+        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTrain_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Train)", edgecolor='cornflowerblue',fill=True) #TRAIN SIG
 
-        #Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
+        # Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
@@ -578,19 +571,51 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         if len(lists_predictions_bkgs) > 0:
             predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Train)", hatch='/', edgecolor='orangered',fill=False)
+            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Train)", hatch='/', edgecolor='orangered',fill=False) #TRAIN BKG
 
-        #Read bin contents/errors
+        # Trick : for TEST histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
+        hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
+        hist_overtrain_bkg = TH1F('hist_overtrain_bkg', '', nbins, rmin, rmax); hist_overtrain_bkg.Sumw2(); hist_overtrain_bkg.SetDirectory(0)
+
+        #-- Only signal process
+        if opts["strategy"] is "regressor" and opts["nofOutputNodes"] > len(list_labels): continue
+        for val, w in zip((list_predictions_test_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTest_allClasses[inode]): #'zip' stops when the shorter of the lists stops
+            # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
+            if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
+            hist_overtrain_sig.Fill(val, w)
+
+        #-- Only background processes
+        for iclass in range(0, len(list_labels)):
+            if iclass != inode:
+                if opts["strategy"] is "CARL_multiclass" and inode > 0 and iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
+
+                for val, w, x in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass], list_xTest_allClasses[iclass]):
+                    if opts["strategy"] is "CARL_multiclass" and inode > 0 and x[-len(opts["listOperatorsParam"])-1+inode]==0: continue #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
+                    if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
+                    hist_overtrain_bkg.Fill(val, w)
+                    # print(inode, iclass, val)
+
+        # Normalize
+        int_sig = hist_overtrain_sig.Integral(0,hist_overtrain_sig.GetNbinsX()+1)
+        int_bkg = hist_overtrain_bkg.Integral(0,hist_overtrain_bkg.GetNbinsX()+1)
+        if int_sig <= 0: int_sig = 1
+        if int_bkg <= 0: int_bkg = 1
+        sf_integral = abs(rmax - rmin) / nbins #h.Scale(1/integral) makes the sum of contents equal to 1, but does not account for the bin width
+        hist_overtrain_sig.Scale(1./(int_sig*sf_integral))
+        hist_overtrain_bkg.Scale(1./(int_bkg*sf_integral))
+
+        # Read bin contents/errors
         bin_centres = []; counts_sig = []; err_sig = []; counts_bkg = []; err_bkg = []
         for ibin in range(1, hist_overtrain_sig.GetNbinsX()+1):
             bin_centres.append(hist_overtrain_sig.GetBinCenter(ibin))
             counts_sig.append(hist_overtrain_sig.GetBinContent(ibin)); counts_bkg.append(hist_overtrain_bkg.GetBinContent(ibin))
             err_sig.append(hist_overtrain_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_bkg.GetBinError(ibin))
 
-        #Plot training sig/bkg histos, normalized, with errorbars
+        # Plot TEST sig/bkg histos, normalized, with errorbars
         plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Test)')
         plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Test)')
 
+        # Labels
         myxlabel = "Classifier output"
 
         plt.legend(loc='best', numpoints=1)
@@ -632,7 +657,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
     rmin = -1.; rmax = 5
     nofOutputNodes = opts["nofOutputNodes"]
 
-    label_class0 = "SM"; label_class1 = "EFT"
+    label_class0 = "EFT"; label_class1 = "SM"
     if opts["strategy"] is "regressor": label_class0 = "Signal"; label_class1 = "Backgrounds"
 
     plotSingleEventClass = False #By default, plot sig+bkg
@@ -994,6 +1019,110 @@ def Visualize_NN_architecture(weight_dir):
 
     return
     '''
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features):
+    '''
+    Use SHAP library to produce validation and control plots related to neural network.
+    See: https://github.com/slundberg/shap
+
+    NB: to truncate digits in plot, had to modify ~/Documents/Programmes/Anaconda3/lib/python3.7/site-packages/shap/plots/force_matplotlib.py !
+    '''
+
+    shap.initjs() #Load Javascript library (not needed ?)
+    shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix
+
+    nmax=1000
+
+    #== Use 'Kernel SHAP' to explain test set predictions #Meant to approximate SHAP values for deep learning models.
+    #-- model: The model to be explained. The output of the model can be a vector of size n_samples or a matrix of size [n_samples x n_output] (for a classification model).
+    #-- data: Background dataset to generate the perturbed dataset required for training surrogate models. We simulate missing data by replacing the feature with the values it takes in the background dataset. So if the background dataset is a simple sample of all zeros, then we would approximate a feature being missing by setting it to zero. For small problems this background dataset can be the whole training set, but for larger problems consider using a single reference value or using the kmeans function to summarize the dataset.
+    #-- link: A function to connect feature contribution values to the model output. For a classification model, we generally explain the logit of the predicted probability as a sum of feature contributions. Hence, if the output of the model (the first argument) is a probability, we set link = 'logit' to get the feature contributions in logit form.
+    explainer = shap.DeepExplainer(model, data=np.concatenate(list_xTrain_allClasses)[:nmax,:])
+    print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
+    # print('[SHAP] Base value for first class:', explainer.expected_value.numpy()[0])
+
+    #== Get SHAP values
+    #-- X: Dataset on which to explain the model output.
+    #-- nsamples: Nof samples to draw to build the surrogate model for explaining each prediction.
+    shap_values = explainer.shap_values(X=np.concatenate(list_xTest_allClasses)[:nmax]) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
+    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:100])#Returns a list of size n_classes. For binar classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
+    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0]) #Compute 'shap values'
+    print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
+
+    #== Plot SHAP values for first event, for specific investigation
+    #-- See: https://github.com/slundberg/shap/blob/06c9d18f3dd014e9ed037a084f48bfaf1bc8f75a/shap/plots/force.py#L31
+    #-- link: "identity" or "logit": the transformation used when drawing the tick mark labels. Using logit will change log-odds numbers into probabilities.
+    #-- SHAP values are all relative to some base value. By default, the base value is explainer.expected_value: the mean of the raw model predictions for the training data. Predictions will be made relative to the base value, which must be provided
+    # fig = plt.figure('shap_singleEvent')
+    # shap_singleEvent = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0][0,:], list_xTest_allClasses[0][0,:], matplotlib=True, show=False, feature_names=list_features, link='logit') #matplotlib=True <-> avoid javascript #Need show=False to save plot
+    # plt.savefig(weight_dir+"shap_singleEvent.png", bbox_inches='tight', dpi=1000)
+    # plt.close('shap_singleEvent')
+    # print(colors.fg.lightgrey, "\nSaved shap_singleEvent plot as :", colors.reset, weight_dir+"shap_singleEvent.png")
+
+    # Plot SHAP values for all events
+    # fig = plt.figure('all')
+    shap_all = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses).round(2), show=False, feature_names=list_features, link='logit', text_rotation=90) #matplotlib=True not supported for multiple events
+    shap.save_html(weight_dir+'shap_all.html', shap_all)
+    # plt.savefig("./shap_all.png", bbox_inches='tight', dpi=1000)
+    # plt.close('all')
+    print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.png")
+
+    #-- Feature importance plot
+    # See: https://github.com/slundberg/shap/blob/master/shap/plots/summary.py#L18
+    fig = plt.figure('shap_summary')
+    shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=30)
+    plt.savefig(weight_dir+"shap_summary.png", bbox_inches='tight', dpi=1000)
+    plt.close('shap_summary')
+    print(colors.fg.lightgrey, "Saved shap_summary plot as :", colors.reset, weight_dir+"shap_summary.png")
+
+    fig = plt.figure('shap_summary_bar')
+    shap_summary_bar = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=30)
+    plt.savefig(weight_dir+"shap_summary_bar.png", bbox_inches='tight', dpi=1000)
+    plt.close('shap_summary_bar')
+    print(colors.fg.lightgrey, "Saved shap_summary_bar plot as :", colors.reset, weight_dir+"shap_summary_bar.png")
+
+    # fig = plt.figure('shap_summary_singleClass')
+    # shap_summary_singleClass = shap.summary_plot(shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=20)
+    # plt.savefig(weight_dir+"shap_summary_singleClass.png", bbox_inches='tight', dpi=600)
+    # plt.close('shap_summary_singleClass')
+    # print(colors.fg.lightgrey, "Saved shap_summary_singleClass plot as :", colors.reset, weight_dir+"shap_summary_singleClass.png")
+
+    #See: https://github.com/slundberg/shap/blob/master/shap/plots/decision.py#L217
+    # print(isinstance(list_features, (list,np.ndarray)))
+    # fig = plt.figure('decision_plot')
+    # shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), feature_order="importance", link='logit', show=False)
+    # plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
+    # plt.close('decision_plot')
+    # print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
+
+    #== Multi-output decision plot
+    #-- See: https://github.com/slundberg/shap/blob/a4fd466193c7f9602e948e7f9fd65d49249ba4bd/shap/plots/decision.py#L553
+    # row_index = 0
+    # fig = plt.figure('multioutput_decision_plot')
+    # shap.multioutput_decision_plot(explainer.expected_value.numpy().tolist(), shap_values, row_index=row_index, feature_names=list_features.tolist(), highlight=None, legend_location='lower right', show=False)
+    # plt.savefig(weight_dir+"multioutput_decision_plot.png", bbox_inches='tight', dpi=600)
+    # plt.close('multioutput_decision_plot')
+    # print(colors.fg.lightgrey, "Saved multioutput_decision_plot plot as :", colors.reset, weight_dir+"multioutput_decision_plot.png")
+
+    #== Dependence of decision on single feature
+    #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15
+    fig = plt.figure('dependence_plot')
+    shap.dependence_plot("ctz", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+    plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
+    plt.close('dependence_plot')
+    print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
+
+    #Second dependence plot
+    fig = plt.figure('dependence_plot2')
+    shap.dependence_plot("recoZ_Pt", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+    plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+    plt.close('dependence_plot2')
+    print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+
+    return
 
 # //--------------------------------------------
 # //--------------------------------------------

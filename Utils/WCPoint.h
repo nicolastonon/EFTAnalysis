@@ -19,18 +19,25 @@ public:
     double wgt;
     std::string tag;
 
-    WCPoint(){};
+    WCPoint() {};
 
-    WCPoint(std::string _str, double _wgt=0.0) {
+    WCPoint(std::string _str, double _wgt) {
         this->parseRwgtId(_str);
         this->wgt = _wgt;
     }
 
     //Overloaded with float
-    WCPoint(std::string _str, float _wgt=0.0)
+    WCPoint(std::string _str, float _wgt)
     {
         this->parseRwgtId(_str);
         this->wgt = _wgt;
+    }
+
+    //Overloaded without weight
+    WCPoint(std::string _str)
+    {
+        this->parseRwgtId(_str);
+        this->wgt = 0.;
     }
 
     ~WCPoint() {
