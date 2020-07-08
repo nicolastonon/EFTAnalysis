@@ -38,8 +38,9 @@ class TH1EFT : public TH1D
         WCFit GetBinFit(Int_t bin);
         WCFit GetSumFit();
         Double_t GetBinContent(Int_t bin, WCPoint wc_pt);
-        Double_t GetBinContent(Int_t, std::string=""); //FIXME
+        Double_t GetBinContent(Int_t, std::string="");
         void Scale(WCPoint wc_pt);
+        void Scaler(Double_t=1.); //FIXME
         void ScaleFits(double amt);
         void DumpFits();
         bool Check_WCPoint_Operators(WCPoint&);

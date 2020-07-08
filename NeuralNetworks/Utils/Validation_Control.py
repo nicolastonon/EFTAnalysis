@@ -48,15 +48,19 @@ from tensorflow.keras.utils import plot_model
 #Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
 def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses=[], list_PhysicalWeightsTrain_allClasses=[], list_xTrain_allClasses=[], scan=False, op='', WC=''):
 
-    print(colors.fg.lightblue, "--- Create & store ROC histos...", colors.reset)
+    print(colors.fg.lightblue, "\n--- Create & store ROC histos...", colors.reset)
 
-    idx_compare_ROC_inputFeature = 12 #If >0, will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
+    compare_ROC_inputFeature = 'recoZ_Pt' #If not '', will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
     xmin_feature = 0; xmax_feature = 500 #Hard-codeed feature histogram range
 
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
     store_trainHisto = True
     if len(list_predictions_train_allNodes_allClasses)==0: store_trainHisto = False #Only considering 'test' events
+
+    idx_compare_ROC_inputFeature = -1
+    for idx,feature in enumerate(list_features):
+        if feature==compare_ROC_inputFeature: idx_compare_ROC_inputFeature = idx
 
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
     rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
@@ -82,7 +86,6 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
     for inode in range(nofOutputNodes):
         if len(list_predictions_test_allNodes_allClasses)==1 and inode>0: break
-
 
         fout.cd()
         outname = 'hist_train_NODE_'+nodes_labels[inode]+'_allClasses'
@@ -337,6 +340,7 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
  #    #  ####   ####   ####
 
 #See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
+#NB: can not handle event weights... ?
 def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
 
     if opts["strategy"] is "regressor": return #No ROC to plot
@@ -1033,6 +1037,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     shap.initjs() #Load Javascript library (not needed ?)
     shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix
+    if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
 
     nmax=1000
 
@@ -1109,15 +1114,17 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     #== Dependence of decision on single feature
     #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15
-    fig = plt.figure('dependence_plot')
-    shap.dependence_plot("ctz", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-    plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
-    plt.close('dependence_plot')
-    print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
+    op = 'ctw'
+    if op in list_features:
+        fig = plt.figure('dependence_plot')
+        shap.dependence_plot(op, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+        plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
+        plt.close('dependence_plot')
+        print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
 
     #Second dependence plot
     fig = plt.figure('dependence_plot2')
-    shap.dependence_plot("recoZ_Pt", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+    shap.dependence_plot("recoZ_Pt", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
     plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
     plt.close('dependence_plot2')
     print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")

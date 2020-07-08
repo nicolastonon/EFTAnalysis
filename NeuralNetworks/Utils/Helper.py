@@ -11,6 +11,7 @@ import pandas as pd
 import re
 import math
 import os
+from os import path
 import shutil
 from datetime import datetime
 from scipy.stats import ks_2samp, anderson_ksamp, chisquare
@@ -317,10 +318,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["makeValPlotsOnly"] == False: #If training a new NN, remove previous output folder
         # os.remove(weightDir+"/*")
-        shutil.rmtree(weightDir)
+        if path.exists(weightDir): shutil.rmtree(weightDir)
         os.makedirs(weightDir, exist_ok=True)
-    else:
-        print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
+    else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 
     print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 

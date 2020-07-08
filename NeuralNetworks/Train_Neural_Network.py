@@ -35,15 +35,15 @@ optsTrain = {
 
 #=== General training/architecture settings ===#
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 60, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
 "nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
 "activInputLayer": '', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use activHiddenLayers
-"activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,...
+"activHiddenLayers": 'lrelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'Adam','Adadelta','SGD',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence.
@@ -56,14 +56,14 @@ optsTrain = {
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+# "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 3000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 756, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctz_10",
+# "refPoint": "rwgt_ctw_1",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
@@ -78,7 +78,6 @@ optsTrain = {
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 }
-
 
 # Analysis options
 # //-------------------------------------------
@@ -132,12 +131,13 @@ _list_features = []
 _list_features.append("mTW")
 _list_features.append("mHT")
 _list_features.append("Mass_3l")
-_list_features.append("jPrimeAbsEta")
 _list_features.append("lAsymmetry")
-_list_features.append("maxDelPhiLL")
-_list_features.append("maxDeepCSV")
-_list_features.append("deepCSV_2nd")
+_list_features.append("jPrimeAbsEta") #!
+_list_features.append("maxDelPhiLL") #!
+_list_features.append("maxDeepCSV") #!
+_list_features.append("deepCSV_2nd") #!
 
+'''
 _list_features.append("njets")
 _list_features.append("nbjets")
 _list_features.append("cosThetaStarPolTop")
@@ -145,14 +145,12 @@ _list_features.append("cosThetaStarPolZ")
 
 _list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
-_list_features.append("recoLepTop_Pt")
-_list_features.append("recoLepTop_Eta")
-_list_features.append("recoLepTop_M")
-_list_features.append("TopZsystem_Pt")
-_list_features.append("TopZsystem_M")
-_list_features.append("jprime_Pt")
 _list_features.append("recoLepTopLep_Pt")
-_list_features.append("recoLepTopLep_Eta")
+_list_features.append("recoLepTop_Pt") #!
+_list_features.append("recoLepTop_Eta") #!
+_list_features.append("TopZsystem_M") #!
+_list_features.append("jprime_Pt") #!
+_list_features.append("recoLepTopLep_Eta") #!
 
 _list_features.append("maxEtaJet")
 _list_features.append("mbjMax")
@@ -160,21 +158,23 @@ _list_features.append("maxDiJet_pt")
 _list_features.append("maxDelRbL")
 _list_features.append("dR_ZlW")
 _list_features.append("dR_blW")
-_list_features.append("dR_bW")
 _list_features.append("dR_tClosestLep")
 _list_features.append("dR_jprimeClosestLep")
-_list_features.append("dEta_jprimeClosestLep")
 _list_features.append("dR_tClosestJet")
+_list_features.append("dR_bW") #!
 
 _list_features.append("dR_tjprime")
-_list_features.append("dR_bjprime")
-_list_features.append("dR_lWjprime")
-_list_features.append("dR_Zjprime")
-_list_features.append("maxDiJet_m")
-_list_features.append("dEta_bjprime")
-_list_features.append("dEta_lWjprime")
-# '''
+_list_features.append("dR_bjprime") #!
+_list_features.append("dR_lWjprime") #!
+_list_features.append("dR_Zjprime") #!
+_list_features.append("maxDiJet_m") #!
+_list_features.append("dEta_bjprime") #!
+_list_features.append("dEta_lWjprime") #!
+'''
 
+# _list_features.append("recoLepTop_M")
+# _list_features.append("TopZsystem_Pt")
+# _list_features.append("dEta_jprimeClosestLep")
 # _list_features.append("recoZ_M")
 # _list_features.append("dR_tZ")
 # _list_features.append("dEta_Zjprime")

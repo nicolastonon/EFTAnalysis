@@ -81,14 +81,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Sanitize data
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
 
-    if singleThetaName is not "": #Only for validation, don't need to split between train/test data
-        return x, y, y_process, PhysicalWeights_allClasses, list_labels
+    if singleThetaName is not "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
 
     #Shuffle and split the data for training / testing
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
-
-    # FIXME --very hardcoded: emphasize events with ctW<1
-    # LearningWeights_train[np.where(np.abs(x_train[:,x_train.shape[1]-1])<1)]*= 5
 
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType='quantile')
@@ -311,10 +307,10 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
             effWC_components = Get_EffectiveWC_eachComponent(n_components, components, operatorWCs) #Determine the 'effective WC' values associated with each component, for each benchmark point
             fit_coeffs = Get_FitCoefficients(effWC_components, benchmark_weights=list_EFTweights_allClasses[iclass]) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
 
-            #Sanity check: for parameterized strategies, all operators selected by user must be found in sample parameterization (<-> in MG reweight names)
+            #Sanity check: for parameterized strategies, all operators selected by user must be found in sample parametrization (<-> in MG reweight names)
             if opts["parameterizedNN"] is True:
                 for op in opts["listOperatorsParam"]:
-                    if op not in operatorNames[0,:]: print(colors.fg.red, 'ERROR: operator', op, 'selected in option [listOperatorsParam] not found in event weight parameterization. The operators found in sample are:', operatorNames[0,:],'. Abort !', colors.reset); exit(1)
+                    if op not in operatorNames[0,:]: print(colors.fg.red, 'ERROR: operator', op, 'selected in option [listOperatorsParam] not found in event weight parametrization. The operators found in sample are:', operatorNames[0,:],'. Abort !', colors.reset); exit(1)
 
             #-- Debugging
             # print('WCs',effWC_components.shape,  effWC_components[:5])
@@ -455,27 +451,32 @@ def Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_all
         # if singleThetaName is "SM" or singleThetaName is "sm": #If making validation plots for SM, still need to append WC values to x (all set to 0)
         #     tmp = np.zeros((len(x),len(opts["listOperatorsParam"])))
         #     x = np.append(x, tmp, axis=1)
-        if singleThetaName is not "": #For standalone val in multiclass, need to evaluate on a single operator (<-> single class), but retain all operators used during training
-            tmp = thetas_allClasses
+        if opts["strategy"] is not "classifier": #Trick: in case we run StandaloneValidation code on classifier (not parametrized), want to evaluate on SMEFT sample but without including WCs as inputs !
+            if singleThetaName is not "": #For standalone val in multiclass, need to evaluate on a single operator (<-> single class), but retain all operators used during training
+                # print('singleThetaName', singleThetaName); print('evalPoint', opts['evalPoint'])
 
-            #The lines below have 1 purpose: whatever the operators considered in 'singleThetaName' (<-> validation) or 'list_EFTweightIDs_allClasses' (<-> EFT parameterization in sample), we only want to keep the operators which were included in the training phase, for which we need to provide WC values
-            operatorNames_tmp, operatorWCs_tmp, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[0][0][0])
-            indices_opToRemove = []
-            for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D
-                # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
-                if opts['evalPoint'] != '' and opSample not in str(opts['evalPoint']) and str(opts['evalPoint']) not in ['SM', 'sm']: indices_opToRemove.append(iOpSample)
-            # print(indices_opToRemove)
-            if len(indices_opToRemove)>0: tmp = np.delete(thetas_allClasses, indices_opToRemove, axis=1)
+                tmp = thetas_allClasses
 
-            x = np.append(x, tmp, axis=1)
-            # x = np.append(x, thetas_allClasses, axis=1)
+                #The lines below have 1 purpose: whatever the operators considered in 'singleThetaName' (<-> validation) or 'list_EFTweightIDs_allClasses' (<-> EFT parametrization in sample), we only want to keep the operators which were included in the training phase, for which we need to provide WC values
+                #NB: really not sure about the correctness here...
+                operatorNames_tmp, operatorWCs_tmp, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[0][0][0])
+                indices_opToRemove = []
+                for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D
+                    # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
+                    if str(opts['evalPoint']) not in ['','SM','sm'] and opSample not in str(opts['evalPoint']): indices_opToRemove.append(iOpSample)
+                    elif opts['evalPoint'] in ['','SM','sm'] and opSample not in opts['listOperatorsParam']: indices_opToRemove.append(iOpSample)
+                # print(indices_opToRemove)
+                if len(indices_opToRemove)>0: tmp = np.delete(thetas_allClasses, indices_opToRemove, axis=1)
 
-        else: #Otherwise, only consider selected operators
-            #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
-            theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
-            if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
-            targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
-            x = np.append(x, theta_tmp, axis=1)
+                x = np.append(x, tmp, axis=1)
+
+            else: #Otherwise, only consider selected operators
+                #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
+                theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
+                if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
+                targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
+                x = np.append(x, theta_tmp, axis=1)
+
     # print(x.shape)
 
     return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class

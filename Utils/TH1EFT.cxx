@@ -124,7 +124,6 @@ Double_t TH1EFT::GetBinContent(Int_t bin, WCPoint wc_pt)
     return this->GetBinFit(bin).evalPoint(&wc_pt);
 }
 
-//FIXME -- overloading
 Double_t TH1EFT::GetBinContent(Int_t bin, std::string wc_pt_name)
 {
     if(wc_pt_name=="") {return this->TH1D::GetBinContent(bin);}
@@ -155,6 +154,13 @@ void TH1EFT::Scale(WCPoint wc_pt)
         this->SetBinError(i,new_error);
     }
 
+    return;
+}
+
+//Overload regular TH1D::Scale() function, because not always found for some reason. Trick: had to use a different name to avoid ambiguity...
+void TH1EFT::Scaler(Double_t sf)
+{
+    this->TH1D::Scale(sf);
     return;
 }
 

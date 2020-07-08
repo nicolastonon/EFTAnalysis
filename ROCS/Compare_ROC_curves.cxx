@@ -833,23 +833,23 @@ int main(int argc, char **argv)
     // v_Filelabel.push_back("BDT "+lumiYear);
     // v_isTMVA_file.push_back("TMVA"); v_isTrainSample.push_back(false);
 
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+".root");
-    // v_Filelabel.push_back("NN "+lumiYear);
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_feature.root");
-    // v_Filelabel.push_back("Z_pt");
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-
-    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw1.root");
-    v_Filelabel.push_back("NN 5");
+    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+".root");
+    v_Filelabel.push_back("NN "+lumiYear);
     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt.root");
+    v_Filelabel.push_back("Z_pt");
+    v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw1.root");
+    // v_Filelabel.push_back("NN 5");
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
     // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw-5.root");
     // v_Filelabel.push_back("NN -5");
     // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt_ctw1.root");
-    v_Filelabel.push_back("Zpt 5");
-    v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt_ctw1.root");
+    // v_Filelabel.push_back("Zpt 5");
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
 
     // for(int i=-5; i<=5; i++)
     // {

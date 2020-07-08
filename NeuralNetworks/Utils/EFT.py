@@ -1,4 +1,4 @@
-# Helper functions related to the EFT treatment in the NN (parameterization of weight .vs. WCs, extrapolation, computation of score/likelihood, etc.
+# Helper functions related to the EFT treatment in the NN (parametrization of weight .vs. WCs, extrapolation, computation of score/likelihood, etc.
 
 DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (arrays, etc.)
 
@@ -12,7 +12,7 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 - Can not sum several processes into a process class including an EFT process. Each EFT process must constitute a separate class.
 - Assume that a given EFT sample has the exact same list of reweight points (in same order) for all considered years (could change that in the future by estimating fit coefficients directly when reading the sample, separately for each year)
 - If single operator identified, assume sample is pure-EFT only
-- Can only rescale array of event if all events have exact same EFT parameterization
+- Can only rescale array of event if all events have exact same EFT parametrization
 - Negative weights are ignored
 
 # NAMING CONVENTIONS :
@@ -183,7 +183,7 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
 
         gradient_effWC_components_operator = np.zeros((len(operatorWCs), n_components)) #Create empty sub-array of shape (n_points, n_components)
         for y in range(len(operatorWCs)): #For each EFT point
-            for x in range(n_components): #For each component (entering the reweighting parameterization)
+            for x in range(n_components): #For each component (entering the reweighting parametrization)
 
                 factor = 1.0
                 for p in range(components.shape[1]): #For each operator (loop on operators, get the product of their individual impacts on the considered component)
@@ -465,7 +465,7 @@ def Get_ThetaParameters(opts, operatorNames):
 
         targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label: 0=reference point (SM, not filled here), 1=EFT points
 
-        for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parameterization
+        for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parametrization
             if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
 
 # //--------------------------------------------
@@ -692,7 +692,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         # print(components)
 
         #-- Define the hypotheses theta on which the NN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point) #NB: points theta are defined according to user-defined list 'listOperatorsParam', but must be shaped according to total nof operators present in samples
-        #NB: could do that before class loop (also Find_Components), since expect all classes to share exact same parameterization. But just in case different classes have different parameterizations, and we are only considering a common subset of operators, define everything separately for each class.
+        #NB: could do that before class loop (also Find_Components), since expect all classes to share exact same parametrization. But just in case different classes have different parametrizations, and we are only considering a common subset of operators, define everything separately for each class.
         thetas, targetClasses = Get_ThetaParameters(opts, operatorNames)
         # print(thetas); print(targetClasses)
 
@@ -952,6 +952,8 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     Quantities for all events, at given point theta.
     """
 
+    unweight_events = True #True <-> events are unweighted (sampled according to weights, and given a weight equal to 1)
+
     if "nEventsStandaloneVal" not in opts or opts["nEventsStandaloneVal"] is -1 or opts["nEventsStandaloneVal"] > len(x): nEvents = len(x)
     else: nEvents = opts["nEventsStandaloneVal"]
 
@@ -990,15 +992,16 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training
     if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values #FIXME
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
-    indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
+    if unweight_events: indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
+    else: indices_theta = rng.choice(len(x), size=nEvents, p=None)
 
     #-- Get the features of selected events
     #NB: at this point, input features are still stored into 1D structured arrays. Reshaped in 2D later
     x_theta = x[indices_theta]
 
     #-- Event weights (all set to 1, since samples are already unweighted)
-    # weights_theta = weightsThetas[nEvents,itheta]
-    weights_theta = np.ones(len(x_theta))
+    if unweight_events: weights_theta = np.ones(len(x_theta))
+    else: weights_theta = np.squeeze(weights_theta[indices_theta])
 
     #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
     mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> set WCs according to scenario corresponding to current sample (will differ for different samples); 2 <-> all WCs to 0 (SM scenario)

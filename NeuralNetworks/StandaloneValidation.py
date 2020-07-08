@@ -34,10 +34,11 @@ from Utils.RegressorValidation import *
 nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
-# evalPoint = ''
+evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-evalPoint = "rwgt_ctw_1"
+# evalPoint = "rwgt_ctw_1"
+# evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_cpqm_5"
 # evalPoint = "rwgt_cpq3_5"
@@ -46,13 +47,12 @@ evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
-list_points_sampling = []
-list_points_sampling.append("SM") #Keep this !
+list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
 # list_points_sampling.append("rwgt_ctz_3")
-# list_points_sampling.append("rwgt_ctw_0.5")
+list_points_sampling.append("rwgt_ctw_0.5")
 list_points_sampling.append("rwgt_ctw_1")
-# list_points_sampling.append("rwgt_ctw_2")
+list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
@@ -61,10 +61,11 @@ list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_cpt_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
+#== SCAN OPTIONS ==#
 scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
 operator_scan = 'ctw' #Operator to scan
-range_step = [-5, 5, 1] #Range in which to scan operator
-only_SM_events = False #True <-> sample same SM events for each input WC value to test
+range_step = [-10, 10, 2] #Range in which to scan operator
+only_SM_events = True #True <-> sample same SM events for each input WC value to test
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -75,16 +76,18 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
     if optsTrain["parameterizedNN"] is False:
-        print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset)
-        return
+        optsTrain["parameterizedNN"] = True; _list_processClasses = [["PrivMC_tZq_training"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+        # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
 
     optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal # Add option to control nof events to sample per hypothesis
     optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint)) # Add option to set point (WC values) at which DNN is to be evaluated
 
     if scan_singleOperator:
+        evalPoint = '' #Evaluate each sample at corresponding point (<-> set input WCs accordingly)
         ymax = -1 #Trick to keep same y-axis for each single plot
         idx_opScan = -1
         list_points_sampling, WCs = Get_ListPointsSampling_SingleOp(operator_scan, range_step)
+        # print(list_points_sampling, WCs)
         for idx_op,opParam in enumerate(optsTrain["listOperatorsParam"]): #Find index of feature corresponding to the WC that we scan
             if operator_scan == opParam: idx_opScan = idx_op
 
@@ -100,14 +103,14 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     model = load_model(_h5modelName, compile=False) #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     #-- Get data
-    x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]; pred_all=[]; list_labels=['SM']
+    x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]; pred_all=[]
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
     for idx, point in enumerate(list_points_sampling):
         print(colors.fg.lightblue, "=== POINT: ", point, " ===\n", colors.reset)
-        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, _ = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+        list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
         y_process_tmp = np.squeeze(y_process_tmp)
         pred_tmp = np.squeeze(model.predict(x_tmp))
-        if idx>0: list_labels.append('EFT') #Trick: in main code, order is [EFT=1,SM=0]; but here we include SM first. Use 1 convention or the other depending on function...
 
         # (Need to keep that for multiclass ?)
         y_process_tmp = np.zeros(len(y_process_tmp)) #1D
@@ -129,8 +132,8 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                 else:
                     x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]; pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['SM','EFT'], [[pred_SM,pred_tmp]], [PhysicalWeights_SM,PhysicalWeights_tmp], [x_SM,x_tmp], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
-                x_tmp=np.concatenate((x_SM,x_tmp)); y_process_tmp=np.concatenate((y_process_SM,y_process_tmp)); pred_tmp=np.concatenate((pred_SM,pred_tmp))
-                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, ['SM',point], True, operator_scan, WCs, idx, ymax)
+                x_tmp=np.concatenate((x_SM,x_tmp)); y_process_tmp=np.concatenate((y_process_SM,y_process_tmp)); pred_tmp=np.concatenate((pred_SM,pred_tmp)); PhysicalWeights_tmp=np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp))
+                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, PhysicalWeights_tmp, ['SM',point], True, operator_scan, WCs, idx, ymax)
 
     if scan_singleOperator:
         Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs)
@@ -155,9 +158,9 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions, list_points_sampling)
 
     #For classifiers
-    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, list_points_sampling)
-    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, list_points_sampling)
-    Make_ROCs(optsTrain, standaloneValDir, list_labels, y, predictions, list_points_sampling)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, PhysicalWeights, list_points_sampling)
+    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling)
+    Make_ROCs(optsTrain, standaloneValDir, list_labels, y, predictions, PhysicalWeights, list_points_sampling)
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, list_labels, [pred_all], PhysicalWeights_all, x_all)
 
     return
@@ -252,7 +255,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, procClass, list_points_sampling):
+def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, procClass, PhysicalWeights, list_points_sampling):
 #See https://seaborn.ppred_data.org/tutorial/distributions.html
     """
     2D scatterplot representing 2 input features in XY, and the DNN response as the z-axis colorbar.
@@ -389,7 +392,7 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, list_points_sampling, scan=False, operator_scan='', WCs=[], idx=-1, ymax=-1):
+def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, PhysicalWeights, list_points_sampling, scan=False, operator_scan='', WCs=[], idx=-1, ymax=-1):
     '''
     Plot output distributions for points in 'list_points_sampling'.
 
@@ -449,16 +452,24 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             if nofOutputNodes == 1:
                 if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
                 else:
-                    if scan and ipt>0: tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
-                    else: tmp = predictions[y_process==ipt]
+                    if scan and ipt>0:
+                        tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
+                        weights_tmp = PhysicalWeights[y_process>0]
+                    else:
+                        tmp = predictions[y_process==ipt]
+                        weights_tmp = PhysicalWeights[y_process==ipt]
             else:
                 if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt][:,inode]+1) #Transform r -> s
                 else:
-                    if scan and ipt>0: tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
-                    else: tmp = predictions[y_process==ipt]
+                    if scan and ipt>0:
+                        tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
+                        weights_tmp = PhysicalWeights[y_process>0]
+                    else:
+                        tmp = predictions[y_process==ipt]
+                        weights_tmp = PhysicalWeights[y_process==ipt]
 
-            if point is "SM": plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
-            else: plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
+            if point is "SM": plt.hist(tmp, bins=nbins, weights=weights_tmp, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+            else: plt.hist(tmp, bins=nbins, weights=weights_tmp, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
             # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
@@ -501,7 +512,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
  #   #  #    # #    # #    #
  #    #  ####   ####   ####
 
-def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, list_points_sampling):
+def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, PhysicalWeights, list_points_sampling):
 
     if "CARL" not in opts["strategy"]: return
     if "sm" not in list_points_sampling and "SM" not in list_points_sampling: return #Compare EFT to SM
@@ -542,5 +553,7 @@ def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, list_poin
 # //--------------------------------------------
 
 if __name__ == "__main__":
+
+    # plt.xkcd() # XKCD-style plotting
 
     Standalone_Validation(optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal)
