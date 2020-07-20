@@ -41,6 +41,8 @@ from pathlib import Path
 import itertools
 from Utils.Helper import *
 from Utils.ColoredPrintout import colors
+import matplotlib
+import matplotlib.pyplot as plt
 
 import warnings
 warnings.filterwarnings("ignore", message="in the future insert will treat boolean arrays and array-likes as boolean index instead of casting it to integer")
@@ -120,7 +122,7 @@ def Find_Components(operatorNames):
 
 def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
     """
-    Determine the 'effective WC' (see notes at b.o.f.) for each component, i.e. the product of the corresponding WC values
+    Determine the 'effective WC' (see notes at b.o.f.) for each component, i.e. the product of the corresponding WC values.
 
     Parameters:
     n_components (int) : number of components
@@ -131,6 +133,7 @@ def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
     effWC_components (ndarray of shape [n_points, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
     """
 
+    if operatorWCs.size == 0: return np.array([]) #Return empty array
     operatorWCs = np.atleast_2d(operatorWCs) #Need 2D array
 
     effWC_components = np.zeros((len(operatorWCs), n_components)) #Create empty array of shape (n_points, n_components)
@@ -401,7 +404,9 @@ def Get_ThetaParameters(opts, operatorNames):
     targetClass (ndarray of shape [n_operators]) : translates each point into a target class (for event labelling). '1' means that the corresponding operator is non-zero, '0' otherwise. 1 column for each operator included in sample (remove un-necessary operators at later step)
     """
 
-    if opts["strategy"] == "CARL_singlePoint": return np.array([]), np.array([])
+    samplingMode = 'linear' #'linear' <-> sample theta points linearly from min to max; 'uniform' <-> randomly sample theta points according to uniform PDF from min to max
+
+    # if opts["strategy"] == "CARL_singlePoint": return np.array([]), np.array([]) #Remove -- need this for StandaloneValidation code (even if applied on CARL_singlePoint)
 
     #Read options
     listOperatorsParam = opts["listOperatorsParam"]
@@ -453,15 +458,21 @@ def Get_ThetaParameters(opts, operatorNames):
         rng = np.random.default_rng() #Init random generator
 
         if len(listMinMaxWC) is 0: #Use minWC and maxWC values for all selected operators
-            thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
-            thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
-            thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
+            if samplingMode == 'uniform':
+                thetas_allOperators = np.random.uniform(low=minWC, high=maxWC, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
+                thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=minWC)]) # Add point corresponding to min boundaries
+                thetas_allOperators = np.vstack([thetas_allOperators, np.full(shape=(len(operatorNames)),fill_value=maxWC)]) # Add point corresponding to max boundaries
+            elif samplingMode == 'linear': thetas_allOperators = np.linspace(np.full((len(operatorNames)),minWC),np.full((len(operatorNames)),maxWC),nPointsPerOperator*len(listOperatorsParam))
+            else: print('Wrong sampling mode ! Abort !'); exit(1)
 
         else: #Use individual min/mac WC values for each operator, as defined by user
             minWC_tmp = np.array([i for i in listMinMaxWC[0::2]]); maxWC_tmp = np.array([i for i in listMinMaxWC[1::2]]) #Store every other element (<-> only min or only max values)
-            thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
-            thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
-            thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
+            if samplingMode == 'uniform':
+                thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
+                thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
+                thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
+            if samplingMode == 'linear': thetas_allOperators = np.linspace(minWC_tmp, maxWC_tmp, nPointsPerOperator*len(listOperatorsParam))
+            else: print('Wrong sampling mode ! Abort !'); exit(1)
 
         targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label: 0=reference point (SM, not filled here), 1=EFT points
 
@@ -676,7 +687,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     for iclass in range(len(list_labels)):
 
         #-- Sanity checks
-        operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Asumme that benchmark points are identical for all events in the sample
+        operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Assume that benchmark points are identical for all events in the sample
         operatorNames = operatorNames[0] #Single-element list -> array
         for op1 in opts["listOperatorsParam"]:
             if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
@@ -733,8 +744,8 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             #NB: events with large weights may get drawn many times, degrading the NN performance
             probas_thetas = np.copy(weights_thetas)
             probas_refPoint = np.copy(weights_refPoint)
-            probas_thetas[probas_thetas < 0] = 0; probas_refPoint[probas_refPoint < 0] = 0 #Ignore events with negative weights
-            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+            probas_thetas[probas_thetas<0] = 0; probas_refPoint[probas_refPoint<0] = 0 #Ignore events with negative weights
+            probas_thetas/= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint/= probas_refPoint.sum() #Normalize to 1
 
             #-- Extrapolate the cross section at the reference point and the new points thetas
             jointLR_class = np.empty(1); list_gradweights_operators_thetas = []; list_gradNewXsecs_operators_thetas = []; list_score_allOperators_thetas = [] #Default
@@ -781,10 +792,10 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Get the data for all points thetas (twice: both drawn at point theta and at ref point)
 
-            if singleThetaName is "":
-                x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
-            else:
-                x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
+            if opts["test1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_Test1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score) #FIXME
+
+            elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
+            else: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
 
 # //--------------------------------------------
 # Append arrays for all classes
@@ -844,10 +855,10 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training
-        if need_jlr and max_jlr>0: #FIXME
+        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #FIXME
+        if need_jlr and max_jlr>0:
             probas_thetas[jointLR[:,itheta] > max_jlr] = 0; probas_refPoint[jointLR[:,itheta] > max_jlr] = 0 #Ignore events with extreme JLR values
-            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
+            probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1 (again)
 
         #-- Get event indices
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
@@ -889,7 +900,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             jointLR_theta = jointLR[indices_theta,itheta]
             jointLR_refPoint = jointLR[indices_refPoint,itheta]
 
-            #-- For debugging, may want to set all JLR values to dummy values #FIXME #FIXME
+            #-- For debugging, may want to set all JLR values to dummy values #FIXME
             # jointLR_theta[:] = 0.5 #regress dummy value
             # jointLR_refPoint[:] = 0.5
             # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
@@ -989,8 +1000,8 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training
-    if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values #FIXME
+    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #FIXME
+    if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     if unweight_events: indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
     else: indices_theta = rng.choice(len(x), size=nEvents, p=None)
@@ -1051,7 +1062,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     if need_jlr:
         jointLR_theta = jointLR[indices_theta]
 
-        #-- For debugging, may want to set all JLR values to dummy values #FIXME #FIXME
+        #-- For debugging, may want to set all JLR values to dummy values #FIXME
         # jointLR_theta[:] = 0.5 #regress dummy value
         # jointLR_theta = np.random.normal(loc=1.5, scale=0.1, size=len(x_theta)) #regress dummy gaussian
         # jointLR_theta = weightsThetas[indices_theta,itheta] #regress event weight
@@ -1065,3 +1076,71 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+def GetData_Test1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
+    """
+    cf. toy example in param NN ref article.
+
+    For ctW operator only !!
+    """
+
+    rng = np.random.default_rng() #Init random generator
+
+    nEvents = 10000
+    nbins = 100
+    rmin = opts["minWC"]-1; rmax = opts["maxWC"]+1
+    fig = plt.figure('TEST')
+    ax = plt.axes()
+    ax.set_xlim([rmin,rmax])
+    cm = plt.cm.get_cmap('RdYlBu_r')
+
+    #-- For each point theta, append quantities (from events drawn both from theta and from ref point, and concatenated together) to corresponding lists
+    list_x_allThetas = []
+    list_weights_allThetas = []
+    list_WCs_allThetas = []
+    list_targetClass_allThetas = []
+
+    print(thetas)
+    for itheta in range(len(thetas)):
+
+        x_theta = np.random.normal(loc=thetas[itheta,1], scale=2, size=nEvents)
+        x_theta = np.atleast_2d(x_theta).T #Need 2D array
+        x_refPoint = np.random.uniform(opts["minWC"]-3, opts["maxWC"]+3, nEvents)
+        x_refPoint = np.atleast_2d(x_refPoint).T #Need 2D array
+
+        weights_theta = np.ones(len(x_theta))
+        weights_refPoint = np.ones(len(x_refPoint))
+
+        #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
+        WCs_theta = np.tile(thetas[itheta,:], (nEvents,1))
+        WCs_refPoint = WCs_theta
+        # print(x_theta.shape)
+        # print(WCs_theta.shape)
+
+        #-- Target class: 0 <-> event drawn from reference point; 1 <-> event drawn from thetas
+        targetClass_refPoint = np.zeros(len(x_refPoint))
+        targetClass_theta = np.ones(len(x_theta))
+
+        list_x_allThetas.append(np.concatenate((x_theta, x_refPoint)) )
+        list_weights_allThetas.append(np.concatenate((weights_theta, weights_refPoint)))
+        list_WCs_allThetas.append(np.concatenate((WCs_theta, WCs_refPoint)))
+        list_targetClass_allThetas.append(np.concatenate((targetClass_theta, targetClass_refPoint)) )
+
+        plt.hist(x_theta, bins=nbins, range=(rmin,rmax), alpha=0.50, density=True, histtype='step', label='{0:.{1}f}'.format(thetas[itheta,1],1), linewidth=2,fill=False)
+        plt.hist(x_refPoint, bins=nbins, range=(rmin,rmax), color='blue', alpha=0.50, density=True, histtype='step', linewidth=2, edgecolor='blue',fill=False)
+
+    #-- Concatenate all list elements (corresponding to the different points thetas)
+    x_allThetas = np.concatenate(list_x_allThetas)
+    weights_allThetas = np.concatenate(list_weights_allThetas)
+    WCs_allThetas = np.concatenate(list_WCs_allThetas)
+    targetClass_allThetas = np.concatenate(list_targetClass_allThetas)
+
+    plt.legend(loc='best', numpoints=1)
+    # plt.show()
+    plotname = './TEST.png'
+    fig.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved TEST plot as :", colors.reset, plotname)
+    fig.clear()
+    plt.close('TEST')
+
+    return x_allThetas, weights_allThetas, WCs_allThetas, targetClass_allThetas, [], []

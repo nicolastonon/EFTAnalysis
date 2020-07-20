@@ -132,7 +132,8 @@ def get_normalization_iqr(np_array, q):
 
 #Printout the output of the first (=input) layer here for N events, e.g. to verify that the normalization layer works properly
 def Printout_Outputs_Layer(model, ilayer, xx):
-    print('--------------------------------------------')
+    print('\n', colors.bg.orange,'--------------------------------------------', colors.reset)
+    print('LAYER ', ilayer,)
     get_layer_output = keras.backend.function([model.layers[0].input], [model.layers[ilayer].output])
     layer_output = get_layer_output([xx])[0]
     print("\n", layer_output)
@@ -409,8 +410,6 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
-
-    if opts["parameterizedNN"] is True and "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) is not 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'Length of [listMinMaxWC] must be twice the length of [listOperatorsParam] (<-> 1 min and 1 max WC value per activated operator) ! Fix [listMinMaxWC], or comment this option to use the values of [minWC,maxWC] for all operators', colors.reset); exit(1)
 
     opts["loss"], _, opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
 

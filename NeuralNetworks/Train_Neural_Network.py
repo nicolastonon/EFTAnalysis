@@ -35,17 +35,17 @@ optsTrain = {
 
 #=== General training/architecture settings ===#
 "splitTrainEventFrac": 0.8, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 10, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
 "nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsPerLayer": 100, #Number of neurons per hidden layer
-"activInputLayer": '', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use activHiddenLayers
+"activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info.) !
 "activHiddenLayers": 'lrelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
 "dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
-"optimizer": "Adam", #Optimization algorithm: 'Adam','Adadelta','SGD',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
+"optimizer": "Adam", #Optimization algorithm: 'Adam','Adadelta','SGD','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence.
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
@@ -58,12 +58,12 @@ optsTrain = {
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, "minWC": -10, "maxWC": 10, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nPointsPerOperator": 11, "minWC": -6, "maxWC": 6, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
-"nEventsPerPoint": 3000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 2000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctw_1",
+# "refPoint": "rwgt_ctw_3",
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
@@ -77,6 +77,7 @@ optsTrain = {
 
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
+"test1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
 }
 
 # Analysis options
@@ -127,7 +128,10 @@ _list_labels.append("PrivMC_tZq")
 
 #-- Choose input features x
 _list_features = []
-# '''
+
+_list_features.append("recoZ_Pt")
+
+'''
 _list_features.append("mTW")
 _list_features.append("mHT")
 _list_features.append("Mass_3l")
@@ -137,13 +141,11 @@ _list_features.append("maxDelPhiLL") #!
 _list_features.append("maxDeepCSV") #!
 _list_features.append("deepCSV_2nd") #!
 
-'''
 _list_features.append("njets")
 _list_features.append("nbjets")
 _list_features.append("cosThetaStarPolTop")
 _list_features.append("cosThetaStarPolZ")
 
-_list_features.append("recoZ_Pt")
 _list_features.append("recoZ_Eta")
 _list_features.append("recoLepTopLep_Pt")
 _list_features.append("recoLepTop_Pt") #!
@@ -414,9 +416,6 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         print('\n'); print(colors.fg.lightblue, "--- Create the Keras model...", colors.reset); print('\n')
         model = Create_Model(optsTrain, _weightDir, _list_features, shifts, scales)
 
-        # Can printout the output of the ith layer here for N events, e.g. to verify that the normalization layer works properly
-        # Printout_Outputs_FirstLayer(model, ilayer=0, xx=x[0:5])
-
         print('\n'); print(colors.fg.lightblue, "--- Compile the Keras model...", colors.reset); print('\n')
         model.compile(loss=_loss, loss_weights=_lossWeights, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
 
@@ -444,6 +443,9 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 
             print('\n'); print(colors.fg.lightblue, "--- Evaluate NN performance on test sample...", colors.reset); print('\n')
             score = model.evaluate(my_validation_batch_generator, steps=_steps_per_epoch_val, verbose=1)
+
+        #-- Can printout the output of the i-th layer here for N events, e.g. to verify that the normalization layer works properly
+        # for ilayer in range(len(model.layers)): Printout_Outputs_Layer(model, ilayer, xx=x[0:1])
 
 
                                       #
@@ -484,7 +486,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print(colors.fg.orange, '\t Results & Control Plots', colors.reset)
     print(colors.bg.orange, colors.bold, "##############################################", colors.reset, '\n')
 
-    print(colors.fg.lightgrey, "\nOpen Tensorboard dir. with:",colors.reset,colors.ital,'tensorboard --logdir='+_weightDir+'logs'+' --port 0\n', colors.reset)
+    print(colors.fg.lightgrey, "\nTo open Tensorboard dir:",colors.reset,colors.ital,'tensorboard --logdir='+_weightDir+'logs'+' --port 0\n', colors.reset)
 
     #-- Get control results (printouts, plots, histos)
     list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_processClasses, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName)

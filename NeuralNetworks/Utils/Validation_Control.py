@@ -24,6 +24,7 @@ from Utils.RegressorValidation import *
 from pandas.plotting import scatter_matrix
 from ann_visualizer.visualize import ann_viz
 from tensorflow.keras.utils import plot_model
+from scipy import optimize
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -45,8 +46,10 @@ from tensorflow.keras.utils import plot_model
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves
 def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses=[], list_PhysicalWeightsTrain_allClasses=[], list_xTrain_allClasses=[], scan=False, op='', WC=''):
+    '''
+    Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves.
+    '''
 
     print(colors.fg.lightblue, "\n--- Create & store ROC histos...", colors.reset)
 
@@ -152,10 +155,14 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 # //--------------------------------------------
 # //--------------------------------------------
 
-# Call all sub-functions
 def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, model, score=None, history=None):
+    '''
+    Call all the relevant sub-functions to create validation plots.
+    '''
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
+
+    if opts["test1D"]: Make_Test1D_Plot(opts, model)
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
@@ -169,7 +176,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     if opts["regress"] == True: Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, list_yTest_allClasses, weight_dir, list_xTest_allClasses)
 
-    Create_Correlation_Plot(opts, x, list_features, weight_dir)
+    Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir)
 
     Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
 
@@ -192,8 +199,10 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
  #      #   #  # #   ##   #   #    # #    #   #
  #      #    # # #    #   #    ####   ####    #
 
-#Printout some information related to NN performance
 def Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score=None):
+    '''
+    Printout some information related to NN performance.
+    '''
 
     if opts["nofOutputNodes"] == 1 and score is not None:
         loss = score[0]
@@ -229,7 +238,12 @@ def Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes
  ######  ####   ####   ####
 
 def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history=None):
-# NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
+    '''
+    Plot the evolution of the loss versus epochs.
+
+    NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
+    '''
+
 
     if history is None: return
 
@@ -284,6 +298,9 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
  #    # ######   #   #    # #  ####   ####
 
 def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, metrics, weight_dir, history=None):
+    '''
+    Plot the evolution of the chosen metrics versus epochs.
+    '''
 
     if history is None: return
 
@@ -339,9 +356,13 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
  #   #  #    # #    # #    #
  #    #  ####   ####   ####
 
-#See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
-#NB: can not handle event weights... ?
 def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
+    '''
+    Plot ROC curves based on the separation between different processes/classes.
+
+    See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
+    NB: can not handle event weights !
+    '''
 
     if opts["strategy"] is "regressor": return #No ROC to plot
 
@@ -506,6 +527,9 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
 def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
+    '''
+    Superimpose the distributions of the NN output for 'signal' and 'backgrounds'.
+    '''
 
     nofOutputNodes = opts["nofOutputNodes"]
 
@@ -653,6 +677,9 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
  #    # ######  ####  #    # ######  ####   ####   ####  #    #
 
 def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, y_test, y_process_test, list_yTest_allClasses, weight_dir, list_xTest_allClasses):
+    '''
+    Create control plots specific to regressors: truth/reco correlation, etc.
+    '''
 
     plot_truth_histos = True #True <-> Display truth histos on plot
     norm = False #True <-> Normalize histogram to unity
@@ -825,12 +852,35 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
  #    # #    # #   #  #   #  #      #      #    #   #   # #    # #   ##
   ####   ####  #    # #    # ###### ###### #    #   #   #  ####  #    #
 
-#Plot correlations between input features
-def Create_Correlation_Plot(opts, x, list_features, weight_dir):
+def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
+    '''
+    Create the relevant input feature correlation plots, depending on strategy.
+    '''
+
+    if opts["strategy"] is "classifier": #Separate between 'sig' (first process) and bkg (other processes)
+        x_sig = x[y_process==0]; x_bkg = x[y_process!=0]
+        Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
+        Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
+
+    elif opts["parameterizedNN"] is True: #Separate between 'SM' and 'EFT'
+        x_SM = x[y_process==0]; x_EFT = x[y_process!=0]
+        Make_Correlation_Plot(opts, x_SM, list_features, weight_dir + 'CorrelMatrix_SM.png')
+        Make_Correlation_Plot(opts, x_EFT, list_features, weight_dir + 'CorrelMatrix_EFT.png')
+
+    else: Make_Correlation_Plot(opts, x, list_features, weight_dir + 'CorrelMatrix.png') #Use all events
+
+    return
+
+def Make_Correlation_Plot(opts, x, list_features, outname):
+    '''
+    Make a correlation plot of input features.
+    '''
 
 # //--------------------------------------------
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
+
+    sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
 
     #Can avoid plotting theory parameter inputs (by default), and p4 variables
     list_features = np.array(list_features)
@@ -883,7 +933,6 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
         hm.set_xticklabels(hm.get_xticklabels(), rotation=45, horizontalalignment='right', fontsize = 14) #bottom labels
         hm.set_yticklabels(hm.get_yticklabels(), fontsize = 14)
 
-    sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
     # ax.set_ylim(bottom=-0.5, top=len(list_features)+0.5)
     # ax.set_xlim(left=-0.5, right=len(list_features)+0.5)
     # ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False) # x labels appear on top
@@ -891,9 +940,9 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
     ax.tick_params(top=False, bottom=True, labeltop=False, labelbottom=True) # x labels appear at bottom
     fig.tight_layout()
 
-    plotname = weight_dir + 'CorrelMatrix.png'
-    plt.savefig(plotname)
-    print(colors.fg.lightgrey, "\nSaved correlation matrix plot as :", colors.reset, plotname)
+    # plotname = weight_dir + 'CorrelMatrix.png'
+    plt.savefig(outname)
+    print(colors.fg.lightgrey, "\nSaved correlation matrix plot as :", colors.reset, outname)
     plt.close('all')
 
     return
@@ -908,9 +957,12 @@ def Create_Correlation_Plot(opts, x, list_features, weight_dir):
  #      #      #    #   #   #    # #   #  #      #    #
  #      ###### #    #   #    ####  #    # ######  ####
 
-#Plot distributions of input features (according to dataset in arg)
 def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, isControlNorm=False):
+    '''
+    Plot distributions of input features (depending on dataset given in arg).
+    '''
 
+    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
     plot_eachSingleFeature = False #True <-> 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
@@ -922,7 +974,19 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     plt.tight_layout()
     list_features = np.array(list_features)
 
-    if opts["parameterizedNN"] == True:
+    #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
+    shuf = np.arange(len(x))
+    np.random.shuffle(shuf)
+    x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
+
+    if opts["parameterizedNN"] == True: #Only retain EFT events whose operator values are at boundaries
+        if useMostExtremeWCvaluesOnly is True:
+            sl = np.s_[x.shape[1]-len(opts["listOperatorsParam"]):] #Specify slice corresponding to indices of theory parameters features (placed last)
+            indices_class0 = np.where(y_process==0) #Class 0
+            indices_class1 = np.where(np.logical_and(y_process==1, np.logical_or(np.all(x[:,sl]==opts['minWC'],axis=1),np.all(x[:,sl]==opts['maxWC'],axis=1))) ) #Class 1
+            x = np.append(x[indices_class0], x[indices_class1], axis=0); y_process = np.append(y_process[indices_class0], y_process[indices_class1], axis=0); weights = np.append(weights[indices_class0], weights[indices_class1], axis=0)
+            # print(np.mean(x[indices_class0,0].T, axis=0)); print(np.mean(x[indices_class1,0].T, axis=0))
+
         nMax = 50000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
         if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
@@ -931,7 +995,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     indices = []
     for ivar in range(len(list_features)):
         if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
-        if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+        # if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar) #Don't show input WCs
 
     indices = np.array(indices, dtype=int)
     mask = np.ones(len(list_features), np.bool)
@@ -941,16 +1005,21 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     df = pd.DataFrame(data=x[:,:][:,mask], columns=list_features[mask]) #x = (events, vars) ; colums names are var names
 
     #-- Insert a column corresponding to the class label
-    if y_process.ndim==1: df.insert(loc=0, column='class', value=y_process[:], allow_duplicates=False)
-    else: df.insert(loc=0, column='class', value=y_process[:,0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
+    if y_process.ndim==1: df.insert(loc=0, column='class', value=y_process[:len(x)], allow_duplicates=False)
+    else: df.insert(loc=0, column='class', value=y_process[:len(x),0], allow_duplicates=False) #Only care about first column=main signal (rest -> bkg)
 
     #-- Insert a column corresponding to physical event weights
-    df.insert(loc=0, column='weight', value=weights[:,]) #Only care about first column=main signal (rest -> bkg)
+    df.insert(loc=0, column='weight', value=weights[:len(x),]) #Only care about first column=main signal (rest -> bkg)
     # print(df); print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=20, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=20, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
+    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=50, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=50, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
+
+    #-- debug
+    # print(len(df[df['class']==0])); print(len(df[df['class']==1]))
+    # print(df[df['class']==0].mean(axis=0)); print(df[df['class']==1].mean(axis=0))
+    # print(df[df['class']==0].iloc[:3]); print(df[df['class']==1].iloc[:3])
 
     if isControlNorm == True: #Control plot, different name, general plot only
         plotname = weight_dir + 'InputFeatures_normTrain.png'
@@ -978,9 +1047,9 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             plt.ylabel("normalized", fontsize=20)
             plt.xlabel(feature, fontsize=20)
 
-            xx = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
-            plt.hist(xx[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==1])
-            plt.hist(xx[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==0])
+            x = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
+            plt.hist(x[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==1])
+            plt.hist(x[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==0])
             plt.legend(loc='best')
 
             os.makedirs(weight_dir + 'features/', exist_ok=True)
@@ -1004,8 +1073,12 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
  #    # #   #  #    # #    # #   #   #      #    #   #   #    # #   #  #
  #    # #    #  ####  #    # #   #   ######  ####    #    ####  #    # ######
 
-#Does not work yet...
 def Visualize_NN_architecture(weight_dir):
+    '''
+    Visualize the NN architecture using external packages.
+
+    NB: Does not work yet...
+    '''
 
     return
 
@@ -1073,12 +1146,12 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     shap.save_html(weight_dir+'shap_all.html', shap_all)
     # plt.savefig("./shap_all.png", bbox_inches='tight', dpi=1000)
     # plt.close('all')
-    print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.png")
+    print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.html")
 
     #-- Feature importance plot
     # See: https://github.com/slundberg/shap/blob/master/shap/plots/summary.py#L18
     fig = plt.figure('shap_summary')
-    shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=30)
+    shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=25)
     plt.savefig(weight_dir+"shap_summary.png", bbox_inches='tight', dpi=1000)
     plt.close('shap_summary')
     print(colors.fg.lightgrey, "Saved shap_summary plot as :", colors.reset, weight_dir+"shap_summary.png")
@@ -1089,6 +1162,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     plt.close('shap_summary_bar')
     print(colors.fg.lightgrey, "Saved shap_summary_bar plot as :", colors.reset, weight_dir+"shap_summary_bar.png")
 
+    #-- Identical to 'shap_summary'
     # fig = plt.figure('shap_summary_singleClass')
     # shap_summary_singleClass = shap.summary_plot(shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=20)
     # plt.savefig(weight_dir+"shap_summary_singleClass.png", bbox_inches='tight', dpi=600)
@@ -1097,37 +1171,75 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     #See: https://github.com/slundberg/shap/blob/master/shap/plots/decision.py#L217
     # print(isinstance(list_features, (list,np.ndarray)))
-    # fig = plt.figure('decision_plot')
-    # shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features.tolist(), feature_order="importance", link='logit', show=False)
-    # plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
-    # plt.close('decision_plot')
-    # print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
+    fig = plt.figure('decision_plot')
+    shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, feature_order="importance", link='logit', show=False)
+    plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
+    plt.close('decision_plot')
+    print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
 
     #== Multi-output decision plot
     #-- See: https://github.com/slundberg/shap/blob/a4fd466193c7f9602e948e7f9fd65d49249ba4bd/shap/plots/decision.py#L553
-    # row_index = 0
-    # fig = plt.figure('multioutput_decision_plot')
-    # shap.multioutput_decision_plot(explainer.expected_value.numpy().tolist(), shap_values, row_index=row_index, feature_names=list_features.tolist(), highlight=None, legend_location='lower right', show=False)
-    # plt.savefig(weight_dir+"multioutput_decision_plot.png", bbox_inches='tight', dpi=600)
-    # plt.close('multioutput_decision_plot')
-    # print(colors.fg.lightgrey, "Saved multioutput_decision_plot plot as :", colors.reset, weight_dir+"multioutput_decision_plot.png")
+    row_index = 0
+    fig = plt.figure('multioutput_decision_plot')
+    shap.multioutput_decision_plot(explainer.expected_value.numpy().tolist(), shap_values, row_index=row_index, feature_names=list_features, highlight=None, legend_location='lower right', show=False)
+    plt.savefig(weight_dir+"multioutput_decision_plot.png", bbox_inches='tight', dpi=600)
+    plt.close('multioutput_decision_plot')
+    print(colors.fg.lightgrey, "Saved multioutput_decision_plot plot as :", colors.reset, weight_dir+"multioutput_decision_plot.png")
 
     #== Dependence of decision on single feature
     #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15
-    op = 'ctw'
-    if op in list_features:
+    feature1 = 'ctw'
+    if feature1 in list_features:
         fig = plt.figure('dependence_plot')
-        shap.dependence_plot(op, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+        shap.dependence_plot(feature1, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
         plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
         plt.close('dependence_plot')
         print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
 
     #Second dependence plot
-    fig = plt.figure('dependence_plot2')
-    shap.dependence_plot("recoZ_Pt", shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-    plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
-    plt.close('dependence_plot2')
-    print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+    feature2 = "recoZ_Pt"
+    if feature2 in list_features:
+        fig = plt.figure('dependence_plot2')
+        shap.dependence_plot(feature2, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+        plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+        plt.close('dependence_plot2')
+        print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Make_Test1D_Plot(opts, model):
+
+    nPts = 500
+
+    fig = plt.figure('TEST')
+    cm = plt.cm.get_cmap('RdYlBu_r')
+
+    #Best gaus fit
+    def gaus(x,a,b): return np.exp(-((x-a)/b)**2)
+
+    for theta in [-5, 0, 5]:
+        x = [xx for xx in np.linspace(-10, 10, num=nPts)] #Feature x
+        y = np.squeeze(model.predict(np.append(np.atleast_2d(x).T, np.atleast_2d(np.full(nPts,theta)).T, axis=1))) #NN response (depends on x and theta)
+
+        plt.scatter(x,y, alpha=0.50, label=str(theta))
+        # params, params_covariance = optimize.curve_fit(gaus, x, y, p0=[theta,0.5])
+        # plt.plot(x, gaus(x, params[0], params[1]), label='theta='+str(theta))
+        # print(params[0]); print(params[1])
+
+    # plt.show()
+    plt.legend(loc='best', numpoints=1, title='Theta param.')
+    # plt.title('xxx')
+    plt.ylabel('NN output')
+    plt.xlabel('1D input feature')
+
+    plotname = './TEST2.png'
+    fig.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved TEST2 plot as :", colors.reset, plotname)
+    fig.clear()
+    plt.close('TEST')
 
     return
 

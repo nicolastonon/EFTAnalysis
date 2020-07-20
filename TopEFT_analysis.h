@@ -151,10 +151,11 @@ class TopEFT_analysis
     double* array_LepEffTight_mu;
     double* array_LepEffTight_el;
 
-
     //Test -- to rename or remove
     vector<TString> v_EFTpoints;
     vector<double> v_sumLogLR; //Store 1 value per EFT point
+    vector<TString> v_EFToperators_paramNN; //List of EFT operators on which the considered NN is parametrized
+    vector<Int_t> v_idx_EFToperators_paramNN; //Corresponding feature indices
 };
 
 #endif

@@ -309,8 +309,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
     cout<<endl<<BLINK(BOLD(FBLU("[Luminosity : "<<lumiName<<"]")))<<endl<<endl<<endl;
 
-    //TMP TEST -- to change or remove soon
-    //--------------------------------------------
+//TMP TEST -- to change or remove soon
+//--------------------------------------------
     v_EFTpoints.push_back("rwgt_ctz_-15");
     v_EFTpoints.push_back("rwgt_ctz_-9");
     v_EFTpoints.push_back("rwgt_ctz_-5");
@@ -324,7 +324,17 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     v_EFTpoints.push_back("rwgt_ctz_15");
 
     v_sumLogLR.resize(v_EFTpoints.size()); //Store 1 value per EFT point
-    //--------------------------------------------
+
+    for(int ivar=0; ivar<var_list_NN.size(); ivar++)
+    {
+        if(var_list_NN[ivar] == "ctz" || var_list_NN[ivar] == "ctw" || var_list_NN[ivar] == "cpq3" || var_list_NN[ivar] == "cpqm" || var_list_NN[ivar] == "cpt")
+        {
+            v_EFToperators_paramNN.push_back(var_list_NN[ivar]);
+            v_idx_EFToperators_paramNN.push_back(ivar);
+        }
+    }
+
+//--------------------------------------------
 
     usleep(1000000); //Pause for 1s (in microsec)
 }
@@ -947,6 +957,24 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     if(template_name == "NN") {xmin = 0;} //NN: [0,1]
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
 
+//FIXME
+//--------------------------------------------
+    TString operator_scan1 = "ctz";
+    TString operator_scan2 = "ctw";
+    vector<float> v_WCs_operator_scan1 = {-6,-4,-2,0,2,4,6};
+    vector<float> v_WCs_operator_scan2 = {-6,-4,-2,0,2,4,6};
+    // vector<float> v_WCs_operator_scan1 = {-10,-8,-6,-4,-2,0,2,4,6,8,10};
+    // vector<float> v_WCs_operator_scan2 = {-10,-8,-6,-4,-2,0,2,4,6,8,10};
+    int idx_operator_scan1=-1, idx_operator_scan2=-1;
+    for(int ivar=0; ivar<var_list_NN.size(); ivar++)
+    {
+        if(var_list_NN[ivar]==operator_scan1) {idx_operator_scan1 = ivar;}
+        if(var_list_NN[ivar]==operator_scan2) {idx_operator_scan2 = ivar;}
+    }
+    if(idx_operator_scan1<0 || idx_operator_scan2<0) {cout<<"Scan operator not found ! Abort ! "<<endl; return;}
+    if(!v_WCs_operator_scan2.size()) {v_WCs_operator_scan2.push_back(-99);} //Need at least 1 element
+//--------------------------------------------
+
 	//Want to plot ALL selected variables
 	vector<TString> total_var_list;
 	if(makeHisto_inputVars)
@@ -967,7 +995,17 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             //Parametrized NN: associate 1 'variable' per WC value to scan
             if(this->NN_strategy == "MVA_param")
             {
-                for(int i=-5; i<=5; i++) {total_var_list.push_back(template_name + "_" + to_string(i));}
+                for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                {
+                    TString opname1 = operator_scan1 + "_" + v_WCs_operator_scan1[iop1];
+                    TString opname2 = "";
+                    for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                    {
+                        if(operator_scan2=="" && iop2>0) {break;}
+                        else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + v_WCs_operator_scan2[iop2];}
+                        total_var_list.push_back(template_name + "_" + opname1 + opname2);
+                    }
+                }
             }
             else //Non-parametrized
             {
@@ -981,7 +1019,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 		else {total_var_list.push_back(template_name);}
 	}
     vector<float> total_var_floats(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
-    float WC_value = -5; //Lowest WC value for scan -- assume integer steps
+
 
 // #    #      ##      #    #    #
 // ##  ##     #  #     #    ##   #
@@ -1411,7 +1449,22 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 // cout<<"ivar "<<ivar<<endl;
                                 if(template_name == "NN" && this->NN_strategy=="MVA_param")
                                 {
-                                    var_list_floats[var_list_floats.size()-1] = WC_value+ivar;
+                                    //FIXME
+                                    for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                                    {
+                                        for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                                        {
+                                            if(operator_scan2=="" && iop2>0) {break;}
+                                            if((iop1*v_WCs_operator_scan2.size()+iop2) == ivar)
+                                            {
+                                                var_list_floats[idx_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                var_list_floats[idx_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                // cout<<iop1<<" var "<<idx_operator_scan1<<" ==> "<<v_WCs_operator_scan1[iop1]<<endl;
+                                                // cout<<iop2<<" var "<<idx_operator_scan2<<" ==> "<<v_WCs_operator_scan2[iop2]<<endl;
+                                            }
+                                        }
+                                    }
+                                    // var_list_floats[var_list_floats.size()-2] = WC_value+ivar*WC_step;
                                     // for(int iv=0; iv<var_list_floats.size(); iv++) {cout<<"var_list_floats[iv] "<<var_list_floats[iv]<<endl;}
 
                                     //Evaluate output nodes values
@@ -1484,7 +1537,22 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                                 if(this->NN_strategy == "MVA_param") //ParametrizedNN: rescale TH1EFT according to current WC value
                                 {
-                                    WCPoint wcp = WCPoint((string) ("rwgt_ctz_"+Convert_Number_To_TString(WC_value+ivar)), 1.);
+                                    //FIXME
+                                    TString wcpt_name = "";
+                                    for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                                    {
+                                        for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                                        {
+                                            if(operator_scan2=="" && iop2>0) {break;}
+                                            if((iop1*v_WCs_operator_scan2.size()+iop2) == ivar)
+                                            {
+                                                wcpt_name = "rwgt_"+operator_scan1+"_"+v_WCs_operator_scan1[iop1]+"_"+operator_scan2+"_"+v_WCs_operator_scan2[iop2];
+                                                // cout<<"wcpt_name "<<wcpt_name<<endl;
+                                            }
+                                        }
+                                    }
+                                    WCPoint wcp = WCPoint((string) wcpt_name, 1.);
+                                    // WCPoint wcp = WCPoint((string) ("rwgt_"+WC_scan+"_"+Convert_Number_To_TString(WC_value+ivar*WC_step)), 1.);
                                     v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(wcp);
                                 }
 

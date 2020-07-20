@@ -3,8 +3,7 @@
 from tensorflow.keras.optimizers import SGD, Adam, RMSprop, Adadelta
 from tensorflow.keras import backend as K
 from Utils.ColoredPrintout import colors
-# from keras_adabound import AdaBound
-from adabound import AdaBound
+from Utils.adabound_tf import AdaBound
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -33,7 +32,7 @@ def Get_Loss_Optim_Metrics(opts):
     #-- Some possible choices of optimizers
     if opts["optimizer"] == "Adam": optim = Adam(lr=_lr, decay=_decay) #default lr=0.001
     elif opts["optimizer"] == "Adadelta": optim = Adadelta(learning_rate=_lr, rho=0.95, epsilon=1e-07) #default lr=0.001
-    elif opts["optimizer"] == "AdaBound": optim = AdaBound(lr=1e-03, final_lr=0.1, gamma=1e-03, weight_decay=0., amsbound=False)
+    elif opts["optimizer"] == "AdaBound": optim = AdaBound(learning_rate=_lr, final_learning_rate=0.1, gamma=1e-03, weight_decay=0., amsbound=False)
     elif opts["optimizer"] == "RMSprop": optim = RMSprop(lr=_lr)
     elif opts["optimizer"] == "SGD": optim = SGD(lr=_lr, decay=_decay, momentum=_momentum, nesterov=_nesterov)
     else: print(colors.fg.red, "ERROR: unknown optimizer algorithm ", opts["optimizer"], colors.reset); exit(1)
