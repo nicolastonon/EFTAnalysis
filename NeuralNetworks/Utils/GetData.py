@@ -65,7 +65,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
+    #-- If the NN is parametrized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
     list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
 
     #-- Concatenate + reshape arrays, and modify them as needed
@@ -74,7 +74,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
 
-    #-- For parameterized NN, need to count theory parameters as additional inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
+    #-- For parametrized NN, need to count theory parameters as additional inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
@@ -90,7 +90,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
 
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     transfType='quantile' #'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
-    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType=transfType)
+    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parametrizedNN"], transfType=transfType)
 
     print(colors.fg.lightblue, "\n===========")
     print("-- Will use " + str(x_train.shape[0]) + " training events !")
@@ -163,7 +163,7 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 tree = file.Get(opts["TTree"])
 
                 nevents = None
-                if opts["parameterizedNN"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
+                if opts["parametrizedNN"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
                 print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(', tree2array(tree, branches=wname_tmp, selection=cuts, start=0,stop=nevents).shape[0], 'entries )\n\n') #Dummy variable, just to read the nof entries
@@ -312,12 +312,12 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
         if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass] and "_c" not in list_processClasses[iclass][0]: #Check whether EFT reweights should be looked for
 
             operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0]) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process
-            n_components, components = Find_Components(operatorNames[0]) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in this process
+            n_components, components = Find_Components(operatorNames[0]) #Determine the components required to parametrize the event weight #NB: assumes that they are identical for all events in this process
             effWC_components = Get_EffectiveWC_eachComponent(n_components, components, operatorWCs) #Determine the 'effective WC' values associated with each component, for each benchmark point
-            fit_coeffs = Get_FitCoefficients(effWC_components, benchmark_weights=list_EFTweights_allClasses[iclass]) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
+            fit_coeffs = Get_FitCoefficients(effWC_components, list_EFTweights_allClasses[iclass], n_components, components) #Determine the fit coefficients of the events, based on the benchmark weights and 'effective WC' values
 
-            #Sanity check: for parameterized strategies, all operators selected by user must be found in sample parametrization (<-> in MG reweight names)
-            if opts["parameterizedNN"] is True:
+            #Sanity check: for parametrized strategies, all operators selected by user must be found in sample parametrization (<-> in MG reweight names)
+            if opts["parametrizedNN"] is True:
                 for op in opts["listOperatorsParam"]:
                     if op not in operatorNames[0,:]: print(colors.fg.red, 'ERROR: operator', op, 'selected in option [listOperatorsParam] not found in event weight parametrization. The operators found in sample are:', operatorNames[0,:],'. Abort !', colors.reset); exit(1)
 
@@ -360,8 +360,8 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
 
     maxEvents = opts["maxEvents"]
 
-    #--- Max nof events for train/test phases (not applied for parameterized NN, since total nof events depends on other options)
-    if maxEvents != -1 and opts["parameterizedNN"] == False:
+    #--- Max nof events for train/test phases (not applied for parametrized NN, since total nof events depends on other options)
+    if maxEvents != -1 and opts["parametrizedNN"] == False:
 
         #Skim each process class (keep only maxEvents events) ; skim all relevant arrays coherently
         for iclass in range(len(list_x_arrays_allClasses)):
@@ -432,14 +432,14 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
     x = np.concatenate(list_x_arrays_allClasses, 0)
     # EFTweights_allClasses = np.concatenate(list_EFTweights_allClasses, 0); EFTweightIDs_allClasses = np.concatenate(list_EFTweightIDs_allClasses, 0); EFT_FitCoeffs_allClasses = np.concatenate(list_EFT_FitCoeffs_allClasses, 0)
 
-    if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False and opts["parameterizedNN"] is True: print('Warning: len(list_thetas_allClasses)==0...')
+    if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False and opts["parametrizedNN"] is True: print('Warning: len(list_thetas_allClasses)==0...')
 
-    # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #-- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
+    # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #-- can not parametrize CARL_multiclass as I did, else NN relies ~ only on WC values
     if opts["strategy"] == "CARL_singlePoint":
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
 
-    #-- Parameterized NN: pass the values of the WCs as input features
-    elif opts["parameterizedNN"]==True:
+    #-- parametrized NN: pass the values of the WCs as input features
+    elif opts["parametrizedNN"]==True:
         thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
 
@@ -474,7 +474,7 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
                 x = np.append(x, tmp, axis=1) #NB -- can remove input WC here
 
             else: #Otherwise, only consider selected operators
-                #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
+                #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parametrize NN on such operators, not the others (not used)
                 theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
                 if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
                 targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
@@ -500,10 +500,10 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
     There are 3 possibilities:
     1) Classification between physics processes --> rescale each process to same total training weight
     2) Classification between SM and single EFT point ('CARL_singlePoint' strategy) --> rescale each hypothesis to same total training weight (but merge all process classes together)
-    3) Parameterized classifier of regressor --> set all training weights to 1 (because samples were already unweighted, to draw events according to their weights)
+    3) parametrized classifier of regressor --> set all training weights to 1 (because samples were already unweighted, to draw events according to their weights)
     '''
 
-    parameterizedNN = opts["parameterizedNN"]
+    parametrizedNN = opts["parametrizedNN"]
 
     """
     if opts["strategy"] is "CARL_singlePoint": #Case 2), transform such that 'class' mean 'SM or EFT' instead of 'physics process'
@@ -541,7 +541,7 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
         for iclass in range(len(list_processClasses)):
             list_LearningWeights_allClasses.append(list_weights_allClasses_abs[iclass])
 
-    elif parameterizedNN == False: #Other non-parameterized strategies (e.g. classifier)
+    elif parametrizedNN == False: #Other non-parametrized strategies (e.g. classifier)
 
         #Compute 'yields' (from *absolute* weights) to reweight classes
         list_yields_abs_allClasses = []
@@ -565,7 +565,7 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
         for iclass in range(len(list_processClasses)):
             list_LearningWeights_allClasses.append(list_weights_allClasses_abs[iclass]*list_SFs_allClasses[iclass]) #Training weights = phys weights * norm_SF
 
-    else: #Parameterized NN
+    else: #parametrized NN
 
         for iclass in range(len(list_processClasses)):
             list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[iclass]))) #Param. NN <-> unweighted samples <-> training weights = 1
@@ -593,10 +593,10 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
 
 def Update_Lists(opts, list_labels, list_features):
     '''
-    Update the lists of features and class labels depending on the chosen strategy. For parameterized NN, need to include the theory parameters as inputs. And for parameterized NN, relevant classes from there on are SM/EFT of SM/operators, not physics processes anymore.
+    Update the lists of features and class labels depending on the chosen strategy. For parametrized NN, need to include the theory parameters as inputs. And for parametrized NN, relevant classes from there on are SM/EFT of SM/operators, not physics processes anymore.
     '''
 
-    if opts["parameterizedNN"] == True:
+    if opts["parametrizedNN"] == True:
 
         if opts["testToy1D"]: list_features = ['x']
 
@@ -834,7 +834,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
  # #   ## #      #    #   #   #    #
  # #    # #       ####    #    ####
 
-def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedNN, transfType='quantile'):
+def Transform_Inputs(weightDir, x_train, list_features, lumiName, parametrizedNN, transfType='quantile'):
     '''
     Get normalization parameters from training data. Give these parameters to NN input layers to directly normalize all inputs.
 
@@ -856,7 +856,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
     if transfType == 'quantile':
         frac=0.95 #Fraction of event within [-1;+1] -- 0.68 or 0.95
         shift_, scale_ = get_normalization_iqr(x_train[:nmax], frac)
-        # if parameterizedNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
+        # if parametrizedNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
         xTrainRescaled = normalize(x_train, shift_, scale_)
 
     #--- RANGE SCALING
@@ -865,7 +865,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
         scaler = MinMaxScaler(feature_range=(-0.5, 0.5)).fit(x_train[:nmax]) #Compute macro parameters
         shift_ = scaler.min_
         scale_ = scaler.scale_
-        # if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        # if parametrizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
         xTrainRescaled = scaler.transform(x_train)
 
     #--- RESCALE TO UNIT GAUSSIAN -- https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
@@ -874,7 +874,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
         scaler = StandardScaler().fit(x_train[:nmax]) #Get params
         shift_ = scaler.mean_
         scale_ = scaler.scale_
-        if parameterizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
+        if parametrizedNN==False: xTrainRescaled = scaler.transform(x_train) #Apply transformation on train events -- for control
         xTrainRescaled = scaler.transform(x_train)
 
     text_file = open(weightDir + "NN_info.txt", "a+") #'w' to overwrite

@@ -1,10 +1,10 @@
-Start of NN training :22-Jul-2020 (22:19:26)
+Start of NN training :23-Jul-2020 (00:04:14)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-strategy --> CARL
+strategy --> CARL_singlePoint
 splitTrainEventFrac --> 0.75
 nEpochs --> 20
 nHiddenLayers --> 4
@@ -22,9 +22,9 @@ maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
-refPoint --> SM
-listOperatorsParam --> ['ctz']
-nPointsPerOperator --> 30
+refPoint --> rwgt_ctz_2
+listOperatorsParam --> ['cpq3']
+nPointsPerOperator --> 20
 minWC --> -3
 maxWC --> 3
 nEventsPerPoint --> 2000
@@ -34,16 +34,16 @@ regress_onLogr --> False
 targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> 1
-makeValPlotsOnly --> True
+makeValPlotsOnly --> False
 testToy1D --> False
-parameterizedNN --> True
+parametrizedNN --> False
 regress --> False
 nofOutputNodes --> 1
-maxEvents --> 2000
+maxEvents --> -1
 batchSize --> 512
 loss --> binary_crossentropy
 metrics --> binary_accuracy
-NN_strategy --> MVA_param
+NN_strategy --> MVA_EFT
 ----------------- 
 
-End of NN training and evaluation :22-juil.-2020 (22:20:37)
+End of NN training and evaluation :23-juil.-2020 (00:06:07)

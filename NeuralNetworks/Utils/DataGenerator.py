@@ -43,7 +43,7 @@ class DataGenerator(Sequence):
         self.batch_size = batch_size
         self.strategy = strategy
         self.shuffle = shuffle #Not implemented
-        self.returnWeights = returnWeights #True <-> event weights will be used (not needed for parameterized NN, since samples are unweighted)
+        self.returnWeights = returnWeights #True <-> event weights will be used (not needed for parametrized NN, since samples are unweighted)
         # self.on_epoch_end()
 
     def __len__(self): #Must return an int

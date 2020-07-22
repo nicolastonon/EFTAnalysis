@@ -22,7 +22,7 @@ NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3
 - 'Benchmark ID' = string encoding of the name of the benchmark point
 - 'Components' = individual terms contributing to the squared matrix element of the process. For example, if considering a single operator, there are 3 components to account for (corresponding to the SM squared term, the interference term, and the pure-EFT term)
 - 'Effective WC'/'component weight' = factors 'c_i' for all components. Example: for the interfence term between ctZ=3 and ctW=5, c=3*5=15. They are not the WC values of the operators, but depend directly on them, hence labelled "effective WC"
-- 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parameterize the event weight
+- 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parametrize the event weight
 - 'JLR' = joint likelihood ratio, denoted r. Along with score t, these variables correspond to the augmented data extracted from the generator (see reference summary article: https://arxiv.org/abs/1805.00020)
 - ...
 '''
@@ -73,16 +73,12 @@ def Find_Components(operatorNames):
         print(colors.ital, 'Warning : operatorNames has dimension', operatorNames.ndim, ', suggesting that lists of operator names have been provided for several EFT points. It is expected that all point follow the same naming convention and include the same operators. Will consider only the first row of this array.', colors.reset)
         operatorNames = operatorNames[0, :] #Restrict to first EFT point
 
-    minPower_perOperator = 0
-    maxPower_perOperator = 2
-    if len(operatorNames) == 1: #Assumption : 1 operator <-> pure EFT
-        minPower_perOperator = 2
-        maxPower_perOperator = 2
+    minPower_perOperator = 0; maxPower_perOperator = 2
+    if len(operatorNames) == 1: minPower_perOperator = 2 #Assumption : 1 operator <-> pure EFT
 
     #Set the min/max powers at which each operator can enter a component
     parameter_max_power = []
-    for iter in range(len(operatorNames)):
-        parameter_max_power.append(maxPower_perOperator)
+    for iter in range(len(operatorNames)): parameter_max_power.append(maxPower_perOperator)
 
     components = []
     for i in range(len(operatorNames)):
@@ -223,7 +219,7 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
  #      #   #      #    # #    # #      #      #      ###
  #      #   #       ####   ####  ###### #      #      ###
 
-def Get_FitCoefficients(effWC_components, benchmark_weights):
+def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, components):
     """
     Determine the 'fit coefficients', i.e. the structure constants associated with the components
     Corresponds to matrix A, as in : T . A = w <-> A = w . T^-1 (where w are the benchmark weights, and T the 'effective WCs' for all components and all benchmark points)
@@ -231,16 +227,16 @@ def Get_FitCoefficients(effWC_components, benchmark_weights):
     Parameters:
     effWC_components (ndarray of shape [n_points, n_components]) : array of 'effective WC' for all components, for all 'n_points' considered EFT points ; retain only the necessary 'n_components' first benchmark weights
     benchmark_weights (ndarray of shape [n_events, n_points]) : benchmark weights for each event ; retain only the necessary 'n_components' first benchmark weights
+    n_components (int) : number of components #FIXME
+    components (ndarray of shape [n_components, n_operators]): FIXME
 
     Returns:
     fit_coeffs (ndarray of shape [n_events, n_components]) : fit coefficients associated to the components, for all (n_points) EFT points
     """
 
     #Only retain minimal required nof benchmark weights / components
-    if effWC_components.shape[0] > effWC_components.shape[1]:
-        effWC_components = effWC_components[:effWC_components.shape[1], :]
-    if benchmark_weights.shape[1] > effWC_components.shape[1]:
-        benchmark_weights = benchmark_weights[:, :effWC_components.shape[1]]
+    if effWC_components.shape[0] > effWC_components.shape[1]: effWC_components = effWC_components[:effWC_components.shape[1], :]
+    if benchmark_weights.shape[1] > effWC_components.shape[1]: benchmark_weights = benchmark_weights[:, :effWC_components.shape[1]]
 
     #Need square matrix, i.e. as many benchmark points as there are components
     #  SVD ? (https://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html)
@@ -250,7 +246,16 @@ def Get_FitCoefficients(effWC_components, benchmark_weights):
     if DEBUG_: print(benchmark_weights.shape); print(effWC_components.shape); print(np.linalg.inv(effWC_components).shape)
 
     fit_coeffs = np.dot(np.linalg.inv(effWC_components), np.transpose(benchmark_weights) ) #Matrix inversion ; A = T^-1 . w
-    fit_coeffs = np.transpose(fit_coeffs) #Transpose to get desired shape (n_events, 0
+    fit_coeffs = np.transpose(fit_coeffs) #Transpose to get desired shape
+
+    only_keep_quadratic_components = False #True <-> only retain quadratic term in the squared amplitude (neglect interference terms)
+    if only_keep_quadratic_components:
+        print(fit_coeffs[:1,:])
+        # fit_coeffs[:,0:20] = 0
+        for ic in range(n_components):
+            if np.any(components[ic,:]==1): fit_coeffs[:,ic] = 0 #Force all fit coefficients corresponding to interference terms (<-> if any operator has a 'component' term equal to 1) to 0
+        print(fit_coeffs[:1,:])
+
     if DEBUG_:
         print('\n-- Get_FitCoefficients'); print(fit_coeffs.shape)
         if DEBUG_>1:
@@ -387,7 +392,7 @@ def Extrapolate_SM_Xsec(opts, weights_SM):
 def Get_ThetaParameters(opts, operatorNames):
     """
     Sets the grid of EFT points on which the NN will get trained (<-> at which training events will be extrapolated).
-    Returned arrays are defined in terms of operators found in the sample (<-> on which event weights are parameterized), not only the operators selected by the user. This is because these arrays will have to be used to parameterize weights, hence need to follow sample's convention.
+    Returned arrays are defined in terms of operators found in the sample (<-> on which event weights are parametrized), not only the operators selected by the user. This is because these arrays will have to be used to parametrize weights, hence need to follow sample's convention.
 
     Parameters:
     listOperatorsParam : subset of operators on which to train the NN
@@ -418,17 +423,17 @@ def Get_ThetaParameters(opts, operatorNames):
 #--- Sample thetas uniformly between [min;max], *independently for each operator*. No more than 1 operator activated (non-zero) at once, to allow for unambiguous labelling
     if opts["strategy"] == "CARL_multiclass":
 
-        for i_op_ToParameterize in range(len(listOperatorsParam)): #Loop on operators selected by user
-            # print(i_op_ToParameterize)
+        for i_op_Toparametrize in range(len(listOperatorsParam)): #Loop on operators selected by user
+            # print(i_op_Toparametrize)
 
             thetas = np.zeros((nPointsPerOperator, len(operatorNames))) #Shape (n_operators_inSample, nPointsPerOperator)
             targetClass = np.zeros((nPointsPerOperator, opts["nofOutputNodes"])) #SM vs EFT <-> all EFT points have class ID = 0; CARL_multiclass (SM vs op1 vs op2 vs ...) <-> one-hot encoded multilabels. 0=SM (not filled here), 1=operator1 activated, 2=operator2 activated, etc. #NB: in multiclass, for ease, assign 1 column per operator found in sample for now. Later, will remove zero-only columns (<-> only keep operators chosen by user)
 
             for i_opInSample in range(len(operatorNames)): #1 column per operator found in sample for now (not only operators selected by user)
                 # print(operatorNames[i_opInSample])
-                # print(listOperatorsParam[i_op_ToParameterize].lower())
+                # print(listOperatorsParam[i_op_Toparametrize].lower())
 
-                if listOperatorsParam[i_op_ToParameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_ToParameterize].lower() == operatorNames[i_opInSample]:
+                if listOperatorsParam[i_op_Toparametrize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_Toparametrize].lower() == operatorNames[i_opInSample]:
 
                     iter = 0
                     for x in np.linspace(minWC, maxWC, num=nPointsPerOperator):
@@ -437,9 +442,9 @@ def Get_ThetaParameters(opts, operatorNames):
                         # if opts['refPoint'] == 'SM' and x == 0: x = 3. #WC=0 corresponds to SM point (already used as ref.) --> change to dummy non-null value
                         # print('x', x)
 
-                        thetas[iter, i_op_ToParameterize] = x
+                        thetas[iter, i_op_Toparametrize] = x
                         if opts["nofOutputNodes"] == 1: targetClass[iter] = 0 #Single column <-> any EFT point has label 0 (only SM point has label 1)
-                        else: targetClass[iter, i_op_ToParameterize+1] = 1 #Multi-column (1st colum <-> SM)
+                        else: targetClass[iter, i_op_Toparametrize+1] = 1 #Multi-column (1st colum <-> SM)
                         iter+= 1
 
             list_thetas_allOperators.append(thetas)
@@ -636,7 +641,7 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
 #Main EFT function, called in GetData.py. Extend the data (x, weights, ...) at all the EFT points theta at which the NN will get trained.
 def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName=""):
     """
-    Extend the original data so that the NN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the NN to learn how to interpolate between them.
+    Extend the original data so that the NN can be parametrized on WCs. Events need to be reweighted at many different EFT points for the NN to learn how to interpolate between them.
     First, define the points 'thetas' on which the NN will get trained. Then, for the same input features x, will duplicate events N times at these points, with corresponding reweights.
     Can also 'augment' the data, i.e. compute the JLR and score quantities on which the NN could then regress (or use as inputs).
     Samples are first 'unweighted', i.e. events are drawn from samples with probability corresponding to their relative weights, and then al attributed a weight of 1.
@@ -651,7 +656,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     Extended/augmented lists
     """
 
-    parameterizedNN = opts["parameterizedNN"]
+    parametrizedNN = opts["parametrizedNN"]
 
     need_jlr = (opts["strategy"] in ["ROLR", "RASCAL"])
     need_score = (opts["strategy"] is "RASCAL")
@@ -659,7 +664,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Sanity checks
 
-    if parameterizedNN is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
+    if parametrizedNN is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
         return list_x_allClasses, list_weights_allClasses, [], [], [], []
 
     if DEBUG_>1: #Debug printout
@@ -686,7 +691,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Assume that benchmark points are identical for all events in the sample
         operatorNames = operatorNames[0] #Single-element list -> array
         for op1 in opts["listOperatorsParam"]:
-            if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
+            if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parametrized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
 
         nEventsPerPoint_class = opts["maxEvents"]
         if nEventsPerPoint_class > len(list_x_allClasses[iclass]):
@@ -694,8 +699,8 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             nEventsPerPoint_class = len(list_x_allClasses[iclass])
         elif nEventsPerPoint_class ==-1: nEventsPerPoint_class = len(list_x_allClasses[iclass]) #Use entire dataset at each point
 
-        #-- Determine the components necessary to parameterize the event weights for this class
-        n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in process class
+        #-- Determine the components necessary to parametrize the event weights for this class
+        n_components, components = Find_Components(operatorNames) #Determine the components required to parametrize the event weight #NB: assumes that they are identical for all events in process class
         # print(components)
 
         #-- Define the hypotheses theta on which the NN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point) #NB: points theta are defined according to user-defined list 'listOperatorsParam', but must be shaped according to total nof operators present in samples
@@ -718,15 +723,15 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        #-- For non-parameterized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
-        if parameterizedNN == False:
+        #-- For non-parametrized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
+        if parametrizedNN == False:
 
             weights_thetas = list_SMweights_allClasses[iclass] #Will compare SM to EFT ref point
             weights_allThetas_class = np.concatenate((weights_thetas, weights_refPoint))
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
             targetClasses_allThetas_class = np.concatenate( (np.zeros(len(list_x_allClasses[iclass])), np.ones(len(list_x_allClasses[iclass]))) ) #0 <-> SM; 1 <-> ref. point
 
-        #-- Parameterized NN
+        #-- parametrized NN
         else:
 
             #-- Get the 'effective WC' values scaling each fit component
@@ -799,7 +804,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         extendedList_x_allClasses.append(x_allThetas_class)
         extendedList_weights_allClasses.append(weights_allThetas_class)
         extendedList_targetClass_allClasses.append(targetClasses_allThetas_class)
-        if parameterizedNN == True:
+        if parametrizedNN == True:
             extendedList_WCs_allClasses.append(WCs_allThetas_class)
             if need_jlr:
                 extendedList_jointLR_allClasses.append(jointLR_allThetas_class)
@@ -878,7 +883,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         weights_theta = np.ones(len(x_theta))
         weights_refPoint = np.ones(len(x_refPoint))
 
-        #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
+        #-- Get Wilson coeff. values associated with events (fed as inputs to parametrized NN)
         WCs_theta = np.tile(thetas[itheta,:], (nEventsPerPoint,1))
         WCs_refPoint = WCs_theta
 
@@ -954,7 +959,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
 
 def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoeffs, x, weights_refPoint, need_jlr, need_score, n_components, components):
     """
-    Get the quantities necessary to evaluate a parameterized NN (x, weights, augmented data, etc.) for a single point theta (either SM or any EFT point). Used for validation.
+    Get the quantities necessary to evaluate a parametrized NN (x, weights, augmented data, etc.) for a single point theta (either SM or any EFT point). Used for validation.
 
     Returns:
     Quantities for all events, at given point theta.
@@ -1011,7 +1016,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     if unweight_events: weights_theta = np.ones(len(x_theta))
     else: weights_theta = np.squeeze(weights_theta[indices_theta])
 
-    #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
+    #-- Get Wilson coeff. values associated with events (fed as inputs to parametrized NN)
     mode_valWC = 0 #0 <-> set WCs manually (via user option in StandVal code). This is default, it means all samples will be evaluated at same point ; 1 <-> set WCs according to scenario corresponding to current sample (will differ for different samples); 2 <-> all WCs to 0 (SM scenario)
 
     if opts["evalPoint"] == '': mode_valWC = 1 #Allows user to easily select this 'mode'
@@ -1109,7 +1114,7 @@ def GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoin
         weights_theta = np.ones(len(x_theta))
         weights_refPoint = np.ones(len(x_refPoint))
 
-        #-- Get Wilson coeff. values associated with events (fed as inputs to parameterized NN)
+        #-- Get Wilson coeff. values associated with events (fed as inputs to parametrized NN)
         WCs_theta = np.tile(thetas[itheta,:], (nEvents,1))
         WCs_refPoint = WCs_theta
         # print(x_theta.shape)

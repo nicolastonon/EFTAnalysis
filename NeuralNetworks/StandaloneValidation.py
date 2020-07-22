@@ -1,5 +1,5 @@
 #Perform validation independently from the main training code
-#Useful to validate parameterized NN strategies. Sample 'new' data from given SM/EFT points, and evaluate at desired SM/EFT point.
+#Useful to validate parametrized NN strategies. Sample 'new' data from given SM/EFT points, and evaluate at desired SM/EFT point.
 
 import os
 import ROOT
@@ -75,9 +75,9 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
-    if optsTrain["parameterizedNN"] is False:
-        optsTrain["parameterizedNN"] = True; _list_processClasses = [["PrivMC_tZq_training"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
-        # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
+    if optsTrain["parametrizedNN"] is False:
+        optsTrain["parametrizedNN"] = True; _list_processClasses = [["PrivMC_tZq_training"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+        # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parametrized strategies (check validation plots produced by main training code)", colors.reset); return
 
     optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal # Add option to control nof events to sample per hypothesis
     optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint)) # Add option to set point (WC values) at which DNN is to be evaluated

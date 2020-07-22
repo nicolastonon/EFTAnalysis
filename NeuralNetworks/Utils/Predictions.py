@@ -34,7 +34,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
 
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
-    maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
+    maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parametrized NN with huge training stat.)
 
     useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
 
@@ -43,7 +43,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
     minWC = opts["minWC"]
     maxWC = opts["maxWC"]
 
-    if opts["parameterizedNN"] == False or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False
+    if opts["parametrizedNN"] == False or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False
 
     #-- Store the training and testing events into lists, depending on their 'true class' values
     #NB: For 'EFT' class, don't just consider all non-SM events (too much). For now, only consider events generated at boundary values (for all operators)
@@ -85,7 +85,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
 
         for inode in range(len(list_labels)): #For each node
 
-            if opts["parameterizedNN"] == False or inode==0 or useMostExtremeWCvaluesOnly == False: #Use all events for control plots (for non-parameterized NN, and for SM point). ((Specify 'or inode==0' so that 'SM' events fall in this condition and not the next for 'CARL_multiclass' strategy))
+            if opts["parametrizedNN"] == False or inode==0 or useMostExtremeWCvaluesOnly == False: #Use all events for control plots (for non-parametrized NN, and for SM point). ((Specify 'or inode==0' so that 'SM' events fall in this condition and not the next for 'CARL_multiclass' strategy))
                 list_xTrain_allClasses.append(x_train[y_process_train[:,inode]==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train[:,inode]==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train[:,inode]==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train[:,inode]==1][:maxEvents])
                 list_xTest_allClasses.append(x_test[y_process_test[:,inode]==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test[:,inode]==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test[:,inode]==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test[:,inode]==1][:maxEvents])
             elif opts["strategy"] is "CARL_multiclass": #For each EFT operator (not SM = first label!), only use events generated at most extreme EFT point
@@ -94,7 +94,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
                 list_xTest_allClasses.append(x_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_yTest_allClasses.append(y_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents])
 
     #-- Sanity checks: make sure no class is empty
-    if opts["parameterizedNN"] is True or len(list_processClasses)>1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check
+    if opts["parametrizedNN"] is True or len(list_processClasses)>1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check
         assert all(len(l) for l in list_xTrain_allClasses)
         assert all(len(l) for l in list_xTest_allClasses)
 
