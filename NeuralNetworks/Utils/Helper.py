@@ -323,6 +323,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         os.makedirs(weightDir, exist_ok=True)
     else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 
+    if opts["testToy1D"] == True:
+        if opts["strategy"] != "CARL": print(colors.fg.red, colors.bold, "\n\nERROR ! Debug option [testToy1D] is only valid for strategy CARL ! \n", colors.reset, h5modelName, '\n'); exit(1)
+        print(colors.fg.orange, colors.bold, "\n\nWill train a NN on a dummy 1D toy example with only 1 input feature (dummy gaussian centered on theta parameter). See ref. article on paramNN !\n", colors.reset, h5modelName, '\n')
+
     print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 
     #Top directory containing all input ntuples
@@ -370,11 +374,13 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.dim, "Option score_lossWeight should not be <=0. Setting it to 1 !", colors.reset)
         opts["score_lossWeight"] = 1
 
-    if opts["nHiddenLayers"]<0 or opts["nNeuronsPerLayer"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
+    if opts["nHiddenLayers"]<0 or opts["nNeuronsAllHiddenLayers"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
+
+    if "nNeuronsPerHiddenLayer" in opts and len(opts["nNeuronsPerHiddenLayer"]) != opts["nHiddenLayers"]: print(colors.fg.red, 'ERROR : list [nNeuronsPerHiddenLayer] must have a length == [nHiddenLayers] !', colors.reset); exit(1)
 
     if opts["activHiddenLayers"] is '': print(colors.fg.red, 'ERROR : Empty activation function for hidden layers !', colors.reset); exit(1)
 
-    if opts["optimizer"] not in ['Adam','Adadelta','AdaBound','RMSprop','SGD']: print(colors.fg.red, "ERROR: unknown optimizer algorithm", opts["optimizer"], colors.reset); exit(1)
+    if opts["optimizer"] not in ['Adam','Nadam','Adadelta','AdaBound','RMSprop','SGD']: print(colors.fg.red, "ERROR: unknown optimizer algorithm", opts["optimizer"], colors.reset); exit(1)
     if opts["learnRate"] <= 0: print(colors.fg.red, "Wrong learning rate value ", opts["learnRate"], colors.reset); exit(1)
 
     if opts["regularizer"][0] is 'L1': opts["regularizer"][0] = 'l1'
@@ -388,8 +394,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
 
     for procClass, label in zip(processClasses_list, labels_list):
-        if "PrivMC" in label and "_c" not in label and len(procClass) > 1:
-            print(colors.fg.red, 'ERROR : process classes containing a private EFT sample can only include that single sample. Maybe the process class labels must be changed (following conventions, cf. Helper.py)', colors.reset); exit(1)
+        if "PrivMC" in label and "_c" not in label and len(procClass) > 1: print(colors.fg.red, 'ERROR: process classes containing a private EFT sample can only include that single sample. Maybe the process class labels must be changed (following conventions, cf. Helper.py). \nNB: if you are trying to set up a parametrized NN which considers the combination of >1 physics processes, just add them independently to the lists (merged automatically) !', colors.reset); exit(1)
 
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
@@ -410,6 +415,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
+
+    if "listMinMaxWC" in opts and len(opts["listMinMaxWC"] != 2*len(opts["listOperatorsParam"])): print(colors.bold, colors.fg.red, 'ERROR : List [listMinMaxWC] must have exactly twice the length of [listOperatorsParam] !', colors.reset); exit(1)
 
     opts["loss"], _, opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
 

@@ -34,9 +34,9 @@ from Utils.RegressorValidation import *
 nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
-evalPoint = ''
+# evalPoint = ''
 # evalPoint = "SM"
-# evalPoint = "rwgt_ctz_1"
+evalPoint = "rwgt_ctz_2"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_ctw_3"
@@ -48,10 +48,10 @@ evalPoint = ''
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
-# list_points_sampling.append("rwgt_ctz_1")
+list_points_sampling.append("rwgt_ctz_2")
 # list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
-list_points_sampling.append("rwgt_ctw_1")
+# list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
@@ -64,7 +64,7 @@ list_points_sampling.append("rwgt_ctw_1")
 #== SCAN OPTIONS ==#
 scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
 operator_scan = 'ctw' #Operator to scan
-range_step = [-8, 8, 2] #Range in which to scan operator
+range_step = [-6, 6, 2] #Range in which to scan operator
 only_SM_events = True #True <-> sample same SM events for each input WC value to test
 
 # //--------------------------------------------
@@ -123,16 +123,16 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
             if point=='SM':
                 x_SM=np.copy(x_tmp); y_process_SM=np.copy(y_process_tmp); PhysicalWeights_SM=np.copy(PhysicalWeights_tmp)
                 if only_SM_events:
-                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #FIXME #Always keep default SM distribution as reference
+                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Always keep default SM distribution as reference
                     pred_SM = np.squeeze(model.predict(x_SM))
                 # print(x_SM[0,:])
             else:
                 if only_SM_events: #Always keep default SM distribution as reference; compare to SM events, but with input WC value corresponding to current step (--> same events, no stat. fluctuations)
                     x_tmp=np.copy(x_SM)
-                    x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx] #FIXME
+                    x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
                     pred_tmp = np.squeeze(model.predict(x_tmp)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
                 else:
-                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx] #FIXME
+                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['SM','EFT'], [[pred_SM,pred_tmp]], [PhysicalWeights_SM,PhysicalWeights_tmp], [x_SM,x_tmp], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))

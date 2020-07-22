@@ -25,6 +25,7 @@ from Utils.ColoredPrintout import colors
 from collections import defaultdict
 import getopt # command line parser
 import argparse
+from settings import opts #Custom dictionnary of settings
 
 ######## ######## ######## ######## #### ########
 ##       ##          ##    ##        ##     ##
@@ -36,7 +37,6 @@ import argparse
 
 class EFTFit(object):
 
-
  # #    # # #####
  # ##   # #   #
  # # #  # #   #
@@ -44,9 +44,15 @@ class EFTFit(object):
  # #   ## #   #
  # #    # #   #
 
-    def __init__(self):
+    def __init__(self, opts):
         self.logger = logging.getLogger(__name__)
 
+        self.wcs = opts['wcs']
+        self.scan_wcs = opts['scan_wcs']
+        self.wcs_tracked = opts['wcs_tracked']
+        self.wc_ranges = opts['wc_ranges']
+
+        '''
         # WCs lists for easy use
         # Full list of opeators
         self.wcs = ['ctz'] #Full list
@@ -54,13 +60,14 @@ class EFTFit(object):
         self.scan_wcs = ['ctw','ctz']
         # Default wcs to keep track of during 2D scans
         self.wcs_tracked = [] #OTHERS
-        # Scan ranges of the wcs #FIXME -- this is actually superseeded by param from EFTModel... ?
+        # Scan ranges of the wcs
         self.wc_ranges = {'ctz':(-6,6) #, 'ctw':(-7,7)
                          }
-        # Systematics names except for FR stats. Only used for debug
-        # self.systematics = ['CERR1','CERR2']
-        self.systematics = []
+        '''
 
+        # Systematics names except for FR stats. Only used for debug
+        self.systematics = []
+        # self.systematics = ['CERR1','CERR2']
 
  #       ####   ####   ####  ###### #####
  #      #    # #    # #    # #      #    #
@@ -113,18 +120,22 @@ class EFTFit(object):
  ##  ## #    # #   #  #   #  #    # #      #    # #    # #
  #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-    def makeWorkspaceSM(self, datacard='datacard.txt'):
+    def makeWorkspaceSM(self, datacard='datacard.txt', verbosity=2):
         ### Generates a workspace from a datacard ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
             logging.error("Datacard does not exist!")
             return
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel',
-                #'--PO','map=.*/ttll:mu_ttll[1]','--PO','map=.*/tHq:mu_ttH[1,0,3]','--PO','map=.*/ttlnu:mu_ttlnu[1,0,3]','--PO','map=.*/ttH:mu_ttH[1,0,3]','--PO','map=.*/tllq:mu_tllq[1,0,3]',
-                # '--PO','map=.*/tZq:mu_tzq[1,0,5]',
-                '--PO','map=.*/PrivMC_tZq_training:r_tzq[1,0,5]',
-                '-o','SMWorkspace.root']
+        # CMSSW_BASE = os.getenv('CMSSW_BASE')
+
+        args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o','SMWorkspace.root']
+
+        # Map signal strengths to processes in all bins
+        for iproc,proc in enumerate(opts["processes"]):
+            args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
+
+        if verbosity>0:
+            args.extend(['-v', str(verbosity)])
 
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -141,7 +152,10 @@ class EFTFit(object):
             logging.error("Datacard does not exist!")
             sys.exit()
         CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./EFT_Parameterization.npy','-o','EFTWorkspace.root', '-v', str(verbosity)]
+        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
+
+        if verbosity>0:
+            args.extend(['-v', str(verbosity)])
 
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -158,52 +172,69 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False):
+    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=2):
+        '''
+        Perform a MLF to find the best fit value of the POI(s).
+        '''
 
         ### Multidimensional fit ###
-        # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        if exp:
-            args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit', '-t -1', '--expectSignal=1']
-        else:
-            args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit']
+        logging.info(colors.fg.lightblue + "Enter function bestFitSM()\n" + colors.reset)
+
+        args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit']
+
+        for mu in opts["SM_mus"]: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
+        args.extend(['--setParameters',','.join('{}=1'.format(xx) for xx in opts["SM_mus"])]) #Set default values to 1
         if freeze:
-            params_all=['r_tzq']
+            params_all=[opts["SM_mu"]]
             fit=list(set(params_all) - set(freeze))
             name += '.'
             name += '.'.join(fit)
         if name:        args.extend(['-n','{}'.format(name)])
         if freeze:      args.extend(['--freezeParameters',','.join(freeze)])
+        if verbosity>0:   args.extend(['-v', str(verbosity)])
+        if exp:
+            args.extend(['-t', '-1'])
         if other:       args.extend(other)
 
+        if verbosity> 0: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
             self.log_subprocess_output(process.stdout,'info')
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
-        logging.info(colors.fg.lightblue + "Done with SMFit." + colors.reset)
+        logging.info(colors.fg.lightblue + "Done with SM best fit !" + colors.reset)
         self.printBestFitsSM(name)
 
     def bestFitEFT(self, name='.EFT', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2):
+        '''
+        Perform a MLF to find the best fit value of the POI(s).
+
+        NB: the error 'Looks like the last fit did not float this parameter.' could arise e.g. if the bin names differ between file/datacard/EFT parametrization file.
+        '''
+
         ### Multidimensional fit ###
         logging.info(colors.fg.lightblue + "Enter function bestFitEFT()\n" + colors.reset)
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
+
         if params_POI == []: params_POI = self.wcs
 
-        #args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit','--cminDefaultMinimizerStrategy=2', '-v', str(verbosity)]
-	args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit', '-t','-1', '-v', str(verbosity)]
+        # CMSSW_BASE = os.getenv('CMSSW_BASE')
+        args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit']
 
         if name:                args.extend(['-n','{}'.format(name)])
         if params_POI:          args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
-        if startValuesString:   args.extend(['--setParameters',startValuesString])
-        if not freeze:          args.extend(['--floatOtherPOIs','1'])
+        args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 1
+        # if startValuesString:   args.extend(['--setParameters',startValuesString]) #Set POI default value for generating toys (otherwise, use B-only model)
+        if not freeze:          args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*'])
-        #if exp:                 args.extend(['-t -1'])
+        if exp:                 args.extend(['-t', '-1']) #Assume MC expected (Asimov?)
+        if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
-        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs if wc not in params_POI])])
+        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
         # args.extend(['--setParameterRanges','{}={},{}'.format(param,scanmax)])
 
+        if verbosity> 0: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
@@ -222,24 +253,35 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False):
+    def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False, verbosity=2):
+
         ### Runs deltaNLL Scan in a parameter using CRAB ###
         ### Can be used to do 2D scans as well ###
-        logging.info("Doing grid scan...")
+        logging.info(colors.fg.lightblue + "Enter function gridScanSM()\n" + colors.reset)
 
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        if exp: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0', '--toys -1',  '--expectSignal=1']
-        else: args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+        if(len(scan_params) == 2):
+            # points*= points #2D --> square npoints
+            name = name + '.2D'
+
+        # CMSSW_BASE = os.getenv('CMSSW_BASE')
+        args = ['combineTool.py','-d','./SMWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+
+        for mu in scan_params: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
+        args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in scan_params)]) #Set default values to 1
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,opts["SMmu_ranges"][mu][0],opts["SMmu_ranges"][mu][1]) for mu in opts["SM_mus"])])
 
         args.extend(['--points','{}'.format(points)])
-        if name:              args.extend(['-n','{}'.format(name)])
-        if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
-        if params_tracked: args.extend(['--trackParameters',','.join(params_tracked)])
-        if not freeze:        args.extend(['--floatOtherPOIs','1'])
+        if name:                args.extend(['-n','{}'.format(name)])
+        if params_tracked:      args.extend(['--trackParameters',','.join(params_tracked)])
+        if verbosity>0:           args.extend(['-v', str(verbosity)])
+        if not freeze:          args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        if exp: args.extend(['-t', '-1'])
         if other:             args.extend(other)
-        # Common 'other' uses: --setParameterRanges param=min,max
+
         if batch=='crab':      args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','2000'])
         if batch=='condor':    args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','2000'])
+
+        if verbosity> 0: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -255,24 +297,33 @@ class EFTFit(object):
         return
 
 
-    def gridScanEFT(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[]):
-        ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
-        logging.info("Doing grid scan...")
+    def gridScanEFT(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=2):
 
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['combineTool.py','-d',CMSSW_BASE+'/src/EFTAnalysis/COMBINE/EFT/EFTWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+        ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
+        logging.info(colors.fg.lightblue + "Enter function gridScanEFT()\n" + colors.reset)
+
+        # CMSSW_BASE = os.getenv('CMSSW_BASE')
+        args = ['combineTool.py','-d','./EFTWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+
+        for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
+        args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in opts["wcs"])])
 
         args.extend(['--points','{}'.format(points)])
         if name:              args.extend(['-n','{}'.format(name)])
-        if scan_params:     args.extend(['-P',' -P '.join(scan_params)]) # Preserves constraints
-        if params_tracked: args.extend(['--trackParameters',','.join(params_tracked)])
-        if startValuesString:   args.extend(['--setParameters',startValuesString])
-        #args.extend(['--expectSignal=1'])
-        if not freeze:        args.extend(['--floatOtherPOIs','1'])
+        check = True in (wc not in self.wcs for wc in self.wcs_tracked)
+        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in self.wcs])]) #Save values of additional parameters (e.g. profiled nuisances)
+        # if startValuesString:   args.extend(['--setParameters',startValuesString])
+        if not freeze:        args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if exp:               args.extend(['-t -1'])
+        if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:             args.extend(other)
+        # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
+
         if batch=='crab':              args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','3000'])
         if batch=='condor':            args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','3000','--dry-run'])
+
+        if verbosity> 0: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         # Run the combineTool.py command
@@ -759,7 +810,7 @@ class EFTFit(object):
 
     def printBestFitsSM(self, name='.EFT.SM.Float'):
         ### Print a table of SM signal strengths, their best fits, and their uncertainties ###
-        params = ['r_tzq']
+        params = opts["SM_mus"]
 
         fit_array = []
 
@@ -778,7 +829,7 @@ class EFTFit(object):
 
             fit_array.append((param,value,err_sym,err_low,err_high))
 
-        logging.info("Quick result:")
+        logging.info(colors.fg.orange + "Quick result:" + colors.reset)
         logging.info("Param, Best Fit Value, Symmetric Error, Low side of Asym Error, High side of Asym Error")
         for row in fit_array:
             print row[0],row[1],"+/-",row[2]," ",row[3],"+{}".format(row[4])
@@ -911,41 +962,53 @@ class EFTFit(object):
 # //--------------------------------------------
 if __name__ == "__main__":
 
-# User options
+# User options -- Default values
 # //--------------------------------------------
     mode = 'EFT' #'SM', 'EFT'
     datacard_path = './datacard.txt'
-    exp = True #True <-> Asimov a-priori expected; False <-> observed
+    exp = False #True <-> Asimov a-priori expected; False <-> observed
+    scan_dim = '1D' #'1d' <-> 1D scan (default); '2d' <-> 2D scan
+    verb=0
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
     parser.add_argument("-d", metavar="datacard path", help="Path to the datacard")
-    # parser.add_argument("--verbosity", metavar="level", help="Increase output verbosity")
+    parser.add_argument("-v", metavar="verbosity level", help="Set output verbosity")
     parser.add_argument("-m", metavar="m", help="SM or EFT")
+    parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
+    parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
+
     args = parser.parse_args()
     if args.m: mode = args.m
     if args.d: datacard_path = args.d
+    if args.v: verb = int(args.v)
+    if args.exp: exp = True
+    if args.dim == '2D' or args.dim == '2D': scan_dim = '2D'
 
-    fitter = EFTFit() #Create object
+    fitter = EFTFit(opts) #Create EFTFit object
 
 # SM fit
 # //--------------------------------------------
     if mode == 'SM':
-        fitter.makeWorkspaceSM(datacard_path)
-        fitter.bestFitSM(exp=exp)
-        fitter.gridScanSM(scan_params=['r_tzq'], points=50, exp=exp)
+        fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
+        fitter.bestFitSM(exp=exp, verbosity=verb)
+        if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb) #1D
+        elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb) #2D
 
 # EFT fit
 # //--------------------------------------------
     elif mode == 'EFT':
-        fitter.makeWorkspaceEFT(datacard_path)
-        fitter.bestFitEFT(startValuesString='ctz=0', exp=exp, verbosity=2)
-        fitter.gridScanEFT(scan_params=['ctz'], startValuesString='ctz=0', exp=exp, points=100)
+        # POIs=[opts['wc']] #Single operator
+        POIs = opts['wcs'] #Multiple operators
+
+        fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
+        fitter.bestFitEFT(params_POI=POIs, exp=exp, verbosity=verb)
+        if scan_dim=='1D': fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb)
+        elif scan_dim=='2D': fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb)
 
         #fitter.printIntervalFitsEFT(basename='.EFT')
         # fitter.batch1DScanEFT() # Freeze other WCs
         # fitter.batchRetrieve1DScansEFT()
         # fitter.getBestValues1DEFT()
-
 # //--------------------------------------------

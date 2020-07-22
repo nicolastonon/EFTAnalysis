@@ -53,7 +53,8 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
     print(colors.fg.lightblue, "\n--- Create & store ROC histos...", colors.reset)
 
-    compare_ROC_inputFeature = 'recoZ_Pt' #If not '', will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
+    # compare_ROC_inputFeature = 'recoZ_Pt' #If not '', will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
+    compare_ROC_inputFeature = 'lep3_phi'
     xmin_feature = 0; xmax_feature = 500 #Hard-codeed feature histogram range
 
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
@@ -64,6 +65,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
     idx_compare_ROC_inputFeature = -1
     for idx,feature in enumerate(list_features):
         if feature==compare_ROC_inputFeature: idx_compare_ROC_inputFeature = idx
+        # print(feature, idx_compare_ROC_inputFeature)
 
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
     rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
@@ -71,9 +73,10 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
     # Comparison with input feature: store in separate file
-    if idx_compare_ROC_inputFeature>0:
+    if idx_compare_ROC_inputFeature>=0:
         rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+'.root'
         if scan: rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+"_"+op+WC+".root"
+        if path.exists(rootfile_outname_feature): os.remove(rootfile_outname_feature) #Remove existing file (to avoid amconfusion)
         fout_feature = ROOT.TFile(rootfile_outname_feature, "RECREATE")
 
     nofOutputNodes = opts["nofOutputNodes"]
@@ -114,7 +117,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
             fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
 
             # Also store histogram for selected input feature, for ROC comparison
-            if idx_compare_ROC_inputFeature>0 and inode==0:
+            if idx_compare_ROC_inputFeature>=0 and inode==0:
 
                 fout_feature.cd()
 
@@ -129,7 +132,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
     fout.Close()
     print(colors.fg.lightgrey, "\nSaved output ROOT file containing Keras Predictions as histograms :", colors.reset, rootfile_outname, '\n')
-    if idx_compare_ROC_inputFeature>0:
+    if idx_compare_ROC_inputFeature>=0:
         fout_feature.Close()
         print(colors.fg.lightgrey, "Saved output ROOT file containing Keras Predictions as histograms (for comparison with single feature) :", colors.reset, rootfile_outname_feature, '\n')
 
@@ -162,7 +165,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
-    if opts["test1D"]: Make_Test1D_Plot(opts, model)
+    if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
@@ -880,7 +883,7 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
-    sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
+    # sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
 
     #Can avoid plotting theory parameter inputs (by default), and p4 variables
     list_features = np.array(list_features)
@@ -963,29 +966,34 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     '''
 
     useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
-    plot_eachSingleFeature = False #True <-> 1 single plot per feature
+    plot_eachSingleFeature = True #True <-> also save 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
+    nbins = 30 #Binning for plots
 # //--------------------------------------------
 
     if opts["makeValPlotsOnly"] is True and isControlNorm is True: return
     if x is None: print('Error, can\'t produce input features plots : x=None !'); return
 
+    if isControlNorm: useMostExtremeWCvaluesOnly = False #Can't have both options at the same time, because 'isControlNorm' corresponds to transformed inputs, so we can not condition upon the values of some features (the input WC values) to select events !
+
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
     plt.tight_layout()
     list_features = np.array(list_features)
 
-    #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
-    shuf = np.arange(len(x))
-    np.random.shuffle(shuf)
-    x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
-
-    if opts["parameterizedNN"] == True: #Only retain EFT events whose operator values are at boundaries
+    if opts["parameterizedNN"] == True: #Only retain EFT events whose operator values are at boundaries #NB: for SM can select all events (input features don't depend on WC, only output prediction)
         if useMostExtremeWCvaluesOnly is True:
             sl = np.s_[x.shape[1]-len(opts["listOperatorsParam"]):] #Specify slice corresponding to indices of theory parameters features (placed last)
             indices_class0 = np.where(y_process==0) #Class 0
             indices_class1 = np.where(np.logical_and(y_process==1, np.logical_or(np.all(x[:,sl]==opts['minWC'],axis=1),np.all(x[:,sl]==opts['maxWC'],axis=1))) ) #Class 1
-            x = np.append(x[indices_class0], x[indices_class1], axis=0); y_process = np.append(y_process[indices_class0], y_process[indices_class1], axis=0); weights = np.append(weights[indices_class0], weights[indices_class1], axis=0)
+            # print(x[indices_class0].shape); print(x[indices_class1].shape)
             # print(np.mean(x[indices_class0,0].T, axis=0)); print(np.mean(x[indices_class1,0].T, axis=0))
+            # print(x[-10:])
+            x = np.append(x[indices_class0],x[indices_class1],axis=0); y_process = np.append(y_process[indices_class0],y_process[indices_class1],axis=0); weights = np.append(weights[indices_class0],weights[indices_class1],axis=0)
+
+        #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
+        shuf = np.arange(len(x))
+        np.random.shuffle(shuf)
+        x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
 
         nMax = 50000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
         if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
@@ -1013,8 +1021,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # print(df); print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=50, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=50, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
+    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=nbins, alpha=0.4, density=True, color='r') #signal
+    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=nbins, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
 
     #-- debug
     # print(len(df[df['class']==0])); print(len(df[df['class']==1]))
@@ -1048,14 +1056,13 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             plt.xlabel(feature, fontsize=20)
 
             x = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
-            plt.hist(x[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==1])
-            plt.hist(x[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=20, alpha=0.4, weights=df['weight'][df['class']==0])
+            plt.hist(x[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==1])
+            plt.hist(x[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==0])
             plt.legend(loc='best')
 
             os.makedirs(weight_dir + 'features/', exist_ok=True)
             plotname = weight_dir + 'features/'+feature+'.png'
-            if isControlNorm == True: #Control plot, different name, general plot only
-                plotname = weight_dir + 'features/'+feature+'_normTrain.png'
+            if isControlNorm == True: plotname = weight_dir + 'features/'+feature+'_normTrain.png' #Control plot, different name, general plot only
             plt.savefig(plotname)
             plt.close('all')
             print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
@@ -1119,7 +1126,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     #-- data: Background dataset to generate the perturbed dataset required for training surrogate models. We simulate missing data by replacing the feature with the values it takes in the background dataset. So if the background dataset is a simple sample of all zeros, then we would approximate a feature being missing by setting it to zero. For small problems this background dataset can be the whole training set, but for larger problems consider using a single reference value or using the kmeans function to summarize the dataset.
     #-- link: A function to connect feature contribution values to the model output. For a classification model, we generally explain the logit of the predicted probability as a sum of feature contributions. Hence, if the output of the model (the first argument) is a probability, we set link = 'logit' to get the feature contributions in logit form.
     explainer = shap.DeepExplainer(model, data=np.concatenate(list_xTrain_allClasses)[:nmax,:])
-    print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
+    # print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
     # print('[SHAP] Base value for first class:', explainer.expected_value.numpy()[0])
 
     #== Get SHAP values
@@ -1128,7 +1135,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     shap_values = explainer.shap_values(X=np.concatenate(list_xTest_allClasses)[:nmax]) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
     # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:100])#Returns a list of size n_classes. For binar classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
     # shap_values = explainer.shap_values(X=list_xTest_allClasses[0]) #Compute 'shap values'
-    print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
+    # print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
 
     #== Plot SHAP values for first event, for specific investigation
     #-- See: https://github.com/slundberg/shap/blob/06c9d18f3dd014e9ed037a084f48bfaf1bc8f75a/shap/plots/force.py#L31
@@ -1211,6 +1218,10 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 # //--------------------------------------------
 
 def Make_Test1D_Plot(opts, model):
+    '''
+    Plot NN output as a function of dummy input feature x, for several values of parameter theta.
+    Similar to what is done in reference paramNN article.
+    '''
 
     nPts = 500
 
@@ -1220,7 +1231,7 @@ def Make_Test1D_Plot(opts, model):
     #Best gaus fit
     def gaus(x,a,b): return np.exp(-((x-a)/b)**2)
 
-    for theta in [-5, 0, 5]:
+    for theta in [-4, 0, 4]:
         x = [xx for xx in np.linspace(-10, 10, num=nPts)] #Feature x
         y = np.squeeze(model.predict(np.append(np.atleast_2d(x).T, np.atleast_2d(np.full(nPts,theta)).T, axis=1))) #NN response (depends on x and theta)
 

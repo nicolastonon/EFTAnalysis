@@ -590,7 +590,7 @@ void Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, co
     for(int iwgt=1; iwgt<25; iwgt++) //Only loop on the minimal nof weights required in my case to overconstrain fit //Skip first point, expected to correspond to SM (treated separately)
     // for(int iwgt=1; iwgt<v_ids->size(); iwgt++)
     {
-        //Formula for a given point P: w = (baseline_event_weight / w_MEnominal) * reweight_P / SWE
+        //Formula for a given point P: w = (baseline_event_weight / w_MEnominal) * reweight_P / SWE_baseline
         //NB: account for 'baseline_event_weight / w_MEnominal' to account for scale factors (included in the default event weight 'baseline_event_weight')
         float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[idx_sm]);
 

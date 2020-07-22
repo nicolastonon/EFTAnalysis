@@ -14,6 +14,7 @@ from Utils.ColoredPrintout import colors
 import getopt # command line parser
 import argparse
 import numpy as np
+from settings import opts #Custom dictionnary of settings
 
  #    # ###### #      #####  ###### #####
  #    # #      #      #    # #      #    #
@@ -31,29 +32,36 @@ def Get_Intersection_X(graph, y_line):
     # print('xmin', xmin, 'xmax', xmax)
 
     list_X_intersects = []
-    step = 0.01 #Desired precision in X
+    step = 0.001 #Desired precision in X (if too coarse, intersection lines/fill areas are displaced)
     for x in np.arange(xmin, xmax, step):
         # print('x', x)
         y_tmp = graph.Eval(x)
-        # print('y_tmp', y_tmp)
-        # print('abs(y_tmp-y_line)', abs(y_tmp-y_line))
-        if abs(y_tmp-y_line) < step*2: #Arbitrary threshold to define intersection
+        # print('x', x, 'y', y_tmp, 'diff', abs(y_tmp-y_line))
+        if abs(y_tmp-y_line) < step*10: #Arbitrary threshold to define intersection
+            if len(list_X_intersects)>0 and abs(x-list_X_intersects[len(list_X_intersects)-1])<0.1: continue #Avoid returning several contiguous x positions in a row
             list_X_intersects.append(x)
-            # x+= 5*step #Avoid returning several x positions in a row
 
-    list_X_intersects = [list_X_intersects[idx] for idx in [0,len(list_X_intersects)-1]]
+    if(len(list_X_intersects)==0):
+        print(colors.fg.orange + '[Get_Intersection_X] Warning: no intersection found with NLL function. This indicates that the fit rootfile may be empty/incorrect, or simply that the precision is not sufficient to exclude any point at the given threshold ' + str(y_line) + ' (<-> no intersection)' + colors.reset)
+        return []
+
+    if(len(list_X_intersects)>=2): list_X_intersects = [list_X_intersects[idx] for idx in [0,len(list_X_intersects)-1]] #remove?
 
     # print(list_X_intersects)
     return list_X_intersects
 
+def Get_Parameter_LegName(name):
 
-def Get_Operator_LegName(name):
-
+    # EFT operators
     if name == 'ctz': return 'C_{tZ} (#Lambda/TeV)^{2}'
     elif name == 'ctw': return 'C_{tW} (#Lambda/TeV)^{2}'
     elif name == 'cpq3': return 'C^{3}_{#phiQ} (#Lambda/TeV)^{2}'
     elif name == 'cpqm': return 'C^{-}_{#phiQ} (#Lambda/TeV)^{2}'
     elif name == 'cpt': return 'C_{#phit} (#Lambda/TeV)^{2}'
+
+    # SM signal strengths
+    elif name == 'r_tzq': return '#mu(tZq)'
+    elif name == 'r_ttz': return '#mu(ttZ)'
 
     return name
 
@@ -155,18 +163,16 @@ class EFTPlot(object):
  # #   ## #   #
  # #    # #   #
 
-    def __init__(self):
+    def __init__(self, opts):
+
+        self.SM_mus = opts["SM_mus"]
+        self.wcs = opts["wcs"]
+        self.wcs_pairs = opts["wcs_pairs"]
+        self.wc_ranges = opts["wc_ranges"]
+        self.SMmu_ranges = opts["SMmu_ranges"]
+
         self.logger = logging.getLogger(__name__)
         self.ContourHelper = ContourHelper()
-
-        self.SMMus = ['mu_tzq']
-        self.wcs = ['ctz']
-        self.wcs_pairs = [('ctz','ctw')]
-        self.wc_ranges = {  'ctz':(-6,6),
-                            'ctw':(-6,6)
-                         }
-        self.sm_ranges = {  'r_tzq':(0,5)
-                         }
         self.histosFileName = 'Histos.root'
         self.texdic = {'ctw': '#it{c}_{tW}/#Lambda^{2}', 'ctz': '#it{c}_{tZ}/#Lambda^{2}', 'cpqm': '#it{c}^{-}_{#varphiQ}/#Lambda^{2}', 'cpq3': '#it{c}^{3(#it{l})}_{#varphiQ}/#Lambda^{2}', 'cpt': '#it{c}_{#varphit}/#Lambda^{2}'}
         # self.texdic = {'ctp': '#it{c}_{t#varphi}/#Lambda^{2}', 'ctG': '#it{c}_{tG}/#Lambda^{2}', 'cbW': '#it{c}_{bW}/#Lambda^{2}', 'cptb': '#it{c}_{#varphitb}/#Lambda^{2}', 'cQl3': '#it{c}^{3(#it{l})}_{Ql}/#Lambda^{2}', 'cQlM': '#it{c}^{-(#it{l})}_{Ql}/#Lambda^{2}', 'cQe': '#it{c}^{(#it{l})}_{Qe}/#Lambda^{2}', 'ctl': '#it{c}^{(#it{l})}_{tl}/#Lambda^{2}', 'cte': '#it{c}^{(#it{l})}_{te}/#Lambda^{2}', 'ctlS': '#it{c}^{S(#it{l})}_{t}/#Lambda^{2}', 'ctlT': '#it{c}^{T(#it{l})}_{t}/#Lambda^{2}'}
@@ -216,32 +222,33 @@ class EFTPlot(object):
         self.histosFileName = 'Histos{}.root'.format(name)
 
 
- #       #         ######                          #   ######
- #       #         #     # #       ####  #####    ##   #     #
- #       #         #     # #      #    #   #     # #   #     #
- #       #         ######  #      #    #   #       #   #     #
- #       #         #       #      #    #   #       #   #     #
- #       #         #       #      #    #   #       #   #     #
- ####### #######   #       ######  ####    #     ##### ######
+ #     # #       #          ######                           #   ######
+ ##    # #       #          #     # #       ####  #####     ##   #     #
+ # #   # #       #          #     # #      #    #   #      # #   #     #
+ #  #  # #       #          ######  #      #    #   #        #   #     #
+ #   # # #       #          #       #      #    #   #        #   #     #
+ #    ## #       #          #       #      #    #   #        #   #     #
+ #     # ####### #######    #       ######  ####    #      ##### ######
 
+    def Plot_NLLscan_1D(self, mode='SM', param='', log=False):
+        '''
+        Plot the NLL function versus a single POI (1D scan).
 
- ###### ###### #####
- #      #        #
- #####  #####    #
- #      #        #
- #      #        #
- ###### #        #
+        wc: parameter to plot
+        mode: 'SM' or 'EFT'
 
-    def LLPlot1DEFT(self, name='.EFT', frozen=False, wc='', log=False):
+        NB: 'NLL' = negative profiled log-likelihood function, as read in TFile.
+        '''
 
-        filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
-
-        if not wc:
-            logging.error("No WC specified!")
+        filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+        if not param:
+            logging.error("No param specified!")
             return
         if not os.path.exists(filepath):
-            logging.error("File " + filepath + " does not exist!".format(name))
+            logging.error("File " + filepath + " does not exist!".format(mode))
             return
+
+        logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
 
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('','',1000,800)
@@ -249,53 +256,44 @@ class EFTPlot(object):
         c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
-        # Get scan tree
+        #-- Get scan TTree
         rootFile = ROOT.TFile.Open(filepath)
         limitTree = rootFile.Get('limit')
 
-        # Get coordinates for TGraph
+        #-- Get x-y coordinates for TGraph representing NLL function
         WC_values = []; NLL_values = []
         for entry in range(limitTree.GetEntries()):
             limitTree.GetEntry(entry)
-            WC_values.append(limitTree.GetLeaf(wc).GetValue(0))
+            WC_values.append(limitTree.GetLeaf(param).GetValue(0))
             NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
-
         NLL_values = [val-min(NLL_values) for val in NLL_values]
         graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
         graph.Draw("AL") #A:axes, P: markers, L:line
         del NLL_values, WC_values
 
-
+        #-- Small fix needed to plot line instead of markers: remove un-necessary point at origin (0 or 1 depending on parameter)
         for ipt in range(graph.GetN()):
             x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            # print(ipt, x, y)
             graph.GetPoint(ipt, x, y)
-            # print(x, y)
-            if ipt==0 and x==0: graph.RemovePoint(ipt)
+            if (ipt==0 or ipt==graph.GetN()) and (x==0. or x==1.): graph.RemovePoint(ipt)
+            # else: print(x, y)
 
-        # Squeeze X down to whatever range captures the float points
-        # if wc not in self.wc_ranges: print(colors.fg.red + "ERROR: " + wc + " not found in ranges !" + colors.reset)
-        # xmin = self.wc_ranges[wc][1]
-        # xmax = self.wc_ranges[wc][0]
-        # graph.GetXaxis().SetRangeUser(xmin,xmax)
+        #-- Axis ranges
         xmin = graph.GetXaxis().GetXmin()
         xmax = graph.GetXaxis().GetXmax()
         graph.SetMinimum(0.001) #Don't display 0 label
-        graph.SetMaximum(10.)
+        graph.SetMaximum(10.) #Arbitrary
+        xmin = self.wc_ranges[param][0]
+        xmax = self.wc_ranges[param][1]
+        graph.GetXaxis().SetRangeUser(xmin,xmax)
 
-        graph.SetTitle("")
-        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
-        graph.SetMarkerStyle(8)
-        graph.SetMarkerSize(1)
-        # graph.GetXaxis().SetTitle(wc)
-        graph.GetXaxis().SetTitle(Get_Operator_LegName(wc))
-        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
-        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(wc))
-
+        #-- y coordinates corresponding to relevant NLL thresholds
         yval_68 = 1 #68% CL <-> 1 sigma <-> nll=1
         yval_95 = 3.84 #95% CL <-> ~2 sigma <-> nll=3.84
         # yval_2sigmas = 4 #~95.45% CL <-> 2 sigma <-> nll=4
 
-        # Display vertical lines each time the NLL function interesects the 95% CL threshold
+        #-- Display vertical lines at each intersection of the NLL function with the 95% CL threshold
         list_X_intersects95 = Get_Intersection_X(graph, yval_95)
         lines_X_intersects95 = []
         if len(list_X_intersects95) > 0:
@@ -306,72 +304,84 @@ class EFTPlot(object):
                 lines_X_intersects95[i].SetLineWidth(3)
                 lines_X_intersects95[i].SetLineStyle(7)
 
-        # Display vertical lines each time the NLL function interesects the 68% CL threshold
+            # Create and draw filled TGraph (shaded area below NLL function representing 2sigmas area)
+            # fgraph95 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
+            fgraph95 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph95.GetN():
+            # for ipt in range(fgraph95.GetN()):
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph95.GetPoint(ipt, x, y)
+                # print(x, y)
+                if len(list_X_intersects95)>=2 and (x<=list_X_intersects95[0] or x>=list_X_intersects95[1]):
+                    # print(ipt, x, y)
+                    fgraph95.RemovePoint(ipt)
+                else: ipt+= 1
+
+            # Trick: manually set first and last points to get the filled area properly defined
+            if len(list_X_intersects95)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                fgraph95.SetPoint(0, list_X_intersects95[0], 0) #Add first point at y=0
+                fgraph95.InsertPointBefore(1, list_X_intersects95[0], yval_95) #Add second point at y=Y
+                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], yval_95) #Add first-to-last point at y=Y
+                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], 0) #Add last point at y=0
+
+                #-- Printouts
+                # print(fgraph95.GetN())
+                # for ipt in range(0, fgraph95.GetN()):
+                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                #     fgraph95.GetPoint(ipt, x, y)
+                #     print(ipt, x, y)
+
+                fgraph95.SetFillColorAlpha(ROOT.kRed+1, 0.55)
+                fgraph95.SetFillStyle(3001)
+                # fgraph95.SetFillColor(18)
+                # fgraph95.SetFillStyle(3004)
+                fgraph95.Draw("F same")
+
+        #-- Idem for 68% CL -- not drawn for now
         list_X_intersects68 = Get_Intersection_X(graph, yval_68)
         lines_X_intersects68 = []
         if len(list_X_intersects68) > 0:
             for i,x in enumerate(list_X_intersects68):
                 lines_X_intersects68.append(ROOT.TLine(x,0,x,yval_68))
-                # lines_X_intersects95[i].Draw('same') #Draw last
                 lines_X_intersects68[i].SetLineColor(ROOT.kRed+1)
                 lines_X_intersects68[i].SetLineWidth(3)
                 lines_X_intersects68[i].SetLineStyle(7)
 
-        # Filled TGraph -- shaded area below NLL function representing 2sigmas area
-        fgraph95 = graph.Clone()
-        ipt = 0
-        while ipt<fgraph95.GetN():
-        # for ipt in range(fgraph95.GetN()):
-            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-            fgraph95.GetPoint(ipt, x, y)
-            # print(x, y)
-            if x<=list_X_intersects95[0] or x>=list_X_intersects95[1] or (x==0 and y==0):
-                # print('ipt', ipt)
-                fgraph95.RemovePoint(ipt)
-            else: ipt+= 1
+            fgraph68 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
+            # fgraph68 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph68.GetN():
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph68.GetPoint(ipt, x, y)
+                # print(x, y)
+                if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
+                    # print('ipt', ipt)
+                    fgraph68.RemovePoint(ipt)
+                else: ipt+= 1
 
-        fgraph95.SetPoint(0, list_X_intersects95[0], 0) #Add first point at y=0
-        # fgraph95.InsertPointBefore(0, list_X_intersects95[0], 0) #Add first point at y=0
-        fgraph95.InsertPointBefore(1, list_X_intersects95[0], yval_95) #Add second point at y=Y
-        fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], yval_95) #Add first-to-last point at y=Y
-        fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], 0) #Add last point at y=0
+            if len(list_X_intersects68)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                fgraph68.SetPoint(0, list_X_intersects68[0], 0) #Add first point at y=0
+                fgraph68.InsertPointBefore(1, list_X_intersects68[0], yval_68) #Add second point at y=Y
+                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], yval_68) #Add first-to-last point at y=Y
+                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], 0) #Add last point at y=0
 
-        # fgraph95.SetFillColor(18)
-        fgraph95.SetFillColorAlpha(ROOT.kRed+1, 0.55)
-        # fgraph95.SetFillStyle(3004)
-        fgraph95.SetFillStyle(3001)
-        fgraph95.Draw("F same")
+                #-- Printouts
+                # print(fgraph68.GetN())
+                # for ipt in range(0, fgraph68.GetN()):
+                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                #     fgraph68.GetPoint(ipt, x, y)
+                #     print(ipt, x, y)
 
-        #-- Idem for 68% CL
-        fgraph68 = graph.Clone()
-        ipt = 0
-        while ipt<fgraph68.GetN():
-            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-            fgraph68.GetPoint(ipt, x, y)
-            # print(x, y)
-            if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
-                # print('ipt', ipt)
-                fgraph68.RemovePoint(ipt)
-            else: ipt+= 1
+                fgraph68.SetFillColor(12)
+                fgraph68.SetFillStyle(3001)
+                fgraph68.Draw("F same")
 
-        # for ipt in range(fgraph68.GetN()):
-        #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-        #     fgraph68.GetPoint(ipt, x, y)
-        #     print(x, y)
-
-        fgraph68.SetPoint(0, list_X_intersects68[0], 0) #Add first point at y=0
-        fgraph68.InsertPointBefore(1, list_X_intersects68[0], yval_68) #Add second point at y=Y
-        fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], yval_68) #Add first-to-last point at y=Y
-        fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], 0) #Add last point at y=0
-
-        fgraph68.SetFillColor(12)
-        fgraph68.SetFillStyle(3001)
-        fgraph68.Draw("F same")
-
+        # Draw vertical lines
         for iline in range(len(lines_X_intersects95)):
             lines_X_intersects95[iline].Draw('same')
 
-        # 1 sigma line
+        # 1 sigma horizontal line
         line_Y_1sigma = ROOT.TLine(xmin,yval_68,xmax,yval_68)
         line_Y_1sigma.Draw('same')
         line_Y_1sigma.SetLineColor(12) #Grey
@@ -379,18 +389,29 @@ class EFTPlot(object):
         line_Y_1sigma.SetLineWidth(3)
         line_Y_1sigma.SetLineStyle(7)
 
-        # 2 sigma line #NB: for 95% CL (exclusion limits), use 3.84 instead of 4
+        # 2 sigma horizontal line #NB: for 95% CL (exclusion limits), use 3.84 instead of 4
         line_Y_2sigmas = ROOT.TLine(xmin,yval_95,xmax,yval_95)
         line_Y_2sigmas.Draw('same')
         line_Y_2sigmas.SetLineColor(ROOT.kRed+1)
         line_Y_2sigmas.SetLineWidth(3)
         line_Y_2sigmas.SetLineStyle(7)
 
+        #-- Legend
         leg = ROOT.TLegend(0.45,0.70,0.75,0.87)
         leg.AddEntry(graph, "Profiled log-likelihood", "L")
-        leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
-        leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
+        if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
+        if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
         leg.Draw("same")
+
+        #-- Labels
+        graph.SetTitle("")
+        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
+        graph.SetMarkerStyle(8)
+        graph.SetMarkerSize(1)
+        # graph.GetXaxis().SetTitle(param)
+        graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
+        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
 
         cmsText = "CMS";
         latex = ROOT.TLatex()
@@ -411,119 +432,128 @@ class EFTPlot(object):
         latex.SetTextSize(0.04);
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
-        #Check log option, then save as image
+        #-- Save
         if log:
             graph.SetMinimum(0.1)
             graph.SetLogz()
-            c.Print('{}1DNLL_log.png'.format(wc,'freeze' if frozen else 'float'),'png')
-        else:
-            c.Print('{}1DNLL.png'.format(wc,'freeze' if frozen else 'float'),'png')
+            c.Print('scan1D_{}_log.png'.format(param))
+        else: c.Print('scan1D_{}.png'.format(param))
 
-        rootFile.Close()
 
-  ####  #    #
- #      ##  ##
-  ####  # ## #
-      # #    #
- #    # #    #
-  ####  #    #
+ #     # #       #          ######                          #####  ######
+ ##    # #       #          #     # #       ####  #####    #     # #     #
+ # #   # #       #          #     # #      #    #   #            # #     #
+ #  #  # #       #          ######  #      #    #   #       #####  #     #
+ #   # # #       #          #       #      #    #   #      #       #     #
+ #    ## #       #          #       #      #    #   #      #       #     #
+ #     # ####### #######    #       ######  ####    #      ####### ######
 
-    def LLPlot1DSM(self, name='.SM', param='', log=False):
-        if not param:
-            logging.error("No parameter specified!")
+    #FIXME -- update style (cf. 1D)
+    def Plot_NLLscan_2D(self, mode='SM', params=[], ceiling=1, log=False):
+        '''
+        Plot the NLL function versus 2 POIs (2D scan).
+
+        params: POIs (signal strengths of 2 processes of interest)
+        mode: 'SM' or 'EFT'
+        ceiling: maximum NLL value
+        '''
+
+        if len(params)!=2:
+            logging.error("Function 'Plot_NLLscan_2D' requires exactly two parameters!")
             return
-        if not os.path.exists('./higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.mH120.root does not exist!".format(name))
+        if not os.path.exists('./higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)):
+            logging.error("File higgsCombine.{}.MultiDimFit.mH120.root does not exist!".format(mode))
             return
+
+        logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_2D()\n" + colors.reset)
 
         ROOT.gROOT.SetBatch(True)
-        canvas = ROOT.TCanvas('c','c',800,800)
 
-        # Get scan tree
-        rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(name))
+        ROOT.gROOT.SetBatch(True)
+        c = ROOT.TCanvas('','',1000,800)
+        c.SetGrid(1)
+        c.SetTopMargin(0.1)
+        c.SetRightMargin(0.17);
+        l = c.GetLeftMargin()
+
+        hname = 'scan2D_' + mode
+        if log: hname += "_log"
+
+        # Open file and draw 2D histogram
+        rootFile = ROOT.TFile.Open('./higgsCombine.{}.MultiDimFit.mH120.root'.format(mode))
         limitTree = rootFile.Get('limit')
+        minZ = limitTree.GetMinimum('deltaNLL')
+        ymin = limitTree.GetMinimum(params[0])
+        ymax = limitTree.GetMaximum(params[0])
+        xmin = limitTree.GetMinimum(params[1])
+        xmax = limitTree.GetMaximum(params[1])
 
-        # Get coordinates for TGraph
-        graphparamvals = []
-        graphnlls = []
-        for entry in range(limitTree.GetEntries()):
-            limitTree.GetEntry(entry)
-            graphparamvals.append(limitTree.GetLeaf(param).GetValue(0))
-            graphnlls.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
+        limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,params[0],params[1],hname,xmin,xmax,ymin,ymax), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
 
-        # Rezero the y axis and make the tgraphs
-        graphnlls = [val-min(graphnlls) for val in graphnlls]
-        graph = ROOT.TGraph(len(graphparamvals),numpy.asarray(graphparamvals),numpy.asarray(graphnlls))
-        graph.Draw("AP")
-        del graphnlls,graphparamvals
+        hist = c.GetPrimitive(hname)
 
-        # Squeeze X down to whatever range captures the float points
-        xmin = limitTree.GetMinimum(param)
-        xmax = limitTree.GetMaximum(param)
-        #for idx in range(graph.GetN()):
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] < xmin:
-        #        xmin = graph.GetX()[idx]
-        #    if graph.GetY()[idx] < 10 and graph.GetX()[idx] > xmax:
-        #        xmax = graph.GetX()[idx]
-        graph.GetXaxis().SetRangeUser(xmin,xmax)
-        graph.GetYaxis().SetRangeUser(-0.1,10)
+        # Draw best fit point from grid scan #FIXME
+        limitTree.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
+        best_fit = c.FindObject('Graph')
+        best_fit.SetMarkerSize(2)
+        best_fit.SetMarkerStyle(34)
+        best_fit.Draw("p same")
 
-        #Change markers from invisible dots to nice triangles
-        graph.SetTitle("")
-        graph.SetMarkerStyle(26)
-        graph.SetMarkerSize(1)
-        graph.SetMinimum(-0.1)
+        if log: c.SetLogz()
+        hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[0]))
+        hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[1]))
+        hist.GetZaxis().SetTitle("-2 #Delta log(L)")
+        hist.GetYaxis().SetTitleOffset(0.9)
 
-        #Add 1-sigma and 2-sigma lines. (Vertical lines were too hard, sadly)
-        canvas.SetGrid(1)
+        hist.SetTitle('')
+        # hist.SetTitle("2*deltaNLL < {}".format(ceiling))
+        hist.SetStats(0)
 
-        line68 = ROOT.TLine(xmin,1,xmax,1)
-        line68.Draw('same')
-        line68.SetLineColor(ROOT.kYellow+1)
-        line68.SetLineWidth(3)
-        line68.SetLineStyle(7)
+        cmsText = "CMS";
+        latex = ROOT.TLatex()
+        latex.SetNDC();
+        latex.SetTextColor(ROOT.kBlack);
+        latex.SetTextFont(61);
+        latex.SetTextAlign(11);
+        latex.SetTextSize(0.06);
+        latex.DrawLatex(l+0.01, 0.92, cmsText)
 
-        line95 = ROOT.TLine(xmin,4,xmax,4)
-        line95.Draw('same')
-        line95.SetLineColor(ROOT.kCyan-2)
-        line95.SetLineWidth(3)
-        line95.SetLineStyle(7)
+        extraText = "Preliminary simulation";
+        latex.SetTextFont(52);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(l+0.12, 0.92, extraText)
 
-        # Labels
-        Title = ROOT.TLatex(0.5, 0.95, "{} 2#DeltaNLL".format(param))
-        Title.SetNDC(1)
-        Title.SetTextAlign(20)
-        Title.Draw('same')
-        graph.GetXaxis().SetTitle(param)
+        latex.SetTextFont(42);
+        latex.SetTextAlign(31);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(0.88, 0.92, "41.5 fb^{-1} (13 TeV)");
+        # latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.665, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.7, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        self.Lumi_text.Draw('same')
+        # Save plot
+        c.Print(hname+".png",'png')
 
-        #Check log option, then save as image
-        if log:
-            graph.SetMinimum(0.1)
-            graph.SetLogz()
-            canvas.Print('{}{}_1DNLL_log.png'.format(param,name),'png')
-        else:
-            canvas.Print('{}{}_1DNLL.png'.format(param,name),'png')
+        # Save to root file
+        if not log:
+            outfile = ROOT.TFile(self.histosFileName,'UPDATE')
+            hist.Write()
+            outfile.Close()
 
-        rootFile.Close()
+
+  ####  #    # ###### #####  #        ##   #   #    #####  #       ####  #####  ####
+ #    # #    # #      #    # #       #  #   # #     #    # #      #    #   #   #
+ #    # #    # #####  #    # #      #    #   #      #    # #      #    #   #    ####
+ #    # #    # #      #####  #      ######   #      #####  #      #    #   #        #
+ #    #  #  #  #      #   #  #      #    #   #      #      #      #    #   #   #    #
+  ####    ##   ###### #    # ###### #    #   #      #      ######  ####    #    ####
 
     def OverlayLLPlot1DEFT(self, name1='.test', name2='.test', wc='', log=False):
         if not wc:
             logging.error("No wc specified!")
             return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name1)):
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name1)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name1))
             return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name2)):
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name2)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name2))
             return
 
@@ -535,10 +565,10 @@ class EFTPlot(object):
         p1.cd()
 
         # Get scan trees
-        rootFile1 = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name1))
+        rootFile1 = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name1))
         limitTree1 = rootFile1.Get('limit')
 
-        rootFile2 = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name2))
+        rootFile2 = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name2))
         limitTree2 = rootFile2.Get('limit')
 
         # Get coordinates for TGraphs
@@ -660,10 +690,10 @@ class EFTPlot(object):
         if not wc:
             logging.error("No wc specified!")
             return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name1)):
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name1)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name1))
             return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name2)):
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name2)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name2))
             return
 
@@ -672,10 +702,10 @@ class EFTPlot(object):
         canvas = ROOT.TCanvas()
 
         # Get scan trees
-        rootFile1 = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name1))
+        rootFile1 = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name1))
         limitTree1 = rootFile1.Get('limit')
 
-        rootFile2 = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name2))
+        rootFile2 = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name2))
         limitTree2 = rootFile2.Get('limit')
 
         # Get coordinates for TGraphs
@@ -768,119 +798,19 @@ class EFTPlot(object):
         rootFile1.Close()
         rootFile2.Close()
 
-    def BatchLLPlot1DEFT(self, basename='.test', frozen=False, wcs=[], log=False):
-        if not wcs:
-            wcs = self.wcs
 
-        ROOT.gROOT.SetBatch(True)
-
-        for wc in wcs:
-            self.LLPlot1DEFT(basename+'.'+wc, frozen, wc, log)
-
-    def BatchLLPlotNDEFT(self, basename='.test', frozen=False, wcs=[], log=False):
-        if not wcs:
-            wcs = self.wcs
-
-        ROOT.gROOT.SetBatch(True)
-
-        #wcs.remove('ctG')
-        for pair in zip(wcs[::2], wcs[1::2]):
-            self.LLPlot2DEFT(basename, wcs=pair, log=log, ceiling=300)
-
-    def BatchOverlayLLPlot1DEFT(self, basename1='.EFT.SM.Float', basename2='.EFT.SM.Freeze', wcs=[], log=False):
-        if not wcs:
-            wcs = self.wcs
-
-        ROOT.gROOT.SetBatch(True)
-
-        for wc in wcs:
-            self.OverlayLLPlot1DEFT(basename1+'.'+wc, basename2+'.'+wc, wc, log)
-
-    def BatchOverlayZoomLLPlot1DEFT(self, basename1='.EFT.SM.Float', basename2='.EFT.SM.Freeze', wcs=[], log=False):
-        if not wcs:
-            wcs = self.wcs
-
-        ROOT.gROOT.SetBatch(True)
-
-        for wc in wcs:
-            self.OverlayZoomLLPlot1DEFT(basename1+'.'+wc, basename2+'.'+wc, wc, log)
-
-    def LLPlot2DEFT(self, name='.test', wcs=[], ceiling=1, log=False):
-        if len(wcs)!=2:
-            logging.error("Function 'LLPlot2D' requires exactly two wcs!")
-            return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-
-        ROOT.gROOT.SetBatch(True)
-
-        canvas = ROOT.TCanvas('c','c',800,800)
-
-        # Open file and draw 2D histogram
-        # wcs[0] is y-axis variable, wcs[1] is x-axis variable
-        rootFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
-        limitTree = rootFile.Get('limit')
-        hname = '{}{}less{}'.format(wcs[0],wcs[1],ceiling)
-        if log:
-            hname += "_log"
-        minZ = limitTree.GetMinimum('deltaNLL')
-
-        hist = ROOT.TH3F(hname, hname, 150, self.wc_ranges[wcs[1]][0], self.wc_ranges[wcs[1]][1], 150, self.wc_ranges[wcs[0]][0], self.wc_ranges[wcs[0]][1], 100, 0, ceiling)
-        #hist = ROOT.TH3F(hname, hname, 300, self.wc_ranges[wcs[1]][0], self.wc_ranges[wcs[1]][1], 300, self.wc_ranges[wcs[0]][0], self.wc_ranges[wcs[0]][1], 100, 0, ceiling)
-        #limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,wcs[0],wcs[1],hname,self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1],self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1]), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
-        #htemp = ROOT.TH2F(hname,hname,200,self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1],200,self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1])
-        limitTree.Project(hname, '2*(deltaNLL-{}):{}:{}'.format(minZ,wcs[0],wcs[1]), '')
-        hist.Project3DProfile().Draw('colz')
-
-        #hist = canvas.GetPrimitive(hname)
-
-        # Draw best fit point from grid scan
-        #for entry in range(limitTree.GetEntries()):
-        #    limitTree.GetEntry(entry)
-        #    currentnll = limitTree.GetLeaf('deltaNLL').GetValue(0)
-        #    if currentnll == minZ:
-        #        minentry = entry
-        #limitTree.GetEntry(minentry)
-        #xmin=limitTree.GetLeaf(wcs[1]).GetValue(0)
-        #ymin=limitTree.GetLeaf(wcs[0]).GetValue(0)
-        #print("Minimum: {}={}, {}={}".format(wcs[1],xmin,wcs[0],ymin))
-
-        # Change plot formats
-        hist.GetXaxis().SetRangeUser(self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1])
-        hist.GetYaxis().SetRangeUser(self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1])
-        if log:
-            canvas.SetLogz()
-        hist.GetYaxis().SetTitle(self.texdic[wcs[0].rstrip('i')])
-        hist.GetXaxis().SetTitle(self.texdic[wcs[1].rstrip('i')])
-        hist.SetTitle("2*deltaNLL < {}".format(ceiling))
-        hist.SetStats(0)
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.665, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.7, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        self.Lumi_text.Draw('same')
-
-        # Save plot
-        canvas.Print(hname+".png",'png')
-
-        # Save to root file
-        # Log settings don't save to the histogram, so redundant to save those
-        if not log:
-            outfile = ROOT.TFile(self.histosFileName,'UPDATE')
-            hist.Write()
-            outfile.Close()
+  ####   ####  #    # #####  ####  #    # #####   ####
+ #    # #    # ##   #   #   #    # #    # #    # #
+ #      #    # # #  #   #   #    # #    # #    #  ####
+ #      #    # #  # #   #   #    # #    # #####       #
+ #    # #    # #   ##   #   #    # #    # #   #  #    #
+  ####   ####  #    #   #    ####   ####  #    #  ####
 
     def ContourPlotEFT(self, name='.test', wcs=[]):
         if len(wcs)!=2:
             logging.error("Function 'ContourPlot' requires exactly two wcs!")
             return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name)):
+        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
             return
 
@@ -890,7 +820,7 @@ class EFTPlot(object):
 
         # Get Grid scan and copy to h_contour
         # wcs[0] is y-axis variable, wcs[1] is x-axis variable
-        gridFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
+        gridFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
         gridTree = gridFile.Get('limit')
         #gridTree.Draw('2*deltaNLL:{}:{}>>grid(200,{},{},200,{},{})'.format(wcs[1],wcs[0],self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1],self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1]), '2*deltaNLL<100', 'prof colz')
         minZ = gridTree.GetMinimum('deltaNLL')
@@ -1002,7 +932,6 @@ class EFTPlot(object):
         #marker_1.DrawMarker(0,0)
         #marker_2.DrawMarker(0,0)
 
-
         legend = ROOT.TLegend(0.1,0.9,0.45,0.945)
         legend.AddEntry(hc68,"1#sigma",'l')
         legend.AddEntry(hc95,"2#sigma",'l')
@@ -1023,83 +952,6 @@ class EFTPlot(object):
 
         ROOT.gStyle.SetPalette(57)
 
-    def BatchLLPlot1DSM(self, basename='.test', frozen=False, scan_params=[], log=False):
-        if not scan_params:
-            scan_params = self.SMMus
-
-        ROOT.gROOT.SetBatch(True)
-
-        for param in scan_params:
-            self.LLPlot1DSM(basename+'.'+param, param, log)
-
-    def LLPlot2DSM(self, name='.test', params=[], ceiling=1, log=False):
-        if len(params)!=2:
-            logging.error("Function 'LLPlot2D' requires exactly two parameters!")
-            return
-        if not os.path.exists('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-
-        ROOT.gROOT.SetBatch(True)
-
-        canvas = ROOT.TCanvas('c','c',800,800)
-
-        # Open file and draw 2D histogram
-        rootFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
-        limitTree = rootFile.Get('limit')
-        hname = '{}{}_{}_less{}'.format(params[0],params[1],name,ceiling)
-        if log:
-            hname += "_log"
-        minZ = limitTree.GetMinimum('deltaNLL')
-        ymin = limitTree.GetMinimum(params[0])
-        ymax = limitTree.GetMaximum(params[0])
-        xmin = limitTree.GetMinimum(params[1])
-        xmax = limitTree.GetMaximum(params[1])
-
-        #limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,0,15,200,0,15)'.format(minZ,params[0],params[1],hname), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
-        limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,params[0],params[1],hname,xmin,xmax,ymin,ymax), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
-
-        hist = canvas.GetPrimitive(hname)
-
-        # Draw best fit point from grid scan
-        #limit.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
-        #best_fit = canvas.FindObject('Graph')
-        #best_fit.SetMarkerSize(1)
-        #best_fit.SetMarkerStyle(34)
-        #best_fit.Draw("p same")
-
-        # Change plot formats
-        #hist.GetXaxis().SetRangeUser(0,5)
-        #hist.GetYaxis().SetRangeUser(0,3)
-        #hist.GetXaxis().SetRangeUser(-5,5)
-        #hist.GetYaxis().SetRangeUser(-5,5)
-        if log:
-            canvas.SetLogz()
-        hist.GetYaxis().SetTitle(params[0])
-        hist.GetXaxis().SetTitle(params[1])
-        hist.SetTitle("2*deltaNLL < {}".format(ceiling))
-        hist.SetStats(0)
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.665, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.7, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        self.Lumi_text.Draw('same')
-
-        # Save plot
-        canvas.Print(hname+".png",'png')
-
-        # Save to root file
-        # Log settings don't save to the histogram, so redundant to save those
-        if not log:
-            outfile = ROOT.TFile(self.histosFileName,'UPDATE')
-            hist.Write()
-            outfile.Close()
-
     def ContourPlotSM(self, name='.test', params=[]):
         if len(params)!=2:
             logging.error("Function 'ContourPlot' requires exactly two parameters!")
@@ -1111,14 +963,14 @@ class EFTPlot(object):
 
         # Get Grid scan and copy to h_contour
         # params[0] is y-axis variable, params[1] is x-axis variable
-        gridFile = ROOT.TFile.Open('../fit_files/higgsCombine{}.MultiDimFit.root'.format(name))
+        gridFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
         gridTree = gridFile.Get('limit')
         minZ = gridTree.GetMinimum('deltaNLL')
         #gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(200,0,15,200,0,15)'.format(minZ,params[0],params[1]), '', 'prof colz')
-        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,params[0],params[1],self.sm_ranges[params[1]][0],self.sm_ranges[params[1]][1],self.sm_ranges[params[0]][0],self.sm_ranges[params[0]][1]), '', 'prof colz')
+        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,params[0],params[1],self.SMmu_ranges[params[1]][0],self.SMmu_ranges[params[1]][1],self.SMmu_ranges[params[0]][0],self.SMmu_ranges[params[0]][1]), '', 'prof colz')
         #gridTree.Draw('2*deltaNLL:{}:{}>>grid(50,0,30,50,0,30)'.format(params[0],params[1]), '', 'prof colz')
         original = ROOT.TProfile2D(canvas.GetPrimitive('grid'))
-        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,self.sm_ranges[params[1]][0],self.sm_ranges[params[1]][1],150,self.sm_ranges[params[0]][0],self.sm_ranges[params[0]][1])
+        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,self.SMmu_ranges[params[1]][0],self.SMmu_ranges[params[1]][1],150,self.SMmu_ranges[params[0]][0],self.SMmu_ranges[params[0]][1])
 
         # Adjust scale so that the best bin has content 0
         best2DeltaNLL = original.GetMinimum()
@@ -1221,13 +1073,21 @@ class EFTPlot(object):
 
         ROOT.gStyle.SetPalette(57)
 
+
+  ####   ####  #####  #####  ###### #        ##   ##### #  ####  #    #  ####
+ #    # #    # #    # #    # #      #       #  #    #   # #    # ##   # #
+ #      #    # #    # #    # #####  #      #    #   #   # #    # # #  #  ####
+ #      #    # #####  #####  #      #      ######   #   # #    # #  # #      #
+ #    # #    # #   #  #   #  #      #      #    #   #   # #    # #   ## #    #
+  ####   ####  #    # #    # ###### ###### #    #   #   #  ####  #    #  ####
+
     def CorrelationMatrix(self, name='', nuisances=False, SMfit=True, freeze=False):
 
         ROOT.gROOT.SetBatch(True)
         canvas = ROOT.TCanvas()
 
         # Get rooFit object
-        rooFitFile = ROOT.TFile.Open('../fit_files/multidimfit{}.root'.format(name))
+        rooFitFile = ROOT.TFile.Open('./multidimfit{}.root'.format(name))
         rooFit = rooFitFile.Get('fit_mdf')
 
         # Get correlation matrix
@@ -1299,13 +1159,22 @@ class EFTPlot(object):
                 matrix.Write()
                 outfile.Close()
 
+
+                         #####  ######  #     #  #####
+  ####  #####  # #####  #     # #     # #  #  # #     #
+ #    # #    # # #    #       # #     # #  #  # #
+ #      #    # # #    #  #####  #     # #  #  # #
+ #  ### #####  # #    # #       #     # #  #  # #
+ #    # #   #  # #    # #       #     # #  #  # #     #
+  ####  #    # # #####  ####### ######   ## ##   #####
+
     def grid2DWC(self, name='', wc='', fits=[]):
 
         ROOT.gROOT.SetBatch(True)
         canvas = ROOT.TCanvas()
 
         # Get limit tree
-        fit_file = ROOT.TFile.Open('../fit_files/higgsCombine{}.{}.MultiDimFit.root'.format(name,wc))
+        fit_file = ROOT.TFile.Open('./higgsCombine{}.{}.MultiDimFit.root'.format(name,wc))
         limit_tree = fit_file.Get('limit')
 
         def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
@@ -1348,49 +1217,13 @@ class EFTPlot(object):
             print best[i][j][0], ' '.join(lst)
             j = j + 1
 
-    def Batch2DPlotsEFT(self, gridScanName='.EFT.SM.Float.gridScan.ctZctW', wcs=['ctZ','ctW']):
-        ROOT.gROOT.SetBatch(True)
-        print gridScanName
-        self.ResetHistoFile(gridScanName)
 
-        #self.LLPlot2DEFT(gridScanName,wcs,1,False)
-        self.LLPlot2DEFT(gridScanName,wcs,10,False)
-        self.LLPlot2DEFT(gridScanName,wcs,30,False)
-        self.LLPlot2DEFT(gridScanName,wcs,100000,False)
-        # Log Plots
-        #self.LLPlot2DEFT(gridScanName,wcs,1,True)
-        #self.LLPlot2DEFT(gridScanName,wcs,10,True)
-        #self.LLPlot2DEFT(gridScanName,wcs,100,True)
-
-        #self.CorrelationMatrix(postScanName,False,False,freeze)
-        #self.CorrelationMatrix(postScanName,True,False,freeze)
-
-        self.ContourPlotEFT(gridScanName,wcs)
-
-    def BatchBatch2DPlotsEFT(self, basenamegrid='.EFT.Float.gridScan.Jan01', allpairs=False):
-        ROOT.gROOT.SetBatch(True)
-
-        wcs_pairs = self.wcs_pairs
-        if allpairs:
-            wcs_pairs = itertools.combinations(self.wcs,2)
-        else:
-            wcs_pairs = [('ctW','ctG'),('ctZ','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
-            #pairs from AN
-            wcs_pairs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctZ','ctW'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
-
-        for pair in wcs_pairs:
-            # pair[0] is y-axis variable, pair[1] is x-axis variable
-            #self.Batch2DPlots('{}.{}{}'.format(histosFileName,pair[0],pair[1]), '{}.{}{}'.format(basenamegrid,pair[0],pair[1]), '{}.{}{}'.format(basenamefit,pair[0],pair[1]), operators=pair, freeze=freeze)
-            self.Batch2DPlotsEFT('{}.{}{}'.format(basenamegrid,pair[0],pair[1]), wcs=pair)
-
-            if not os.path.isdir('Histos{}'.format(basenamegrid)):
-                sp.call(['mkdir', 'Histos{}'.format(basenamegrid)])
-                print 'Created directory Histos{}'.format(basenamegrid)
-            sp.call(['mv', 'Histos{}.{}{}.root'.format(basenamegrid,pair[0],pair[1]), 'Histos{}/'.format(basenamegrid)])
-
-            for filename in os.listdir('.'):
-                if filename.endswith('contour.png') or ('less' in filename and filename.endswith('.png')):
-                    sp.call(['mv', filename, 'Histos{}/'.format(basenamegrid)])
+ # #    # ##### ###### #####  #    #   ##   #       ####
+ # ##   #   #   #      #    # #    #  #  #  #      #
+ # # #  #   #   #####  #    # #    # #    # #       ####
+ # #  # #   #   #      #####  #    # ###### #           #
+ # #   ##   #   #      #   #   #  #  #    # #      #    #
+ # #    #   #   ###### #    #   ##   #    # ######  ####
 
     def getIntervalFits(self, basename='.EFT.SM.Float', params=[], siginterval=2):
         ### Return a table of parameters, their best fits, and their uncertainties ###
@@ -1407,7 +1240,7 @@ class EFTPlot(object):
 
             # Get scan TTree
             logging.debug("Obtaining result of scan: higgsCombine{}.{}.MultiDimFit.root".format(basename,param))
-            fit_file = ROOT.TFile.Open('../fit_files/higgsCombine{}.{}.MultiDimFit.root'.format(basename,param))
+            fit_file = ROOT.TFile.Open('./higgsCombine{}.{}.MultiDimFit.root'.format(basename,param))
             limit_tree = fit_file.Get('limit')
 
             # Extract points
@@ -1517,513 +1350,6 @@ class EFTPlot(object):
 
         return fit_array
 
-    def BestScanPlot(self, basename_float='', basename_freeze=''):
-        ### Plot the best fit points/intervals for 1D scans others frozen and 1D scan others floating ###
-        ROOT.gROOT.SetBatch(True)
-
-        if not basename_float: basename_float='.EFT.SM.Float.Mar8'
-        if not basename_freeze: basename_freeze='.EFT.SM.Freeze.Mar8'
-        #if not basename_float: basename_float='.EFT.SM.Float.2sig.Feb27'
-        #if not basename_freeze: basename_freeze='.EFT.SM.Freeze.Mar4.2sig'
-
-        # Retrieve WC, Best Fit Value, Interval Lower Values, Interval Higher Values
-        print 'two sigma'
-        print 'float'
-        fits_float = self.getIntervalFits(basename_float)
-        print 'freeze'
-        fits_freeze = self.getIntervalFits(basename_freeze)
-        print '\n'
-        print 'one sigma'
-        print 'float'
-        #fits_freeze = self.getIntervalFits('.EFT.SM.Freeze.Jan27.500')
-        fits_float1sigma = self.getIntervalFits(basename_float,siginterval=1)
-        print 'freeze'
-        fits_freeze1sigma = self.getIntervalFits(basename_freeze,siginterval=1)
-
-        for idx,line in enumerate(fits_float):
-            if line[0]=='ctG':
-                line[0] = 'ctG#times10'
-                line[1] = line[1]*10
-                line[2] = [val*10 for val in line[2]]
-                line[3] = [val*10 for val in line[3]]
-            if line[0]=='ctp':
-                line[0] = 'ctp#divide5'
-                line[1] = line[1]/5
-                line[2] = [val/5 for val in line[2]]
-                line[3] = [val/5 for val in line[3]]
-            if line[0]=='cpt':
-                line[0] = 'cpt#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-            if line[0]=='cpQM':
-                line[0] = 'cpQM#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-
-        for idx,line in enumerate(fits_freeze):
-            if line[0]=='ctG':
-                line[0] = 'ctG#times10'
-                line[1] = line[1]*10
-                line[2] = [val*10 for val in line[2]]
-                line[3] = [val*10 for val in line[3]]
-            if line[0]=='ctp':
-                line[0] = 'ctp#divide5'
-                line[1] = line[1]/5
-                line[2] = [val/5 for val in line[2]]
-                line[3] = [val/5 for val in line[3]]
-            if line[0]=='cpt':
-                line[0] = 'cpt#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-            if line[0]=='cpQM':
-                line[0] = 'cpQM#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-
-        for idx,line in enumerate(fits_float1sigma):
-            if line[0]=='ctG':
-                line[0] = 'ctG#times10'
-                line[1] = line[1]*10
-                line[2] = [val*10 for val in line[2]]
-                line[3] = [val*10 for val in line[3]]
-            if line[0]=='ctp':
-                line[0] = 'ctp#divide5'
-                line[1] = line[1]/5
-                line[2] = [val/5 for val in line[2]]
-                line[3] = [val/5 for val in line[3]]
-            if line[0]=='cpt':
-                line[0] = 'cpt#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-            if line[0]=='cpQM':
-                line[0] = 'cpQM#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-
-        for idx,line in enumerate(fits_freeze1sigma):
-            if line[0]=='ctG':
-                line[0] = 'ctG#times10'
-                line[1] = line[1]*10
-                line[2] = [val*10 for val in line[2]]
-                line[3] = [val*10 for val in line[3]]
-            if line[0]=='ctp':
-                line[0] = 'ctp#divide5'
-                line[1] = line[1]/5
-                line[2] = [val/5 for val in line[2]]
-                line[3] = [val/5 for val in line[3]]
-            if line[0]=='cpt':
-                line[0] = 'cpt#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-            if line[0]=='cpQM':
-                line[0] = 'cpQM#divide2'
-                line[1] = line[1]/2
-                line[2] = [val/2 for val in line[2]]
-                line[3] = [val/2 for val in line[3]]
-
-        # Set y-coordinates for points and lines
-        numWC=16
-        if '28redo' in basename_float:
-            numWC=15
-        y_float = [n*4+3 for n in range(0,numWC)]
-        y_freeze = [n*4+2 for n in range(0,numWC)]
-
-        # Set up the pad and axes
-        canvas = ROOT.TCanvas('canvas','Summary Plot (SM Expectation)',500,800)
-        if 'Asimov' not in basename_float:
-            canvas = ROOT.TCanvas('canvas','Summary Plot',500,800)
-        canvas.SetGrid(1)
-        h_fit = ROOT.TH2F('h_fit','Summary Plot (SM Expectation)', 1, -20, 20, 65, 0, 64)
-        if 'Asimov' not in basename_float:
-            h_fit = ROOT.TH2F('h_fit','Summary Plot', 1, -20, 20, 65, 0, 64)
-        h_fit.Draw()
-        h_fit.SetStats(0)
-        h_fit.GetYaxis().SetTickLength(0)
-        h_fit.GetYaxis().SetNdivisions(numWC,False)
-        h_fit.GetYaxis().SetLabelSize(0)
-        h_fit.SetTitle('')
-        h_fit.GetXaxis().SetLabelSize(0.04)
-
-        # Add y-axis labels
-        y_labels = []
-        for idy,yval in enumerate(y_float):
-            tex = fits_float[idy][0].rstrip('i')
-            scale = ''
-            if 'divide' in tex:
-                scale = tex[tex.find('#divide'):]
-                tex = tex[0:tex.find('#divide')]
-            if 'times' in tex:
-                scale = tex[tex.find('#times'):]
-                tex = tex[0:tex.find('#times')]
-            tex = self.texdicfrac[tex]
-            y_labels.append(ROOT.TLatex(h_fit.GetXaxis().GetXmin()*1.125,yval-1,tex+scale))
-            y_labels[idy].SetTextAlign(20)
-            y_labels[idy].SetTextSize(0.03)
-            if fits_float[idy][0]=='cpQM#divide2': y_labels[idy].SetTextSize(0.025)
-
-        # Set the best fit points
-        graph_float = ROOT.TGraph()
-        graph_float = ROOT.TGraph(numWC, numpy.array([fittuple[1] for fittuple in fits_float], dtype='float'), numpy.array(y_float, dtype='float'))
-        graph_float.SetMarkerStyle(20)
-        graph_float.SetMarkerSize(0.5)
-        graph_float.SetMarkerColor(1)
-        graph_float.SetLineColor(1)
-
-        graph_freeze = ROOT.TGraph()
-        graph_freeze = ROOT.TGraph(numWC, numpy.array([fittuple[1] for fittuple in fits_freeze], dtype='float'), numpy.array(y_freeze, dtype='float'))
-        graph_freeze.SetMarkerStyle(20)
-        graph_freeze.SetMarkerSize(0.5)
-        graph_freeze.SetMarkerColor(2)
-        graph_freeze.SetLineColor(2)
-
-        # Add lines for the errors, but print the value if line would go off the pad
-        lines_labels = []
-
-        lines_float = []
-        for idx,fittuple in enumerate(fits_float):
-            for imin,imax in zip(fittuple[2],fittuple[3]):
-                xmin = imin
-                xmax = imax
-                # If a segment ends below the left edge
-                if xmax < h_fit.GetXaxis().GetXmin():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmin(),y_float[idx],3)
-                    outside_label.SetMarkerColor(1)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins above the right edge
-                if xmin > h_fit.GetXaxis().GetXmax():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmax(),y_float[idx],3)
-                    outside_label.SetMarkerColor(1)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins below the left edge
-                if xmin < h_fit.GetXaxis().GetXmin():
-                    min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_float[idx],str(round(xmin,1)))
-                    min_label.SetTextSize(0.03)
-                    min_label.SetTextColor(1)
-                    lines_labels.append(min_label)
-                    xmin = h_fit.GetXaxis().GetXmin()
-                # If a segment ends above the right edge
-                if xmax > h_fit.GetXaxis().GetXmax():
-                    max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_float[idx],str(round(xmax,1)))
-                    max_label.SetTextSize(0.03)
-                    max_label.SetTextColor(1)
-                    max_label.SetTextAlign(30)
-                    lines_labels.append(max_label)
-                    xmax = h_fit.GetXaxis().GetXmax()
-                lines_float.append(ROOT.TLine(xmin,y_float[idx],xmax,y_float[idx]))
-                lines_float[-1].SetLineColor(1)
-        lines_float_1sigma = []
-        for idx,fittuple in enumerate(fits_float1sigma):
-            for imin,imax in zip(fittuple[2],fittuple[3]):
-                xmin = imin
-                xmax = imax
-                # If a segment ends below the left edge
-                if xmax < h_fit.GetXaxis().GetXmin():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmin(),y_float[idx],3)
-                    outside_label.SetMarkerColor(1)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins above the right edge
-                if xmin > h_fit.GetXaxis().GetXmax():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmax(),y_float[idx],3)
-                    outside_label.SetMarkerColor(1)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins below the left edge
-                if xmin < h_fit.GetXaxis().GetXmin():
-                    min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_float[idx],str(round(xmin,1)))
-                    min_label.SetTextSize(0.03)
-                    min_label.SetTextColor(1)
-                    lines_labels.append(min_label)
-                    xmin = h_fit.GetXaxis().GetXmin()
-                # If a segment ends above the right edge
-                if xmax > h_fit.GetXaxis().GetXmax():
-                    max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_float[idx],str(round(xmax,1)))
-                    max_label.SetTextSize(0.03)
-                    max_label.SetTextColor(1)
-                    max_label.SetTextAlign(30)
-                    lines_labels.append(max_label)
-                    xmax = h_fit.GetXaxis().GetXmax()
-                lines_float_1sigma.append(ROOT.TLine(xmin,y_float[idx],xmax,y_float[idx]))
-                lines_float_1sigma[-1].SetLineColor(1)
-                lines_float_1sigma[-1].SetLineWidth(3)
-
-
-        lines_freeze = []
-        for idx,fittuple in enumerate(fits_freeze):
-            for imin,imax in zip(fittuple[2],fittuple[3]):
-                xmin = imin
-                xmax = imax
-                # If a segment ends below the left edge
-                if xmax < h_fit.GetXaxis().GetXmin():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmin(),y_freeze[idx],3)
-                    outside_label.SetMarkerColor(2)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins above the right edge
-                if xmin > h_fit.GetXaxis().GetXmax():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmax(),y_freeze[idx],3)
-                    outside_label.SetMarkerColor(2)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins below the left edge
-                if xmin < h_fit.GetXaxis().GetXmin():
-                    min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_freeze[idx],str(round(xmin,1)))
-                    min_label.SetTextSize(0.03)
-                    min_label.SetTextColor(2)
-                    lines_labels.append(min_label)
-                    xmin = h_fit.GetXaxis().GetXmin()
-                # If a segment ends above the right edge
-                if xmax > h_fit.GetXaxis().GetXmax():
-                    max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_freeze[idx],str(round(xmax,1)))
-                    max_label.SetTextSize(0.03)
-                    max_label.SetTextColor(2)
-                    max_label.SetTextAlign(30)
-                    lines_labels.append(max_label)
-                    xmax = h_fit.GetXaxis().GetXmax()
-                lines_freeze.append(ROOT.TLine(xmin,y_freeze[idx],xmax,y_freeze[idx]))
-                lines_freeze[-1].SetLineColor(2)
-        lines_freeze_1sigma = []
-        for idx,fittuple in enumerate(fits_freeze1sigma):
-            for imin,imax in zip(fittuple[2],fittuple[3]):
-                xmin = imin
-                xmax = imax
-                # If a segment ends below the left edge
-                if xmax < h_fit.GetXaxis().GetXmin():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmin(),y_freeze[idx],3)
-                    outside_label.SetMarkerColor(2)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins above the right edge
-                if xmin > h_fit.GetXaxis().GetXmax():
-                    outside_label = ROOT.TMarker(h_fit.GetXaxis().GetXmax(),y_freeze[idx],3)
-                    outside_label.SetMarkerColor(2)
-                    outside_label.SetMarkerSize(2)
-                    lines_labels.append(outside_label)
-                    continue # Don't attempt to draw the line!
-                # If a segment begins below the left edge
-                if xmin < h_fit.GetXaxis().GetXmin():
-                    min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_freeze[idx],str(round(xmin,1)))
-                    min_label.SetTextSize(0.03)
-                    min_label.SetTextColor(2)
-                    lines_labels.append(min_label)
-                    xmin = h_fit.GetXaxis().GetXmin()
-                # If a segment ends above the right edge
-                if xmax > h_fit.GetXaxis().GetXmax():
-                    max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_freeze[idx],str(round(xmax,1)))
-                    max_label.SetTextSize(0.03)
-                    max_label.SetTextColor(2)
-                    max_label.SetTextAlign(30)
-                    lines_labels.append(max_label)
-                    xmax = h_fit.GetXaxis().GetXmax()
-                lines_freeze_1sigma.append(ROOT.TLine(xmin,y_freeze[idx],xmax,y_freeze[idx]))
-                lines_freeze_1sigma[-1].SetLineColor(2)
-                lines_freeze_1sigma[-1].SetLineWidth(3)
-
-        # Add legend
-        legend = ROOT.TLegend(0.1,0.85,0.45,0.945)
-        legend.AddEntry(graph_float,"Others Profiled (2#sigma)",'l')
-        legend.AddEntry(graph_freeze,"Others Fixed to SM (2#sigma)",'l')
-        graph_float_1sigma = graph_float.Clone("graph_float_1sigma")
-        graph_freeze_1sigma = graph_freeze.Clone("graph_freeze_1sigma")
-        graph_float_1sigma.SetLineWidth(3)
-        graph_freeze_1sigma.SetLineWidth(3)
-        legend.AddEntry(graph_float_1sigma,"Others Profiled (1#sigma)",'l')
-        legend.AddEntry(graph_freeze_1sigma,"Others Fixed to SM (1#sigma)",'l')
-        legend.SetTextSize(0.025)
-
-        # Draw everything
-        h_fit.Draw()
-        #graph_float.Draw('P same')
-        #graph_freeze.Draw('P same')
-        for line in lines_float:
-            line.Draw('same')
-        for line in lines_freeze:
-            line.Draw('same')
-        for line in lines_float_1sigma:
-            line.Draw('same')
-        for line in lines_freeze_1sigma:
-            line.Draw('same')
-        for label in lines_labels:
-            label.Draw('same')
-        for label in y_labels:
-            label.Draw('same')
-        legend.Draw('same')
-        self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
-
-        canvas.Print('BestScanPlot.png','png')
-        canvas.Print('BestScanPlot.pdf','pdf')
-
-    def BestFitPlot(self):
-        ### Plot the best fit results for 1D scans (others frozen) and 16D scan (simultaneous) ###
-        ### Preferably this is not used in favor of the BestScanPlot, as we do not necessarily trust the simultaneous fit ###
-        ROOT.gROOT.SetBatch(True)
-
-        # WC, Best Fit Value, Symmetric Error, Lower Asymm Error, Higher Asymm Error
-        fits_float = [
-            ('ctW', 0.007932, 5.156692, -2.895143, 2.755763),
-            ('ctZ', 0.001943, 10.497099, -3.072483, 3.093559),
-            ('ctp', 0.000558, 2.153222, -2.153222, 2.153222),
-            ('cpQM', 0.000139, 1.147733, -1.147733, 1.147733),
-            ('ctG#times10', -4.3e-04, 01.49153, -01.49153, 01.49153),
-            ('cbW', 0.0, 13.188208, -13.188208, 13.188208),
-            ('cpQ3', -0.000237, 1.284475, -1.284475, 1.284475),
-            ('cptb', 0.0, 53.786793, -53.786793, 53.786793),
-            ('cpt', -0.000212, 1.581645, -1.581645, 1.581645),
-            ('cQl3i', -0.007703, 29.297121, -29.297121, 29.297121),
-            ('cQlMi', 0.001014, 7.825636, -7.825636, 7.825636),
-            ('cQei', 0.005143, 20.504546, -20.504546, 20.504546),
-            ('ctli', 0.003213, 29.193768, -29.193768, 29.193768),
-            ('ctei', 0.001447, 10.075829, -10.075829, 10.075829),
-            ('ctlSi', -0.116819, 25.739623, -25.739623, 25.739623),
-            ('ctlTi', -2.4e-05, 5.846176, -5.846176, 5.846176)
-        ]
-
-        fits_freeze = [
-            ('ctW', 0.002676, 1.945568, -1.375712, 1.285933),
-            ('ctZ', 0.001882, 2.732047, -1.259174, 1.26976),
-            ('ctp', 0.010915, 2.809417, -3.5235, 4.18801),
-            ('cpQM', 0.003549, 1.386955, -1.779072, 1.688684),
-            ('ctG#times10', 00.00868, 01.72676, -04.75713, 02.8743),
-            ('cbW', -0.00522, 3.477419, -2.071278, 2.081717),
-            ('cpQ3', 0.003113, 1.42997, -2.489773, 1.473674),
-            ('cptb', -0.012994, 14.945221, -8.696135, 8.672515),
-            ('cpt', 0.005012, 1.907986, -2.605411, 2.353756),
-            ('cQl3i', 0.007081, 8.233226, -4.48008, 4.104843),
-            ('cQlMi', 0.006358, 8.553002, -2.936935, 4.129151),
-            ('cQei', 0.008352, 5.435639, -3.378824, 3.576448),
-            ('ctli', 0.006025, 7.421842, -3.342865, 3.763873),
-            ('ctei', 0.006285, 7.846579, -3.100699, 4.042864),
-            ('ctlSi', 0.000755, 8.584274, -4.936348, 4.937865),
-            ('ctlTi', 0.000268, 0.996374, -0.662427, 0.662461)
-        ]
-
-        # Set y-coordinates for points and lines
-        y_float = [n*4+3 for n in range(0,16)]
-        y_freeze = [n*4+2 for n in range(0,16)]
-
-        # Set up the pad and axes
-        canvas = ROOT.TCanvas('canvas','Best Fit Result (SM Expectation)',500,800)
-        canvas.SetGrid(1)
-        h_fit = ROOT.TH2F('h_fit','Best Fit Result (SM Expectation)', 1, -20, 20, 65, 0, 64)
-        h_fit.Draw()
-        h_fit.SetStats(0)
-        #h_fit.GetXaxis().SetTickLength(0.1)
-        h_fit.GetYaxis().SetTickLength(0)
-        h_fit.GetYaxis().SetNdivisions(16,False)
-        h_fit.GetYaxis().SetLabelSize(0)
-
-        # Add y-axis labels
-        y_labels = []
-        for idy,yval in enumerate(y_float):
-            y_labels.append(ROOT.TLatex(h_fit.GetXaxis().GetXmin()*1.125,yval-1,fits_float[idy][0].rstrip('i')))
-            y_labels[idy].SetTextAlign(20)
-            y_labels[idy].SetTextSize(0.03)
-
-        # Set the best fit points
-        graph_float = ROOT.TGraph(16, numpy.array([fittuple[1] for fittuple in fits_float], dtype='float'), numpy.array(y_float, dtype='float'))
-        graph_float.SetMarkerStyle(20)
-        graph_float.SetMarkerSize(0.5)
-        graph_float.SetMarkerColor(2)
-
-        graph_freeze = ROOT.TGraph(16, numpy.array([fittuple[1] for fittuple in fits_freeze], dtype='float'), numpy.array(y_freeze, dtype='float'))
-        graph_freeze.SetMarkerStyle(20)
-        graph_freeze.SetMarkerSize(0.5)
-        graph_freeze.SetMarkerColor(4)
-
-        # Add lines for the errors, but print the value if line would go off the pad
-        lines_labels = []
-
-        lines_float = []
-        for idx,fittuple in enumerate(fits_float):
-            xmin = fittuple[1]+fittuple[3]
-            xmax = fittuple[1]+fittuple[4]
-            if xmin < h_fit.GetXaxis().GetXmin():
-                min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_float[idx],str(round(xmin,1)))
-                min_label.SetTextSize(0.03)
-                min_label.SetTextColor(2)
-                lines_labels.append(min_label)
-                xmin = h_fit.GetXaxis().GetXmin()
-            if xmax > h_fit.GetXaxis().GetXmax():
-                max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_float[idx],str(round(xmax,1)))
-                max_label.SetTextSize(0.03)
-                max_label.SetTextColor(2)
-                max_label.SetTextAlign(30)
-                lines_labels.append(max_label)
-                xmax = h_fit.GetXaxis().GetXmax()
-            lines_float.append(ROOT.TLine(xmin,y_float[idx],xmax,y_float[idx]))
-            lines_float[idx].SetLineColor(2)
-
-        lines_freeze = []
-        for idx,fittuple in enumerate(fits_freeze):
-            xmin = fittuple[1]+fittuple[3]
-            xmax = fittuple[1]+fittuple[4]
-            if xmin < h_fit.GetXaxis().GetXmin():
-                min_label = ROOT.TLatex(h_fit.GetXaxis().GetXmin(),y_freeze[idx],str(round(xmin,1)))
-                min_label.SetTextSize(0.03)
-                min_label.SetTextColor(4)
-                lines_labels.append(min_label)
-                xmin = h_fit.GetXaxis().GetXmin()
-            if xmax > h_fit.GetXaxis().GetXmax():
-                max_label = ROOT.TLatex(h_fit.GetXaxis().GetXmax(),y_freeze[idx],str(round(xmax,1)))
-                max_label.SetTextSize(0.03)
-                max_label.SetTextColor(4)
-                max_label.SetTextAlign(30)
-                lines_labels.append(max_label)
-                xmax = h_fit.GetXaxis().GetXmax()
-            lines_freeze.append(ROOT.TLine(xmin,y_freeze[idx],xmax,y_freeze[idx]))
-            lines_freeze[idx].SetLineColor(4)
-
-        # Add legend
-        legend = ROOT.TLegend(0.1,0.9,0.45,0.945)
-        legend.AddEntry(graph_float,"Others Floating",'p')
-        legend.AddEntry(graph_freeze,"Others Frozen to SM",'p')
-        legend.SetTextSize(0.025)
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.925, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextAlign(30)
-        CMS_text.SetTextSize(0.03)
-        Lumi_text = ROOT.TLatex(0.9, 0.9, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextAlign(30)
-        Lumi_text.SetTextSize(0.03)
-
-        # Draw everything
-        h_fit.Draw()
-        graph_float.Draw('P same')
-        graph_freeze.Draw('P same')
-        for line in lines_float:
-            line.Draw('same')
-        for line in lines_freeze:
-            line.Draw('same')
-        for label in lines_labels:
-            label.Draw('same')
-        for label in y_labels:
-            label.Draw('same')
-        legend.Draw('same')
-        self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
-
-        canvas.Print('BestFitPlot.png','png')
-
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -2044,26 +1370,31 @@ if __name__ == "__main__":
 # User options
 # //--------------------------------------------
     mode = 'EFT' #'SM', 'EFT'
+    scan_dim = '1D'
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
     parser.add_argument("-m", metavar="m", help="SM or EFT")
-    # parser.add_argument("--verbosity", metavar="level", help="Increase output verbosity")
+    parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
+
     args = parser.parse_args()
     if args.m: mode = args.m
+    if args.dim == '2D' or args.dim == '2D': scan_dim = '2D'
 
-    plotter = EFTPlot()
+    plotter = EFTPlot(opts)
     Load_Canvas_Style()
 
 # SM fit
 # //--------------------------------------------
     if mode == 'SM':
-        plotter.LLPlot1DSM(param='r_tzq')
+        if scan_dim=='1D': plotter.Plot_NLLscan_1D(mode='SM', param=opts['SM_mu'], log=False)
+        elif scan_dim=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False)
 
 # EFT fit
 # //--------------------------------------------
     elif mode == 'EFT':
-        plotter.LLPlot1DEFT('.EFT',wc='ctz')
+        if scan_dim=='1D': plotter.Plot_NLLscan_1D(mode='EFT', param=opts['wc'], log=False)
+        elif scan_dim=='2D': plotter.Plot_NLLscan_2D(mode='EFT', params=opts['wcs_pairs'], ceiling=100, log=False)
 
     #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctz', '.EFT.SM.Freeze.ctz', 'ctz')

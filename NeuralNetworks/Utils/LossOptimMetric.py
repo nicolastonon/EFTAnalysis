@@ -1,6 +1,7 @@
 #Define the loss function, optimizer and metric to be used to train the network
 
-from tensorflow.keras.optimizers import SGD, Adam, RMSprop, Adadelta
+import tensorflow as tf
+from tensorflow.keras.optimizers import SGD, Adam,Nadam, RMSprop, Adadelta
 from tensorflow.keras import backend as K
 from Utils.ColoredPrintout import colors
 from Utils.adabound_tf import AdaBound
@@ -19,6 +20,18 @@ from Utils.adabound_tf import AdaBound
 # //--------------------------------------------
 # //--------------------------------------------
 
+#Focal loss definition, taken from: https://github.com/mkocabas/focal-loss-keras/blob/master/focal_loss.py, based on paper 'Focal Loss for Dense Object Detection' (Lin et. al.)
+def focal_loss(gamma=2., alpha=.25):
+    def focal_loss_fixed(y_true, y_pred):
+        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
+        pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
+        return -K.mean(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.mean((1 - alpha) * K.pow(pt_0, gamma) * K.log(1. - pt_0))
+
+    return focal_loss_fixed
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 #Define here the loss function / optimizer / metrics to be used to train the model
 def Get_Loss_Optim_Metrics(opts):
 
@@ -31,6 +44,7 @@ def Get_Loss_Optim_Metrics(opts):
 
     #-- Some possible choices of optimizers
     if opts["optimizer"] == "Adam": optim = Adam(lr=_lr, decay=_decay) #default lr=0.001
+    elif opts["optimizer"] == "Nadam": optim = Nadam(learning_rate=_lr, beta_1=0.9, beta_2=0.999, decay=_decay) #default lr=0.001
     elif opts["optimizer"] == "Adadelta": optim = Adadelta(learning_rate=_lr, rho=0.95, epsilon=1e-07) #default lr=0.001
     elif opts["optimizer"] == "AdaBound": optim = AdaBound(learning_rate=_lr, final_learning_rate=0.1, gamma=1e-03, weight_decay=0., amsbound=False)
     elif opts["optimizer"] == "RMSprop": optim = RMSprop(lr=_lr)
@@ -52,13 +66,14 @@ def Get_Loss_Optim_Metrics(opts):
     # metrics = 'AUC' #tf.metrics.AUC #Computes the approximate AUC (Area under the curve) via a Riemann sum.
 
     if opts["regress"]==False: #Classification
-        if opts["nofOutputNodes"] > 1:
-            loss = 'categorical_crossentropy'
-            metrics = 'categorical_accuracy'
-            # metrics = 'AUC'
-        elif opts["nofOutputNodes"] == 1:
+        if opts["nofOutputNodes"] == 1: #BINARY
             loss = 'binary_crossentropy'
             metrics = 'binary_accuracy'
+            # metrics = 'AUC'
+
+        elif opts["nofOutputNodes"] > 1: #MULTI
+            loss = 'categorical_crossentropy'
+            metrics = 'categorical_accuracy'
             # metrics = 'AUC'
 
     else: #Regression
@@ -69,7 +84,6 @@ def Get_Loss_Optim_Metrics(opts):
 
         # if opts["strategy"] is "ROLR": loss = clipped_mse #use custom (clipped MSE) loss to avoid huge loss values dominating the training
 
-        # metrics = 'mean_absolute_error' #More robust to outliers
         metrics = loss
 
     lossWeights = None
@@ -77,6 +91,8 @@ def Get_Loss_Optim_Metrics(opts):
         loss = ['mean_squared_error', 'mean_squared_error']
         # loss = ['mean_squared_logarithmic_error', 'mean_squared_logarithmic_error']
         lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
+
+    # loss = [focal_loss(gamma=2, alpha=.25)]
 
     return loss, optim, metrics, lossWeights
 

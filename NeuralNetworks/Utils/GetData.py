@@ -524,8 +524,8 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
     if opts["strategy"] is "CARL_singlePoint":
 
         allweights = np.concatenate(list_weights_allClasses_abs)
-        yield_SM = allweights[targetClass_allClasses==1].sum()
-        yield_EFT = allweights[targetClass_allClasses==0].sum()
+        yield_SM = allweights[targetClass_allClasses==0].sum()
+        yield_EFT = allweights[targetClass_allClasses==1].sum()
         SF_SM = 100. / yield_SM
         SF_EFT = 100. / yield_EFT
 
@@ -598,7 +598,7 @@ def Update_Lists(opts, list_labels, list_features):
 
     if opts["parameterizedNN"] == True:
 
-        if opts["test1D"]: list_features = ['x'] #FIXME
+        if opts["testToy1D"]: list_features = ['x']
 
         list_features = np.append(list_features, opts["listOperatorsParam"]) #Treat the theory parameters theta (WC values of each operator) as input features
 
@@ -750,7 +750,7 @@ def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, t
 
 def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName=""):
     '''
-    Sanitize the data fed to NN.
+    Sanitize the data provided as input to the NN.
     '''
 
     #-- Sanity check (NaN, infinite)

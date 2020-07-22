@@ -1,19 +1,20 @@
-Start of NN training :20-Jul-2020 (16:07:59)
+Start of NN training :22-Jul-2020 (22:19:26)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
 strategy --> CARL
-splitTrainEventFrac --> 0.8
-nEpochs --> 10
-nHiddenLayers --> 3
-nNeuronsPerLayer --> 100
+splitTrainEventFrac --> 0.75
+nEpochs --> 20
+nHiddenLayers --> 4
+nNeuronsAllHiddenLayers --> 100
+nNeuronsPerHiddenLayer --> [128, 64, 32, 16]
 activInputLayer --> tanh
 activHiddenLayers --> lrelu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.0
+dropoutRate --> 0.3
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
 learnRate --> 0.001
@@ -21,20 +22,20 @@ maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
-listOperatorsParam --> ['ctw']
-nPointsPerOperator --> 11
-minWC --> -6
-maxWC --> 6
+refPoint --> SM
+listOperatorsParam --> ['ctz']
+nPointsPerOperator --> 30
+minWC --> -3
+maxWC --> 3
 nEventsPerPoint --> 2000
 batchSizeEFT --> 512
-refPoint --> SM
 score_lossWeight --> 1
 regress_onLogr --> False
 targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> 1
-makeValPlotsOnly --> False
-test1D --> False
+makeValPlotsOnly --> True
+testToy1D --> False
 parameterizedNN --> True
 regress --> False
 nofOutputNodes --> 1
@@ -45,3 +46,4 @@ metrics --> binary_accuracy
 NN_strategy --> MVA_param
 ----------------- 
 
+End of NN training and evaluation :22-juil.-2020 (22:20:37)

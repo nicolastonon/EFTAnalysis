@@ -42,7 +42,6 @@
 using namespace std;
 
 
-
 //--------------------------------------------
 //  ######   ######  ########  #### ########  ########    ########  #######  ########
 // ##    ## ##    ## ##     ##  ##  ##     ##    ##       ##       ##     ## ##     ##
@@ -91,7 +90,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     // }
 
     //FIXME -- hardcoded !! tmp test
-    if(scan_operator_hardcoded)
+    if(scan_operator_hardcoded && mode_histoBins==1)
     {
         v_templates.resize(0);
         for(int istep=-5; istep<=5; istep++)
@@ -391,7 +390,7 @@ int main()
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
     v_regions.push_back("SR");
 
-    bool scan_operator_hardcoded = true; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
+    bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
 // Modified at command-line
 //--------------------------------------------

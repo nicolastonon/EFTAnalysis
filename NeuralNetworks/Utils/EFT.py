@@ -5,9 +5,6 @@ DEBUG_ = 0 #0: no debug printouts; 1: minimal printouts; 2: maximal printouts (a
 # //--------------------------------------------
 
 '''
-# NOTES :
--
-
 # LIMITATIONS / ASSUMPTIONS :
 - Can not sum several processes into a process class including an EFT process. Each EFT process must constitute a separate class.
 - Assume that a given EFT sample has the exact same list of reweight points (in same order) for all considered years (could change that in the future by estimating fit coefficients directly when reading the sample, separately for each year)
@@ -28,7 +25,6 @@ NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3
 - 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parameterize the event weight
 - 'JLR' = joint likelihood ratio, denoted r. Along with score t, these variables correspond to the augmented data extracted from the generator (see reference summary article: https://arxiv.org/abs/1805.00020)
 - ...
-
 '''
 
 # //--------------------------------------------
@@ -724,6 +720,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
         #-- For non-parameterized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
         if parameterizedNN == False:
+
             weights_thetas = list_SMweights_allClasses[iclass] #Will compare SM to EFT ref point
             weights_allThetas_class = np.concatenate((weights_thetas, weights_refPoint))
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
@@ -792,7 +789,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Get the data for all points thetas (twice: both drawn at point theta and at ref point)
 
-            if opts["test1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_Test1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score) #FIXME
+            if opts["testToy1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
 
             elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
             else: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
@@ -855,7 +852,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #FIXME
+        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing... #FIXME
         if need_jlr and max_jlr>0:
             probas_thetas[jointLR[:,itheta] > max_jlr] = 0; probas_refPoint[jointLR[:,itheta] > max_jlr] = 0 #Ignore events with extreme JLR values
             probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1 (again)
@@ -1000,7 +997,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #FIXME
+    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing... #FIXME
     if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     if unweight_events: indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)
@@ -1077,11 +1074,12 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
 # //--------------------------------------------
 # //--------------------------------------------
 
-def GetData_Test1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
+def GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
     """
-    cf. toy example in param NN ref article.
+    Debugging function to reproduce 1D toy example provided in paramNN ref. article.
+    Return data, in the format expected by this code, with a single feature x described by a gaussian centered around the parameter theta for signal, and a uniform distribution for backgrounds. Expect the NN to easily learn the dependence of the truth value on x, but most interestingly on theta.
 
-    For ctW operator only !!
+    NB: For 1 operator only !
     """
 
     rng = np.random.default_rng() #Init random generator

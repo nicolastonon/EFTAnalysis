@@ -956,6 +956,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	double xmin = -1, xmax = 1; //BDT: [-1,1]
     if(template_name == "NN") {xmin = 0;} //NN: [0,1]
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
+    else if(template_name == "Zpt") {nbins = 4; xmin = 0; xmax = 500;} //1 bin per sub-category
 
 //FIXME
 //--------------------------------------------
@@ -971,7 +972,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(var_list_NN[ivar]==operator_scan1) {idx_operator_scan1 = ivar;}
         if(var_list_NN[ivar]==operator_scan2) {idx_operator_scan2 = ivar;}
     }
-    if(idx_operator_scan1<0 || idx_operator_scan2<0) {cout<<"Scan operator not found ! Abort ! "<<endl; return;}
+    if(this->NN_strategy == "MVA_param" && (idx_operator_scan1<0 || idx_operator_scan2<0)) {cout<<"Scan operator not found ! Abort ! "<<endl; return;}
     if(!v_WCs_operator_scan2.size()) {v_WCs_operator_scan2.push_back(-99);} //Need at least 1 element
 //--------------------------------------------
 
@@ -1184,6 +1185,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         tree->SetBranchStatus("nbjets", 1);
                         tree->SetBranchAddress("nbjets", &nbjets);
                     }
+                    else if(template_name=="Zpt") //Need to read Zpt variable
+                    {
+                        tree->SetBranchStatus("recoZ_Pt", 1);
+                        tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                    }
     			}
 
     			for(int i=0; i<v_cut_name.size(); i++)
@@ -1296,7 +1302,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				} //syst
     			} //chan
 
-                WCFit* eft_fit = NULL; //1 WCFit object per private MC event
+                WCFit* eft_fit = NULL; //1 WCFit object per PrivMC event
 
                 //For private EFT samples, get and store index of SM reweight
                 int idx_sm = -1;
@@ -1395,16 +1401,19 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             total_var_floats[0] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
                             // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<total_var_floats[0]<<endl;
                         }
-                        else {cout<<BOLD(FRED("ERROR: wrong template_name value !"))<<endl; return;}
                     }
 
-                    double weight_tmp = eventWeight*eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
+                    double weight_tmp = eventWeight * eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
                     float w_SMpoint = 0;
                     if(isPrivMC)
                     {
-                        eft_fit = new WCFit("myfit");
                         w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+
+                        eft_fit = new WCFit("myfit"); //Init object, filled in function
                         Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, idx_sm); //Fill w/ nominal weight ?
+
+                        //FIXME -- hardcoded scale-factor for ttZ SMEFT sample -- this is to rescale the fit coeffs from which arbitrary normalizations are obtained
+                        if(sample_list[isample] == "PrivMC_ttZ_training") {eft_fit->scale(0.361);}
                     }
 
     				//-- Fill histos for all subcategories
@@ -1475,10 +1484,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                                 if(isPrivMC)
                                 {
-                                    float w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
-
-                                    if(sample_list[isample] == "PrivMC_ttZ_training") {w_SMpoint*= 0.361;} //FIXME -- hardcoded scale-factor for ttZ SMEFT sample
-
                                     Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint);
                                     Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);
                                 }
@@ -1531,7 +1536,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     						file_output->cd();
 
-                            if(isPrivMC && syst_list[isyst]=="") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc.
+                            if(isPrivMC) //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc.
                             {
                                 if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
 
@@ -1556,11 +1561,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(wcp);
                                 }
 
+                                //FIXME -- hardcoded scale-factor for ttZ SMEFT sample -- this is only to get the 'nominal SM' normalization right
+                                if(sample_list[isample] == "PrivMC_ttZ_training") {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(0.361);}
+
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
                                 // v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write("TH1EFT_"+output_histo_name); //Store with specific prefix
 
                                 //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") {StoreEachHistoBinIndividually(file_output, v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ" || template_name == "Zpt") {StoreEachHistoBinIndividually(file_output, v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
 
                                 bool debug = false;
                                 if(debug) //Printout WC values and extrapolated integrals for each benchmark point
@@ -1588,7 +1596,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 // cout<<"Wrote histo : "<<output_histo_name<<endl;
 
                                 //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
-                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ" || template_name == "Zpt") {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
                             }
 
     						delete v3_histo_chan_syst_var[ichan][isyst][ivar]; v3_histo_chan_syst_var[ichan][isyst][ivar] = NULL;
@@ -1719,7 +1727,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
         // v_EFT_samples.push_back("PrivMC_ttZ_training");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
         v_EFT_points.push_back("rwgt_ctz_0");
-        v_EFT_points.push_back("rwgt_ctz_5");
+        v_EFT_points.push_back("rwgt_ctz_1");
+        v_EFT_points.push_back("rwgt_ctz_2");
         // v_EFT_points.push_back("rwgt_ctz_2_ctw_0_cpqm_0_cpq3_0_cpt_0");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_5_cpqm_0_cpq3_0_cpt_0");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_15_cpq3_0_cpt_0");
@@ -1732,7 +1741,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 	if(drawInputVars) {cout<<FYEL("--- Producing Input Variables Plots / channel : "<<channel<<" ---")<<endl;}
-    else {cout<<FYEL("--- Producing "<<classifier_name<<" Template Plots ---")<<endl;}
+    else {cout<<FYEL("--- Producing "<<template_name<<" Template Plots ---")<<endl;}
     // else {cout<<FRED("--- ERROR : invalid args !")<<endl;}
     cout<<endl<<YELBKG("                          ")<<endl<<endl;
 
@@ -1741,7 +1750,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		classifier_name = ""; //For naming conventions
 		use_combine_file = false;
 		if(drawInputVars && !prefit) {cout<<"Error ! Can not draw postfit input vars yet !"<<endl; return;}
-		// if(template_name == "categ" && !prefit) {cout<<"Can not plot yields per subcategory using the Combine output file ! Will plot [PREFIT] instead of [POSTFIT] !"<<endl; prefit = true;}
 	}
 
 //  ####  ###### ##### #    # #####
@@ -1774,7 +1782,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	{
         //TRY 1 : look for Combine file
 		input_name = "./outputs/fitDiagnostics_";
-		input_name+= classifier_name + template_name + "_" + cat_tmp + filename_suffix + ".root";
+		input_name+= template_name + "_" + cat_tmp + filename_suffix + ".root";
 		if(!Check_File_Existence(input_name)) {input_name = "./outputs/fitDiagnostics.root";} //Try another name
 
         //Combine file not found !
@@ -1786,7 +1794,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
             //TRY 2 : look for my own file containing prefit templates/control histos
 			if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";}
-			else {input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";} //Templates
+			else {input_name = "outputs/Templates_" + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";} //Templates
 
             cout<<DIM("Trying file "<<input_name<<"...")<<endl;
             if(!Check_File_Existence(input_name) && lumiName != "Run2") //If did not find year-specific file, also try to look for full Run 2 file (contains contributions from each year)
@@ -1794,7 +1802,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 if(drawInputVars) {input_name = "outputs/ControlHistograms_" + cat_tmp + "_Run2" + filename_suffix + ".root";}
     			else //Templates
     			{
-    				input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
+    				input_name = "outputs/Templates_" + template_name + "_" + cat_tmp + "_Run2" + filename_suffix + ".root";
     			}
 
                 cout<<DIM("Trying file "<<input_name<<"...")<<endl;
@@ -1877,11 +1885,11 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 	}
 	else
 	{
-        if(classifier_name == "NN")
+        if(template_name == "NN")
         {
-            for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back(classifier_name + (nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
+            for(int inode=0; inode<nNodes; inode++) {total_var_list.push_back("NN" + (nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
         }
-        else {total_var_list.push_back(classifier_name);} //Single BDT template
+        else {total_var_list.push_back(template_name);} //Single BDT template
 	}
 
 
@@ -2390,11 +2398,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             {
                 TH1EFT* th1eft_tmp = 0;
 
-                TString histo_name = "TH1EFT_" + total_var_list[ivar];
+                TString histo_name = total_var_list[ivar];
+                // TString histo_name = "TH1EFT_" + total_var_list[ivar];
                 if(cat_tmp != "") {histo_name+= "_" + cat_tmp;}
                 if(channel != "") {histo_name+= "_" + channel;}
                 histo_name+= + "_2017__" + v_EFT_samples[isample];
-                // cout<<"TH1EFT_"<<histo_name<<endl;
+                // cout<<histo_name<<endl;
 
                 if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
                 th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
@@ -3637,7 +3646,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString
                         int n_singleBins = 0; //Default: will only merge: a) entire histograms, b) histograms stored as single bin //Gets updated below depending on strategy
                         for(int ibin=-1; ibin<n_singleBins+1; ibin++) //Convention (depending on NN_strategy): bin=-1 <-> merge full histogram; bin=0 <-> merge histo stored as single bin (counting exp.)
                         {
-                            if(this->NN_strategy != "MVA_EFT" && template_name != "categ" && ibin==0) {continue;} //Don't store histos for counting experiment in this config
+                            if(this->NN_strategy != "MVA_EFT" && template_name != "categ" && template_name != "Zpt" && ibin==0) {continue;} //Don't store histos for counting experiment in this config
 
                             // cout<<"ibin "<<ibin<<" ("<<"n_singleBins "<<n_singleBins<<")"<<endl;
             				for(int isample=0; isample<sample_list.size(); isample++)
@@ -3681,7 +3690,7 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString
             					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
             					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
 
-                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ") //Special cases: will also merge single-bin histos
+                                if(this->NN_strategy == "MVA_EFT" || template_name == "categ" || template_name == "Zpt") //Special cases: will also merge single-bin histos
                                 {
                                     if(n_singleBins==0 && ibin==-1) //Only read the binning from full histograms
                                     {

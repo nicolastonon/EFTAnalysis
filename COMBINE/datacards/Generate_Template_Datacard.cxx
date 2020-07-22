@@ -42,8 +42,7 @@
 #include <sstream>
 #include <fstream>
 
-#include <cassert>     //Can be used to terminate program if argument is not true.
-//Ex : assert(test > 0 && "Error message");
+#include <cassert> //Can be used to terminate program if argument is not true //Ex : assert(test > 0 && "Error message");
 #include <sys/stat.h> // to be able to use mkdir
 
 using namespace std;
@@ -96,13 +95,14 @@ void Choose_Arguments_From_CommandLine(TString& signal)
     //Choose whether to include shape syst or not
 	cout<<endl<<FYEL("--- What is your SIGNAL ?")<<endl;
     cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ"<<endl;
-    cout<<"* 'efttzq'   <-> Signal is SMEFT tZq"<<endl;
+    cout<<"* 'efttzq'   <-> Signal is SMEFT tZq only"<<endl;
+    cout<<"* 'eftttz'   <-> Signal is SMEFT ttZ only"<<endl;
     cout<<"* '0'   <-> Signals are tZq + ttZ"<<endl;
     // cout<<"* 'thq' <-> Signals are tHq + tHW"<<endl;
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
 	cin>>signal;
-	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft" && signal != "efttzq")
+	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft" && signal != "efttzq" && signal != "eftttz")
 	{
 		cin.clear();
 		cin.ignore(1000, '\n');
@@ -424,6 +424,11 @@ int main()
     {
         v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    }
+    else if(signal == "eftttz") //Signal : tZq
+    {
+        v_samples.push_back("PrivMC_ttZ_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "eft") //Signals : tZq+ttZ
     {

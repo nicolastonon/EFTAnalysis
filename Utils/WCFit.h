@@ -544,7 +544,7 @@ public:
         const TVectorD c_x = svd.Solve(b, ok); //--> Solve for the fit parameters
         for (uint i = 0; i < this->errSize(); i++)
         {
-            if (i < this->size()) {this->coeffs.at(i) = c_x(i);}
+            if(i < this->size()) {this->coeffs.at(i) = c_x(i);}
 
             // idx_pair = this->err_pairs.at(i);
             //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);
@@ -554,7 +554,11 @@ public:
         return;
     }
 
+    // Overloaded function
+    void fitPoints() {return this-> fitPoints(this->points);}
+
     // Extract a n-Dim quadratic fit from a collection of WC phase space points //NT -- overloaded
+    /*
     void fitPoints()
     {
         if(this->points.size() == 0) {return;} // No points to fit!
@@ -615,6 +619,7 @@ public:
 
         return;
     }
+    */
 };
 
 #endif

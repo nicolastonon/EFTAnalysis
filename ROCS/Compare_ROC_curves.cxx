@@ -804,8 +804,8 @@ int main(int argc, char **argv)
     // v_processes.push_back("tZq");
     // v_processes.push_back("ttZ");
     // v_processes.push_back("Backgrounds");
-    v_processes.push_back("SM");
     v_processes.push_back("EFT");
+    v_processes.push_back("SM");
 
     TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
 
@@ -837,8 +837,12 @@ int main(int argc, char **argv)
     v_Filelabel.push_back("NN "+lumiYear);
     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
 
-    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt.root");
-    v_Filelabel.push_back("Z_pt");
+    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt.root");
+    // v_Filelabel.push_back("Z_pt");
+    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
+
+    v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_lep3_phi.root");
+    v_Filelabel.push_back("lep3_phi");
     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
 
     // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw1.root");

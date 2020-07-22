@@ -43,10 +43,11 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
     minWC = opts["minWC"]
     maxWC = opts["maxWC"]
 
-    if opts["parameterizedNN"] == False or opts["makeValPlotsOnly"] == True or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False
+    if opts["parameterizedNN"] == False or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False
 
     #-- Store the training and testing events into lists, depending on their 'true class' values
-    #For 'EFT' class, don't just consider all non-SM events (too much). For now, only consider events generated at boundary values (for all operators)
+    #NB: For 'EFT' class, don't just consider all non-SM events (too much). For now, only consider events generated at boundary values (for all operators)
+    #NB: the order of the 'append' commands matters ! (determines which class will be first, impacting plotting and such)
     list_xTrain_allClasses = []; list_xTest_allClasses = []
     list_yTrain_allClasses = []; list_yTest_allClasses = []
     list_truth_Train_allClasses = []; list_truth_Test_allClasses = []
@@ -56,6 +57,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
         if useMostExtremeWCvaluesOnly is False: #Get predictions for all events
             list_xTrain_allClasses.append(x_train[y_process_train==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1][:maxEvents])
             list_xTrain_allClasses.append(x_train[y_process_train==0][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==0][:maxEvents])
+
             list_xTest_allClasses.append(x_test[y_process_test==1][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test==1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test==1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==1][:maxEvents])
             list_xTest_allClasses.append(x_test[y_process_test==0][:maxEvents]); list_yTest_allClasses.append(y_test[y_process_test==0][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[y_process_test==0][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[y_process_test==0][:maxEvents])
         else:
@@ -63,18 +65,21 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
             #Get relevant indices or slices: only retain EFT events whose operators are at boundaries
             sl = np.s_[x_train.shape[1]-len(opts["listOperatorsParam"]):] #Specify slice corresponding to indices of theory parameters features (placed last)
 
-            indices_train_class0 = np.where(y_process_train==0) #All events drawn at SM point
+            # indices_train_class0 = np.where(y_process_train==0) #All events drawn at SM point #CHANGED -- must evaluate SM events at same points as EFT !
+            indices_train_class0 = np.where(np.logical_and(y_process_train==0, np.logical_or(np.all(x_train[:,sl]==minWC,axis=1),np.all(x_train[:,sl]==maxWC,axis=1))) ) #All events drawn at SM point corresponding to min or max boundaries (arbitrary choice)
             indices_train_class1 = np.where(np.logical_and(y_process_train==1, np.logical_or(np.all(x_train[:,sl]==minWC,axis=1),np.all(x_train[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
 
-            indices_test_class0 = np.where(y_process_test==0) #All events drawn at SM point
+            # indices_test_class0 = np.where(y_process_test==0) #All events drawn at SM point #CHANGED -- must evaluate SM events at same points as EFT !
+            indices_test_class0 = np.where(np.logical_and(y_process_test==0, np.logical_or(np.all(x_test[:,sl]==minWC,axis=1),np.all(x_test[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
             indices_test_class1 = np.where(np.logical_and(y_process_test==1, np.logical_or(np.all(x_test[:,sl]==minWC,axis=1),np.all(x_test[:,sl]==maxWC,axis=1))) ) #All events drawn at EFT point corresponding to min or max boundaries (arbitrary choice)
             # print(indices_train_class0); print(indices_train_class1); print(indices_test_class0); print(indices_test_class1)
             #-----
 
-            list_xTrain_allClasses.append(x_train[indices_train_class0][:maxEvents]); list_yTrain_allClasses.append(y_train[indices_train_class0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[indices_train_class0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[indices_train_class0][:maxEvents])
             list_xTrain_allClasses.append(x_train[indices_train_class1][:maxEvents]); list_yTrain_allClasses.append(y_train[indices_train_class1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[indices_train_class1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[indices_train_class1][:maxEvents])
-            list_xTest_allClasses.append(x_test[indices_test_class0][:maxEvents]); list_yTest_allClasses.append(y_test[indices_test_class0][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[indices_test_class0][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[indices_test_class0][:maxEvents])
+            list_xTrain_allClasses.append(x_train[indices_train_class0][:maxEvents]); list_yTrain_allClasses.append(y_train[indices_train_class0][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[indices_train_class0][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[indices_train_class0][:maxEvents])
+
             list_xTest_allClasses.append(x_test[indices_test_class1][:maxEvents]); list_yTest_allClasses.append(y_test[indices_test_class1][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[indices_test_class1][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[indices_test_class1][:maxEvents])
+            list_xTest_allClasses.append(x_test[indices_test_class0][:maxEvents]); list_yTest_allClasses.append(y_test[indices_test_class0][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[indices_test_class0][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[indices_test_class0][:maxEvents])
 
     else: #Multi-output
 
@@ -87,7 +92,6 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
                 j = -len(opts["listOperatorsParam"]) -1 + inode #Index j <-> column in array of features corresponding to current operator ==> Only select events for which this operator has its maximum WC value (extremum)
                 list_xTrain_allClasses.append(x_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents]); list_yTrain_allClasses.append(y_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_truth_Train_allClasses.append(y_process_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[np.logical_and(y_process_train[:,inode]==1, np.logical_or(x_train[:,j]==minWC,x_train[:,j]==maxWC))][:maxEvents])
                 list_xTest_allClasses.append(x_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_yTest_allClasses.append(y_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_truth_Test_allClasses.append(y_process_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents]); list_PhysicalWeightsTest_allClasses.append(PhysicalWeights_test[np.logical_and(y_process_test[:,inode]==1, np.logical_or(x_test[:,j]==minWC,x_test[:,j]==maxWC))][:maxEvents])
-
 
     #-- Sanity checks: make sure no class is empty
     if opts["parameterizedNN"] is True or len(list_processClasses)>1: #E.g. for a regressor trained on a single sample, the 'bkg' class will be empty <-> don't check

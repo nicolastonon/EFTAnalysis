@@ -33,10 +33,9 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 # Architecture options (set by user in main code)
 
     nHiddenLayers = opts["nHiddenLayers"]
-    nNeuronsPerLayer = opts["nNeuronsPerLayer"]
+    nNeuronsAllHiddenLayers = opts["nNeuronsAllHiddenLayers"]
     activInputLayer = opts["activInputLayer"]
     activHiddenLayers = opts["activHiddenLayers"]
-
     use_normInputLayer = opts["use_normInputLayer"]
     use_batchNorm = opts["use_batchNorm"]
     dropoutRate = opts["dropoutRate"]
@@ -44,6 +43,9 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 
     use_dropout = False
     if dropoutRate > 0: use_dropout = True
+
+    nNeuronsPerHiddenLayer = []
+    if "nNeuronsPerHiddenLayer" in opts: nNeuronsPerHiddenLayer = opts["nNeuronsPerHiddenLayer"]
 
     nof_outputs = opts["nofOutputNodes"]
 
@@ -102,8 +104,12 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
         activ_tmp = activHiddenLayers
         if iLayer == 0 and activInputLayer != '': activ_tmp = activInputLayer
 
+        # Number of neurons for current hidden layer
+        nNeurons = nNeuronsAllHiddenLayers
+        if len(nNeuronsPerHiddenLayer) > 0: nNeurons = nNeuronsPerHiddenLayer[iLayer]
+
         # Dense hidden layers
-        X = Dense(nNeuronsPerLayer, activation=activ_tmp, activity_regularizer=reg, kernel_initializer=kernInit)(X)
+        X = Dense(nNeurons, activation=activ_tmp, activity_regularizer=reg, kernel_initializer=kernInit)(X)
         if activ_tmp == 'lrelu': X = LeakyReLU(alpha=0.1)(X) #Arbitrary alpha parameter
         elif activ_tmp == 'prelu': X = PReLU(alpha_initializer=Constant(value=0.25))(X) #Arbitrary alpha init. as proposed by He et al. (2015)
 

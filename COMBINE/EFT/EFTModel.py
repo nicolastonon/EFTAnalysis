@@ -6,15 +6,15 @@ import numpy as np
 import ROOT
 import pprint
 from Utils.ColoredPrintout import colors
+from settings import opts #Custom dictionnary of settings
 ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so') #Library for custom classes WCPoint, WCFit, TH1EFT
 
 #Based on 'Quadratic' model: HiggsAnalysis.CombinedLimit.QuadraticScaling
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
-#OPTIONS
+verbose = 0 #(Dis)activate printouts for this code
+
 # //--------------------------------------------
-SM_name = 'SM' #SM point naming convention
-verbose = 0 #(Dis)activate printouts
 # //--------------------------------------------
 
 ######## ######## ######## ##     ##  #######  ########  ######## ##
@@ -54,9 +54,6 @@ class EFTModel(PhysicsModel):
     def setPhysicsOptions(self, options):
 
         self.fits = None # File containing WC parameterizations of each process+bin *with events*!
-        self.wcs = ['ctz']
-        self.wc_ranges = {'ctz':(-6,6)#,    'ctW':(-7,7)
-                         }
         wcs_override = [] # WCs specified by arguments
         self.procbins = [] # Process+bin combinations (tuple) that we have events for
         procbin_override = [] # Process+bin combinations (tuple) specified by arguments
@@ -117,6 +114,7 @@ class EFTModel(PhysicsModel):
                         lin_term.append('{0}*{1}'.format(round(fits[procbin][(SM_name,wc1)],4),wc1))
                         lin_args.append(wc1)
                     for idy,wc2 in enumerate(self.wcs):
+                        # print('wc1', wc1, 'wc2', wc2)
                         if (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.001):
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
@@ -190,4 +188,9 @@ class EFTModel(PhysicsModel):
 # //--------------------------------------------
 
 print(colors.fg.lightblue + 'Creating custom Physics model...' + colors.reset)
+
+#-- Create PhysicsModel object & read user options
 eftmodel = EFTModel()
+SM_name = opts["SM_name"]
+eftmodel.wcs = opts["wcs"]
+eftmodel.wc_ranges = opts["wc_ranges"]

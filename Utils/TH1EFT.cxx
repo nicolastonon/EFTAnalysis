@@ -157,6 +157,14 @@ void TH1EFT::Scale(WCPoint wc_pt)
     return;
 }
 
+//Overloaded function
+void TH1EFT::Scale(string wgt_name)
+{
+    WCPoint wc_pt(wgt_name, 1.); //NB: weight does not matter here
+    
+    return TH1EFT::Scale(wc_pt);
+}
+
 //Overload regular TH1D::Scale() function, because not always found for some reason. Trick: had to use a different name to avoid ambiguity...
 void TH1EFT::Scaler(Double_t sf)
 {
