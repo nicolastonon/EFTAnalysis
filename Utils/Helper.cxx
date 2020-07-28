@@ -798,69 +798,54 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
 //Select a color for each activated sample
 //NB : also account for the DATA sample in color vector, but keep its element empty !
-void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_colors, vector<TString> v_samples, int color_scheme, bool use_custom_colorPalette)
+void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_colors, vector<TString> v_samples, vector<TString> v_groups, int color_scheme)
 {
-	// int i_skipData = 0; //index //include data in color vector for now (empty element)
-
     //Define some TColors, which we can then use to define the default color vector. NB : must only delete them after all plots have been created.
-    if(use_custom_colorPalette)
-    {
-        v_custom_colors.resize(10, 0);
+    v_custom_colors.resize(10, 0);
 
-        //-- Colors definition : Number + RGB value, from 0 to 1
-        v_custom_colors[0] = new TColor(9000, 31./255., 120./255., 180./255.);
-        v_custom_colors[1] = new TColor(9001, 166./255., 206./255., 227./255.);
-        v_custom_colors[2] = new TColor(9003, 51./255., 160./255., 44./255.);
-        v_custom_colors[3] = new TColor(9004, 178./255., 223./255., 138./255.);
+    //-- Colors definition : Number + RGB value, from 0 to 1
+    v_custom_colors[0] = new TColor(9000, 31./255., 120./255., 180./255.);
+    v_custom_colors[1] = new TColor(9001, 166./255., 206./255., 227./255.);
+    v_custom_colors[2] = new TColor(9002, 51./255., 160./255., 44./255.);
+    v_custom_colors[3] = new TColor(9003, 178./255., 223./255., 138./255.);
+    v_custom_colors[4] = new TColor(9004, 255./255., 129./255., 123./255.);
+    v_custom_colors[5] = new TColor(9005, 53./255., 184./255., 99./255.);
+    v_custom_colors[6] = new TColor(9006, 227./255., 65./255., 61./255.);
 
-    }
+    //Also nice
+    //kOrange-3,
 
 //--------------------------------------------
-    if(use_custom_colorPalette) //Custom color scheme
+    if(color_scheme == 0) //Custom color scheme
     {
-        for(int isample=0; isample<v_samples.size(); isample++)
+        for(int isample=0; isample<v_groups.size(); isample++)
 		{
             //Signals
-            if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
-            else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
 
-            //ttX
-            else if(v_samples[isample] == "ttH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "tttt") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttZZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttWW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttWZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttZH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "ttWH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            //t(t)X
+            else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
 
-            //tX
-            else if(v_samples[isample] == "tHq") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
-            else if(v_samples[isample] == "tHW") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
-            else if(v_samples[isample] == "tWZ") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
-            else if(v_samples[isample] == "tGJets") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
-            else if(v_samples[isample] == "ST") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
+            //WZ
+            else if(v_groups[isample] == "WZ") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
 
-            //VV(V)
-            else if(v_samples[isample] == "WZ") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "ZZ4l") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "ZZZ") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "WZZ") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "WWW") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "WWZ") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "WZ2l2q") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "ZZ2l2q") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "ZG2l2g") {v_colors[isample] = kViolet-6;}
+            //ZZ
 
-            //Fakes
-            else if(v_samples[isample] == "DY") {v_colors[isample] = kGray;} //kAzure-7
+            //VVV
+            else if(v_groups[isample] == "VVV") {v_colors[isample] = v_custom_colors[5]->GetNumber();}
+            // else if(v_groups[isample] == "ZZ") {v_colors[isample] = v_custom_colors[5]->GetNumber();}
+            // else if(v_groups[isample] == "VVV") {v_colors[isample] = kViolet+2;}
 
-            else if(v_samples[isample] == "TTbar_DiLep") {v_colors[isample] = kGray+2;} //kPink-4, kCyan-6;
-            else if(v_samples[isample] == "TTbar_SemiLep") {v_colors[isample] = kGray+2;}
+            //X+g
+            else if(v_groups[isample] == "Xg") {v_colors[isample] = kPink+2;}
+
+            //NPL
+            else if(v_groups[isample] == "NPL") {v_colors[isample] = kGray;}
 		}
     }
 
-	else if(color_scheme == 0) //'Default' color scheme
+    else if(color_scheme == 1) //'Default' color scheme
 	{
 		for(int isample=0; isample<v_samples.size(); isample++)
 		{
@@ -883,7 +868,6 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             else if(v_samples[isample] == "tHq") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "tHW") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "tWZ") {v_colors[isample] = kSpring+2;}
-            else if(v_samples[isample] == "tGJets") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "ST") {v_colors[isample] = kSpring+2;}
 
             //VV(V)
@@ -902,6 +886,58 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
 
             else if(v_samples[isample] == "TTbar_DiLep") {v_colors[isample] = kGray+2;} //kPink-4, kCyan-6;
             else if(v_samples[isample] == "TTbar_SemiLep") {v_colors[isample] = kGray+2;}
+		}
+	}
+
+    else if(color_scheme == 2) //David
+	{
+		for(int isample=0; isample<v_samples.size(); isample++)
+		{
+            //Signals
+            if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+
+            //ttX
+            else if(v_samples[isample] == "ttH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "tttt") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttZZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttWW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttWZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttZH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttWH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ttHH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "tHq") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "tHW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "tWZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            else if(v_samples[isample] == "ST") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+
+            //WZ
+            else if(v_samples[isample] == "WZ") {v_colors[isample] = kViolet-6;}
+
+            //ZZ
+            else if(v_samples[isample] == "ZZ4l") {v_colors[isample] = kTeal+2;}
+            else if(v_samples[isample] == "ggToZZTo4l") {v_colors[isample] = kTeal+2;}
+
+            //VVV
+            else if(v_samples[isample] == "ZZZ") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "WZZ") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "WWW") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "WWZ") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "WZ2l2q") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "ZZ2l2q") {v_colors[isample] = kGreen-3;}
+            else if(v_samples[isample] == "ZG2l2g") {v_colors[isample] = kGreen-3;}
+
+            //X+g
+            else if(v_samples[isample] == "TTGamma_Dilep") {v_colors[isample] = kPink+2;}
+            else if(v_samples[isample] == "tGJets") {v_colors[isample] = kPink+2;}
+            else if(v_samples[isample] == "WGToLNuG") {v_colors[isample] = kPink+2;}
+            else if(v_samples[isample] == "ZGToLLG_01J") {v_colors[isample] = kPink+2;}
+
+            //Fakes
+            else if(v_samples[isample] == "DY") {v_colors[isample] = kGray;}
+            else if(v_samples[isample] == "TTbar_DiLep") {v_colors[isample] = kGray;}
+            else if(v_samples[isample] == "TTbar_SemiLep") {v_colors[isample] = kGray;}
 		}
 	}
 
@@ -980,10 +1016,11 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "recoZ_Mass") {nbins = 20; xmin = 75.; xmax = 110;}
     else if(var == "lAsymmetry") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "Mass_tZ") {nbins = 10; xmin = 200; xmax = 1000;}
-    else if(var == "maxDeepCSV") {nbins = 20; xmin = 0.3; xmax = 1.1;}
+    else if(var == "maxDeepCSV" || var == "maxDeepJet" || var == "deepCSV_2nd" || var == "deepJet_2nd") {nbins = 20; xmin = 0.3; xmax = 1.1;}
     else if(var == "maxDijetDelPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
     else if(var == "maxDelRbL") {nbins = 20; xmin = 1.; xmax = 5;}
     else if(var == "Top_delRbl" || var == "Top_delRbW") {nbins = 20; xmin = 0.; xmax = 4.5;}
+    else if(var == "channel") {nbins = 4; xmin = 0.; xmax = 4;}
 
     else if(var.Contains("CSV", TString::kIgnoreCase)) {nbins = 20; xmin = 0.; xmax = 1.1;}
     else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 7.;}
@@ -1017,6 +1054,9 @@ TString Get_Variable_Name(TString var)
     if(var == "forwardJetAbsEta") {return "#left|#eta#left(j^{fwd}#right)#right|";}
     if(var == "jPrimeAbsEta") {return "#left|#eta(j')#right|";}
     if(var == "maxDeepCSV") {return "max. DeepCSV";}
+    if(var == "deepCSV_2nd") {return "2nd max. DeepCSV";}
+    if(var == "maxDeepJet") {return "max. DeepJet";}
+    if(var == "deepJet_2nd") {return "2nd max. DeepJet";}
     if(var == "delRljPrime") {return "#DeltaR(j',l)";}
     if(var == "lAsymmetry") {return "q_{l} #upoint #left|#eta(l)#right|";}
     if(var == "maxDijetMass") {return "max. m_{j,j}";}

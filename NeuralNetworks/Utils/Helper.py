@@ -325,7 +325,11 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["testToy1D"] == True:
         if opts["strategy"] != "CARL": print(colors.fg.red, colors.bold, "\n\nERROR ! Debug option [testToy1D] is only valid for strategy CARL ! \n", colors.reset, h5modelName, '\n'); exit(1)
-        print(colors.fg.orange, colors.bold, "\n\nWill train a NN on a dummy 1D toy example with only 1 input feature (dummy gaussian centered on theta parameter). See ref. article on paramNN !\n", colors.reset, h5modelName, '\n')
+        print(colors.fg.orange, colors.bold, "\n\nWill train a NN on a dummy 1D toy example with only 1 input feature (dummy gaussian centered on theta parameter). See ref. article on paramNN.  HARDCODED FOR CTW OPERATOR ONLY !\n", colors.reset, h5modelName, '\n')
+        opts["listOperatorsParam"] = ['ctw']
+        opts["nPointsPerOperator"] = 3
+        opts["minWC"] = -3
+        opts["maxWC"] = 3
 
     print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 

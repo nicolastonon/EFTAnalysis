@@ -25,12 +25,11 @@ int main(int argc, char **argv)
 
     //-- Templates options
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
+    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
 
     //-- Other options
     TString plot_extension = ".png"; //extension of plots
-    bool use_custom_colorPalette = true; //true <-> user-defined sample colors
 
 //-----------------------------------------------------------------------------------------
 // ##       ##     ## ##     ## #### ##    ##  #######   ######  #### ######## ##    ##
@@ -68,6 +67,9 @@ int main(int argc, char **argv)
 
     // set_v_cut_name.push_back("nJets");  set_v_cut_def.push_back("==3 || ==4"); set_v_cut_IsUsedForBDT.push_back(false);
     // set_v_cut_name.push_back("passedBJets");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false); //enforce final tZq 3l selection
+
+    // set_v_cut_name.push_back("is_tZq_3l_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
+    set_v_cut_name.push_back("is_signal_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
 
 //---------------------------------------------------------------------------
 //  ######  ##     ##    ###    ##    ## ##    ## ######## ##        ######
@@ -108,50 +110,49 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    thesamplelist.push_back("PrivMC_tZq_training"); thesamplegroups.push_back("PrivMC_tZq_training");
-    thesamplelist.push_back("PrivMC_ttZ_training"); thesamplegroups.push_back("PrivMC_ttZ_training");
-    // thesamplelist.push_back("PrivMC_ttZ_v3"); thesamplegroups.push_back("ttZ_EFT");
-    // thesamplelist.push_back("PrivMC_tZq_ctz"); thesamplegroups.push_back("tZq_ctZ");
-    // thesamplelist.push_back("PrivMC_tZq_ctw"); thesamplegroups.push_back("tZq_ctW");
-    // thesamplelist.push_back("PrivMC_ttZ_ctz"); thesamplegroups.push_back("ttZ_ctZ");
-    // thesamplelist.push_back("PrivMC_ttZ_ctw"); thesamplegroups.push_back("ttZ_ctW");
+    // thesamplelist.push_back("PrivMC_tZq_training"); thesamplegroups.push_back("PrivMC_tZq_training");
+    // thesamplelist.push_back("PrivMC_ttZ_training"); thesamplegroups.push_back("PrivMC_ttZ_training");
+    // thesamplelist.push_back("PrivMC_tllq"); thesamplegroups.push_back("PrivMC_tllq");
+    // thesamplelist.push_back("PrivMC_ttll"); thesamplegroups.push_back("PrivMC_ttll");
 
     //Signals (central samples)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
     thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
 
-    //tX
+    //t(t)X
     thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("tHq"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("tHW"); thesamplegroups.push_back("tX");
-    // thesamplelist.push_back("ST"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttH"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttW"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttZZ"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttWW"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttWZ"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttZH"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttWH"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("tttt"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttHH"); thesamplegroups.push_back("tX");
 
-    //ttX
-    thesamplelist.push_back("ttH"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttW"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttZZ"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttWW"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttWZ"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttZH"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("ttWH"); thesamplegroups.push_back("ttX");
-    thesamplelist.push_back("tttt"); thesamplegroups.push_back("ttX");
+    //WZ
+    thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
 
-    //VV)
-    thesamplelist.push_back("WZ"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("ZZZ"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("WWW"); thesamplegroups.push_back("VV");
-    thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VV");
-    // thesamplelist.push_back("WZ2l2q"); thesamplegroups.push_back("VV");
-    // thesamplelist.push_back("ZZ2l2q"); thesamplegroups.push_back("VV");
+    //VV(V)
+    thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VVV");
+    thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
+    thesamplelist.push_back("ZZZ"); thesamplegroups.push_back("VVV");
+    thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VVV");
+    thesamplelist.push_back("WWW"); thesamplegroups.push_back("VVV");
+    thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VVV");
 
-    //DY (VG?)
-    thesamplelist.push_back("DY"); thesamplegroups.push_back("DY");
+    //X+g
+    thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("Xg");
+    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("Xg");
+    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("Xg");
+    thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("Xg");
 
-    //TTbar
-    thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("TTbar");
-    // thesamplelist.push_back("TTbar_SemiLep"); thesamplegroups.push_back("TTbar"); //useless ?
+    //NPL
+    thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
+    thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
 
 
 //---------------------------------------------------------------------------
@@ -173,21 +174,20 @@ int main(int argc, char **argv)
     thevarlist.push_back("maxEtaJet");
     thevarlist.push_back("jPrimeAbsEta");
     thevarlist.push_back("lAsymmetry");
-    thevarlist.push_back("maxDelPhiLL");
-    thevarlist.push_back("maxDeepCSV");
-    thevarlist.push_back("deepCSV_2nd");
-    thevarlist.push_back("leptonCharge");
-    thevarlist.push_back("cosThetaStarPolTop");
-    thevarlist.push_back("cosThetaStarPolZ");
-    thevarlist.push_back("recoZ_Pt");
-    thevarlist.push_back("recoZ_Eta");
-    thevarlist.push_back("recoZ_M");
-    thevarlist.push_back("recoLepTop_Pt");
-    thevarlist.push_back("recoLepTop_Eta");
-    thevarlist.push_back("recoLepTop_M");
-    thevarlist.push_back("TopZsystem_Pt");
-    thevarlist.push_back("TopZsystem_M");
-    thevarlist.push_back("jprime_Pt");
+    // thevarlist.push_back("maxDelPhiLL");
+    // thevarlist.push_back("maxDeepJet");
+    // thevarlist.push_back("leptonCharge");
+    // thevarlist.push_back("cosThetaStarPolTop");
+    // thevarlist.push_back("cosThetaStarPolZ");
+    // thevarlist.push_back("recoZ_Pt");
+    // thevarlist.push_back("recoZ_Eta");
+    // thevarlist.push_back("recoZ_M");
+    // thevarlist.push_back("recoTopLep_Pt");
+    // thevarlist.push_back("recoTopLep_Eta");
+    // thevarlist.push_back("recoTopLep_M");
+    // thevarlist.push_back("TopZsystem_Pt");
+    // thevarlist.push_back("TopZsystem_M");
+    // thevarlist.push_back("jprime_Pt");
 
 //---------------------------------------------------------------------------
 //  #######  ######## ##     ## ######## ########       ##     ##    ###    ########   ######
@@ -208,28 +208,16 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("njets");
     set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
-    set_v_add_var_names.push_back("recoLepTopLep_Pt");
-    set_v_add_var_names.push_back("recoLepTopLep_Eta");
-    set_v_add_var_names.push_back("mbjMax");
-    set_v_add_var_names.push_back("maxDiJet_pt");
-    set_v_add_var_names.push_back("maxDelRbL");
-    set_v_add_var_names.push_back("dR_tZ");
-    set_v_add_var_names.push_back("dR_ZlW");
-    set_v_add_var_names.push_back("dR_blW");
-    set_v_add_var_names.push_back("dR_bW");
-    set_v_add_var_names.push_back("dR_tClosestLep");
-    set_v_add_var_names.push_back("dR_jprimeClosestLep");
-    set_v_add_var_names.push_back("dEta_jprimeClosestLep");
-    set_v_add_var_names.push_back("dR_tClosestJet");
-    set_v_add_var_names.push_back("dR_tjprime");
-    set_v_add_var_names.push_back("dR_bjprime");
-    set_v_add_var_names.push_back("dR_lWjprime");
-    set_v_add_var_names.push_back("dR_Zjprime");
-    set_v_add_var_names.push_back("maxDiJet_m");
-    set_v_add_var_names.push_back("dEta_tjprime");
-    set_v_add_var_names.push_back("dEta_bjprime");
-    set_v_add_var_names.push_back("dEta_lWjprime");
-    set_v_add_var_names.push_back("dEta_Zjprime");
+
+    // set_v_add_var_names.push_back("lep1_pt");
+    // set_v_add_var_names.push_back("lep2_pt");
+    // set_v_add_var_names.push_back("lep3_pt");
+    // set_v_add_var_names.push_back("jet1_pt");
+    // set_v_add_var_names.push_back("jet1_eta");
+    // set_v_add_var_names.push_back("jet2_pt");
+    // set_v_add_var_names.push_back("recoTop_Pt");
+    // set_v_add_var_names.push_back("recoTop_M");
+
 
 //---------------------------------------------------------------------------
 //  ######  ##    ##  ######  ######## ######## ##     ##    ###    ######## ####  ######   ######
@@ -290,7 +278,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -302,7 +290,7 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = false; //Plot input variables
+    bool draw_input_vars = true; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -349,7 +337,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region_choice, signal_process, classifier_name, use_custom_colorPalette);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region_choice, signal_process, classifier_name);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################

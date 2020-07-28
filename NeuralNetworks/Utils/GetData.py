@@ -435,8 +435,7 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
     if len(list_thetas_allClasses)is 0 and opts["makeValPlotsOnly"] is False and opts["parametrizedNN"] is True: print('Warning: len(list_thetas_allClasses)==0...')
 
     # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #-- can not parametrize CARL_multiclass as I did, else NN relies ~ only on WC values
-    if opts["strategy"] == "CARL_singlePoint":
-        targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
+    if opts["strategy"] == "CARL_singlePoint": targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
 
     #-- parametrized NN: pass the values of the WCs as input features
     elif opts["parametrizedNN"]==True:
@@ -505,15 +504,6 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
 
     parametrizedNN = opts["parametrizedNN"]
 
-    """
-    if opts["strategy"] is "CARL_singlePoint": #Case 2), transform such that 'class' mean 'SM or EFT' instead of 'physics process'
-        allweights = np.concatenate(list_weights_allClasses) #Merge all classes = physics processes
-        list_weights_allClasses = [] #Reset this list
-        list_weights_allClasses.append(allweights[targetClass_allClasses==1]) #First element -> SM events
-        list_weights_allClasses.append(allweights[targetClass_allClasses==0]) #Second element -> EFT events
-    print(len(list_weights_allClasses))
-    """
-
     #Duplicate list of weight arrays, storing absolute weights (can't handle negative weights in training)
     list_weights_allClasses_abs = []
     for weights_class in list_weights_allClasses:
@@ -573,8 +563,8 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
     LearningWeights_allClasses = np.concatenate(list_LearningWeights_allClasses, 0)
 
     if opts["strategy"] is "CARL_singlePoint":
-        LearningWeights_allClasses[targetClass_allClasses==1] = LearningWeights_allClasses[targetClass_allClasses==1] * SF_SM
-        LearningWeights_allClasses[targetClass_allClasses==0] = LearningWeights_allClasses[targetClass_allClasses==0] * SF_EFT
+        LearningWeights_allClasses[targetClass_allClasses==0] = LearningWeights_allClasses[targetClass_allClasses==0] * SF_SM
+        LearningWeights_allClasses[targetClass_allClasses==1] = LearningWeights_allClasses[targetClass_allClasses==1] * SF_EFT
 
     #Also create corresponding array of physical event weights, to get correct plots, etc.
     PhysicalWeights_allClasses = np.concatenate(list_weights_allClasses, 0)
@@ -611,7 +601,6 @@ def Update_Lists(opts, list_labels, list_features):
 
     elif opts["strategy"] is "CARL_singlePoint":
         list_labels = []; list_labels.append("EFT"); list_labels.append("SM") #1=EFT, 0=SM
-        # list_labels = []; list_labels.append("SM"); list_labels.append("EFT") #SM vs EFT ref point
 
     elif opts["strategy"] is "regressor":
         if all([idx >= 0 for idx in opts["targetVarIdx"]]): #Regressor: use this/these variable(s) as target(s) --> remove from training features
@@ -754,17 +743,18 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
     '''
 
     #-- Sanity check (NaN, infinite)
-    removeNaN = False
+    removeEvent = False
     lists_names= ['x', 'y', 'y_process', 'PhysicalWeights_allClasses', 'LearningWeights_allClasses']
     for il, l in enumerate([x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]):
         if np.isnan(l).any() or not np.isfinite(l).all():
             print('\n', colors.fg.red, 'WARNING : found a NaN/inf value in array', lists_names[il],'(returned by Get_Data). Removing this event from all arrays...', colors.reset)
-            removeNaN = True
+            removeEvent = True
 
-    if removeNaN is True:
-        # print(len(x))
-        mask = ~np.isnan(x.reshape(len(x), -1)).any(axis=1) & ~np.isnan(y.reshape(len(y), -1)).any(axis=1) & ~np.isnan(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isnan(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1) #Define mask to remove any event (row) containing a NaN value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
-        # mask = ~np.isnan(x).reshape(len(x), -1).any(axis=1) & ~np.isnan(y).reshape(len(y), -1).any(axis=1) & ~np.isnan(y_process).reshape(len(y_process), -1).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses).reshape(len(PhysicalWeights_allClasses), -1).any(axis=1) & ~np.isnan(LearningWeights_allClasses).reshape(len(LearningWeights_allClasses), -1).any(axis=1)
+    if removeEvent is True:
+        #-- Define masks to remove any event (row) containing a NaN/inf value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
+        mask_nan = ~np.isnan(x.reshape(len(x), -1)).any(axis=1) & ~np.isnan(y.reshape(len(y), -1)).any(axis=1) & ~np.isnan(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isnan(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
+        mask_inf = ~np.isinf(x.reshape(len(x), -1)).any(axis=1) & ~np.isinf(y.reshape(len(y), -1)).any(axis=1) & ~np.isinf(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isinf(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isinf(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
+        mask = mask_nan & mask_inf #Combine both masks
         x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
         # print(len(x))
 
@@ -854,7 +844,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parametrizedNN
     #--- QUANTILE RESCALING
     # a = median ; b = scale
     if transfType == 'quantile':
-        frac=0.95 #Fraction of event within [-1;+1] -- 0.68 or 0.95
+        frac=0.99 #Fraction of event within [-1;+1] -- e.g. 0.68 or 0.95
         shift_, scale_ = get_normalization_iqr(x_train[:nmax], frac)
         # if parametrizedNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
         xTrainRescaled = normalize(x_train, shift_, scale_)

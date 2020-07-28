@@ -227,8 +227,8 @@ def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, compo
     Parameters:
     effWC_components (ndarray of shape [n_points, n_components]) : array of 'effective WC' for all components, for all 'n_points' considered EFT points ; retain only the necessary 'n_components' first benchmark weights
     benchmark_weights (ndarray of shape [n_events, n_points]) : benchmark weights for each event ; retain only the necessary 'n_components' first benchmark weights
-    n_components (int) : number of components #FIXME
-    components (ndarray of shape [n_components, n_operators]): FIXME
+    n_components (int) : number of components
+    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales) a component
 
     Returns:
     fit_coeffs (ndarray of shape [n_events, n_components]) : fit coefficients associated to the components, for all (n_points) EFT points
@@ -250,6 +250,7 @@ def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, compo
 
     only_keep_quadratic_components = False #True <-> only retain quadratic term in the squared amplitude (neglect interference terms)
     if only_keep_quadratic_components:
+        print(colors.fg.orange, 'NB: neglecting SM-EFT interference terms, and retaining only EFT quadratic terms !', colors.reset)
         print(fit_coeffs[:1,:])
         # fit_coeffs[:,0:20] = 0
         for ic in range(n_components):
@@ -1084,14 +1085,14 @@ def GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoin
     Debugging function to reproduce 1D toy example provided in paramNN ref. article.
     Return data, in the format expected by this code, with a single feature x described by a gaussian centered around the parameter theta for signal, and a uniform distribution for backgrounds. Expect the NN to easily learn the dependence of the truth value on x, but most interestingly on theta.
 
-    NB: For 1 operator only !
+    NB: Hard-coded for ctW operator only !
     """
 
     rng = np.random.default_rng() #Init random generator
 
     nEvents = 10000
     nbins = 100
-    rmin = opts["minWC"]-1; rmax = opts["maxWC"]+1
+    rmin = opts["minWC"]-2; rmax = opts["maxWC"]+2
     fig = plt.figure('TEST')
     ax = plt.axes()
     ax.set_xlim([rmin,rmax])
@@ -1106,7 +1107,9 @@ def GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoin
     print(thetas)
     for itheta in range(len(thetas)):
 
-        x_theta = np.random.normal(loc=thetas[itheta,1], scale=2, size=nEvents)
+        print('THETA: ', thetas[itheta,1])
+
+        x_theta = np.random.normal(loc=thetas[itheta,1], scale=1, size=nEvents)
         x_theta = np.atleast_2d(x_theta).T #Need 2D array
         x_refPoint = np.random.uniform(opts["minWC"]-3, opts["maxWC"]+3, nEvents)
         x_refPoint = np.atleast_2d(x_refPoint).T #Need 2D array

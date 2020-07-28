@@ -96,7 +96,7 @@ void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 
 //-- Analysis-specific helper functions
 bool Apply_CommandArgs_Choices(int, char **, std::vector<TString>&, TString&);
-void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, int, bool);
+void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, double&, double&);
 TString Get_Variable_Name(TString);

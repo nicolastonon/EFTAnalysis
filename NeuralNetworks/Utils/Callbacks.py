@@ -81,9 +81,7 @@ def Get_Callbacks(weight_dir):
     tensorboard = TensorBoard(log_dir=dirlog, histogram_freq=1, write_graph=True, write_images=True, update_freq='epoch')
 
     #Reduce learning rate when reach metrics plateau
-    lrate_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, mode='auto', min_delta=1e-4, cooldown=0, min_lr=1e-6)
-
-    # keras.callbacks.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=0, mode='auto', min_delta=0.0001, cooldown=0, min_lr=0)
+    lrate_plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, verbose=1, mode='auto', min_delta=1e-4, cooldown=1, min_lr=1e-6)
 
     #NB : ES takes place when monitored quantity has not improved **WRT BEST VALUE YET** for a number 'patience' of epochs
     # ES = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-4, patience=100, verbose=1, restore_best_weights=True, mode='auto') #Try early stopping after N epochs without metrics update # monitor='val_loss'

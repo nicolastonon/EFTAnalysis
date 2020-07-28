@@ -57,6 +57,8 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
     # compare_ROC_inputFeature = 'lep3_phi'
     xmin_feature = 0; xmax_feature = 500 #Hard-codeed feature histogram range
 
+    nbins = 100
+
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parametrized NN with huge training stat.)
 
     store_trainHisto = True
@@ -95,9 +97,9 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
         fout.cd()
         outname = 'hist_train_NODE_'+nodes_labels[inode]+'_allClasses'
-        if store_trainHisto: hist_TrainingEvents_allClasses = TH1F(outname, '', 1000, 0, 1); hist_TrainingEvents_allClasses.Sumw2(); hist_TrainingEvents_allClasses.SetDirectory(0)
+        if store_trainHisto: hist_TrainingEvents_allClasses = TH1F(outname, '', nbins, 0, 1); hist_TrainingEvents_allClasses.Sumw2(); hist_TrainingEvents_allClasses.SetDirectory(0)
         outname = 'hist_test_NODE_'+nodes_labels[inode]+'_allClasses'
-        hist_TestingEvents_allClasses = TH1F(outname, '', 1000, 0, 1); hist_TestingEvents_allClasses.Sumw2(); hist_TestingEvents_allClasses.SetDirectory(0)
+        hist_TestingEvents_allClasses = TH1F(outname, '', nbins, 0, 1); hist_TestingEvents_allClasses.Sumw2(); hist_TestingEvents_allClasses.SetDirectory(0)
 
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
@@ -105,11 +107,11 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
             fout.cd()
 
             if store_trainHisto:
-                hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TrainingEvents_class.Sumw2(); hist_TrainingEvents_class.SetDirectory(0)
+                hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TrainingEvents_class.Sumw2(); hist_TrainingEvents_class.SetDirectory(0)
                 fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
                 hist_TrainingEvents_class.Write()
 
-            hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
+            hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Write()
 
@@ -122,11 +124,11 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
                 fout_feature.cd()
 
                 if store_trainHisto:
-                    hist_TrainingEvents_class_feature = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, xmin_feature, xmax_feature); hist_TrainingEvents_class_feature.Sumw2(); hist_TrainingEvents_class_feature.SetDirectory(0)
+                    hist_TrainingEvents_class_feature = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, xmin_feature, xmax_feature); hist_TrainingEvents_class_feature.Sumw2(); hist_TrainingEvents_class_feature.SetDirectory(0)
                     fill_hist(hist_TrainingEvents_class_feature, list_xTrain_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
                     hist_TrainingEvents_class_feature.Write()
 
-                hist_TestingEvents_class_feature = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', 1000, xmin_feature, xmax_feature); hist_TestingEvents_class_feature.Sumw2(); hist_TestingEvents_class_feature.SetDirectory(0)
+                hist_TestingEvents_class_feature = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, xmin_feature, xmax_feature); hist_TestingEvents_class_feature.Sumw2(); hist_TestingEvents_class_feature.SetDirectory(0)
                 fill_hist(hist_TestingEvents_class_feature, list_xTest_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
                 hist_TestingEvents_class_feature.Write()
 
@@ -880,7 +882,7 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     '''
 
 # //--------------------------------------------
-    doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
+    doNotPlotP4 = False #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
     # sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
@@ -966,7 +968,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     '''
 
     useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
-    plot_eachSingleFeature = True #True <-> also save 1 single plot per feature
+    plot_eachSingleFeature = False #True <-> also save 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
     nbins = 30 #Binning for plots
 # //--------------------------------------------
@@ -1176,13 +1178,12 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     # plt.close('shap_summary_singleClass')
     # print(colors.fg.lightgrey, "Saved shap_summary_singleClass plot as :", colors.reset, weight_dir+"shap_summary_singleClass.png")
 
-    #See: https://github.com/slundberg/shap/blob/master/shap/plots/decision.py#L217
-    # print(isinstance(list_features, (list,np.ndarray)))
-    fig = plt.figure('decision_plot')
-    shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, feature_order="importance", link='logit', show=False)
-    plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
-    plt.close('decision_plot')
-    print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
+    #See: https://github.com/slundberg/shap/blob/master/shap/plots/decision.py#L217 #Very slow, not very useful
+    # fig = plt.figure('decision_plot')
+    # shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, feature_order="importance", link='logit', show=False)
+    # plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
+    # plt.close('decision_plot')
+    # print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
 
     #== Multi-output decision plot
     #-- See: https://github.com/slundberg/shap/blob/a4fd466193c7f9602e948e7f9fd65d49249ba4bd/shap/plots/decision.py#L553

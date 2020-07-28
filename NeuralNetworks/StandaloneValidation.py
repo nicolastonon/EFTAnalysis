@@ -36,10 +36,12 @@ nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 #== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 # evalPoint = ''
 # evalPoint = "SM"
-evalPoint = "rwgt_ctz_2"
-# evalPoint = "rwgt_ctw_1"
+# evalPoint = "rwgt_ctz_1"
+# evalPoint = "rwgt_ctz_6"
+evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_ctw_5"
 # evalPoint = "rwgt_cpqm_5"
 # evalPoint = "rwgt_cpq3_5"
 # evalPoint = "rwgt_cpt_5"
@@ -48,10 +50,10 @@ evalPoint = "rwgt_ctz_2"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
-list_points_sampling.append("rwgt_ctz_2")
-# list_points_sampling.append("rwgt_ctz_3")
+# list_points_sampling.append("rwgt_ctz_1")
+# list_points_sampling.append("rwgt_ctz_6")
 # list_points_sampling.append("rwgt_ctw_0.5")
-# list_points_sampling.append("rwgt_ctw_1")
+list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
@@ -63,8 +65,8 @@ list_points_sampling.append("rwgt_ctz_2")
 
 #== SCAN OPTIONS ==#
 scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
-operator_scan = 'ctw' #Operator to scan
-range_step = [-6, 6, 2] #Range in which to scan operator
+operator_scan = 'ctz' #Operator to scan
+range_step = [-5, 5, 2] #(range,steps) with which to scan operator
 only_SM_events = True #True <-> sample same SM events for each input WC value to test
 
 # //--------------------------------------------
@@ -108,7 +110,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     for idx, point in enumerate(list_points_sampling):
         print(colors.fg.lightblue, "=== POINT: ", point, " ===\n", colors.reset)
         x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
-        list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
+        # list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
         y_process_tmp = np.squeeze(y_process_tmp)
         pred_tmp = np.squeeze(model.predict(x_tmp))
 
@@ -123,7 +125,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
             if point=='SM':
                 x_SM=np.copy(x_tmp); y_process_SM=np.copy(y_process_tmp); PhysicalWeights_SM=np.copy(PhysicalWeights_tmp)
                 if only_SM_events:
-                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Always keep default SM distribution as reference
+                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Keep default SM distribution as reference
                     pred_SM = np.squeeze(model.predict(x_SM))
                 # print(x_SM[0,:])
             else:
@@ -135,9 +137,9 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                     x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
-                Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['SM','EFT'], [[pred_SM,pred_tmp]], [PhysicalWeights_SM,PhysicalWeights_tmp], [x_SM,x_tmp], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
-                x_tmp=np.concatenate((x_SM,x_tmp)); y_process_tmp=np.concatenate((y_process_SM,y_process_tmp)); pred_tmp=np.concatenate((pred_SM,pred_tmp)); PhysicalWeights_tmp=np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp))
-                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, PhysicalWeights_tmp, ['SM',point], True, operator_scan, WCs, idx, ymax)
+                Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
+                x_tmp=np.concatenate((x_tmp,x_SM)); y_process_tmp=np.concatenate((y_process_tmp,y_process_SM)); pred_tmp=np.concatenate((pred_tmp,pred_SM)); PhysicalWeights_tmp=np.concatenate((PhysicalWeights_tmp,PhysicalWeights_SM))
+                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, PhysicalWeights_tmp, [point,'SM'], True, operator_scan, WCs, idx, ymax)
 
     if scan_singleOperator:
         Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs)
@@ -441,7 +443,6 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
                 tick.set_color('gray')
                 for tick in ax.get_yticklabels(): tick.set_color('gray')
 
-
         for ipt, point in enumerate(list_points_sampling): #For each validation point
             # print('Point: ', point)
 
@@ -478,6 +479,9 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
         myxlabel = "Classifier output"
+
+        bottom, top = ax.get_ylim()
+        ax.set_ylim([0., top*1.1])
 
         # plt.legend(loc='best', fontsize=14.5)
         plt.legend(fontsize=13, bbox_to_anchor=(1.1, 1.1), loc="upper right")
