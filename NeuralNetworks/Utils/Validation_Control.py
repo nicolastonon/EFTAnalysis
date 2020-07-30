@@ -166,6 +166,13 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     '''
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
+    matplotlib.rc_file_defaults() #Restore matplotlib default settings
+
+    #FIXME
+    # plt.xkcd() # XKCD-style plotting
+    # Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
+    # Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
+    # exit(1)
 
     if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
 
@@ -538,6 +545,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
     nofOutputNodes = opts["nofOutputNodes"]
 
+    use_simplified_plotLayout = False #True <-> simplify the plot layout (no test data, ...), e.g. to make illustrative xkcd-style plots -- hard-coded !
+
     for inode in range(nofOutputNodes):
 
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: break #Only for r node
@@ -550,12 +559,13 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         nbins = 20
         rmin = 0.; rmax = 1.
 
-        fig = plt.figure('overtrain')
+        fig = plt.figure('overtrain') #figsize=(30,15), dpi=200
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
         timer.add_callback(close_event)
 
         ax = plt.axes()
         ax.set_xlim([rmin,rmax])
+        # plt.gcf().subplots_adjust(bottom=0.10)
 
         #--- COSMETICS
         #grey=#E6E6E6 #white=#FFFFFF
@@ -580,9 +590,12 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                     tick.set_color('gray')
 
         #-- Plot TRAIN sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
+        suffix = " (Train)"
+        if use_simplified_plotLayout: suffix = ""
+
         if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][inode]+1) #Transform r -> s
         else: tmp = list_predictions_train_allNodes_allClasses[inode][inode]
-        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTrain_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+" (Train)", edgecolor='cornflowerblue',fill=True) #TRAIN SIG
+        plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTrain_allClasses[inode], density=True, histtype='step', log=False, label=label_class0+suffix, edgecolor='cornflowerblue',fill=True) #TRAIN SIG
 
         # Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
         lists_predictions_bkgs = []; lists_weights_bkg = []
@@ -604,7 +617,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         if len(lists_predictions_bkgs) > 0:
             predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-            plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+" (Train)", hatch='/', edgecolor='orangered',fill=False) #TRAIN BKG
+            if use_simplified_plotLayout: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, edgecolor='orangered',fill=True) #TRAIN BKG
+            else: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, hatch='/', edgecolor='orangered',fill=False) #TRAIN BKG
 
         # Trick : for TEST histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
         hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
@@ -645,25 +659,30 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
             err_sig.append(hist_overtrain_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_bkg.GetBinError(ibin))
 
         # Plot TEST sig/bkg histos, normalized, with errorbars
-        plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Test)')
-        plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Test)')
+        if use_simplified_plotLayout is False:
+            plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Test)')
+            plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Test)')
 
         # Labels
-        myxlabel = "Classifier output"
-
         plt.legend(loc='best', numpoints=1)
         plt.title("Output distributions for Signal & Background")
         plt.grid(axis='y', alpha=0.75)
         plt.grid(axis='x', alpha=0.75)
-        plt.xlabel(myxlabel)
+        plt.xlabel("Classifier output")
         plt.ylabel('PDF')
+
+        if use_simplified_plotLayout:
+            plt.title("")
+            plt.xlabel("")
+            # plt.xlabel("Variable from Machine-Learning")
 
         if inode == 0:
             timer.start()
             plt.show()
 
         plotname = weight_dir + 'Overtraining_NN_' + list_labels[inode] + '.png'
-        fig.savefig(plotname)
+        fig.savefig(plotname, bbox_inches = "tight")
+        # fig.savefig(plotname)
         # print("Saved Overtraining plot as : " + plotname)
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
         fig.clear()
@@ -827,7 +846,6 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode == 0: nodename = 'LR'
         elif opts["strategy"] is "RASCAL": nodename = 'Score_' + opts["listOperatorsParam"][inode-1] #First node is r
 
-        # myxlabel = "Regressor output"
         plt.legend(loc='best', numpoints=1)
         plt.title("Regressor output for SM & EFT (test data)")
         plt.grid(axis='y', alpha=0.75)
@@ -863,12 +881,13 @@ def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
     '''
 
     if opts["strategy"] is "classifier": #Separate between 'sig' (first process) and bkg (other processes)
-        x_sig = x[y_process==0]; x_bkg = x[y_process!=0]
+        if opts["nofOutputNodes"] == 1: x_sig = x[y_process==1]; x_bkg = x[y_process==0] #Binary
+        else: x_sig = x[y_process[:,0]==1]; x_bkg = x[y_process[:,0]==0] #Multiclass
         Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
         Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
 
     elif opts["parametrizedNN"] is True: #Separate between 'SM' and 'EFT'
-        x_SM = x[y_process==0]; x_EFT = x[y_process!=0]
+        x_SM = x[y_process==0]; x_EFT = x[y_process>0]
         Make_Correlation_Plot(opts, x_SM, list_features, weight_dir + 'CorrelMatrix_SM.png')
         Make_Correlation_Plot(opts, x_EFT, list_features, weight_dir + 'CorrelMatrix_EFT.png')
 
@@ -970,7 +989,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
     plot_eachSingleFeature = False #True <-> also save 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
-    nbins = 30 #Binning for plots
+    nbins = 20 #Binning for plots
+
 # //--------------------------------------------
 
     if opts["makeValPlotsOnly"] is True and isControlNorm is True: return
@@ -978,9 +998,18 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
 
     if isControlNorm: useMostExtremeWCvaluesOnly = False #Can't have both options at the same time, because 'isControlNorm' corresponds to transformed inputs, so we can not condition upon the values of some features (the input WC values) to select events !
 
+    list_features = np.array(list_features)
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
     plt.tight_layout()
-    list_features = np.array(list_features)
+    fig = plt.figure('input_features')
+
+    #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
+    shuf = np.arange(len(x))
+    np.random.shuffle(shuf)
+    x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
+
+    nMax = 100000 #Don't use more events (slow) #Warning : for parametrized NN, biases distributions of WCs (will most likely not cover all EFT points)
+    if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     if opts["parametrizedNN"] == True: #Only retain EFT events whose operator values are at boundaries #NB: for SM can select all events (input features don't depend on WC, only output prediction)
         if useMostExtremeWCvaluesOnly is True:
@@ -991,14 +1020,6 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             # print(np.mean(x[indices_class0,0].T, axis=0)); print(np.mean(x[indices_class1,0].T, axis=0))
             # print(x[-10:])
             x = np.append(x[indices_class0],x[indices_class1],axis=0); y_process = np.append(y_process[indices_class0],y_process[indices_class1],axis=0); weights = np.append(weights[indices_class0],weights[indices_class1],axis=0)
-
-        #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
-        shuf = np.arange(len(x))
-        np.random.shuffle(shuf)
-        x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
-
-        nMax = 50000 #Don't use more events (slow) #Warning : for parametrized NN, biases distributions of WCs (will most likely not cover all EFT points)
-        if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     #Can avoid plotting theory parameter inputs (by default), and p4 variables
     list_features = np.array(list_features)
@@ -1023,8 +1044,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # print(df); print(df.describe())
 
     #-- Create multiplot #NB: only process columns corresponding to phy vars
-    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=nbins, alpha=0.4, density=True, color='r') #signal
-    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=nbins, alpha=0.4, density=True, color='b', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
+    df[df['class']==1].hist(figsize=(30,30), label='Signal', column=list_features[mask], weights=df['weight'][df['class']==1], bins=nbins, alpha=0.4, density=True, color='b') #signal
+    df[df['class']==0].hist(figsize=(30,30), label='Backgrounds', column=list_features[mask], weights=df['weight'][df['class']==0], bins=nbins, alpha=0.4, density=True, color='r', ax=plt.gcf().axes[:len(list_features[mask])]) #bkgs
 
     #-- debug
     # print(len(df[df['class']==0])); print(len(df[df['class']==1]))
@@ -1040,7 +1061,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
         print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
 
     plt.savefig(plotname)
-    plt.close('all')
+    plt.close('input_features')
 
     #-- Pairplot -- Plot pairwise relationships in a dataset. #Too much data, not relevant
     # sns.pairplot(df, vars=["maxDijetDelR", "dEtaFwdJetBJet"], diag_kind="kde", hue='class')
@@ -1058,18 +1079,18 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             plt.xlabel(feature, fontsize=20)
 
             x = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
-            plt.hist(x[0], label='Signal', color='r', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==1])
-            plt.hist(x[1], label='Backgrounds', color='b', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==0])
+            plt.hist(x[0], label='Signal', color='b', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==1])
+            plt.hist(x[1], label='Backgrounds', color='r', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==0])
             plt.legend(loc='best')
 
             os.makedirs(weight_dir + 'features/', exist_ok=True)
             plotname = weight_dir + 'features/'+feature+'.png'
             if isControlNorm == True: plotname = weight_dir + 'features/'+feature+'_normTrain.png' #Control plot, different name, general plot only
             plt.savefig(plotname)
-            plt.close('all')
             print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
 
     matplotlib.rc_file_defaults() #Restore matplotlib default settings
+
     return
 
 # //--------------------------------------------
@@ -1117,24 +1138,31 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     NB: to truncate digits in plot, had to modify ~/Documents/Programmes/Anaconda3/lib/python3.7/site-packages/shap/plots/force_matplotlib.py !
     '''
 
+# //--------------------------------------------
+
+    plot_importance_allFeatures = False #True <-> create importance plot for each single input feature (very slow !)
+    nmax=1000 #Max nof events *per process class*
+
+# //--------------------------------------------
+
+    if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
     shap.initjs() #Load Javascript library (not needed ?)
     shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
-
-    nmax=1000
 
     #== Use 'Kernel SHAP' to explain test set predictions #Meant to approximate SHAP values for deep learning models.
     #-- model: The model to be explained. The output of the model can be a vector of size n_samples or a matrix of size [n_samples x n_output] (for a classification model).
     #-- data: Background dataset to generate the perturbed dataset required for training surrogate models. We simulate missing data by replacing the feature with the values it takes in the background dataset. So if the background dataset is a simple sample of all zeros, then we would approximate a feature being missing by setting it to zero. For small problems this background dataset can be the whole training set, but for larger problems consider using a single reference value or using the kmeans function to summarize the dataset.
     #-- link: A function to connect feature contribution values to the model output. For a classification model, we generally explain the logit of the predicted probability as a sum of feature contributions. Hence, if the output of the model (the first argument) is a probability, we set link = 'logit' to get the feature contributions in logit form.
-    explainer = shap.DeepExplainer(model, data=np.concatenate(list_xTrain_allClasses)[:nmax,:])
+    explainer = shap.DeepExplainer(model, data=np.concatenate([list[:nmax] for list in list_xTrain_allClasses]))
     # print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
     # print('[SHAP] Base value for first class:', explainer.expected_value.numpy()[0])
 
     #== Get SHAP values
     #-- X: Dataset on which to explain the model output.
     #-- nsamples: Nof samples to draw to build the surrogate model for explaining each prediction.
-    shap_values = explainer.shap_values(X=np.concatenate(list_xTest_allClasses)[:nmax]) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
+    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:nmax]) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
+    shap_values = explainer.shap_values(X=np.concatenate([list[:nmax] for list in list_xTest_allClasses])) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
     # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:100])#Returns a list of size n_classes. For binar classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
     # shap_values = explainer.shap_values(X=list_xTest_allClasses[0]) #Compute 'shap values'
     # print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
@@ -1151,36 +1179,37 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     # Plot SHAP values for all events
     # fig = plt.figure('all')
-    shap_all = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses).round(2), show=False, feature_names=list_features, link='logit', text_rotation=90) #matplotlib=True not supported for multiple events
+    shap_all = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]).round(2), show=False, feature_names=list_features, link='logit', text_rotation=90) #matplotlib=True not supported for multiple events
     shap.save_html(weight_dir+'shap_all.html', shap_all)
     # plt.savefig("./shap_all.png", bbox_inches='tight', dpi=1000)
     # plt.close('all')
     print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.html")
 
     #-- Feature importance plot
-    # See: https://github.com/slundberg/shap/blob/master/shap/plots/summary.py#L18
+    # See: https://github.com/slundberg/shap/blob/master/shap/plots/_summary.py#L18
     fig = plt.figure('shap_summary')
-    shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=25)
+    if opts["nofOutputNodes"]==1: shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=25)
+    else: shap_summary = shap.summary_plot(shap_values=shap_values, features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=25)
     plt.savefig(weight_dir+"shap_summary.png", bbox_inches='tight', dpi=1000)
     plt.close('shap_summary')
     print(colors.fg.lightgrey, "Saved shap_summary plot as :", colors.reset, weight_dir+"shap_summary.png")
 
     fig = plt.figure('shap_summary_bar')
-    shap_summary_bar = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values), features=np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=30)
+    shap_summary_bar = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=30)
     plt.savefig(weight_dir+"shap_summary_bar.png", bbox_inches='tight', dpi=1000)
     plt.close('shap_summary_bar')
     print(colors.fg.lightgrey, "Saved shap_summary_bar plot as :", colors.reset, weight_dir+"shap_summary_bar.png")
 
     #-- Identical to 'shap_summary'
     # fig = plt.figure('shap_summary_singleClass')
-    # shap_summary_singleClass = shap.summary_plot(shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], show=False, feature_names=list_features, max_display=20)
+    # shap_summary_singleClass = shap.summary_plot(shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=20)
     # plt.savefig(weight_dir+"shap_summary_singleClass.png", bbox_inches='tight', dpi=600)
     # plt.close('shap_summary_singleClass')
     # print(colors.fg.lightgrey, "Saved shap_summary_singleClass plot as :", colors.reset, weight_dir+"shap_summary_singleClass.png")
 
     #See: https://github.com/slundberg/shap/blob/master/shap/plots/decision.py#L217 #Very slow, not very useful
     # fig = plt.figure('decision_plot')
-    # shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, feature_order="importance", link='logit', show=False)
+    # shap.decision_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, feature_order="importance", link='logit', show=False)
     # plt.savefig(weight_dir+"decision_plot.png", bbox_inches='tight', dpi=600)
     # plt.close('decision_plot')
     # print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
@@ -1196,22 +1225,32 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     #== Dependence of decision on single feature
     #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15
-    feature1 = 'ctw'
-    if feature1 in list_features:
-        fig = plt.figure('dependence_plot')
-        shap.dependence_plot(feature1, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-        plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
-        plt.close('dependence_plot')
-        print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
 
-    #Second dependence plot
-    feature2 = "recoZ_Pt"
-    if feature2 in list_features:
-        fig = plt.figure('dependence_plot2')
-        shap.dependence_plot(feature2, shap_values[0], np.concatenate(list_xTest_allClasses)[:nmax], feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-        plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
-        plt.close('dependence_plot2')
-        print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+    if plot_importance_allFeatures is True: #Make importance plots for all features (slow)
+        for feature in list_features:
+            fig = plt.figure('dependence_plot')
+            shap.dependence_plot(feature, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+            plt.savefig(weight_dir+"dependence_plot"+feature+".png", bbox_inches='tight', dpi=600)
+            plt.close('dependence_plot')
+            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot"+feature+".png")
+
+    else: #Only plot 2 specific features (hard-coded names)
+        feature1 = 'ctw'
+        if feature1 in list_features:
+            fig = plt.figure('dependence_plot')
+            shap.dependence_plot(feature1, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+            plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
+            plt.close('dependence_plot')
+            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
+
+        #Second dependence plot
+        feature2 = "recoZ_Pt"
+        if feature2 in list_features:
+            fig = plt.figure('dependence_plot2')
+            shap.dependence_plot(feature2, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
+            plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+            plt.close('dependence_plot2')
+            print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
 
     return
 
@@ -1225,7 +1264,6 @@ def Make_Test1D_Plot(opts, model):
     '''
 
     nPts = 500
-
     fig = plt.figure('TEST')
     cm = plt.cm.get_cmap('RdYlBu_r')
 

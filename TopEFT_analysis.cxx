@@ -34,7 +34,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool use_specificMVA_eachYear, bool use_maxNode_events, bool scanOperators_paramNN, TString operator1, TString operator2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -52,6 +52,9 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 	this->region = region;
 
     this->signal_process = signal_process;
+
+    this->use_specificMVA_eachYear = use_specificMVA_eachYear;
+    this->use_maxNode_events = use_maxNode_events;
 
 	// this->is_blind = is_blind;
 
@@ -255,7 +258,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     //Read the list of input variables directly from .txt file generated at NN training
     //Also read the mean/variance of each var, in order to rescale the input values correspondingly
-    v_inputs_rescaling.resize(0); var_list_NN.resize(0);
+    v_inputs_rescaling.resize(0); var_list_NN.resize(0); inode_max = -1;
     if(classifier_name == "NN")
     {
         NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; nNodes = -1;
@@ -285,7 +288,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
                     if(tmp1 == -1 && tmp2 == -1) {NN_inputLayerName = varname;} //Name of input layer
                     else if(tmp1 == -2 && tmp2 == -2) {NN_outputLayerName = varname;} //Name of output layer
                     else if(tmp1 == -3 && tmp2 == -3) {nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
-                    else if(tmp1 == -4 && tmp2 == -4) {NN_strategy = varname;} //NN strategy (e.g. 'CARL'/'ROLR'/'classifier'/...)
+                    else if(tmp1 == -4 && tmp2 == -4) {v_NN_nodeLabels.push_back(varname);} //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
+                    else if(tmp1 == -5 && tmp2 == -5) {NN_strategy = varname;} //NN strategy (e.g. 'CARL'/'ROLR'/'classifier'/...)
                     else
                     {
                         var_list_NN.push_back(varname);
@@ -303,35 +307,25 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         // cout<<"v_inputs_rescaling.first "<<v_inputs_rescaling[0].first<<" / v_inputs_rescaling.second "<<v_inputs_rescaling[0].second<<endl;
 
         if(NN_inputLayerName == "" || NN_outputLayerName == "" || nNodes == -1) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl;} //Need this info for NN
+
+        //-- Parametrized NN options
+        this->scanOperators_paramNN = scanOperators_paramNN;
+        this->operator_scan1 = operator_scan1;
+        this->operator_scan2 = operator_scan2;
+        this->v_WCs_operator_scan1 = v_WCs_operator_scan1;
+        this->v_WCs_operator_scan2 = v_WCs_operator_scan2;
+        idx_operator_scan1=-1; idx_operator_scan2=-1; //Find indices of the Wilson Coefficients of the scanned EFT operators (provided as input features)
+        for(int ivar=0; ivar<var_list_NN.size(); ivar++)
+        {
+            if(var_list_NN[ivar]==operator_scan1) {idx_operator_scan1 = ivar;}
+            if(var_list_NN[ivar]==operator_scan2) {idx_operator_scan2 = ivar;}
+        }
+        // if(!makeHisto_inputVars && this->NN_strategy == "MVA_param" && (idx_operator_scan1<0 || idx_operator_scan2<0)) {cout<<BOLD(FRED("Scan operator not found ! Abort !"))<<endl; return;}
+        // if(!v_WCs_operator_scan2.size()) {v_WCs_operator_scan2.push_back(-99);} //Need at least 1 element
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
     cout<<endl<<BLINK(BOLD(FBLU("[Luminosity : "<<lumiName<<"]")))<<endl<<endl<<endl;
-
-//TMP TEST -- to change or remove soon
-//--------------------------------------------
-    v_EFTpoints.push_back("rwgt_ctz_-15");
-    v_EFTpoints.push_back("rwgt_ctz_-9");
-    v_EFTpoints.push_back("rwgt_ctz_-5");
-    v_EFTpoints.push_back("rwgt_ctz_-3");
-    v_EFTpoints.push_back("rwgt_ctz_-1");
-    v_EFTpoints.push_back("rwgt_ctz_0");
-    v_EFTpoints.push_back("rwgt_ctz_1");
-    v_EFTpoints.push_back("rwgt_ctz_3");
-    v_EFTpoints.push_back("rwgt_ctz_5");
-    v_EFTpoints.push_back("rwgt_ctz_9");
-    v_EFTpoints.push_back("rwgt_ctz_15");
-
-    v_sumLogLR.resize(v_EFTpoints.size()); //Store 1 value per EFT point
-
-    for(int ivar=0; ivar<var_list_NN.size(); ivar++)
-    {
-        if(var_list_NN[ivar] == "ctz" || var_list_NN[ivar] == "ctw" || var_list_NN[ivar] == "cpq3" || var_list_NN[ivar] == "cpqm" || var_list_NN[ivar] == "cpt")
-        {
-            v_EFToperators_paramNN.push_back(var_list_NN[ivar]);
-            v_idx_EFToperators_paramNN.push_back(ivar);
-        }
-    }
 
 //--------------------------------------------
 
@@ -832,10 +826,11 @@ void TopEFT_analysis::Train_BDT(TString channel, bool write_ranking_info)
 
 void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_inputVars)
 {
+//-- HARD-CODED OPTIONS
+//--------------------------------------------
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU)
-
-    bool use_specificMVA_eachYear = false;
+//--------------------------------------------
 //--------------------------------------------
 
     if(template_name == "" && classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value ["<<classifier_name<<"] not supported !"))<<endl; return;}
@@ -954,27 +949,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
     else if(template_name == "Zpt") {nbins = 4; xmin = 0; xmax = 500;} //1 bin per sub-category
 
-//FIXME
-//--------------------------------------------
-    //FIXME
-    this->NN_strategy = "MVA"; //FIXME
-
-    TString operator_scan1 = "ctz";
-    TString operator_scan2 = "ctw";
-    vector<float> v_WCs_operator_scan1 = {-6,-4,-2,0,2,4,6};
-    vector<float> v_WCs_operator_scan2 = {-6,-4,-2,0,2,4,6};
-    // vector<float> v_WCs_operator_scan1 = {-10,-8,-6,-4,-2,0,2,4,6,8,10};
-    // vector<float> v_WCs_operator_scan2 = {-10,-8,-6,-4,-2,0,2,4,6,8,10};
-    int idx_operator_scan1=-1, idx_operator_scan2=-1;
-    for(int ivar=0; ivar<var_list_NN.size(); ivar++)
-    {
-        if(var_list_NN[ivar]==operator_scan1) {idx_operator_scan1 = ivar;}
-        if(var_list_NN[ivar]==operator_scan2) {idx_operator_scan2 = ivar;}
-    }
-    if(!makeHisto_inputVars && this->NN_strategy == "MVA_param" && (idx_operator_scan1<0 || idx_operator_scan2<0)) {cout<<BOLD(FRED("Scan operator not found ! Abort !"))<<endl; return;}
-    if(!v_WCs_operator_scan2.size()) {v_WCs_operator_scan2.push_back(-99);} //Need at least 1 element
-//--------------------------------------------
-
 	//Want to plot ALL selected variables
 	vector<TString> total_var_list;
 	if(makeHisto_inputVars)
@@ -993,7 +967,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(template_name=="NN") //May consider multi-nodes
         {
             //Parametrized NN: associate 1 'variable' per WC value to scan
-            if(!makeHisto_inputVars && this->NN_strategy == "MVA_param")
+            if(!makeHisto_inputVars && this->NN_strategy == "MVA_param") //FIXME
             {
                 for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
                 {
@@ -1059,7 +1033,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     	// --- Book the MVA method(s)
     	TString dir = "weights/" + classifier_name + "/" + lumiName;
-        if(use_specificMVA_eachYear) {dir = "weights/" + classifier_name + "/" + v_lumiYears[iyear];} //Use year-specific MVA
+        if(this->use_specificMVA_eachYear) {dir = "weights/" + classifier_name + "/" + v_lumiYears[iyear];} //Use year-specific MVA
 
     	TString MVA_method_name = "";
     	TString weightfile = "";
@@ -1067,7 +1041,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     	if(!makeHisto_inputVars && classifier_name == "BDT")
     	{
             //Method name does not matter, it is just a way to identify a given method from a given weight file, to be able to call it later
-            if(use_specificMVA_eachYear) {template_name_MVA = "BDT_"+signal_process+"_"+v_lumiYears[iyear];} //1 method for each year
+            if(this->use_specificMVA_eachYear) {template_name_MVA = "BDT_"+signal_process+"_"+v_lumiYears[iyear];} //1 method for each year
             else {template_name_MVA = "BDT_"+signal_process;} //single method
     		MVA_method_name = template_name_MVA + " method";
 
@@ -1080,14 +1054,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 weightfile = dir + "/" + classifier_name + "_" + signal_process + ".weights.xml";
 
                 cout<<BOLD(FRED("Warning : Weight file not found for '"<<lumiName<<"' ! Using '"<<weightfile<<"' (trained on full Run 2) instead ! About to proceed..."))<<endl;
-                if(use_specificMVA_eachYear) {usleep(5000000);} //Pause
+                if(this->use_specificMVA_eachYear) {usleep(5000000);} //Pause
                 else {usleep(1000000);} //Pause
             }
 
     		if(!Check_File_Existence(weightfile) ) {cout<<BOLD(FRED("Weight file "<<weightfile<<" not found ! Abort"))<<endl; return;}
 
             // cout<<"MVA_method_name "<<MVA_method_name<<endl;
-    		if(use_specificMVA_eachYear || !MVA_already_booked) {reader->BookMVA(MVA_method_name, weightfile); MVA_already_booked = true;}
+    		if(this->use_specificMVA_eachYear || !MVA_already_booked) {reader->BookMVA(MVA_method_name, weightfile); MVA_already_booked = true;}
     	}
 
     	//SAMPLE LOOP
@@ -1386,7 +1360,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //Evaluate output nodes values
                             std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
 
-                            for(int ivar=0; ivar<total_var_list.size(); ivar++) {total_var_floats[ivar] = clfy1_outputs[ivar];}
+                            float mva_tmp = -1;
+                            for(int ivar=0; ivar<total_var_list.size(); ivar++)
+                            {
+                                total_var_floats[ivar] = clfy1_outputs[ivar];
+                                if(clfy1_outputs[ivar] > mva_tmp) {mva_tmp = clfy1_outputs[ivar]; inode_max = ivar;}
+                            }
                             // cout<<"ientry "<<ientry<<" ==> "<<clfy1_outputs[0]<<endl;
 
                             //TEST TMP
@@ -1411,6 +1390,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         eft_fit = new WCFit("myfit"); //Init object, filled in function
                         Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, idx_sm); //Fill w/ nominal weight ?
 
+                        //FIXME -- code dedicated function to compute these SFs ?
                         //FIXME -- hardcoded scale-factor for ttZ SMEFT sample -- this is to rescale the fit coeffs from which arbitrary normalizations are obtained
                         if(sample_list[isample] == "PrivMC_ttZ_training") {eft_fit->scale(0.361);}
                     }
@@ -1455,7 +1435,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             for(int ivar=0; ivar<total_var_list.size(); ivar++)
                             {
                                 // cout<<"ivar "<<ivar<<endl;
-                                if(!makeHisto_inputVars && template_name == "NN" && this->NN_strategy=="MVA_param")
+                                bool fill_histo = true;
+                                if(!makeHisto_inputVars && template_name == "NN" && this->NN_strategy=="MVA_param") //FIXME
                                 {
                                     //FIXME
                                     for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
@@ -1475,15 +1456,18 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     // var_list_floats[var_list_floats.size()-2] = WC_value+ivar*WC_step;
                                     // for(int iv=0; iv<var_list_floats.size(); iv++) {cout<<"var_list_floats[iv] "<<var_list_floats[iv]<<endl;}
 
-                                    //Evaluate output nodes values
+                                    //RE-evaluate output nodes values *at this particular point*
                                     std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
                                     total_var_floats[ivar] = clfy1_outputs[0];
                                     // cout<<"total_var_floats[ivar] "<<total_var_floats[ivar]<<endl;
                                 }
-                                else //Some features have their address set twice (but only works once) --> need to read the proper variable
+                                else if(!makeHisto_inputVars && use_maxNode_events && template_name == "NN" && nNodes > 1 && ivar != inode_max) {fill_histo = false;} //This event has its max node value for a different node --> can choose not to include it in other nodes
+                                else if(makeHisto_inputVars) //Some features have their address set twice (but only works once) --> need to read the proper variable
                                 {
                                     if(total_var_list[ivar] == "channel") {total_var_floats[ivar] = channel;}
                                 }
+
+                                if(!fill_histo) {continue;} //Don't fill histo for this particular variable
 
                                 if(isPrivMC)
                                 {
@@ -1543,7 +1527,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             {
                                 if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
 
-                                if(!makeHisto_inputVars && this->NN_strategy == "MVA_param") //ParametrizedNN: rescale TH1EFT according to current WC value
+                                if(!makeHisto_inputVars && this->NN_strategy == "MVA_param") //FIXME //ParametrizedNN: rescale TH1EFT according to current WC value
                                 {
                                     //FIXME
                                     TString wcpt_name = "";
@@ -1570,7 +1554,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
                                 // v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Write("TH1EFT_"+output_histo_name); //Store with specific prefix
 
-                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine //FIXME
                                 if(this->NN_strategy == "MVA_EFT" || template_name == "categ" || template_name == "Zpt") {StoreEachHistoBinIndividually(file_output, v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
 
                                 bool debug = false;
@@ -1598,7 +1582,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
                                 // cout<<"Wrote histo : "<<output_histo_name<<endl;
 
-                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine
+                                //-- Need to store each histogram bin separately so that they can be scaled independently in Combine //FIXME
                                 if(this->NN_strategy == "MVA_EFT" || template_name == "categ" || template_name == "Zpt") {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
                             }
 
@@ -1670,14 +1654,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     {
         Merge_Templates_ByProcess(output_file_name, total_var_list, template_name, true);
     }
-
-//TEST TMP
-//--------------------------------------------
-// for(int ipt=0; ipt<v_sumLogLR.size(); ipt++)
-// {
-//     cout<<"ipt "<<ipt<<" ("<<v_EFTpoints[ipt]<<") = "<<v_sumLogLR[ipt]<<endl;
-// }
-//--------------------------------------------
 
 	return;
 }
@@ -3521,7 +3497,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //==> My solution : for each of these arrays, hard-code 1 class member array with corresponding size. This member array 'reads' the array stored in the ntuple.
 //==> To make things simpler, I then use a vector<double*> so that each element will effectively read the value of a given systematic variation. From there, can proceed as usual...
 //Use this function to hard-code which vector element corresponds to which systematics, and set the address
-//NB : some inconsistent indices : down variation may be element 0 or 1... hence, hard-coded !
+//NB : some inconsistent indices : down variation may be element 0 or 1... hence, correspondances must be hard-coded !
 void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString systname, vector<Double_t*> &v_doubles, int isyst)
 {
     TString array_name = ""; //Name of the systematic array as stored in the ntuple
@@ -3547,10 +3523,23 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
     {
         address_memberArray = array_Btag;
         array_name = "btagEventWeightVar";
-        if(systname.EndsWith("HUp")) {index = 0;}
-        else if(systname.EndsWith("HDown")) {index = 1;}
-        else if(systname.EndsWith("LUp")) {index = 2;}
-        else if(systname.EndsWith("LDown")) {index = 3;}
+
+        if(systname.EndsWith("HFUp")) {index = 0;}
+        else if(systname.EndsWith("HFDown")) {index = 1;}
+        else if(systname.EndsWith("LFUp")) {index = 2;}
+        else if(systname.EndsWith("LFDown")) {index = 3;}
+        else if(systname.EndsWith("HFstats1Up")) {index = 4;}
+        else if(systname.EndsWith("HFstats1Down")) {index = 5;}
+        else if(systname.EndsWith("HFstats2Up")) {index = 6;}
+        else if(systname.EndsWith("HFstats2Down")) {index = 7;}
+        else if(systname.EndsWith("LFstats1Up")) {index = 8;}
+        else if(systname.EndsWith("LFstats1Down")) {index = 9;}
+        else if(systname.EndsWith("LFstats2Up")) {index = 10;}
+        else if(systname.EndsWith("LFstats2Down")) {index = 11;}
+        else if(systname.EndsWith("CFerr1Down")) {index = 12;}
+        else if(systname.EndsWith("CFerr1Up")) {index = 13;}
+        else if(systname.EndsWith("CFerr2Down")) {index = 14;}
+        else if(systname.EndsWith("CFerr2Up")) {index = 15;}
     }
     else if(systname.BeginsWith("LepEff_mu"))
     {
@@ -3820,34 +3809,3 @@ void TopEFT_analysis::Merge_Templates_ByProcess(TString filename, vector<TString
 //    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
-
-//TMP -- To change or remove soon
-void TopEFT_analysis::Test_SumLR_Scan(TFModel* clfy1, vector<float>& var_list_floats) //, WCFit& eft_fit
-{
-    for(int ipt=0; ipt<v_EFTpoints.size(); ipt++)
-    {
-        double epsilon = pow(10,-9);
-
-        var_list_floats[var_list_floats.size()-1] = Convert_TString_To_Number(v_EFTpoints[ipt].ReplaceAll("rwgt_ctZ_", ""));
-
-        // WCPoint wcp = WCPoint((string) v_EFTpoints[ipt], 1.);
-        // double fit_val = eft_fit.evalPoint(&wcp);
-
-        std::vector<float> clfy1_outputs = clfy1->evaluate(var_list_floats);
-
-        double val = clfy1_outputs[0];
-
-        v_sumLogLR[ipt]+= log( (1. - val + epsilon) / (val + epsilon) );
-
-        if(false)
-        {
-            for(int inp=0; inp<var_list_floats.size(); inp++)
-            {
-                cout<<inp<<": "<<var_list_floats[inp]<<endl;
-            }
-            cout<<"-->  "<<val<<endl;
-        }
-    }
-
-    return;
-}

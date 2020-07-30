@@ -813,7 +813,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
     v_custom_colors[6] = new TColor(9006, 227./255., 65./255., 61./255.);
 
     //Also nice
-    //kOrange-3,
+    //kOrange-2,
 
 //--------------------------------------------
     if(color_scheme == 0) //Custom color scheme

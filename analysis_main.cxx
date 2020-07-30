@@ -14,22 +14,29 @@ int main(int argc, char **argv)
 //  #######  ##           ##    ####  #######  ##    ##  ######
 //---------------------------------------------------------------------------
 
-    //-- MAIN OPTIONS --
+    //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq";
-    bool use_systematics = true; //true <-> will compute/store systematics selected below
+    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    TString region_choice = ""; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ' //FIXME
 
-    TString region_choice = ""; //Choose event category : '' (all events) / 'tZq' / 'ttZ' / 'tWZ'
-
-    //-- MVA
+    //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
+    bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
+    bool use_maxNode_events = true; //true <-> for multiclass NN templates, only include events if they have their max output value in the corresponding node
+    bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+        TString operator1 = "ctz"; //First operator to scan (required)
+        TString operator2 = ""; //Second operator to scan (optional)
+        vector<float> v_WCs_operator_scan1 = {-5,-4,-3,-2,-1,0,1,2,3,4,5}; //Grid points for first operator (required)
+        vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
-    //-- Templates options
+    //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
-    bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
+    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ... //FIXME
 
-    //-- Other options
+    //-- O T H E R S --
+    bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
     TString plot_extension = ".png"; //extension of plots
+
 
 //-----------------------------------------------------------------------------------------
 // ##       ##     ## ##     ## #### ##    ##  #######   ######  #### ######## ##    ##
@@ -49,6 +56,7 @@ int main(int argc, char **argv)
     set_lumi_years.push_back("2017");
     // set_lumi_years.push_back("2018");
 
+
 //-----------------------------------------------------------------------------------------
 //   ######  ##     ## ########  ######
 //  ##    ## ##     ##    ##    ##    ##
@@ -67,9 +75,9 @@ int main(int argc, char **argv)
 
     // set_v_cut_name.push_back("nJets");  set_v_cut_def.push_back("==3 || ==4"); set_v_cut_IsUsedForBDT.push_back(false);
     // set_v_cut_name.push_back("passedBJets");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false); //enforce final tZq 3l selection
-
     // set_v_cut_name.push_back("is_tZq_3l_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
     set_v_cut_name.push_back("is_signal_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
+
 
 //---------------------------------------------------------------------------
 //  ######  ##     ##    ###    ##    ## ##    ## ######## ##        ######
@@ -133,9 +141,6 @@ int main(int argc, char **argv)
     thesamplelist.push_back("tttt"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("ttHH"); thesamplegroups.push_back("tX");
 
-    //WZ
-    thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
-
     //VV(V)
     thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
@@ -143,6 +148,9 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWW"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VVV");
+
+    //WZ
+    thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
 
     //X+g
     thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("Xg");
@@ -189,6 +197,7 @@ int main(int argc, char **argv)
     // thevarlist.push_back("TopZsystem_M");
     // thevarlist.push_back("jprime_Pt");
 
+
 //---------------------------------------------------------------------------
 //  #######  ######## ##     ## ######## ########       ##     ##    ###    ########   ######
 // ##     ##    ##    ##     ## ##       ##     ##      ##     ##   ## ##   ##     ## ##    ##
@@ -209,15 +218,6 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
 
-    // set_v_add_var_names.push_back("lep1_pt");
-    // set_v_add_var_names.push_back("lep2_pt");
-    // set_v_add_var_names.push_back("lep3_pt");
-    // set_v_add_var_names.push_back("jet1_pt");
-    // set_v_add_var_names.push_back("jet1_eta");
-    // set_v_add_var_names.push_back("jet2_pt");
-    // set_v_add_var_names.push_back("recoTop_Pt");
-    // set_v_add_var_names.push_back("recoTop_M");
-
 
 //---------------------------------------------------------------------------
 //  ######  ##    ##  ######  ######## ######## ##     ##    ###    ######## ####  ######   ######
@@ -235,30 +235,28 @@ int main(int argc, char **argv)
     vector<TString> theSystTree; //List of systematics implemented as separate TTrees
     theSystTree.push_back(""); //KEEP ! (<-> nominal TTree)
 
-    if(use_systematics) //Define here the list of syst to run
+    if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
         //-- Implemented as separate TTrees
         // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
 
         //-- Implementend as event weights
-        // theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
+        theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
         theSystWeights.push_back("prefiringWeightDown"); theSystWeights.push_back("prefiringWeightUp");
-        theSystWeights.push_back("BtagHDown"); theSystWeights.push_back("BtagHUp");
-        theSystWeights.push_back("BtagLDown"); theSystWeights.push_back("BtagLUp");
-        theSystWeights.push_back("LepEff_muLooseDown"); theSystWeights.push_back("LepEff_muLooseUp");
-        theSystWeights.push_back("LepEff_muTightDown"); theSystWeights.push_back("LepEff_muTightUp");
-        theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
-        theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
+        theSystWeights.push_back("BtagHFDown"); theSystWeights.push_back("BtagHFUp");
+        theSystWeights.push_back("BtagLFDown"); theSystWeights.push_back("BtagLFUp");
+        theSystWeights.push_back("HFstats1Down"); theSystWeights.push_back("HFstats1Up");
+        theSystWeights.push_back("HFstats2Down"); theSystWeights.push_back("HFstats2Up");
+        theSystWeights.push_back("LFstats1Down"); theSystWeights.push_back("LFstats1Up");
+        theSystWeights.push_back("LFstats2Down"); theSystWeights.push_back("LFstats2Up");
+        theSystWeights.push_back("CFerr1Down"); theSystWeights.push_back("CFerr1Up");
+        theSystWeights.push_back("CFerr2Down"); theSystWeights.push_back("CFerr2Up");
 
-        // theSystWeights.push_back("TrigEffDown"); theSystWeights.push_back("TrigEffUp");
-        // theSystWeights.push_back("LFcontDown"); theSystWeights.push_back("LFcontUp");
-        // theSystWeights.push_back("HFstats1Down"); theSystWeights.push_back("HFstats1Up");
-        // theSystWeights.push_back("HFstats2Down"); theSystWeights.push_back("HFstats2Up");
-        // theSystWeights.push_back("CFerr1Down"); theSystWeights.push_back("CFerr1Up");
-        // theSystWeights.push_back("CFerr2Down"); theSystWeights.push_back("CFerr2Up");
-        // theSystWeights.push_back("HFcontDown"); theSystWeights.push_back("HFcontUp");
-        // theSystWeights.push_back("LFstats1Down"); theSystWeights.push_back("LFstats1Up");
-        // theSystWeights.push_back("LFstats2Down"); theSystWeights.push_back("LFstats2Up");
+        // theSystWeights.push_back("LepEff_muLooseDown"); theSystWeights.push_back("LepEff_muLooseUp");
+        // theSystWeights.push_back("LepEff_muTightDown"); theSystWeights.push_back("LepEff_muTightUp");
+        // theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
+        // theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
+        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp");
     }
 
 
@@ -278,7 +276,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -286,11 +284,11 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -298,6 +296,10 @@ int main(int argc, char **argv)
 //-----------------    OTHER
 
 //-----------------
+
+
+
+
 
 
 
@@ -326,18 +328,13 @@ int main(int argc, char **argv)
 //Apply choices given via command line, if any
 	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region_choice);
 
-//Enable multi-threading (I have 8 available threads)
-    // int nthreads = 4; ROOT::EnableImplicitMT(nthreads);
-
-//------------------------------------
-//--------------------------------------------
-//---> AUTOMATIZED FUNCTION CALLS FROM BOOLEANS
+    // int nthreads = 4; ROOT::EnableImplicitMT(nthreads); //Enable multi-threading (I have 8 available threads)
 
     //#############################################
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region_choice, signal_process, classifier_name);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region_choice, signal_process, classifier_name, use_specificMVA_eachYear, use_maxNode_events, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################
@@ -394,6 +391,9 @@ int main(int argc, char **argv)
 
     if(compare_template_shapes) {theAnalysis->Compare_TemplateShapes_Processes(template_name, plotChannel);}
 
-//--------------------------------------------
+    //#############################################
+    //  FINALIZE
+    //#############################################
+
     delete theAnalysis;
 }

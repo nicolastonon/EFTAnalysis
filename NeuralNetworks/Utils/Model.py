@@ -33,7 +33,7 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
 # Architecture options (set by user in main code)
 
     nHiddenLayers = opts["nHiddenLayers"]
-    nNeuronsAllHiddenLayers = opts["nNeuronsAllHiddenLayers"]
+    nNeuronsAllHiddenLayers = opts["nNeuronsAllHiddenLayers"] if "nNeuronsAllHiddenLayers" in opts else -1
     activInputLayer = opts["activInputLayer"]
     activHiddenLayers = opts["activHiddenLayers"]
     use_normInputLayer = opts["use_normInputLayer"]
@@ -62,7 +62,8 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
         # activHiddenLayers = LeakyReLU(alpha=0.01)
         # activHiddenLayers = lambda x: relu(x, alpha=0.1)
 
-    kernInit = 'he_normal' #Hard-coded here
+    #-- Weight initializition (hard-coded here)
+    kernInit = 'he_normal'
     # kernInit = 'glorot_normal'
     # kernInit = 'glorot_uniform'
     # kernInit = 'lecun_normal'

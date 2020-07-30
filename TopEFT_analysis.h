@@ -72,7 +72,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, bool, bool, TString, TString, vector<float>, vector<float>);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -118,11 +118,16 @@ class TopEFT_analysis
 	std::vector<int> color_list;
 	std::vector<TColor*> v_custom_colors;
 
-	bool use_NeuralNetwork;
-	TString classifier_name;
+    bool use_specificMVA_eachYear; //true <-> look for year-specific MVA weight files (if not found, look for Run2 file)
+    // bool cut_on //FIXME
+    bool use_NeuralNetwork;
+    bool use_maxNode_events; //true <-> for multiclass NN templates, only include events if they have their max output value in the corresponding node
+    TString classifier_name;
     TString NN_strategy, NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
+    vector<TString> v_NN_nodeLabels; //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
     std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
+    int inode_max; //Index of the multiclass DNN node for which a given event has its max value
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category
@@ -150,11 +155,11 @@ class TopEFT_analysis
     double* array_LepEffTight_mu;
     double* array_LepEffTight_el;
 
-    //Test -- to rename or remove
-    vector<TString> v_EFTpoints;
-    vector<double> v_sumLogLR; //Store 1 value per EFT point
-    vector<TString> v_EFToperators_paramNN; //List of EFT operators on which the considered NN is parametrized
-    vector<Int_t> v_idx_EFToperators_paramNN; //Corresponding feature indices
+    //-- For parametrized NN
+    bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+    TString operator_scan1, operator_scan2; //First and second EFT operators to scan
+    int idx_operator_scan1, idx_operator_scan2;
+    vector<float> v_WCs_operator_scan1, v_WCs_operator_scan2; //Grid points for first and second scanned EFT operators
 };
 
 #endif

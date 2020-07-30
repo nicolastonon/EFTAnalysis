@@ -378,7 +378,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.dim, "Option score_lossWeight should not be <=0. Setting it to 1 !", colors.reset)
         opts["score_lossWeight"] = 1
 
-    if opts["nHiddenLayers"]<0 or opts["nNeuronsAllHiddenLayers"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
+    if "nNeuronsAllHiddenLayers" in opts and opts["nNeuronsAllHiddenLayers"]<0: print(colors.fg.red, 'ERROR : Invalid value for option [nNeuronsAllHiddenLayers] !', colors.reset); exit(1)
+    if "nNeuronsAllHiddenLayers" not in opts and "nNeuronsPerHiddenLayer" not in opts: print(colors.fg.red, 'ERROR : number of neurons not set !', colors.reset); exit(1)
+    if opts["nHiddenLayers"]<0 or opts["dropoutRate"]<0: print(colors.fg.red, 'ERROR : Invalid negative values found in NN architecture options !', colors.reset); exit(1)
 
     if "nNeuronsPerHiddenLayer" in opts and len(opts["nNeuronsPerHiddenLayer"]) != opts["nHiddenLayers"]: print(colors.fg.red, 'ERROR : list [nNeuronsPerHiddenLayer] must have a length == [nHiddenLayers] !', colors.reset); exit(1)
 
@@ -433,11 +435,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print('\n', colors.fg.orange, colors.underline, '-- Will use the following variable(s) as target(s) :', colors.reset, [list_features[opts["targetVarIdx"][idx]] for idx in opts["targetVarIdx"]])
         if(opts["comparVarIdx"] >= 0): print('\n\n', colors.fg.orange, colors.underline, '-- Will compare predictions to the following variable:', colors.reset, list_features[opts["comparVarIdx"]], '\n\n')
 
-    # opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile #NB: this parameter is also dumped in "NN_infos.txt" in FreezeSession code
-    # if centralVSpureEFT is True: opts["NN_strategy"] = "centralVSpureEFT"
-    opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
-    if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
-    elif opts["parametrizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
+    # opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile #NB: this parameter is also dumped in "NN_infos.txt" in FreezeSave code
+    # opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
+    # if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
+    # elif opts["parametrizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
 
 # //--------------------------------------------
 
