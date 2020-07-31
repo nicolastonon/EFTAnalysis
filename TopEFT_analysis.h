@@ -72,13 +72,13 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, bool, bool, TString, TString, vector<float>, vector<float>);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
 	void Train_BDT(TString, bool); //Train BDT
-    void Produce_Templates(TString, bool); //Produce templates
-    void Draw_Templates(bool, TString, TString="", bool=true, bool=false); //Draw templates or input variables
+    void Produce_Templates(TString, bool, bool); //Produce templates
+    void Draw_Templates(bool, TString, TString="", bool=true, bool=false, bool=false); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
@@ -96,8 +96,9 @@ class TopEFT_analysis
 
 //--- MEMBERS
     TMVA::Reader *reader;
-    TMVA::Reader *reader1; //1 reader for BDT xxx
-    TMVA::Reader *reader2; //1 reader for BDT yyy
+    //NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
+    // TMVA::Reader *reader1; //1 reader for BDT xxx
+    // TMVA::Reader *reader2; //1 reader for BDT yyy
     TFModel* clfy1; //NN classifier
 
     std::vector<TString> sample_list; //List of samples
@@ -118,16 +119,14 @@ class TopEFT_analysis
 	std::vector<int> color_list;
 	std::vector<TColor*> v_custom_colors;
 
-    bool use_specificMVA_eachYear; //true <-> look for year-specific MVA weight files (if not found, look for Run2 file)
-    // bool cut_on //FIXME
     bool use_NeuralNetwork;
-    bool use_maxNode_events; //true <-> for multiclass NN templates, only include events if they have their max output value in the corresponding node
     TString classifier_name;
     TString NN_strategy, NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
     vector<TString> v_NN_nodeLabels; //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
     std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
     int inode_max; //Index of the multiclass DNN node for which a given event has its max value
+    bool make_SMvsEFT_templates_plots; //When making/plotting templates only: false <-> consider SM vs SM templates; true <-> consider SM vs EFT templates (--> different input/output files)
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category

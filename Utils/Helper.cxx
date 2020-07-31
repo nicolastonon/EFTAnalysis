@@ -1282,3 +1282,78 @@ float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_ma
 
     return bin + 0.5; //Assume bin width of 1. --> add event in center of bin
 }
+
+//Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM)
+{
+    if(MVA_type != "BDT" && MVA_type != "NN") {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
+    // if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<BOLD(FRED("ERROR: wrong [signal_process] argument !"))<<endl; return "";}
+    if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<"Argument [signal_process] not recognized... Setting it to 'Other'"<<endl; signal_process = "Other";}
+
+    TString fullpath = ""; //Full input path
+    TString basepath = "./weightsMVA/" + MVA_type + "/"; //Base path
+    TString path_suffix = ""; //Suffix to append to base path; in-between the 2 we also need the year information, which we may want to modify if the nominal file is not found (see below)
+
+    if(MVA_type == "BDT") {path_suffix = "BDT_" + signal_process + ".weights.xml";}
+    else
+    {
+        if(MVA_SM) {path_suffix = "SM/";}
+        else {path_suffix = "EFT/";}
+        path_suffix+= signal_process + "/model.pb";
+    }
+
+    if(use_specificMVA_eachYear)
+    {
+        fullpath = basepath + year + "/" + path_suffix;
+        cout<<DIM("Trying to open MVA file "<<fullpath<<"... ");
+
+        if(!Check_File_Existence(fullpath)) //If did not find year-specific file, also try to look for full Run 2 file
+        {
+            fullpath = basepath + "Run2/" + path_suffix; //Try to read Run2 file (i.e. not year-specific) file instead
+            if(year == "Run2" || !Check_File_Existence(fullpath)) {cout<<BOLD(FRED("ERROR: no MVA input file found !"))<<endl; return "";}
+            else {cout<<DIM("NOT FOUND !")<<endl; cout<<FBLU("--> Using file ")<<fullpath<<FBLU(" instead !")<<endl; usleep(3000000);}
+        }
+        else {cout<<DIM("FOUND !")<<endl;}
+    }
+    else
+    {
+        fullpath = basepath + "Run2/" + path_suffix;
+        cout<<DIM("Trying to open MVA file "<<fullpath<<"... ");
+        if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl;}
+        else {cout<<BOLD(FRED("ERROR: no MVA input file found !"))<<endl; return "";}
+    }
+
+    return fullpath;
+}
+
+//Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
+TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix)
+{
+    TString fullpath = ""; //Full input path
+
+	if(use_CombineFile) //Reading a template file produced by Combine (specific naming conventions)
+	{
+        //TRY 1 : look for Combine file
+		fullpath = "./outputs/fitDiagnostics_";
+		fullpath+= template_type + "_" + region + filename_suffix + ".root";
+        cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+        if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+		else
+        {
+            fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
+            cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+            if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+            else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
+        }
+    }
+	else //Reading my own file
+	{
+		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
+		else {fullpath = "outputs/Templates_" + template_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
+        cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+        if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+        else {cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found ! Can not plot any histogram !"))<<endl; return "";}
+    }
+
+    return fullpath;
+}

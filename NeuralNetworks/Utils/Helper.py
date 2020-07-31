@@ -311,17 +311,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     #Year selection
     lumiName = Get_LumiName(lumi_years)
 
-    # Set main output paths
-    weightDir = "../weights/NN/" + lumiName + '/'
-
-    #Model output name
-    h5modelName = weightDir + 'model.h5'
-
-    if opts["makeValPlotsOnly"] == False: #If training a new NN, remove previous output folder
-        # os.remove(weightDir+"/*")
-        if path.exists(weightDir): shutil.rmtree(weightDir)
-        os.makedirs(weightDir, exist_ok=True)
-    else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
+# //--------------------------------------------
+#-- Define few necessary options
 
     if opts["testToy1D"] == True:
         if opts["strategy"] != "CARL": print(colors.fg.red, colors.bold, "\n\nERROR ! Debug option [testToy1D] is only valid for strategy CARL ! \n", colors.reset, h5modelName, '\n'); exit(1)
@@ -330,8 +321,6 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         opts["nPointsPerOperator"] = 3
         opts["minWC"] = -3
         opts["maxWC"] = 3
-
-    print(colors.dim, "Created clean output directory:", colors.reset, weightDir)
 
     #Top directory containing all input ntuples
     ntuplesDir = "../input_ntuples/"
@@ -435,10 +424,41 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print('\n', colors.fg.orange, colors.underline, '-- Will use the following variable(s) as target(s) :', colors.reset, [list_features[opts["targetVarIdx"][idx]] for idx in opts["targetVarIdx"]])
         if(opts["comparVarIdx"] >= 0): print('\n\n', colors.fg.orange, colors.underline, '-- Will compare predictions to the following variable:', colors.reset, list_features[opts["comparVarIdx"]], '\n\n')
 
-    # opts["NN_strategy"] = opts["strategy"] #Duplicate this variable, so that it can be modified if desired before it is dumped in logfile #NB: this parameter is also dumped in "NN_infos.txt" in FreezeSave code
-    # opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
-    # if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
-    # elif opts["parametrizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
+    #-- NN strategy (for easier interfacing with my analysis code)
+    opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
+    if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
+    elif opts["parametrizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
+
+# //--------------------------------------------
+#-- Define path-related variables
+
+    weightDir = "../weightsMVA/NN/" + lumiName + '/' #Base output dir
+
+    if opts ["storeInTestDirectory"] is True: #Store all output files in common test dir., and overwrite previous files
+        weightDir+= 'tmp/'
+        print(colors.dim, "Created clean test output directory:", colors.reset, weightDir)
+    else: #Store all output files in training-specific subdir., following same path conventions as in main analysis code
+        if opts["NN_strategy"] is "MVA_SM":
+            weightDir+= 'SM/'
+            if opts["nofOutputNodes"] == 1:
+                if "tZq" in labels_list[0]: weightDir+= 'tZq/'
+                elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
+                else: weightDir+= 'Other/'
+            else: weightDir+= 'Multiclass/'
+        else:
+            weightDir+= 'EFT/'
+            if "tZq" in labels_list[0]: weightDir+= 'tZq/'
+            elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
+            else: weightDir+= 'Other/'
+
+    #Model output name
+    h5modelName = weightDir + 'model.h5'
+
+    if opts["makeValPlotsOnly"] == False: #If training a new NN, remove previous output folder
+        # os.remove(weightDir+"/*")
+        if path.exists(weightDir): shutil.rmtree(weightDir)
+        os.makedirs(weightDir, exist_ok=True)
+    else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 
 # //--------------------------------------------
 

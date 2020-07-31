@@ -69,7 +69,7 @@ def FreezeSession_and_SaveModel(opts, sess, weightDir, h5modelName, list_labels)
     text_file.write(outputs_names[0]); text_file.write(' -2 -2 \n');
     text_file.write(str(opts["nofOutputNodes"])); text_file.write(' -3 -3 \n');
     for label in list_labels: text_file.write(label + ' -4 -4 \n');
-    text_file.write(str(opts["strategy"])); text_file.write(' -5 -5 \n');
+    text_file.write(str(opts["NN_strategy"])); text_file.write(' -5 -5 \n');
     text_file.close()
 
     return

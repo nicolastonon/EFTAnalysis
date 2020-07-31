@@ -108,6 +108,8 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 // void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
 // template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
+TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true);
+TString Get_TemplateFile_InputPath(bool, TString, TString, TString, TString, bool, TString);
 //--------------------------------------------
 
 //--------------------------------------------

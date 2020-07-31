@@ -166,7 +166,6 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     '''
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
-    matplotlib.rc_file_defaults() #Restore matplotlib default settings
 
     #FIXME
     # plt.xkcd() # XKCD-style plotting
@@ -1073,8 +1072,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     # if plot_eachSingleFeature == True:
     if plot_eachSingleFeature == True and isControlNorm==False:
         for feature in list_features[mask]:
-            # fig, ax = plt.subplots()
-            fig, ax = plt.subplots(figsize=(10,10))
+            fig = plt.figure('input_feature')
+            _, ax = plt.subplots(figsize=(10,10))
             plt.ylabel("normalized", fontsize=20)
             plt.xlabel(feature, fontsize=20)
 
@@ -1088,6 +1087,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             if isControlNorm == True: plotname = weight_dir + 'features/'+feature+'_normTrain.png' #Control plot, different name, general plot only
             plt.savefig(plotname)
             print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
+            plt.close('input_feature')
 
     matplotlib.rc_file_defaults() #Restore matplotlib default settings
 
@@ -1214,14 +1214,14 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     # plt.close('decision_plot')
     # print(colors.fg.lightgrey, "Saved decision_plot plot as :", colors.reset, weight_dir+"decision_plot.png")
 
-    #== Multi-output decision plot
+    #== Multi-output decision plot #Not very useful (plot for 1 event only... ?)
     #-- See: https://github.com/slundberg/shap/blob/a4fd466193c7f9602e948e7f9fd65d49249ba4bd/shap/plots/decision.py#L553
-    row_index = 0
-    fig = plt.figure('multioutput_decision_plot')
-    shap.multioutput_decision_plot(explainer.expected_value.numpy().tolist(), shap_values, row_index=row_index, feature_names=list_features, highlight=None, legend_location='lower right', show=False)
-    plt.savefig(weight_dir+"multioutput_decision_plot.png", bbox_inches='tight', dpi=600)
-    plt.close('multioutput_decision_plot')
-    print(colors.fg.lightgrey, "Saved multioutput_decision_plot plot as :", colors.reset, weight_dir+"multioutput_decision_plot.png")
+    # row_index = 0
+    # fig = plt.figure('multioutput_decision_plot')
+    # shap.multioutput_decision_plot(explainer.expected_value.numpy().tolist(), shap_values, row_index=row_index, feature_names=list_features, highlight=None, legend_location='lower right', show=False)
+    # plt.savefig(weight_dir+"multioutput_decision_plot.png", bbox_inches='tight', dpi=600)
+    # plt.close('multioutput_decision_plot')
+    # print(colors.fg.lightgrey, "Saved multioutput_decision_plot plot as :", colors.reset, weight_dir+"multioutput_decision_plot.png")
 
     #== Dependence of decision on single feature
     #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15

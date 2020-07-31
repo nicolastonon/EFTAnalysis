@@ -461,15 +461,21 @@ int main(int argc, char **argv)
 {
     cout<<FYEL("USAGE : ./Make_Yield_Table.exe [SR] [2016,2017,2018,all,Run2] [uuu,eeu,uue,eee]")<<endl<<endl;
 
+//== OPTIONS ==
+//--------------------------------------------
+
     //-- Default args (can be over-riden via command line args)
     TString signal = "tZq";
     // TString category = "is_tzq_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    // TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     // TString category = "is_tZq_3l_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
-    bool group_samples_together = false; //true <-> group similar samples together
+    bool group_samples_together = true; //true <-> group similar samples together
     bool remove_totalSF = false; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
+
+//--------------------------------------------
 
     if(argc > 1)
 	{

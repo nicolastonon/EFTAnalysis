@@ -35,7 +35,7 @@ optsTrain = {
 
 #=== General training/architecture settings ===#
 "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 2, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
 "nHiddenLayers": 4, #Number of hidden layers
 # "nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
@@ -50,7 +50,7 @@ optsTrain = {
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence
 
 #=== Settings for non-parametrized NN ===# (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": -1, #max nof events to be used for each process class (non-parametrized NN only) ; -1 <-> use all available events
+"maxEventsPerClass": 1000, #max nof events to be used for each process class (non-parametrized NN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
 "batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
@@ -75,13 +75,15 @@ optsTrain = {
 
 #=== Event preselection ===# #FIXME
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
-"cuts": "is_signal_SR",
-# "cuts": "is_tzq_SR",
+# "cuts": "is_signal_SR",
+# "cuts": "is_tZq_3l_SR",
+"cuts": "is_tzq_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
+"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 }
 
 # Analysis options
@@ -96,7 +98,7 @@ _list_lumiYears.append("2017")
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
 _list_processClasses.append(["tZq"])
-_list_processClasses.append(["ttZ"])
+# _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
@@ -104,16 +106,16 @@ _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
-_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"])
+# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
-# _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep",])
+_list_processClasses.append(["ttZ", "ttW", "ttH", "tWZ", "WZ", "ZZ4l", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttbar_Alessia"])
 # _list_processClasses.append(["tt1j_2016_Sebastian"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
 _list_labels.append("tZq")
-_list_labels.append("ttZ")
+# _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
 # _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_top19001")
