@@ -17,10 +17,10 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq";
     bool use_systematics = false; //true <-> will compute/store systematics selected below
-    TString region_choice = ""; //Choose specific event category : '' (all events) / 'SRtZq' / 'SRttZ' / ... //FIXME
+    TString region_choice = ""; //Choose specific event category : '' (all events) / 'SRtZq' / 'SRttZ' / ... //FIXME COMMAND ARG !
     bool is_blind = false; //true <-> don't read/store data events
 
-    //-- M V A    S T R A T E G Y -- //FIXME: give as arg to templates only ?
+    //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
     bool make_SMvsEFT_templates_plots = false; // ?
@@ -33,12 +33,12 @@ int main(int argc, char **argv)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ... //FIXME
+    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
     TString plot_extension = ".png"; //extension of plots
-    bool use_maxNode_events = true; //true <-> for multiclass NN templates, only include events if they have their max output value in the corresponding node
+    bool use_maxNode_events = true; //For multiclass NN template plots only: true <-> only include events if they have their max output value in the corresponding node
 
 
 //-----------------------------------------------------------------------------------------

@@ -467,8 +467,8 @@ int main(int argc, char **argv)
     //-- Default args (can be over-riden via command line args)
     TString signal = "tZq";
     // TString category = "is_tzq_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    // TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     // TString category = "is_tZq_3l_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
@@ -511,24 +511,15 @@ int main(int argc, char **argv)
     v_samples.push_back("tZq"); v_label.push_back("tZq");
     v_samples.push_back("ttZ"); v_label.push_back("ttZ");
 
-    // v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
-    // v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
-    // v_samples.push_back("PrivMC_tZq_top19001"); v_label.push_back("PrivMC_tZq_top19001");
-    // v_samples.push_back("PrivMC_ttZ_top19001"); v_label.push_back("PrivMC_ttZ_top19001");
-    // v_samples.push_back("PrivMC_tZq_fullsim"); v_label.push_back("PrivMC_tZq_fullsim");
-    // v_samples.push_back("PrivMC_ttZ_fullsim"); v_label.push_back("PrivMC_ttZ_fullsim");
-    // v_samples.push_back("PrivMC_ttZ_test"); v_label.push_back("PrivMC_ttZ_test");
-    // v_samples.push_back("PrivMC_ttZ_v3"); v_label.push_back("PrivMC_ttZ_v3");
-    // v_samples.push_back("PrivMC_tZq_training"); v_label.push_back("PrivMC_tllq_training");
-    // v_samples.push_back("PrivMC_ttZ_training"); v_label.push_back("PrivMC_ttll_training");
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
     v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
 
     v_samples.push_back("tWZ"); v_label.push_back("tWZ");
+
     v_samples.push_back("tHq"); v_label.push_back("tX");
     v_samples.push_back("tHW"); v_label.push_back("tX");
+    v_samples.push_back("tGJets"); v_label.push_back("tX");
     // v_samples.push_back("ST"); v_label.push_back("tX");
-    // v_samples.push_back("tGJets"); v_label.push_back("tX");
 
     v_samples.push_back("ttH"); v_label.push_back("ttH");
     v_samples.push_back("ttW"); v_label.push_back("ttW");
@@ -541,6 +532,7 @@ int main(int argc, char **argv)
     v_samples.push_back("tttt"); v_label.push_back("ttX");
 
     v_samples.push_back("WZ"); v_label.push_back("WZ");
+
     v_samples.push_back("ZZ4l"); v_label.push_back("ZZ");
     v_samples.push_back("ZZZ"); v_label.push_back("VV");
     v_samples.push_back("WZZ"); v_label.push_back("VV");
