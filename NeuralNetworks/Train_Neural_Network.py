@@ -25,34 +25,34 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parametrized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parametrized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parametrized]
 
 #=== General training/architecture settings ===#
 "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 2, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 150, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
 "nHiddenLayers": 4, #Number of hidden layers
-# "nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
-"nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
+"nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
+# "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
 "activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
 "activHiddenLayers": 'lrelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence
 
 #=== Settings for non-parametrized NN ===# (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": 1000, #max nof events to be used for each process class (non-parametrized NN only) ; -1 <-> use all available events
+"maxEventsPerClass": -1, #max nof events to be used for each process class (non-parametrized NN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_test": -1, #total nof events to be used for training & testing ; -1 <-> use _maxEvents & _splitTrainEventFrac params instead
-"batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
@@ -65,7 +65,7 @@ optsTrain = {
 "nPointsPerOperator": 30, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 3000, #max nof events to be used for each EFT point (for parametrized NN only) ; -1 <-> use all available events
-"batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeEFT": 2000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
@@ -73,17 +73,18 @@ optsTrain = {
 "targetVarIdx": -1, #List of indices *in the list of input features* (NB: only for convenience) of variable(s) to use as target(s) for regression; the var(s) get removed from training and from the list later. If multiple indices provided, multiple are regressed. If set to < 0, the target will be defined in the Get_Targets() function
 "comparVarIdx": -1, #Index *in the list of input features* of a var to compare to predictions in some validation plots (e.g.: Truth vs Pred vs kinReco). If < 0, not used
 
-#=== Event preselection ===# #FIXME
+#=== Event preselection ===#
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 # "cuts": "is_signal_SR",
 # "cuts": "is_tZq_3l_SR",
-"cuts": "is_tzq_SR",
+# "cuts": "is_tzq_SR",
+"cuts": "is_ttz_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
-"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"storeInTestDirectory": False, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 }
 
 # Analysis options
@@ -97,10 +98,11 @@ _list_lumiYears.append("2017")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-_list_processClasses.append(["tZq"])
+# _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
+_list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
@@ -108,20 +110,21 @@ _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
-_list_processClasses.append(["ttZ", "ttW", "ttH", "tWZ", "WZ", "ZZ4l", "TTbar_DiLep", "DY"])
+# _list_processClasses.append(["tZq", "ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
+# _list_processClasses.append(["ttZ", "ttW", "ttH", "tWZ", "WZ", "ZZ4l", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttbar_Alessia"])
 # _list_processClasses.append(["tt1j_2016_Sebastian"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-_list_labels.append("tZq")
+# _list_labels.append("tZq")
 # _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_ttZ")
+_list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_top19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("SM")
-_list_labels.append("Backgrounds")
+# _list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
 
 # //--------------------------------------------
@@ -141,6 +144,7 @@ _list_features.append("jPrimeAbsEta") #!
 _list_features.append("maxDelPhiLL") #!
 _list_features.append("maxDeepJet") #!
 _list_features.append("DeepJet_2nd") #!
+_list_features.append("maxEtaJet")
 # _list_features.append("maxDeepCSV") #!
 # _list_features.append("deepCSV_2nd") #!
 
@@ -152,13 +156,12 @@ _list_features.append("cosThetaStarPolZ")
 _list_features.append("recoLepTopLep_Pt")
 _list_features.append("recoLepTop_Pt") #!
 _list_features.append("recoLepTop_Eta") #!
-# _list_features.append("TopZsystem_M") #!
+_list_features.append("TopZsystem_M") #!
 _list_features.append("jprime_Pt") #!
 _list_features.append("recoLepTopLep_Eta") #!
-_list_features.append("maxEtaJet")
 
 _list_features.append("mbjMax")
-_list_features.append("maxDiJet_pt")
+_list_features.append("maxDiJet_Pt")
 _list_features.append("maxDelRbL")
 _list_features.append("dR_ZlW")
 _list_features.append("dR_blW")
@@ -167,15 +170,15 @@ _list_features.append("dR_jprimeClosestLep")
 _list_features.append("dR_tClosestJet")
 _list_features.append("dR_bW") #!
 
-'''
+# '''
 _list_features.append("dR_tjprime")
 _list_features.append("dR_bjprime") #!
 _list_features.append("dR_lWjprime") #!
 _list_features.append("dR_Zjprime") #!
-_list_features.append("maxDiJet_m") #!
+_list_features.append("maxDiJet_M") #!
 _list_features.append("dEta_bjprime") #!
 _list_features.append("dEta_lWjprime") #!
-'''
+# '''
 
 # _list_features.append("recoLepTop_M")
 # _list_features.append("TopZsystem_Pt")
@@ -204,7 +207,6 @@ _list_features.append("dEta_lWjprime") #!
 # _list_features.append("recoZ_Phi")
 # _list_features.append("recoLepTop_Phi")
 
-#== OR USE 'recoZLepPlus', 'recoZLepMinus', 'recoTopLep' for leptons ? etc.
 # '''
 _list_features.append("lep1_pt")
 _list_features.append("lep2_pt")
@@ -340,9 +342,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
-    # plt.xkcd()
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)
-    # exit(1)
 
     print('\n'); print(colors.fg.lightblue, "--- Define the loss function & metrics...", colors.reset); print('\n')
     _loss, _optim, _metrics, _lossWeights = Get_Loss_Optim_Metrics(optsTrain)

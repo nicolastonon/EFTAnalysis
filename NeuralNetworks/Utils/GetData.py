@@ -195,13 +195,12 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
         #-- Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 single array per process class
         list_x_allClasses.append(np.concatenate(list_x_proc))
 
-        # if "PrivMC" in label:
+        #-- Concatenate other arrays
         if "PrivMC" in label and isPureEFT is False: #For pure-EFT samples, don't care about EFT reweights (only use baseline weights)
             list_weights_allClasses.append(np.concatenate(list_EFTweights_proc,axis=0)[:,0]) #For private EFT samples, only the weights in 'list_EFTweights_proc' make sense (not those in 'list_weights_proc') ; but need single value per event --> use element corresponding to baseline (first column)
             list_EFTweights_allClasses.append(np.concatenate(list_EFTweights_proc,axis=0))
             list_EFTweightIDs_allClasses.append(np.concatenate(list_EFTweightIDs_proc,axis=0))
             list_SMweights_allClasses.append(np.concatenate(list_SMweights_proc,axis=0))
-
         else:
             weights_tmp = np.concatenate(list_weights_proc)
             nentries = weights_tmp.shape[0]
@@ -289,9 +288,9 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         #Manually find and remove all weights with unproper naming conventions (for example 'rwgt_1' nominal weight is included by default by MG)
         array_EFTweights_proc, array_EFTweightIDs_proc = Remove_Unnecessary_EFTweights(array_EFTweights_proc, array_EFTweightIDs_proc)
 
-    list_EFTweights_proc.append(array_EFTweights_proc) #Append array of EFT reweights (for given year) to list
-    list_EFTweightIDs_proc.append(array_EFTweightIDs_proc) #Append array of EFT reweights IDs (for given year) to list
-    list_SMweights_proc.append(array_SMweights_proc) #Append array of SM reweights (for given year) to list
+        list_EFTweights_proc.append(array_EFTweights_proc) #Append array of EFT reweights (for given year) to list
+        list_EFTweightIDs_proc.append(array_EFTweightIDs_proc) #Append array of EFT reweights IDs (for given year) to list
+        list_SMweights_proc.append(array_SMweights_proc) #Append array of SM reweights (for given year) to list
 
     # return list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc
     return np.concatenate(list_EFTweights_proc,axis=0), np.concatenate(list_EFTweightIDs_proc,axis=0), np.concatenate(list_SMweights_proc,axis=0)

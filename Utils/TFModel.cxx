@@ -19,7 +19,7 @@ TFModel::TFModel(const std::string &model_name, const unsigned _n_inputs,
     //   std::cout<< "error while loading graph def: " << status.ToString()<<std::endl;
     // }
 
-    std::cout<<"Create tensorflow session"<<std::endl<<std::endl;
+    // std::cout<<"Create tensorflow session"<<std::endl<<std::endl;
 
     // NICOLAS -- CHANGED -- GOT UNEXPLAINED ERROR : 'No session factory registered for the given session options'... => Get TF session directly
     // session = tensorflow::createSession((tensorflow::GraphDef*) graphDef); //1 thread by default

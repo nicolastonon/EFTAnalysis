@@ -1,0 +1,48 @@
+Start of NN training :03-Aug-2020 (11:58:02)
+
+OPTIONS
+----------------- 
+TTree --> result
+eventWeightName --> 
+strategy --> classifier
+splitTrainEventFrac --> 0.8
+nEpochs --> 10
+nHiddenLayers --> 4
+nNeuronsPerHiddenLayer --> [128, 64, 32, 16]
+activInputLayer --> tanh
+activHiddenLayers --> lrelu
+use_normInputLayer --> True
+use_batchNorm --> True
+dropoutRate --> 0.5
+regularizer --> ['l2', 0.0001]
+optimizer --> Adam
+learnRate --> 0.001
+maxEventsPerClass --> 10000
+nEventsTot_train --> -1
+nEventsTot_test --> -1
+batchSizeClass --> 512
+refPoint --> SM
+listOperatorsParam --> ['ctz', 'ctw']
+nPointsPerOperator --> 30
+minWC --> -5
+maxWC --> 5
+nEventsPerPoint --> 3000
+batchSizeEFT --> 512
+score_lossWeight --> 1
+regress_onLogr --> False
+targetVarIdx --> []
+comparVarIdx --> -1
+cuts --> is_tzq_SR
+makeValPlotsOnly --> False
+testToy1D --> False
+storeInTestDirectory --> False
+parametrizedNN --> False
+regress --> False
+nofOutputNodes --> 1
+maxEvents --> 10000
+batchSize --> 512
+loss --> binary_crossentropy
+metrics --> binary_accuracy
+NN_strategy --> MVA_SM
+----------------- 
+

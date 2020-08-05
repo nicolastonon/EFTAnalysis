@@ -76,15 +76,15 @@ class TopEFT_analysis
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
-	void Train_BDT(TString, bool); //Train BDT
-    void Produce_Templates(TString, bool, bool); //Produce templates
-    void Draw_Templates(bool, TString, TString="", bool=true, bool=false, bool=false); //Draw templates or input variables
+	void Train_BDT(TString); //Train BDT
+    void Produce_Templates(TString, bool, bool, int, bool, bool, float, float, bool); //Produce templates
+    void Draw_Templates(bool, TString, TString="", bool=true, bool=false); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
-    void Merge_Templates_ByProcess(TString, vector<TString>, TString="", bool=true);
+    void MergeSplit_Templates(TString, vector<TString>, TString="", TString = "",bool=true);
 
-    void Test_SumLR_Scan(TFModel*, vector<float>&);
+    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool);
 
 //--- MEMBERS
 	bool stop_program;
@@ -95,11 +95,11 @@ class TopEFT_analysis
     void Set_Luminosity(TString);
 
 //--- MEMBERS
-    TMVA::Reader *reader;
+    TMVA::Reader *reader, *reader_tmp;
     //NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
-    // TMVA::Reader *reader1; //1 reader for BDT xxx
-    // TMVA::Reader *reader2; //1 reader for BDT yyy
-    TFModel* clfy1; //NN classifier
+    TFModel* clfy_tmp=NULL; //NN classifier
+    TFModel* clfy1=NULL; //NN classifier
+    TFModel* clfy2=NULL; //NN classifier
 
     std::vector<TString> sample_list; //List of samples
     std::vector<TString> sample_groups; //List of "group naming", 1 per sample (many samples can have same naming)
@@ -113,7 +113,8 @@ class TopEFT_analysis
 	std::vector<Char_t> v_cut_char; //Categories are encoded into Char_t, because vector<bool> is 'broken' in C++
 	std::vector<bool> v_cut_IsUsedForBDT; //true <-> the variable used for cut is also a input variable
 
-	std::vector<TString> var_list; std::vector<Float_t> var_list_floats; //TMVA variables
+    std::vector<TString> var_list; std::vector<Float_t> var_list_floats; //Names + float storage of MVA input features
+    std::vector<Float_t> var_list_floats_2; //float storage of MVA input features (additional MVA)
 	std::vector<TString> v_add_var_names; vector<Float_t> v_add_var_floats; //Additional vars only for CR plots
 
 	std::vector<int> color_list;
@@ -121,12 +122,21 @@ class TopEFT_analysis
 
     bool use_NeuralNetwork;
     TString classifier_name;
-    TString NN_strategy, NN_inputLayerName, NN_outputLayerName; int nNodes = 1; //NN model params
+    TString NN_strategy;
+    bool make_SMvsEFT_templates_plots; //When making/plotting templates only: false <-> consider SM vs SM templates; true <-> consider SM vs EFT templates (--> different input/output files)
+
+    //-- Default NN
+    TString NN_inputLayerName, NN_outputLayerName; int NN_nNodes = 1; //NN model params
     vector<TString> v_NN_nodeLabels; //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
     std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
-    std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
-    int inode_max; //Index of the multiclass DNN node for which a given event has its max value
-    bool make_SMvsEFT_templates_plots; //When making/plotting templates only: false <-> consider SM vs SM templates; true <-> consider SM vs EFT templates (--> different input/output files)
+    // std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
+    int NN_iMaxNode; //Index of the multiclass DNN node for which a given event has its max value
+
+    //-- Additional NN -- in case we need to read 2 NNs in the same function (e.g. to classify both SM vs SM and SM vs EFT)
+    TString NN2_inputLayerName, NN2_outputLayerName, NN2_strategy; int NN2_nNodes = 1; //NN model params
+    vector<TString> v_NN2_nodeLabels; //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
+    std::vector<TString> var_list_NN2; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
+    int NN2_iMaxNode; //Index of the multiclass DNN node for which a given event has its max value
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category

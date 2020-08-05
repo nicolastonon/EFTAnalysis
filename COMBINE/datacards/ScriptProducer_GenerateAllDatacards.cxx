@@ -388,7 +388,9 @@ int main()
     // v_channel.push_back("eee");
 
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
-    v_regions.push_back("SR");
+    // v_regions.push_back("SR");
+    v_regions.push_back("tZq");
+    v_regions.push_back("ttZ");
 
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 

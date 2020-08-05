@@ -401,9 +401,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         else: ncentralSamples+=1 #E.g. 'tZq'
 
     totalSamples = len(processClasses_list)
-    if nSMEFTSamples == len(labels_list): onlySMEFT=True
+    if nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
+    elif nSMEFTSamples == len(labels_list): onlySMEFT=True
     elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
-    elif nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
     if (opts["parametrizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)

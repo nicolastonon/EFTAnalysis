@@ -3,20 +3,35 @@
 
 /* BASH CUSTOM */
 #define RST   "\e[0m"
+#define KBLK  "\e[30m"
 #define KRED  "\e[31m"
 #define KGRN  "\e[32m"
 #define KYEL  "\e[33m"
 #define KBLU  "\e[34m"
 #define KMAG  "\e[35m"
 #define KCYN  "\e[36m"
-#define KWHT  "\e[37m"
+#define KGRAY  "\e[37m"
+#define KWHT  "\e[97m"
+#define KLRED  "\e[91m"
+#define KLBLU  "\e[94m"
+#define KBRED  "\e[41m"
+#define KBGRN  "\e[42m"
+#define KBYEL  "\e[43m"
+#define KBBLU  "\e[44m"
 #define FRED(x) KRED x RST
 #define FGRN(x) KGRN x RST
 #define FYEL(x) KYEL x RST
 #define FBLU(x) KBLU x RST
 #define FMAG(x) KMAG x RST
 #define FCYN(x) KCYN x RST
+#define FGRAY(x) KGRAY x RST
 #define FWHT(x) KWHT x RST
+#define FLRED(x) KLRED x RST
+#define FLBLU(x) KLBLU x RST
+#define BRED(x) KBRED x RST
+#define BGRN(x) KBGRN x RST
+#define BYEL(x) KBYEL x RST
+#define BBLU(x) KBBLU x RST
 #define BOLD(x) "\e[1m" x RST
 #define ITAL(x) "\e[3m" x RST
 #define UNDL(x) "\e[4m" x RST
@@ -65,7 +80,7 @@
 
 //--------------------------------------------
 //-- Low-level helper functions
-bool Check_File_Existence(const TString&);
+bool Check_File_Existence(const TString&, bool=false);
 int MoveFile(TString, TString);
 int CopyFile(TString, TString);
 TString Convert_Number_To_TString(double, int=3);
@@ -108,8 +123,10 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 // void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
 // template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
-TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true);
+TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
 TString Get_TemplateFile_InputPath(bool, TString, TString, TString, TString, bool, TString);
+// float Get_SMyield_corrFactor_CentralVSPrivateSample(TString, TString);
+// float Get_SMyield_From_TTree(TTree*&);
 //--------------------------------------------
 
 //--------------------------------------------

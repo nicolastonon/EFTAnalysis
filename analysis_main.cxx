@@ -15,16 +15,22 @@ int main(int argc, char **argv)
 //---------------------------------------------------------------------------
 
     //-- M A I N    A N A L Y S I S    O P T I O N S --
-    TString signal_process = "tZq";
+    TString signal_process = "tZq"; //'tZq' or 'ttZ'
     bool use_systematics = false; //true <-> will compute/store systematics selected below
-    TString region_choice = ""; //Choose specific event category : '' (all events) / 'SRtZq' / 'SRttZ' / ... //FIXME COMMAND ARG !
+    TString region = "tZq"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
-    bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
-    bool make_SMvsEFT_templates_plots = false; // ?
-        int categorization_strategy = -1; //1 <-> define SRtZq and SRttZ using different jet multiplicities, and apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR
+    bool use_specificMVA_eachYear = true; //true <-> look for year-specific MVA weight files
+
+    bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
+        int categorization_strategy = 0; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
+        bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
+        float cut_value_tZq = 0.6, cut_value_ttZ = 0.5; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
+        bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
+        bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
+
     bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
@@ -38,7 +44,6 @@ int main(int argc, char **argv)
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
     TString plot_extension = ".png"; //extension of plots
-    bool use_maxNode_events = true; //For multiclass NN template plots only: true <-> only include events if they have their max output value in the corresponding node
 
 
 //-----------------------------------------------------------------------------------------
@@ -78,7 +83,7 @@ int main(int argc, char **argv)
 
     // set_v_cut_name.push_back("nJets");  set_v_cut_def.push_back("==3 || ==4"); set_v_cut_IsUsedForBDT.push_back(false);
     // set_v_cut_name.push_back("passedBJets");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false); //enforce final tZq 3l selection
-    set_v_cut_name.push_back("is_tzq_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
+    // set_v_cut_name.push_back("is_tzq_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
     // set_v_cut_name.push_back("is_signal_SR");  set_v_cut_def.push_back("==1"); set_v_cut_IsUsedForBDT.push_back(false);
 
 
@@ -327,7 +332,7 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
 //Apply choices given via command line, if any
-	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region_choice);
+	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region);
 
     // int nthreads = 4; ROOT::EnableImplicitMT(nthreads); //Enable multi-threading (I have 8 available threads)
 
@@ -335,26 +340,26 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region_choice, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################
     // TRAINING
     //#############################################
 
-    if(train_BDT) {theAnalysis->Train_BDT("", true);}
+    if(train_BDT) {theAnalysis->Train_BDT("");}
 
     //#############################################
     //  TEMPLATES CREATION
     //#############################################
 
-    if(create_templates) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, false);}
+    if(create_templates) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, false, categorization_strategy, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
 
     //#############################################
     //  CONTROL HISTOGRAMS
     //#############################################
 
-    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, true);}
+    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, true, categorization_strategy, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
 
     //#############################################
     //  DRAW PLOTS
@@ -363,25 +368,25 @@ int main(int argc, char **argv)
     //All channels
     if(draw_templates)
     {
-        theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file, use_maxNode_events); //chosen channel
+        theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file); //chosen channel
 
         if(plotChannel == "") //By default, also want to plot templates in subchannels
         {
             for(int ichan=1; ichan<thechannellist.size(); ichan++)
             {
-                theAnalysis->Draw_Templates(false, thechannellist[ichan], template_name, prefit, use_combine_file, use_maxNode_events);
+                theAnalysis->Draw_Templates(false, thechannellist[ichan], template_name, prefit, use_combine_file);
             }
         }
     }
 
     if(draw_input_vars)
     {
-        theAnalysis->Draw_Templates(true, plotChannel, use_maxNode_events);
+        theAnalysis->Draw_Templates(true, plotChannel);
         if(draw_input_allChannels)
         {
             for(int ichan=1; ichan<thechannellist.size(); ichan++)
             {
-                theAnalysis->Draw_Templates(true, thechannellist[ichan], use_maxNode_events);
+                theAnalysis->Draw_Templates(true, thechannellist[ichan]);
             }
         }
     }

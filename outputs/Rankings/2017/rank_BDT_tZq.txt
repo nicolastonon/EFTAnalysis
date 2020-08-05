@@ -1,15 +1,8 @@
 ---  : Variable Ranking ---
 
-1 : maxDijetMass         : 1.228e-01
-2 : mHT                  : 1.178e-01
-3 : maxDijetDelR         : 9.531e-02
-4 : jPrimeAbsEta         : 9.212e-02
-5 : lAsymmetry           : 8.200e-02
-6 : Mass_3l              : 7.089e-02
-7 : maxDeepCSV           : 6.873e-02
-8 : delRljPrime          : 6.727e-02
-9 : mTW                  : 6.428e-02
-10 : maxDelPhiLL          : 5.595e-02
-11 : forwardJetAbsEta     : 5.577e-02
-12 : dEtaFwdJetClosestLep : 5.529e-02
-13 : dEtaFwdJetBJet       : 5.182e-02
+1 : Mass_3l      : 1.808e-01
+2 : jPrimeAbsEta : 1.801e-01
+3 : lAsymmetry   : 1.764e-01
+4 : mTW          : 1.664e-01
+5 : maxEtaJet    : 1.485e-01
+6 : mHT          : 1.478e-01

@@ -167,12 +167,6 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
-    #FIXME
-    # plt.xkcd() # XKCD-style plotting
-    # Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir)
-    # Plot_Input_Features(opts, x, y_process, PhysicalWeights_allClasses, list_features, weight_dir, False)
-    # exit(1)
-
     if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
@@ -255,8 +249,9 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
     NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
     '''
 
-
     if history is None: return
+
+    matplotlib.rc_file_defaults() #Restore matplotlib default settings
 
     # Plotting the loss with the number of iterations
     fig = plt.figure('loss')
@@ -997,10 +992,9 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
 
     if isControlNorm: useMostExtremeWCvaluesOnly = False #Can't have both options at the same time, because 'isControlNorm' corresponds to transformed inputs, so we can not condition upon the values of some features (the input WC values) to select events !
 
+    #NB: don't call plt functions here (mess with layout of subsequent plots...)
     list_features = np.array(list_features)
     sns.set(palette='coolwarm', font_scale=1.4) #Scale up label font size #NB : this also sets plotting options to seaborn's default
-    plt.tight_layout()
-    fig = plt.figure('input_features')
 
     #-- First, shuffle the input feature array (necessary for param. NN, since x array is ordered by theta values)
     shuf = np.arange(len(x))
@@ -1060,7 +1054,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
         print(colors.fg.lightgrey, "\nSaved input features plot as :", colors.reset, plotname)
 
     plt.savefig(plotname)
-    plt.close('input_features')
+    plt.close()
 
     #-- Pairplot -- Plot pairwise relationships in a dataset. #Too much data, not relevant
     # sns.pairplot(df, vars=["maxDijetDelR", "dEtaFwdJetBJet"], diag_kind="kde", hue='class')

@@ -732,7 +732,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
             targetClasses_allThetas_class = np.concatenate( (np.zeros(len(list_x_allClasses[iclass])), np.ones(len(list_x_allClasses[iclass]))) ) #0 <-> SM; 1 <-> ref. point
 
-        #-- parametrized NN
+        #-- Parametrized NN
         else:
 
             #-- Get the 'effective WC' values scaling each fit component

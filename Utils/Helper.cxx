@@ -29,10 +29,12 @@ using namespace std;
 //--------------------------------------------
 
 //Use stat function (from library sys/stat) to check if a file exists
-bool Check_File_Existence(const TString& name)
+bool Check_File_Existence(const TString& name, bool printError_missingFile)
 {
-  struct stat buffer;
-  return (stat (name.Data(), &buffer) == 0); //true if file exists
+    struct stat buffer;
+    bool found = (stat (name.Data(), &buffer) == 0); //true if file exists
+    if(!found && printError_missingFile) {cout<<endl<<BRED(BOLD(FWHT("ERROR : file "<<name<<" not found !")))<<endl<<endl;}
+    return found;
 }
 
 //Move file with bash command 'mv'
@@ -751,7 +753,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
         else if(!strcmp(argv[1],"tZq")) {region_choice = "tZq";}
         else if(!strcmp(argv[1],"ttZ")) {region_choice = "ttZ";}
-        else if(!strcmp(argv[1],"tWZ")) {region_choice = "tWZ";}
+        // else if(!strcmp(argv[1],"tWZ")) {region_choice = "tWZ";}
 
         else
         {
@@ -769,7 +771,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 		{
             if(!strcmp(argv[2],"tZq")) {region_choice = "tZq";}
             else if(!strcmp(argv[2],"ttZ")) {region_choice = "ttZ";}
-            else if(!strcmp(argv[2],"tWZ")) {region_choice = "tWZ";}
+            // else if(!strcmp(argv[2],"tWZ")) {region_choice = "tWZ";}
 
             else if(!strcmp(argv[2],"2016") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
             else if(!strcmp(argv[2],"2017") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
@@ -1093,9 +1095,20 @@ TString Get_Variable_Name(TString var)
 //Get var name corresponding to category
 TString Get_Category_Boolean_Name(TString region)
 {
-    if(region=="tZq") {return "is_tZq_3l_SR";}
-    else if(region=="ttZ") {return "is_ttZ_3l_SR";}
-    else if(region=="tWZ") {return "is_tWZ_3l_SR";}
+    // if(region=="tZq") {return "is_tZq_3l_SR";}
+    // else if(region=="ttZ") {return "is_ttZ_3l_SR";}
+    // else if(region=="tWZ") {return "is_tWZ_3l_SR";}
+
+    if(region=="signal") {return "is_signal_SR";}
+    else if(region=="tZq") {return "is_tzq_SR";}
+    else if(region=="ttZ") {return "is_ttz_SR";}
+
+    else if(region=="Vg") {return "is_ttz_SR";}
+    else if(region=="zz") {return "is_ttz_SR";}
+    else if(region=="tX") {return "is_ttz_SR";}
+    else if(region=="tt") {return "is_ttz_SR";}
+    else if(region=="wz") {return "is_ttz_SR";}
+    else if(region=="dy") {return "is_ttz_SR";}
 
     return "";
 }
@@ -1284,7 +1297,7 @@ float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_ma
 }
 
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
-TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM)
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM, bool load_NN_info, int categorization_strategy) //FIXME
 {
     if(MVA_type != "BDT" && MVA_type != "NN") {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
     // if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<BOLD(FRED("ERROR: wrong [signal_process] argument !"))<<endl; return "";}
@@ -1297,9 +1310,19 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
     if(MVA_type == "BDT") {path_suffix = "BDT_" + signal_process + ".weights.xml";}
     else
     {
-        if(MVA_SM) {path_suffix = "SM/";}
-        else {path_suffix = "EFT/";}
-        path_suffix+= signal_process + "/model.pb";
+        if(categorization_strategy==0) {path_suffix = "tmp/";} //TEST dir.
+        else //SM or EFT
+        {
+            if(MVA_SM)
+            {
+                path_suffix = "SM/";
+                if(categorization_strategy==1) {path_suffix+= signal_process + "/";} //Read MVA-tZq or MVA-ttZ
+                else {path_suffix+= "Multiclass/";} //Read MVA_multiclass
+            }
+            else {path_suffix = "EFT/" + signal_process + "/";}
+        }
+        if(load_NN_info) {path_suffix+= "NN_info.txt";} //Read NN info file (input features, etc.)
+        else {path_suffix+= "model.pb";} //Load NN model
     }
 
     if(use_specificMVA_eachYear)
@@ -1323,6 +1346,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
         else {cout<<BOLD(FRED("ERROR: no MVA input file found !"))<<endl; return "";}
     }
 
+    // cout<<"fullpath "<<fullpath<<endl;
     return fullpath;
 }
 
@@ -1336,11 +1360,13 @@ TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, 
         //TRY 1 : look for Combine file
 		fullpath = "./outputs/fitDiagnostics_";
 		fullpath+= template_type + "_" + region + filename_suffix + ".root";
+
         cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
 		else
         {
             fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
+
             cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
             if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
             else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
@@ -1350,6 +1376,7 @@ TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, 
 	{
 		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
 		else {fullpath = "outputs/Templates_" + template_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
+
         cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
         else {cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found ! Can not plot any histogram !"))<<endl; return "";}
@@ -1357,3 +1384,21 @@ TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, 
 
     return fullpath;
 }
+
+//Ad-hoc fix: observe much larger SM yield for my private ttZ SMEFT samples w.r.t. central ttZ samples
+//This function compares the SM yields for both sample and returns the corresponding scale factor to correct for that 'by hand'
+/*
+float Get_SMyield_corrFactor_CentralVSPrivateSample(TString privSamplePath, TString centralSamplePath)
+{
+    TFile* f_priv = TFile::Open(privSamplePath, "READ");
+    TTree* t_priv = (TTree*) f_priv->Get("result");
+}
+
+//Get the SM yield from a given TTree (hard-coded branches)
+float Get_SMyield_From_TTree(TTree*& t)
+{
+    float SM_yield = -1.;
+
+    return SM_yield;
+}
+*/
