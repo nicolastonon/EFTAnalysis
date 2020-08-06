@@ -1,4 +1,4 @@
-Start of NN training :04-Aug-2020 (18:06:37)
+Start of NN training :05-Aug-2020 (18:00:46)
 
 OPTIONS
 ----------------- 
@@ -6,7 +6,7 @@ TTree --> result
 eventWeightName --> 
 strategy --> CARL
 splitTrainEventFrac --> 0.8
-nEpochs --> 150
+nEpochs --> 50
 nHiddenLayers --> 4
 nNeuronsAllHiddenLayers --> 100
 activInputLayer --> tanh
@@ -23,7 +23,7 @@ nEventsTot_test --> -1
 batchSizeClass --> 1000
 refPoint --> SM
 listOperatorsParam --> ['ctz', 'ctw']
-nPointsPerOperator --> 30
+nPointsPerOperator --> 20
 minWC --> -5
 maxWC --> 5
 nEventsPerPoint --> 3000
@@ -32,7 +32,7 @@ score_lossWeight --> 1
 regress_onLogr --> False
 targetVarIdx --> []
 comparVarIdx --> -1
-cuts --> is_ttz_SR
+cuts --> is_signal_SR
 makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> False
@@ -46,4 +46,3 @@ metrics --> binary_accuracy
 NN_strategy --> MVA_param
 ----------------- 
 
-End of NN training and evaluation :04-août-2020 (18:15:57)

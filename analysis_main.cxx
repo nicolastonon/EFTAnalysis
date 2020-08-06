@@ -17,17 +17,17 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
     bool use_systematics = false; //true <-> will compute/store systematics selected below
-    TString region = "tZq"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
+    TString region = "wz"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = true; //true <-> look for year-specific MVA weight files
 
-    bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
-        int categorization_strategy = 0; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
+    bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
+        int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
         bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
-        float cut_value_tZq = 0.6, cut_value_ttZ = 0.5; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
+        float cut_value_tZq = 0.5, cut_value_ttZ = 0.5; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
 
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -290,11 +290,11 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = false; //Plot input variables
+    bool draw_input_vars = true; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################
@@ -353,13 +353,13 @@ int main(int argc, char **argv)
     //  TEMPLATES CREATION
     //#############################################
 
-    if(create_templates) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, false, categorization_strategy, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
+    if(create_templates) {theAnalysis->Produce_Templates(template_name, false, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
 
     //#############################################
     //  CONTROL HISTOGRAMS
     //#############################################
 
-    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, use_specificMVA_eachYear, true, categorization_strategy, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
+    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, true, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
 
     //#############################################
     //  DRAW PLOTS

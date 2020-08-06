@@ -1103,12 +1103,12 @@ TString Get_Category_Boolean_Name(TString region)
     else if(region=="tZq") {return "is_tzq_SR";}
     else if(region=="ttZ") {return "is_ttz_SR";}
 
-    else if(region=="Vg") {return "is_ttz_SR";}
-    else if(region=="zz") {return "is_ttz_SR";}
-    else if(region=="tX") {return "is_ttz_SR";}
-    else if(region=="tt") {return "is_ttz_SR";}
-    else if(region=="wz") {return "is_ttz_SR";}
-    else if(region=="dy") {return "is_ttz_SR";}
+    else if(region=="Vg") {return "is_Vg_SR";}
+    else if(region=="zz") {return "is_zz_SR";}
+    else if(region=="tX") {return "is_tX_SR";}
+    else if(region=="tt") {return "is_tt_SR";}
+    else if(region=="wz") {return "is_wz_SR";}
+    else if(region=="dy") {return "is_dy_SR";}
 
     return "";
 }
@@ -1297,7 +1297,7 @@ float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_ma
 }
 
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
-TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM, bool load_NN_info, int categorization_strategy) //FIXME
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM, bool load_NN_info, int categorization_strategy)
 {
     if(MVA_type != "BDT" && MVA_type != "NN") {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
     // if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<BOLD(FRED("ERROR: wrong [signal_process] argument !"))<<endl; return "";}
@@ -1385,20 +1385,36 @@ TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, 
     return fullpath;
 }
 
-//Ad-hoc fix: observe much larger SM yield for my private ttZ SMEFT samples w.r.t. central ttZ samples
-//This function compares the SM yields for both sample and returns the corresponding scale factor to correct for that 'by hand'
-/*
-float Get_SMyield_corrFactor_CentralVSPrivateSample(TString privSamplePath, TString centralSamplePath)
+//Read a NN info file and fill values via argument
+bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes)
 {
-    TFile* f_priv = TFile::Open(privSamplePath, "READ");
-    TTree* t_priv = (TTree*) f_priv->Get("result");
-}
+    cout<<DIM("Retrieving MVA information from : "<<NNinfo_input_path<<"")<<endl;
+    ifstream file_in(NNinfo_input_path);
+    string line;
+    while(!file_in.eof())
+    {
+        getline(file_in, line);
+        // TString ts_line(line);
+        stringstream ss(line);
+        TString varname; float tmp1, tmp2; //Values tmp1 and tmp2 could be the mean and variance, or min and max, etc. depending on the rescaling
+        ss >> varname >> tmp1 >> tmp2;
+        if(varname != "") //Last line may be empty
+        {
+            if(tmp1 == -1 && tmp2 == -1) {NN_inputLayerName = varname;} //Name of input layer
+            else if(tmp1 == -2 && tmp2 == -2) {NN_outputLayerName = varname;} //Name of output layer
+            else if(tmp1 == -3 && tmp2 == -3) {NN_nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
+            else if(tmp1 == -4 && tmp2 == -4) {v_NN_nodeLabels.push_back(varname);} //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
+            else if(tmp1 != -5 && tmp2 != -5)
+            {
+                var_list_NN.push_back(varname);
+                std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
+            }
+        }
+    }
+    // cout<<DIM("-->  "<<NN_inputLayerName<<"")<<endl;
+    // cout<<DIM("-->  "<<NN_outputLayerName<<"")<<endl;
+    // cout<<DIM("-->  "<<NN_nNodes<<" nodes")<<endl;
+    if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl; return false;} //Need this info for NN
 
-//Get the SM yield from a given TTree (hard-coded branches)
-float Get_SMyield_From_TTree(TTree*& t)
-{
-    float SM_yield = -1.;
-
-    return SM_yield;
+    return true;
 }
-*/

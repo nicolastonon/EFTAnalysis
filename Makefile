@@ -33,11 +33,12 @@ LIB = myLib.so
 MY_ANALYSIS = analysis_main.exe #Name of executable file
 ROCS = ROCS/Compare_ROC_curves.exe
 YIELD = Yield_Table.exe
+SPLIT = input_ntuples/Create_Subsample_fromSample.exe
 
 # .PHONY : $(wildcard *.o)  #Force to always recompile object
 
 #Instructions
-all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD)
+all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
 
 #Create dictionnary (contains custom classes def.) and rootmap --> Necessary so that ROOT recognizes custom classes
 $(LIB): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
@@ -67,6 +68,14 @@ $(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o $(LIB)
 $(YIELD):	Utils/Yield_Table.o Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo "-- Creating executable ./$(YIELD) --"
+	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)
+	@echo "-- Done --"
+	@echo "###################################""#"
+	@echo ""
+
+$(SPLIT):	input_ntuples/Create_Subsample_fromSample.cxx
+	@echo "###################################""#"
+	@echo "-- Creating executable ./$(SPLIT) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)
 	@echo "-- Done --"
 	@echo "###################################""#"

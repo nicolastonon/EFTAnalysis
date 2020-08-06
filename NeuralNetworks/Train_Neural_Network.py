@@ -25,17 +25,17 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
+# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parametrized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parametrized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parametrized]
 
 #=== General training/architecture settings ===#
 "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nEpochs": 150, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 
 "nHiddenLayers": 4, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
@@ -44,7 +44,7 @@ optsTrain = {
 "activHiddenLayers": 'lrelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence
@@ -77,8 +77,8 @@ optsTrain = {
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 # "cuts": "is_signal_SR",
 # "cuts": "is_tZq_3l_SR",
-# "cuts": "is_tzq_SR",
-"cuts": "is_ttz_SR",
+"cuts": "is_tzq_SR",
+# "cuts": "is_ttz_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== OTHERS ===#
@@ -98,18 +98,18 @@ _list_lumiYears.append("2017")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-# _list_processClasses.append(["tZq"])
+_list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
-_list_processClasses.append(["PrivMC_ttZ"])
+# _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"])
-# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
+_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["tZq", "ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "tWZ", "WZ", "ZZ4l", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttbar_Alessia"])
@@ -117,14 +117,14 @@ _list_processClasses.append(["PrivMC_ttZ"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-# _list_labels.append("tZq")
+_list_labels.append("tZq")
 # _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-_list_labels.append("PrivMC_ttZ")
+# _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_top19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("SM")
-# _list_labels.append("Backgrounds")
+_list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
 
 # //--------------------------------------------
@@ -170,7 +170,7 @@ _list_features.append("dR_jprimeClosestLep")
 _list_features.append("dR_tClosestJet")
 _list_features.append("dR_bW") #!
 
-# '''
+'''
 _list_features.append("dR_tjprime")
 _list_features.append("dR_bjprime") #!
 _list_features.append("dR_lWjprime") #!
@@ -178,7 +178,7 @@ _list_features.append("dR_Zjprime") #!
 _list_features.append("maxDiJet_M") #!
 _list_features.append("dEta_bjprime") #!
 _list_features.append("dEta_lWjprime") #!
-# '''
+'''
 
 # _list_features.append("recoLepTop_M")
 # _list_features.append("TopZsystem_Pt")

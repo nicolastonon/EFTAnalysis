@@ -125,8 +125,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
 TString Get_TemplateFile_InputPath(bool, TString, TString, TString, TString, bool, TString);
-// float Get_SMyield_corrFactor_CentralVSPrivateSample(TString, TString);
-// float Get_SMyield_From_TTree(TTree*&);
+bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&);
 //--------------------------------------------
 
 //--------------------------------------------

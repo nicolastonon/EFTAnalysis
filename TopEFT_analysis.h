@@ -72,19 +72,19 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
 	void Train_BDT(TString); //Train BDT
-    void Produce_Templates(TString, bool, bool, int, bool, bool, float, float, bool); //Produce templates
+    void Produce_Templates(TString, bool, bool, bool, float, float, bool); //Produce templates
     void Draw_Templates(bool, TString, TString="", bool=true, bool=false); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void MergeSplit_Templates(TString, vector<TString>, TString="", TString = "",bool=true);
 
-    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool);
+    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="");
 
 //--- MEMBERS
 	bool stop_program;
@@ -124,6 +124,8 @@ class TopEFT_analysis
     TString classifier_name;
     TString NN_strategy;
     bool make_SMvsEFT_templates_plots; //When making/plotting templates only: false <-> consider SM vs SM templates; true <-> consider SM vs EFT templates (--> different input/output files)
+    int categorization_strategy; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
+    bool use_specificMVA_eachYear; //true <-> look for year-specific MVA weight files
 
     //-- Default NN
     TString NN_inputLayerName, NN_outputLayerName; int NN_nNodes = 1; //NN model params
