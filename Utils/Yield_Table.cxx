@@ -14,10 +14,10 @@ using namespace std;
 
 void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TString category, TString signal, TString lumi, bool group_samples_together, bool remove_totalSF, TString channel)
 {
-    cout<<endl<<YELBKG("                          ")<<endl<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
 	cout<<FYEL("--- Will count the yields for each sample ---")<<endl;
 	cout<<"(category : "<<category<<" / lumi : "<<lumi<<" / channel : "<<channel<<")"<<endl;
-    cout<<endl<<YELBKG("                          ")<<endl<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
 
     mkdir("./outputs/", 0777);
     mkdir("./outputs/yields", 0777);
@@ -467,9 +467,9 @@ int main(int argc, char **argv)
     //-- Default args (can be over-riden via command line args)
     TString signal = "tZq";
     // TString category = "is_tzq_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     // TString category = "is_tZq_3l_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    // TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
     bool group_samples_together = true; //true <-> group similar samples together

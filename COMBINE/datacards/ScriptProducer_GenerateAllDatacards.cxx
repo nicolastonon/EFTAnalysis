@@ -111,13 +111,13 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 	ofstream file_out("makeDatacardsForTemplateFit.sh"); //output script
 
 	TString dir = "./datacards_TemplateFit/";
-	// file_out <<"mkdir "<<dir<<endl<<endl;
 
     int nbins = -1; //If 'mode_histoBins=1', will read histogram binning in rootfile and create 1 datacard per histo bin
 
 //--------------------------------------------
 //--- First loop over years/regions/templates
 //===> Commands to produce single datacards
+
     for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
     {
         for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
@@ -125,21 +125,25 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             // cout<<"v_regions[iregion] "<<v_regions[iregion]<<endl;
 
     		//Need to add "CR" prefix for CRs
-    		TString region_tmp = v_regions[iregion];
-    		if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
+    		// TString region_tmp = v_regions[iregion];
+    		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
+            TString region_tmp = "";
 
             for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
             {
-                TString var = v_templates[itemplate] + "_" + region_tmp;
+                // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
+
+                TString var = v_templates[itemplate] + "_" + v_regions[iregion];
+                if(v_regions[iregion] == "CR" && v_templates[itemplate] == "NN_EFT") {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
     			//Make subdir for single datacards
     			file_out <<"mkdir "<<dir<<endl<<endl;
-                // file_out <<"mkdir "<<dir+"/"+region_tmp<<endl<<endl;
                 file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
     		    // TString file_histos = "../templates/Combine_Input.root";
                 // TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
-                TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
+                // TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
+                TString tmp = v_templates[itemplate];
                 TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //Path to write into datacard
 
     			cout<<endl<<FYEL("---> Will use filepath : "<<file_histos<<"")<<endl<<endl;
@@ -201,7 +205,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
     	    {
-                TString var = v_templates[itemplate] + "_" + region_tmp;
+                TString var = v_templates[itemplate] + "_" + v_regions[iregion];
+                if(v_regions[iregion] == "CR" && v_templates[itemplate]== "NN_EFT") {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
     			{
@@ -376,8 +381,9 @@ int main()
 // Can set options here
 //--------------------------------------------
     vector<TString> v_templates; //'NN', 'BDT', ...
+    // v_templates.push_back("NN_EFT");
+    v_templates.push_back("NN_SM");
     // v_templates.push_back("categ");
-    v_templates.push_back("NN");
     // v_templates.push_back("NN0");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
@@ -389,8 +395,9 @@ int main()
 
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
     // v_regions.push_back("SR");
-    v_regions.push_back("tZq");
-    v_regions.push_back("ttZ");
+    v_regions.push_back("SRtZq");
+    v_regions.push_back("SRttZ");
+    v_regions.push_back("CR");
 
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 

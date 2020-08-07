@@ -422,18 +422,18 @@ int main()
     vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
     if(signal == "efttzq") //Signal : tZq
     {
-        v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "eftttz") //Signal : tZq
     {
-        v_samples.push_back("PrivMC_ttZ_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "eft") //Signals : tZq+ttZ
     {
-        v_samples.push_back("PrivMC_tZq_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("PrivMC_ttZ_training"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
     }
     else if(signal == "0") //Signals : tZq+ttZ
     {
@@ -452,16 +452,17 @@ int main()
     }
     else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
-    // v_samples.push_back("ttW"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-    // v_samples.push_back("ttH"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-    // v_samples.push_back("Rares"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
-
-    v_samples.push_back("ttX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("VV"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("DY"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    // v_samples.push_back("TTbar"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("TTbar_DiLep"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    v_samples.push_back("Xg"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+
+    // v_samples.push_back("ttX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    // v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    // v_samples.push_back("VV"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    // v_samples.push_back("DY"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
+    // v_samples.push_back("TTbar_DiLep"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
 
 
 

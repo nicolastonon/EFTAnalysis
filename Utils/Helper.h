@@ -18,6 +18,7 @@
 #define KBGRN  "\e[42m"
 #define KBYEL  "\e[43m"
 #define KBBLU  "\e[44m"
+#define KBCYN  "\e[46m"
 #define FRED(x) KRED x RST
 #define FGRN(x) KGRN x RST
 #define FYEL(x) KYEL x RST
@@ -32,6 +33,7 @@
 #define BGRN(x) KBGRN x RST
 #define BYEL(x) KBYEL x RST
 #define BBLU(x) KBBLU x RST
+#define BCYN(x) KBCYN x RST
 #define BOLD(x) "\e[1m" x RST
 #define ITAL(x) "\e[3m" x RST
 #define UNDL(x) "\e[4m" x RST
@@ -47,8 +49,6 @@
 #define SALMON  "\e[38;2;240;143;104m"
 #define FTURQUOISE(x) TURQUOISE x RST
 #define FSALMON(x) SALMON x RST
-#define YELBKG(x) "\e[43m" x RST
-#define CYANBKG(x) "\e[46m" x RST
 
 #include <sstream>
 #include <fstream>
@@ -124,7 +124,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 // template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
-TString Get_TemplateFile_InputPath(bool, TString, TString, TString, TString, bool, TString);
+TString Get_HistoFile_InputPath(bool, TString, TString, TString, TString, bool, TString, bool, int);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&);
 //--------------------------------------------
 
@@ -184,7 +184,7 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
         // TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
         TString outname_tmp = "";
 
-        if(!ibin) //ibin=0 --> Store entire histo content as single bin, to make counting experiment
+        if(!ibin) //ibin=0 --> Store entire histo content as single bin --> counting experiment
         {
             Double_t integral=0, error=0;
             integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);

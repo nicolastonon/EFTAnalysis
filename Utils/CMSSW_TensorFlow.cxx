@@ -74,7 +74,6 @@ namespace tensorflow
     Status status;
 
     // create a new, empty session
-    //FIXME error here
     Session* session = nullptr;
     status = NewSession(sessionOptions, &session);
     if(!status.ok())

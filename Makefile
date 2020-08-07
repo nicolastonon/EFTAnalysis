@@ -33,7 +33,7 @@ LIB = myLib.so
 MY_ANALYSIS = analysis_main.exe #Name of executable file
 ROCS = ROCS/Compare_ROC_curves.exe
 YIELD = Yield_Table.exe
-SPLIT = input_ntuples/Create_Subsample_fromSample.exe
+SPLIT = input_ntuples/Split_FullSamples.exe
 
 # .PHONY : $(wildcard *.o)  #Force to always recompile object
 
@@ -73,7 +73,7 @@ $(YIELD):	Utils/Yield_Table.o Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo ""
 
-$(SPLIT):	input_ntuples/Create_Subsample_fromSample.cxx
+$(SPLIT):	input_ntuples/Split_FullSamples.cxx
 	@echo "###################################""#"
 	@echo "-- Creating executable ./$(SPLIT) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)

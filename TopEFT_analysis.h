@@ -77,14 +77,14 @@ class TopEFT_analysis
 
 //--- METHODS
 	void Train_BDT(TString); //Train BDT
-    void Produce_Templates(TString, bool, bool, bool, float, float, bool); //Produce templates
+    void Produce_Templates(TString, bool, bool, bool, float, float, bool, bool); //Produce templates
     void Draw_Templates(bool, TString, TString="", bool=true, bool=false); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void MergeSplit_Templates(TString, vector<TString>, TString="", TString = "",bool=true);
 
-    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="");
+    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false);
 
 //--- MEMBERS
 	bool stop_program;
@@ -139,11 +139,13 @@ class TopEFT_analysis
     vector<TString> v_NN2_nodeLabels; //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
     std::vector<TString> var_list_NN2; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     int NN2_iMaxNode; //Index of the multiclass DNN node for which a given event has its max value
+    std::vector<int> v_varIndices_inMVA1; //If we read 2 MVAs at once, store indices of MVA1 variables which are also used by MVA2 --> Get values from MVA1 floats (can set address only once, not twice)
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category
 	TString signal_process;
     TString dir_ntuples; //Path to base dir. containing Ntuples
+    TString dir_ntuples_SR; //Path to dir. containing split Ntuples containing only SR events
     TString t_name;
 	TString plot_extension;
     vector<TString> v_lumiYears;
@@ -169,7 +171,8 @@ class TopEFT_analysis
     //-- For parametrized NN
     bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
     TString operator_scan1, operator_scan2; //First and second EFT operators to scan
-    int idx_operator_scan1, idx_operator_scan2;
+    int idx1_operator_scan1, idx1_operator_scan2;
+    int idx2_operator_scan1, idx2_operator_scan2;
     vector<float> v_WCs_operator_scan1, v_WCs_operator_scan2; //Grid points for first and second scanned EFT operators
 };
 

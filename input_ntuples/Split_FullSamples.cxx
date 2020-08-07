@@ -1,21 +1,51 @@
-/* BASH COLORS */
-#define RST   "[0m"
-#define KRED  "[31m"
-#define KGRN  "[32m"
-#define KYEL  "[33m"
-#define KBLU  "[34m"
-#define KMAG  "[35m"
-#define KCYN  "[36m"
-#define KWHT  "[37m"
+/* BASH CUSTOM */
+#define RST   "\e[0m"
+#define KBLK  "\e[30m"
+#define KRED  "\e[31m"
+#define KGRN  "\e[32m"
+#define KYEL  "\e[33m"
+#define KBLU  "\e[34m"
+#define KMAG  "\e[35m"
+#define KCYN  "\e[36m"
+#define KGRAY  "\e[37m"
+#define KWHT  "\e[97m"
+#define KLRED  "\e[91m"
+#define KLBLU  "\e[94m"
+#define KBRED  "\e[41m"
+#define KBGRN  "\e[42m"
+#define KBYEL  "\e[43m"
+#define KBBLU  "\e[44m"
+#define KBCYN  "\e[46m"
 #define FRED(x) KRED x RST
 #define FGRN(x) KGRN x RST
 #define FYEL(x) KYEL x RST
 #define FBLU(x) KBLU x RST
 #define FMAG(x) KMAG x RST
 #define FCYN(x) KCYN x RST
+#define FGRAY(x) KGRAY x RST
 #define FWHT(x) KWHT x RST
-#define BOLD(x) "[1m" x RST
-#define UNDL(x) "[4m" x RST
+#define FLRED(x) KLRED x RST
+#define FLBLU(x) KLBLU x RST
+#define BRED(x) KBRED x RST
+#define BGRN(x) KBGRN x RST
+#define BYEL(x) KBYEL x RST
+#define BBLU(x) KBBLU x RST
+#define BCYN(x) KBCYN x RST
+#define BOLD(x) "\e[1m" x RST
+#define ITAL(x) "\e[3m" x RST
+#define UNDL(x) "\e[4m" x RST
+#define STRIKE(x) "\e[9m" x RST
+#define DIM(x) "\e[2m" x RST
+#define DOUBLEUNDERLINE(x) "\e[21m" x RST
+#define CURLYUNDERLINE(x) "\e[4:3m" x RST
+#define BLINK(x) "\e[5m" x RST
+#define REVERSE(x) "\e[7m" x RST
+#define INVISIBLE(x) "\e[8m" x RST
+#define OVERLINE(x) "\e[53m" x RST
+#define TURQUOISE  "\e[38;5;42m"
+#define SALMON  "\e[38;2;240;143;104m"
+#define FTURQUOISE(x) TURQUOISE x RST
+#define FSALMON(x) SALMON x RST
 
 #include <TROOT.h>
 #include <TChain.h>
@@ -143,7 +173,7 @@ Create new subsample based on full sample, copying only events satisfying one se
  */
 void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name, TString selection, TString sample, TString open_mode, vector<TString> v_TTrees)
 {
-    cout<<endl<<BOLD(FYEL("##################################"))<<endl;
+    cout<<endl<<BYEL("                                  ")<<endl;
     cout<<FYEL("--- WILL EXTRACT SUBSET OF EVENTS SATISFYING '"<<selection<<"'")<<endl;
     cout<<FYEL("FROM ["<<fullsample_name<<"]")<<endl;
     cout<<FYEL("--> TO ["<<newsample_name<<"] ---")<<endl;
@@ -186,7 +216,7 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
     f_data->Close();
     f_new->Close();
 
-    cout<<BOLD(FYEL("##################################"))<<endl<<endl;
+    cout<<BYEL("                                  ")<<endl<<endl;
 
     return;
 }
@@ -271,7 +301,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
 
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
-        TString full_dirname = prefix + v_years[iyear] + "/SR";
+        TString full_dirname = prefix + "SR/" + v_years[iyear];
         mkdir(full_dirname.Data(), 0777);
 
         for(int isel=0; isel<v_sel.size(); isel++)
@@ -285,7 +315,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
     			TString dir = Get_Directory(v_sel[isel], v_samples[isample], analysis_type);
     			if(dir == "") {continue;}
 
-    			TString outfile_path = prefix + v_years[iyear] + dir + "/" + v_samples[isample] + ".root";
+    			TString outfile_path = prefix + dir + "/" + v_years[iyear] + v_samples[isample] + ".root";
 
                 // cout<<"outfile_path = "<<outfile_path<<endl;
 
@@ -293,7 +323,8 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
 
                 TString open_mode = "RECREATE";
             	Create_Subsample_fromSample(filepath, outfile_path, selection, v_samples[isample], open_mode, v_TTrees);
-            	Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample], analysis_type);
+            	if(v_samples[isample].Contains("PrivMC")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample], analysis_type);}
+
             } //sample loop
     	} //selections loop
     } //year loop
@@ -358,36 +389,36 @@ int main(int argc, char **argv)
 
     //--- Sample list
     vector<TString> v_samples;
-	// v_samples.push_back("DATA");
-    // v_samples.push_back("PrivMC_tZq");
-    // v_samples.push_back("PrivMC_ttZ");
-    // v_samples.push_back("tZq");
-    // v_samples.push_back("ttZ");
-    // v_samples.push_back("tWZ");
-	// v_samples.push_back("tHq");
-    // v_samples.push_back("tHW");
-    // v_samples.push_back("ttH");
-    // v_samples.push_back("ttW");
-    // v_samples.push_back("ttZZ");
-    // v_samples.push_back("ttWW");
-    // v_samples.push_back("ttWZ");
-    // v_samples.push_back("ttZH");
-    // v_samples.push_back("ttWH");
-    // v_samples.push_back("tttt");
-    // v_samples.push_back("ttHH");
-    // v_samples.push_back("ZZ4l");
-    // v_samples.push_back("ggToZZTo4l");
-    // v_samples.push_back("ZZZ");
-    // v_samples.push_back("WZZ");
-    // v_samples.push_back("WWW");
-    // v_samples.push_back("WWZ");
-    // v_samples.push_back("WZ");
-	// v_samples.push_back("TTGamma_Dilep");
-	// v_samples.push_back("tGJets");
-	// v_samples.push_back("WGToLNuG");
-	// v_samples.push_back("ZGToLLG_01J");
+	v_samples.push_back("DATA");
+    v_samples.push_back("PrivMC_tZq");
+    v_samples.push_back("PrivMC_ttZ");
+    v_samples.push_back("tZq");
+    v_samples.push_back("ttZ");
+    v_samples.push_back("tWZ");
+	v_samples.push_back("tHq");
+    v_samples.push_back("tHW");
+    v_samples.push_back("ttH");
+    v_samples.push_back("ttW");
+    v_samples.push_back("ttZZ");
+    v_samples.push_back("ttWW");
+    v_samples.push_back("ttWZ");
+    v_samples.push_back("ttZH");
+    v_samples.push_back("ttWH");
+    v_samples.push_back("tttt");
+    v_samples.push_back("ttHH");
+    v_samples.push_back("ZZ4l");
+    v_samples.push_back("ggToZZTo4l");
+    v_samples.push_back("ZZZ");
+    v_samples.push_back("WZZ");
+    v_samples.push_back("WWW");
+    v_samples.push_back("WWZ");
+    v_samples.push_back("WZ");
+	v_samples.push_back("TTGamma_Dilep");
+	v_samples.push_back("tGJets");
+	v_samples.push_back("WGToLNuG");
+	v_samples.push_back("ZGToLLG_01J");
 	v_samples.push_back("DY");
-    // v_samples.push_back("TTbar_DiLep");
+    v_samples.push_back("TTbar_DiLep");
 
 
  //  ####  ###### #      ######  ####  ##### #  ####  #    #  ####
@@ -411,9 +442,9 @@ int main(int argc, char **argv)
 
     //--- Define the data-taking years
     vector<TString> v_years;
-    // v_years.push_back("2016");
-    v_years.push_back("2017");
-    // v_years.push_back("2018");
+    v_years.push_back("2016");
+    // v_years.push_back("2017");
+    v_years.push_back("2018");
 
 
  // ###### #    # #    #  ####      ####    ##   #      #

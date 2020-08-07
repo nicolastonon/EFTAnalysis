@@ -757,9 +757,9 @@ void Superimpose_ROC_Curves(vector<TGraph*> v_graph, vector<TString> v_label, ve
  */
 void Make_Plot(vector<TString> v_filepath, vector<TString> v_Filelabel, vector<TString> v_isTMVA_file, vector<bool> v_isTrainSample, TString region, vector<TString> v_processes, bool superimpose_allNodes_DNN, TString lumiYear, TString cuts="1")
 {
-    cout<<endl<<YELBKG("                          ")<<endl<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
 	cout<<FYEL("--- Will superimpose all ROC curves on plot ---")<<endl;
-	cout<<endl<<YELBKG("                          ")<<endl<<endl;
+	cout<<endl<<BYEL("                          ")<<endl<<endl;
 
     vector<TGraph*> v_graph;
 

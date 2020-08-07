@@ -1115,7 +1115,7 @@ TString Get_Category_Boolean_Name(TString region)
 
 //Computes total nof entries which will be processed by the Produce_Templates() function, so that the Timebar is correct
 //NB1 : don't account for nof syst weights, since they are computed all at once when reading an event
-//NB2 : this returns the nof entries which will get read, not processed (else, should take cuts into account, etc.)
+//Obsolete -- NB2 : this returns the nof entries which will get read, not processed (else, should take cuts into account, etc.)
 float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TString> v_samples, vector<TString> v_systTrees, vector<TString> v_cut_name, vector<TString> v_cut_def, vector<TString> v_lumiYears, bool makeHisto_inputVars, bool noSysts_inputVars)
 {
     float total_nentries = 0;
@@ -1127,6 +1127,7 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TStrin
 
     //--- Define the cut chain to apply to events
     TString cuts_chain = "";
+    /*
     for(int ivar=0; ivar<v_cut_name.size(); ivar++)
     {
         if(v_cut_def[ivar] != "")
@@ -1148,7 +1149,7 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TStrin
                 cuts_chain+= v_cut_name[ivar] + Break_Cuts_In_Two(v_cut_def[ivar]).second;
             }
         }
-    }
+    }*/
 
     for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
     {
@@ -1297,7 +1298,7 @@ float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_ma
 }
 
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
-TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_SM, bool load_NN_info, int categorization_strategy)
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy)
 {
     if(MVA_type != "BDT" && MVA_type != "NN") {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
     // if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<BOLD(FRED("ERROR: wrong [signal_process] argument !"))<<endl; return "";}
@@ -1313,13 +1314,13 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
         if(categorization_strategy==0) {path_suffix = "tmp/";} //TEST dir.
         else //SM or EFT
         {
-            if(MVA_SM)
+            if(!MVA_EFT) //SM vs SM
             {
                 path_suffix = "SM/";
                 if(categorization_strategy==1) {path_suffix+= signal_process + "/";} //Read MVA-tZq or MVA-ttZ
                 else {path_suffix+= "Multiclass/";} //Read MVA_multiclass
             }
-            else {path_suffix = "EFT/" + signal_process + "/";}
+            else {path_suffix = "EFT/" + signal_process + "/";} //SM vs EFT
         }
         if(load_NN_info) {path_suffix+= "NN_info.txt";} //Read NN info file (input features, etc.)
         else {path_suffix+= "model.pb";} //Load NN model
@@ -1351,7 +1352,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy)
 {
     TString fullpath = ""; //Full input path
 
@@ -1374,8 +1375,11 @@ TString Get_TemplateFile_InputPath(bool is_templateFile, TString template_type, 
     }
 	else //Reading my own file
 	{
+        TString MVA_type = "";
+        if(is_templateFile && categorization_strategy>0) {MVA_type = "_";  MVA_type+=(MVA_EFT? "EFT":"SM");}
+
 		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
-		else {fullpath = "outputs/Templates_" + template_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
+		else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
 
         cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}

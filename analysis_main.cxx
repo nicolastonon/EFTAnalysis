@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
     bool use_systematics = false; //true <-> will compute/store systematics selected below
-    TString region = "wz"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
+    TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
 
     //-- M V A    S T R A T E G Y --
@@ -26,10 +26,11 @@ int main(int argc, char **argv)
 
     bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
-        bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
-        float cut_value_tZq = 0.5, cut_value_ttZ = 0.5; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
-        bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
+        float cut_value_tZq = 0.8, cut_value_ttZ = 0.5; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
+        bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
+        bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
+        bool plot_onlyMVACutEvents = true; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
 
     bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
@@ -126,8 +127,8 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
-    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
 
     //Signals (central samples)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
@@ -282,7 +283,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -290,11 +291,11 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -353,13 +354,13 @@ int main(int argc, char **argv)
     //  TEMPLATES CREATION
     //#############################################
 
-    if(create_templates) {theAnalysis->Produce_Templates(template_name, false, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
+    if(create_templates) {theAnalysis->Produce_Templates(template_name, false, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut, also_applyCut_onMaxNodeValue);}
 
     //#############################################
     //  CONTROL HISTOGRAMS
     //#############################################
 
-    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, true, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut);}
+    if(create_inputVar_histograms) {theAnalysis->Produce_Templates(template_name, true, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, cut_value_tZq, cut_value_ttZ, keep_aboveCut, also_applyCut_onMaxNodeValue);}
 
     //#############################################
     //  DRAW PLOTS
