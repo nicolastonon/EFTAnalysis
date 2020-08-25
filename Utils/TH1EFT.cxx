@@ -161,7 +161,7 @@ void TH1EFT::Scale(WCPoint wc_pt)
 void TH1EFT::Scale(string wgt_name)
 {
     WCPoint wc_pt(wgt_name, 1.); //NB: weight does not matter here
-    
+
     return TH1EFT::Scale(wc_pt);
 }
 
@@ -206,7 +206,13 @@ bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
             if(kv.first == names[i]) {found = true;}
         }
 
-        if(!found) {cout<<endl<<"ERROR ! Operator ["<<kv.first<<"] not found in the weight parameterization..."<<endl<<endl; return false;}
+        if(!found)
+        {
+            cout<<endl<<"ERROR ! Operator ["<<kv.first<<"] not found in the weight parameterization... Available operators are:"<<endl;
+            for(int i=0; i < names.size(); i++) {cout<<names[i]<<endl;}
+            cout<<endl;
+            return false;
+        }
     }
 
     return true;

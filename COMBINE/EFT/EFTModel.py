@@ -60,7 +60,7 @@ class EFTModel(PhysicsModel):
 
         # Option specified when creating workspace, e.g.: '... EFTModel:eftmodel --PO fits=./xxx.npy'
         for option, value in [x.split('=') for x in options]:
-            if option == 'fits': # .npy fit file created with FitConversionEFT.py
+            if option == 'fits': # .npy fit file created with DumpEFTParametrization.py
                 self.fits = value
             elif option == 'wcs': # Override to fit only a subset of WCs
                 wcs_override = value.split(',')

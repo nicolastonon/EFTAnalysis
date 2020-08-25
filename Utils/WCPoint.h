@@ -56,7 +56,6 @@ public:
             if(i+1 >= words.size()) {std::cout<<"Error : i > words.size() ! Full string : "<<_str<<std::endl; return;} //NT
             // this->setStrength(words.at(i), std::stod(words.at(i+1)));
 
-            //FIXME
             //-- Force WC names to lowercase, to avoid errors (MG sometimes sets reweight names to lowercase by default...)
             TString ts = words.at(i); ts.ToLower();
             this->setStrength((std::string) ts, std::stod(words.at(i+1)));

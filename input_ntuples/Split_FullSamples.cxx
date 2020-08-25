@@ -94,7 +94,6 @@
 #include <iomanip>
 
 #include <cassert>     //Can be used to terminate program if argument is not true.
-//Ex : assert(test > 0 && "Error message");
 #include <sys/stat.h> // to be able to use mkdir
 
 using namespace std;
@@ -140,7 +139,7 @@ TString Get_Directory(TString cat, TString sample, TString analysis_type)
     else if(cat.Contains("signal") ) {ts_cat = "SR";}
     else {return "";}
 
-	return ts_lep + "/" + ts_cat;
+	return ts_cat;
 }
 
 
@@ -301,7 +300,9 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
 
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
-        TString full_dirname = prefix + "SR/" + v_years[iyear];
+        TString full_dirname = prefix + "SR/";
+        mkdir(full_dirname.Data(), 0777);
+        full_dirname+= v_years[iyear];
         mkdir(full_dirname.Data(), 0777);
 
         for(int isel=0; isel<v_sel.size(); isel++)
@@ -315,7 +316,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
     			TString dir = Get_Directory(v_sel[isel], v_samples[isample], analysis_type);
     			if(dir == "") {continue;}
 
-    			TString outfile_path = prefix + dir + "/" + v_years[iyear] + v_samples[isample] + ".root";
+    			TString outfile_path = prefix + dir + "/" + v_years[iyear] + "/" + v_samples[isample] + ".root";
 
                 // cout<<"outfile_path = "<<outfile_path<<endl;
 
@@ -443,7 +444,7 @@ int main(int argc, char **argv)
     //--- Define the data-taking years
     vector<TString> v_years;
     v_years.push_back("2016");
-    // v_years.push_back("2017");
+    v_years.push_back("2017");
     v_years.push_back("2018");
 
 

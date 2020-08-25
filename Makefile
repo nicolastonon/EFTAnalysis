@@ -33,7 +33,7 @@ LIB = myLib.so
 MY_ANALYSIS = analysis_main.exe #Name of executable file
 ROCS = ROCS/Compare_ROC_curves.exe
 YIELD = Yield_Table.exe
-SPLIT = input_ntuples/Split_FullSamples.exe
+SPLIT = Split_FullSamples.exe
 
 # .PHONY : $(wildcard *.o)  #Force to always recompile object
 
@@ -41,7 +41,7 @@ SPLIT = input_ntuples/Split_FullSamples.exe
 all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
 
 #Create dictionnary (contains custom classes def.) and rootmap --> Necessary so that ROOT recognizes custom classes
-$(LIB): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
+$(LIB): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/TH1EFT.cxx Utils/LinkDef.h
 	@echo "-- Creating dictionnary $(DICT) --"
 	@rootcling -f $(DICT) -rml myLib.so -rmf myLib.rootmap -c -p Utils/TH1EFT.h Utils/LinkDef.h
 	@echo "-- Creating shared library $(LIB) --"

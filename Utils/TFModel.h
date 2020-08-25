@@ -27,10 +27,7 @@ public:
     std::vector<float> evaluate(std::vector<float>);
 
 private:
-    //NICOLAS -- CHANGED
-    // void *graphDef = nullptr;
-    // void *session = nullptr;
-
+    //-- CHANGED
     tensorflow::Session* session = nullptr;
     tensorflow::GraphDef* graphDef = nullptr;
 

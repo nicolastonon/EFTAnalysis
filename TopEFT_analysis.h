@@ -122,10 +122,10 @@ class TopEFT_analysis
 
     bool use_NeuralNetwork;
     TString classifier_name;
-    TString NN_strategy;
     bool make_SMvsEFT_templates_plots; //When making/plotting templates only: false <-> consider SM vs SM templates; true <-> consider SM vs EFT templates (--> different input/output files)
     int categorization_strategy; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
     bool use_specificMVA_eachYear; //true <-> look for year-specific MVA weight files
+    TString NN_strategy; //'MVA_SM' <-> SM vs SM classifier; 'MVA_EFT' <-> fixed-point SM vs EFT classifier; 'MVA_param' <-> parametrized SM vs EFT classifier
 
     //-- Default NN
     TString NN_inputLayerName, NN_outputLayerName; int NN_nNodes = 1; //NN model params

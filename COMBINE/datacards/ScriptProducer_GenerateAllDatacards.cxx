@@ -134,7 +134,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
 
                 TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                if(v_regions[iregion] == "CR" && v_templates[itemplate] == "NN_EFT") {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
     			//Make subdir for single datacards
     			file_out <<"mkdir "<<dir<<endl<<endl;
@@ -145,7 +145,6 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 // TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
                 TString tmp = v_templates[itemplate];
                 TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //Path to write into datacard
-
     			cout<<endl<<FYEL("---> Will use filepath : "<<file_histos<<"")<<endl<<endl;
 
                 TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
@@ -206,7 +205,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
     	    {
                 TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                if(v_regions[iregion] == "CR" && v_templates[itemplate]== "NN_EFT") {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
     			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
     			{
@@ -381,10 +380,10 @@ int main()
 // Can set options here
 //--------------------------------------------
     vector<TString> v_templates; //'NN', 'BDT', ...
+    v_templates.push_back("NN_EFT1");
     // v_templates.push_back("NN_EFT");
-    v_templates.push_back("NN_SM");
+    // v_templates.push_back("NN_SM");
     // v_templates.push_back("categ");
-    // v_templates.push_back("NN0");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
     v_channel.push_back("all");

@@ -397,7 +397,7 @@ class EFTPlot(object):
         line_Y_2sigmas.SetLineStyle(7)
 
         #-- Legend
-        leg = ROOT.TLegend(0.45,0.70,0.75,0.87)
+        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
         leg.AddEntry(graph, "Profiled log-likelihood", "L")
         if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
         if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")

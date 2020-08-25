@@ -8,7 +8,7 @@ TFModel::TFModel(const std::string &model_name, const unsigned _n_inputs,
     input_name(_input_name),
     output_name(_output_name)
 {
-    std::cout<<"Load tensorflow graph from "<<model_name<<std::endl<< std::endl;
+    std::cout<<"Load tensorflow graph from "<<model_name<<std::endl;
     graphDef = tensorflow::loadGraphDef(model_name);
 
     //-- could also call sub-functions directly
@@ -69,14 +69,16 @@ TFModel::~TFModel()
 {
     // std::cout << "~TFModel()"<<std::endl;
 
-    if(session != nullptr){
+    if(session != nullptr)
+    {
         // std::cout << "Close tensorflow session"<<std::endl;
-        tensorflow::Session* s = (tensorflow::Session*)session;
+        tensorflow::Session* s = (tensorflow::Session*) session;
         tensorflow::closeSession(s);
     }
 
-    if(graphDef != nullptr){
+    if(graphDef != nullptr)
+    {
         // std::cout << "Delete tensorflow graph"<<std::endl;
-        delete (tensorflow::GraphDef*)graphDef;
+        delete (tensorflow::GraphDef*) graphDef;
     }
 }

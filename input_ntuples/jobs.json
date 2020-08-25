@@ -1,0 +1,54 @@
+{
+    "analyze": [
+        "Analyzer3l",
+        "MCSamples",
+        "nicolas/output/Analyzer3l-V10-MCSamples-d20200824-t171943",
+        "V10"
+    ],
+    "jobs": {
+        "0": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_tllq_Fall17.root",
+            200,
+            172,
+            -1,
+            -1
+        ],
+        "1": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_ttll_Summer16.root",
+            100,
+            173,
+            -1,
+            -1
+        ],
+        "2": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_ttll_Fall17.root",
+            200,
+            173,
+            -1,
+            -1
+        ],
+        "3": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_ttll_Autumn18.root",
+            300,
+            173,
+            -1,
+            -1
+        ],
+        "4": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_tllq_Autumn18.root",
+            300,
+            172,
+            -1,
+            -1
+        ],
+        "5": [
+            "/nfs/dust/cms/group/topcmsdesy/ntuple_topz/TAG_TOPZ_V10/PrivMC_tllq_Summer16.root",
+            100,
+            172,
+            -1,
+            -1
+        ]
+    },
+    "name": "Analyzer3l_MCSamples",
+    "module": "nicolas"
+}

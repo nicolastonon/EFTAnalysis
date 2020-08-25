@@ -125,7 +125,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, TString, bool, TString, bool, int);
-bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&);
+bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, TString* NN_strategy=NULL);
 //--------------------------------------------
 
 //--------------------------------------------

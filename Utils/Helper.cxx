@@ -1103,12 +1103,12 @@ TString Get_Category_Boolean_Name(TString region)
     else if(region=="tZq") {return "is_tzq_SR";}
     else if(region=="ttZ") {return "is_ttz_SR";}
 
-    else if(region=="Vg") {return "is_Vg_SR";}
-    else if(region=="zz") {return "is_zz_SR";}
+    else if(region=="VG") {return "is_Vg_SR";}
+    else if(region=="ZZ") {return "is_zz_SR";}
     else if(region=="tX") {return "is_tX_SR";}
     else if(region=="tt") {return "is_tt_SR";}
-    else if(region=="wz") {return "is_wz_SR";}
-    else if(region=="dy") {return "is_dy_SR";}
+    else if(region=="WZ") {return "is_wz_SR";}
+    else if(region=="DY") {return "is_dy_SR";}
 
     return "";
 }
@@ -1329,7 +1329,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
     if(use_specificMVA_eachYear)
     {
         fullpath = basepath + year + "/" + path_suffix;
-        cout<<DIM("Trying to open MVA file "<<fullpath<<"... ");
+        cout<<DIM("Trying to open MVA file "<<fullpath<<" ... ");
 
         if(!Check_File_Existence(fullpath)) //If did not find year-specific file, also try to look for full Run 2 file
         {
@@ -1342,7 +1342,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
     else
     {
         fullpath = basepath + "Run2/" + path_suffix;
-        cout<<DIM("Trying to open MVA file "<<fullpath<<"... ");
+        cout<<DIM("Trying to open MVA file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl;}
         else {cout<<BOLD(FRED("ERROR: no MVA input file found !"))<<endl; return "";}
     }
@@ -1362,13 +1362,13 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 		fullpath = "./outputs/fitDiagnostics_";
 		fullpath+= template_type + "_" + region + filename_suffix + ".root";
 
-        cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+        cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
 		else
         {
             fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
 
-            cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+            cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
             if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
             else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
         }
@@ -1376,12 +1376,17 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	else //Reading my own file
 	{
         TString MVA_type = "";
-        if(is_templateFile && categorization_strategy>0) {MVA_type = "_";  MVA_type+=(MVA_EFT? "EFT":"SM");}
+        if(is_templateFile && categorization_strategy>0)
+        {
+            MVA_type = "_";
+            if(MVA_EFT) {MVA_type+= "EFT" + Convert_Number_To_TString(categorization_strategy);}
+            else {MVA_type+= "SM";}
+        }
 
 		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
 		else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
 
-        cout<<DIM("Trying to open Template file "<<fullpath<<"... ");
+        cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
         else {cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found ! Can not plot any histogram !"))<<endl; return "";}
     }
@@ -1390,7 +1395,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 }
 
 //Read a NN info file and fill values via argument
-bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes)
+bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes, TString* NN_strategy)
 {
     cout<<DIM("Retrieving MVA information from : "<<NNinfo_input_path<<"")<<endl;
     ifstream file_in(NNinfo_input_path);
@@ -1408,7 +1413,8 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
             else if(tmp1 == -2 && tmp2 == -2) {NN_outputLayerName = varname;} //Name of output layer
             else if(tmp1 == -3 && tmp2 == -3) {NN_nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
             else if(tmp1 == -4 && tmp2 == -4) {v_NN_nodeLabels.push_back(varname);} //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
-            else if(tmp1 != -5 && tmp2 != -5)
+            else if(NN_strategy && tmp1 == -5 && tmp2 == -5) {*NN_strategy = varname;} //NB: pass this argument as a pointer instead of reference so it can have a default value --> Must deference first
+            else if(tmp1 != -5 && tmp2 != -5) //Input variables
             {
                 var_list_NN.push_back(varname);
                 std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);

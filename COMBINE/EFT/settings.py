@@ -20,8 +20,8 @@ opts = {
 "scan_wcs": ['ctz','ctw'], # Default pair of wcs for 2D scans
 "wcs_pairs": ['ctz','ctw'], #Pair of operators for 2D plots
 
-#"processes": ['PrivMC_tZq_training','PrivMC_ttZ_training'], #Names of signal processes
-"processes": ['PrivMC_tZq_training'],
+"processes": ['PrivMC_tZq','PrivMC_ttZ'], #Names of signal processes
+# "processes": ['PrivMC_tZq'],
 #"SM_mus": ['r_tzq','r_ttz'], #Names of SM signal strengths for processes of interest
 "SM_mus": ['r_tzq'],
 "SM_mu": 'r_tzq', #If want to float a single process
