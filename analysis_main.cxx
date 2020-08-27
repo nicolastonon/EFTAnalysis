@@ -22,29 +22,30 @@ int main(int argc, char **argv)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
-    bool use_specificMVA_eachYear = true; //true <-> look for year-specific MVA weight files
+    bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
     bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 1; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
         float cut_value_tZq = 0.7, cut_value_ttZ = 0.4; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
-        bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
-        bool plot_onlyMVACutEvents = true; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
 
-    bool scanOperators_paramNN = true; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+    bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
-        vector<float> v_WCs_operator_scan1 = {-4,-2,0,2,4}; //Grid points for first operator (required)
+        vector<float> v_WCs_operator_scan1 = {-4,-2, -1,0,1 ,2,4}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
+    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
     TString plot_extension = ".png"; //extension of plots
+    bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
+    bool plot_onlyMVACutEvents = true; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
+    bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parametrized NN, will make 1 plot per considered EFT point (if histograms are found)
 
 
 //-----------------------------------------------------------------------------------------
@@ -291,7 +292,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -369,13 +370,28 @@ int main(int argc, char **argv)
     //All channels
     if(draw_templates)
     {
-        theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file); //chosen channel
-
-        if(plotChannel == "") //By default, also want to plot templates in subchannels
+        //-- Make plots for *each EFT point* considered in EFT scan
+        if(plot_EFTscan_eachPoint && scanOperators_paramNN)
         {
-            for(int ichan=1; ichan<thechannellist.size(); ichan++)
+            float* ymax_fixed1 = new float; float* ymax_fixed2 = new float; bool store_ymax_fixed = true;
+            for(int ipt=0; ipt<v_WCs_operator_scan1.size(); ipt++)
             {
-                theAnalysis->Draw_Templates(false, thechannellist[ichan], template_name, prefit, use_combine_file);
+                theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file, operator1+"_"+v_WCs_operator_scan1[ipt],store_ymax_fixed, ymax_fixed1, ymax_fixed2); //chosen channel
+                store_ymax_fixed = false;
+            }
+            delete ymax_fixed1; ymax_fixed1 = NULL; delete ymax_fixed2; ymax_fixed2 = NULL;
+        }
+        //-- Default: make plots corresponding to selected user-options
+        else
+        {
+            theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file); //chosen channel
+
+            if(plotChannel == "") //By default, also want to plot templates in subchannels
+            {
+                for(int ichan=1; ichan<thechannellist.size(); ichan++)
+                {
+                    theAnalysis->Draw_Templates(false, thechannellist[ichan], template_name, prefit, use_combine_file);
+                }
             }
         }
     }

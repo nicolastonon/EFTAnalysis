@@ -272,6 +272,46 @@ TString Split_TString_Into_Keys(TString ts, TString delim)
     return ts;
 }
 
+/**
+ * Count the number of histograms found in a TFile
+ */
+int Count_nofHistos_inTFile(TFile* f)
+{
+    TKey* key = NULL;
+    Int_t total = 0;
+
+    TIter next((TList*) f->GetListOfKeys());
+    while(key = (TKey*)next())
+    {
+        TClass* cl = gROOT->GetClass(key->GetClassName());
+        if(cl->InheritsFrom("TH1"))
+        {
+            TH1* h = (TH1*) key->ReadObj();
+            total++;
+            // cout << "Histo found: " << h->GetName() << " - " << h->GetTitle() << endl;
+        }
+    }
+
+    // cout << "Found " << total << " histograms" << endl;
+    return total;
+}
+
+
+/**
+ * Overloaded function
+ */
+int Count_nofHistos_inTFile(TString fname)
+{
+    TFile *f = TFile::Open(fname, "READ"); //Open
+    if(!f || f->IsZombie()) {cout << "Unable to open " << fname << " for reading..." <<endl; return -1;}
+
+    int total = Count_nofHistos_inTFile(f); //Count
+
+    f->Close(); //Close
+
+    return total; //Return count
+}
+
 
 
 
@@ -1352,7 +1392,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool parametrized)
 {
     TString fullpath = ""; //Full input path
 
@@ -1379,7 +1419,11 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         if(is_templateFile && categorization_strategy>0)
         {
             MVA_type = "_";
-            if(MVA_EFT) {MVA_type+= "EFT" + Convert_Number_To_TString(categorization_strategy);}
+            if(MVA_EFT)
+            {
+                MVA_type+= "EFT" + Convert_Number_To_TString(categorization_strategy);
+                if(parametrized) {MVA_type+= "param";}
+            }
             else {MVA_type+= "SM";}
         }
 

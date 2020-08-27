@@ -78,7 +78,7 @@ class TopEFT_analysis
 //--- METHODS
 	void Train_BDT(TString); //Train BDT
     void Produce_Templates(TString, bool, bool, bool, float, float, bool, bool); //Produce templates
-    void Draw_Templates(bool, TString, TString="", bool=true, bool=false); //Draw templates or input variables
+    void Draw_Templates(bool, TString, TString="", bool=true, bool=false, TString="", bool=false, float* ymax_fixed1=NULL, float* ymax_fixed2=NULL); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments

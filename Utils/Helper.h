@@ -58,6 +58,7 @@
 #include <sys/stat.h> // to be able to check file existence
 #include <dirent.h> //list dir content
 
+#include "TROOT.h"
 #include "TStyle.h"
 #include "TCanvas.h"
 #include "TString.h"
@@ -93,6 +94,8 @@ double Compute_RangeScaled_Value(double, double, double, double, double);
 double Compute_StdDevScaled_Value(double, double, double);
 bool Get_Dir_Content(std::string, std::vector<TString>&);
 TString Split_TString_Into_Keys(TString, TString);
+int Count_nofHistos_inTFile(TString);
+int Count_nofHistos_inTFile(TFile*);
 
 //-- Basic analysis helper functions
 void Fill_Last_Bin_TH1F(TH1F*, double); //Increment last bin of histo by specified weight
@@ -124,7 +127,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 // template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
-TString Get_HistoFile_InputPath(bool, TString, TString, TString, TString, bool, TString, bool, int);
+TString Get_HistoFile_InputPath(bool, TString, TString, TString, TString, bool, TString, bool, int, bool=false);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, TString* NN_strategy=NULL);
 //--------------------------------------------
 

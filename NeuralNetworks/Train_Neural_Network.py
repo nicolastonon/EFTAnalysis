@@ -25,10 +25,10 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parametrized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parametrized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parametrized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parametrized]
@@ -75,9 +75,9 @@ optsTrain = {
 
 #=== Event preselection ===#
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
-# "cuts": "is_signal_SR",
+"cuts": "is_signal_SR",
 # "cuts": "is_tZq_3l_SR",
-"cuts": "is_tzq_SR",
+# "cuts": "is_tzq_SR",
 # "cuts": "is_ttz_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
@@ -92,24 +92,24 @@ optsTrain = {
 
 # -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
-# _list_lumiYears.append("2016")
+_list_lumiYears.append("2016")
 _list_lumiYears.append("2017")
-# _list_lumiYears.append("2018")
+_list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-_list_processClasses.append(["tZq"])
+# _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
-# _list_processClasses.append(["PrivMC_ttZ"])
+_list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"])
-_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
+# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["tZq", "ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "tWZ", "WZ", "ZZ4l", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttbar_Alessia"])
@@ -117,14 +117,14 @@ _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ",
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-_list_labels.append("tZq")
+# _list_labels.append("tZq")
 # _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_ttZ")
+_list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_top19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("SM")
-_list_labels.append("Backgrounds")
+# _list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
 
 # //--------------------------------------------
