@@ -1,4 +1,4 @@
-Start of NN training :05-Aug-2020 (17:34:41)
+Start of NN training :31-Aug-2020 (11:43:34)
 
 OPTIONS
 ----------------- 
@@ -6,18 +6,18 @@ TTree --> result
 eventWeightName --> 
 strategy --> classifier
 splitTrainEventFrac --> 0.8
-nEpochs --> 150
+nEpochs --> 100
 nHiddenLayers --> 4
 nNeuronsAllHiddenLayers --> 100
 activInputLayer --> tanh
 activHiddenLayers --> lrelu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.5
+dropoutRate --> 0.4
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
 learnRate --> 0.001
-maxEventsPerClass --> -1
+maxEventsPerClass --> 10000
 nEventsTot_train --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 1000
@@ -39,11 +39,11 @@ storeInTestDirectory --> False
 parametrizedNN --> False
 regress --> False
 nofOutputNodes --> 3
-maxEvents --> -1
+maxEvents --> 10000
 batchSize --> 1000
 loss --> categorical_crossentropy
 metrics --> categorical_accuracy
 NN_strategy --> MVA_SM
 ----------------- 
 
-End of NN training and evaluation :05-août-2020 (17:56:18)
+End of NN training and evaluation :31-août-2020 (11:44:14)

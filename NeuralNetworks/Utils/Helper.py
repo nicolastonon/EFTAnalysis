@@ -143,7 +143,6 @@ def Printout_Outputs_Layer(model, ilayer, xx):
 
 #Shuffles coherently the rows of N arrays of same length
 def unison_shuffled_copies(*arr):
-# def unison_shuffled_copies(arr):
     # print(len(arr))
     assert len(arr) > 1
     assert all(len(a) for a in arr)
@@ -303,9 +302,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 #-- Initialization
 
-    opts["parametrizedNN"] = False
+    opts["parameterizedNN"] = False
     opts["regress"] = False
-    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["parametrizedNN"] = True
+    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["parameterizedNN"] = True
     if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: opts["regress"] = True
 
     #Year selection
@@ -338,7 +337,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif opts["strategy"] is "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
     elif opts["strategy"] is "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
 
-    if opts["parametrizedNN"] == True:
+    if opts["parameterizedNN"] == True:
         opts["maxEvents"] = opts["nEventsPerPoint"]
         opts["batchSize"] = opts["batchSizeEFT"]
     else:
@@ -389,7 +388,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.fg.red, 'ERROR : sizes of lists processClasses_list and labels_list are different...', colors.reset); exit(1)
 
     for procClass, label in zip(processClasses_list, labels_list):
-        if "PrivMC" in label and "_c" not in label and len(procClass) > 1: print(colors.fg.red, 'ERROR: process classes containing a private EFT sample can only include that single sample. Maybe the process class labels must be changed (following conventions, cf. Helper.py). \nNB: if you are trying to set up a parametrized NN which considers the combination of >1 physics processes, just add them independently to the lists (merged automatically) !', colors.reset); exit(1)
+        if "PrivMC" in label and "_c" not in label and len(procClass) > 1: print(colors.fg.red, 'ERROR: process classes containing a private EFT sample can only include that single sample. Maybe the process class labels must be changed (following conventions, cf. Helper.py). \nNB: if you are trying to set up a parameterized NN which considers the combination of >1 physics processes, just add them independently to the lists (merged automatically) !', colors.reset); exit(1)
 
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
@@ -406,7 +405,12 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
-    if (opts["parametrizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
+    opts["samplesType"] = ""
+    if onlyCentralSample: opts["samplesType"] = "onlyCentralSample"
+    elif centralVSpureEFT: opts["samplesType"] = "centralVSpureEFT"
+    elif onlySMEFT: opts["samplesType"] = "onlySMEFT"
+
+    if (opts["parameterizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
     # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
@@ -427,7 +431,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     #-- NN strategy (for easier interfacing with my analysis code)
     opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
     if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
-    elif opts["parametrizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
+    elif opts["parameterizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
+
+    if len(opts["splitTrainValTestData"]) is not 3 or (opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2]) != 1.:
+        print(colors.fg.red, 'Wrong option [splitTrainValTestData]', colors.reset); exit(1)
 
 # //--------------------------------------------
 #-- Define path-related variables
@@ -735,7 +742,7 @@ def AddMissingOperatorsToValPointsNames(opts, list_points):
             for opPoint in operatorNames[0,:]: #Sanity check
                 if opPoint not in opts["listOperatorsParam"]: print(colors.bold, colors.fg.red, 'ERROR : validation point operator ', opPoint, ' was not used in training phase ; can not be used for evaluation', colors.reset); exit(1) #Operator specified in point's name was not used during training phase
 
-            for opParam in opts["listOperatorsParam"]: #Add each operator used to parametrize the DNN to new name
+            for opParam in opts["listOperatorsParam"]: #Add each operator used to parameterize the DNN to new name
                 # print(opParam)
                 newname+= "_"+opParam+"_"
                 found = False

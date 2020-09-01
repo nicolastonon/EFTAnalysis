@@ -1,5 +1,7 @@
 '''
 Create validation plots: overtraining distributions, loss, metrics, ROCs, input correlations, etc.
+
+NB: ROC curves don't take event weights into account --> Not correct ! (should get ROC from scan of fine-bined TH1...)
 '''
 
 import os
@@ -59,7 +61,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
     nbins = 100
 
-    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parametrized NN with huge training stat.)
+    maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
     store_trainHisto = True
     if len(list_predictions_train_allNodes_allClasses)==0: store_trainHisto = False #Only considering 'test' events
@@ -164,6 +166,10 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     '''
     Call all the relevant sub-functions to create validation plots.
     '''
+
+    #-- Useless, but anyway...
+    plt.style.use('default')
+    matplotlib.rc_file_defaults() #Restore matplotlib default settings
 
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
@@ -367,7 +373,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
     Plot ROC curves based on the separation between different processes/classes.
 
     See: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_curve.html
-    NB: can not handle event weights !
+    NB: can not handle event weights !!! Hence these ROC curves are actually non-physical...
     '''
 
     if opts["strategy"] is "regressor": return #No ROC to plot
@@ -396,7 +402,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
         elif opts["nofOutputNodes"] == 1:
 
-            if opts["parametrizedNN"] is False:
+            if opts["parameterizedNN"] is False:
                 fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
             else:
@@ -409,7 +415,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         elif opts["nofOutputNodes"] > 1: #Multiclass: 1 ROC (signal vs All) per node
 
             fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
-            if opts["parametrizedNN"] is False:
+            if opts["parameterizedNN"] is False:
                 fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
             else:
@@ -480,7 +486,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             for iclass in range(len(list_labels)): #iclass <-> iterate over all classes (may be signal or bkg); inode <-> current 'signal'
 
                 if iclass == inode: #current 'signal' (<-> node) vs all
-                    if opts["parametrizedNN"] is False: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                    if opts["parameterizedNN"] is False: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                     elif opts["strategy"] is "CARL_multiclass": continue #For this strategy, 'SM vs all' makes no sense (will never evaluate it on mixture of several operators, only single operators at a time)
                     else: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
 
@@ -488,7 +494,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
                     mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
 
                 else: #current 'signal' (<-> node) vs specific process
-                    if opts["parametrizedNN"] is False:
+                    if opts["parameterizedNN"] is False:
                         fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[inode],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
                     elif opts["strategy"] is "CARL_multiclass": #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
                         indices_SMevents_test = np.where(list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0); indices_SMevents_test = np.squeeze(indices_SMevents_test) #2D (current_node,indices) --> 1D (indices)
@@ -547,8 +553,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
         #Class labels (for legend)
         label_class0 = "Signal"; label_class1 = "Backgrounds"
-        if opts["parametrizedNN"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
-        # if opts["parametrizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+        if opts["parameterizedNN"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+        # if opts["parameterizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
 
         nbins = 20
         rmin = 0.; rmax = 1.
@@ -595,6 +601,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         lists_predictions_bkgs = []; lists_weights_bkg = []
         for iclass in range(0, len(list_labels)):
             if iclass != inode:
+                # print(list_labels[iclass], list_PhysicalWeightsTrain_allClasses[iclass][:20])
                 if opts["strategy"] is "CARL_multiclass" and inode>0:
                     if iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
                     indices_SMevents = np.where(list_xTrain_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0) #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
@@ -799,7 +806,7 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         """
 
         #Prediction and truth histos, normalized
-        #NB: apply weights, but they are all equal to 1 for parametrized strategies
+        #NB: apply weights, but they are all equal to 1 for parameterized strategies
         if plot_truth_histos == True:
             if nofOutputNodes == 1:
                 # plt.hist(y_test[y_process_test==1], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=norm, alpha=0.50, histtype='step', log=False, label=label_class0+" (Truth)", edgecolor='cornflowerblue',fill=False, linewidth=4.)
@@ -880,7 +887,7 @@ def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
         Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
         Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
 
-    elif opts["parametrizedNN"] is True: #Separate between 'SM' and 'EFT'
+    elif opts["parameterizedNN"] is True: #Separate between 'SM' and 'EFT'
         x_SM = x[y_process==0]; x_EFT = x[y_process>0]
         Make_Correlation_Plot(opts, x_SM, list_features, weight_dir + 'CorrelMatrix_SM.png')
         Make_Correlation_Plot(opts, x_EFT, list_features, weight_dir + 'CorrelMatrix_EFT.png')
@@ -905,7 +912,7 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     indices = []
     for ivar in range(len(list_features)):
         if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
-        if opts["parametrizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
+        if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
 
     indices = np.array(indices, dtype=int)
     mask = np.ones(len(list_features), np.bool)
@@ -1001,10 +1008,10 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     np.random.shuffle(shuf)
     x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
 
-    nMax = 100000 #Don't use more events (slow) #Warning : for parametrized NN, biases distributions of WCs (will most likely not cover all EFT points)
+    nMax = 100000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
     if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
-    if opts["parametrizedNN"] == True: #Only retain EFT events whose operator values are at boundaries #NB: for SM can select all events (input features don't depend on WC, only output prediction)
+    if opts["parameterizedNN"] == True: #Only retain EFT events whose operator values are at boundaries #NB: for SM can select all events (input features don't depend on WC, only output prediction)
         if useMostExtremeWCvaluesOnly is True:
             sl = np.s_[x.shape[1]-len(opts["listOperatorsParam"]):] #Specify slice corresponding to indices of theory parameters features (placed last)
             indices_class0 = np.where(y_process==0) #Class 0
@@ -1019,7 +1026,7 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     indices = []
     for ivar in range(len(list_features)):
         if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
-        # if opts["parametrizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar) #Don't show input WCs
+        # if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar) #Don't show input WCs
 
     indices = np.array(indices, dtype=int)
     mask = np.ones(len(list_features), np.bool)

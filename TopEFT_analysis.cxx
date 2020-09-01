@@ -51,6 +51,13 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
 	this->region = region;
 
+    if(region == "")
+    {
+        this->region = "signal";
+        cout<<FBLU("NB: you did not select a category; setting it to 'is_signal_SR' by default..."<<"")<<endl;
+        usleep(1000000); //Pause for 1s (in microsec)
+    }
+
     this->signal_process = signal_process;
     if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "tWZ") {cout<<BOLD(FRED("ERROR ! [signal_process] option not recognized ! Abort..."))<<endl; stop_program = true;}
 
@@ -1086,10 +1093,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         } //Read MVA
 
         //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
-        vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-        total_var_list.clear();
         if(!makeHisto_inputVars && use_predefined_EFT_strategy)
         {
+            vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
+            total_var_list.clear();
             for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
             {
                 if(cat_tmp == "signal" || cat_tmp == "tZq") total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq");
@@ -1172,6 +1179,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		}
 
     		file_input = TFile::Open(inputfile, "READ");
+            cout<<endl<<FBLU("Opened file "<<inputfile<<" ...")<<endl<<endl;
 
             bool isPrivMC = false;
             if(sample_list[isample].Contains("PrivMC") && !sample_list[isample].Contains("_c")) {isPrivMC = true;}
@@ -1254,16 +1262,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             {
                                 if(!isample) {cout<<DIM("MVA 2 "<<i<<" -- Activate variable '"<<var_list_NN2[i]<<"'")<<endl;}
 
+                                if(var_list_NN2[i] == "ctz" || var_list_NN2[i] == "ctw" || var_list_NN2[i] == "cpq3" || var_list_NN2[i] == "cpqm" || var_list_NN2[i] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
+
                                 int index_sameVar_in_NN1_list = -1; //Check whether same input variable was already set in first MVA (can not set branch addresses twice !)
                                 for(int j=0; j<var_list_NN.size(); j++)
                                 {
-                                    if(var_list[i] == "ctz" || var_list[i] == "ctw" || var_list[i] == "cpq3" || var_list[i] == "cpqm" || var_list[i] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
-                                    if(var_list_NN2[i] == var_list_NN[j]) {index_sameVar_in_NN1_list = j; break;}
+                                    if(var_list_NN2[i] == var_list_NN[j]) {index_sameVar_in_NN1_list = j; break;} //Found same variable in var_list_NN
                                 }
 
                                 if(index_sameVar_in_NN1_list < 0) //Variable only found in 2nd MVA
                                 {
-                                    if(var_list[i] == "ctz" || var_list[i] == "ctw" || var_list[i] == "cpq3" || var_list[i] == "cpqm" || var_list[i] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
                                     tree->SetBranchStatus(var_list_NN2[i], 1);
                                     tree->SetBranchAddress(var_list_NN2[i], &var_list_floats_2[i]);
                                 }
@@ -1429,10 +1437,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                     for(int iwgt=0; iwgt<v_ids->size(); iwgt++)
                     {
+                        cout<<"ToLower(v_ids->at(iwgt) "<<ToLower(v_ids->at(iwgt))<<endl; //FIXME
                         if(ToLower(v_ids->at(iwgt)).Contains("_sm") ) {idx_sm = iwgt; break;} //SM weight found
                     }
 
-                    if(idx_sm == -1) {cout<<BOLD(FRED("Error : SM reweight not found in private sample ! Abort ! "))<<endl; return;}
+                    if(idx_sm == -1) {cout<<BOLD(FRED("Error: SM reweight not found in private sample ! Abort ! "))<<endl; return;}
                 }
 
 
@@ -3352,6 +3361,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
 	bool normalize = true;
 
+    TString type = "ttZ"; //'' or 'tZq' or 'ttZ' --> Compare corresponding private/central samples
+
     vector<TString> total_var_list;
     total_var_list.push_back("mTW");
     total_var_list.push_back("mHT");
@@ -3382,10 +3393,23 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
-    // v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
-    // v_samples.push_back("PrivMC_tZq"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
-    v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed);
-    v_samples.push_back("PrivMC_ttZ"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
+    v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
+    v_samples.push_back("PrivMC_tZq"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
+    // v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed);
+    // v_samples.push_back("PrivMC_ttZ"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
+
+    if(type == "tZq")
+    {
+        v_samples.resize(0); v_groups.resize(0); v_colors.resize(0);
+        v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kRed);
+        v_samples.push_back("PrivMC_tZq"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kBlue);
+    }
+    else if(type == "ttZ")
+    {
+        v_samples.resize(0); v_groups.resize(0); v_colors.resize(0);
+        v_samples.push_back("ttZ"); v_groups.push_back("ttZ (Central)"); v_colors.push_back(kRed);
+        v_samples.push_back("PrivMC_ttZ"); v_groups.push_back("ttZ (Private)"); v_colors.push_back(kBlue);
+    }
 
     vector<TString> v_syst;
     v_syst.push_back("");
@@ -3779,7 +3803,6 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     	text2.DrawLatex(0.23,0.86,info_data);
 
 
-
 // #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
 // #    # #    # #   #   #         #    # #    #   #   #    # #    #   #
 // #    # #    # #   #   #####     #    # #    #   #   #    # #    #   #
@@ -3787,12 +3810,12 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 // ##  ## #   #  #   #   #         #    # #    #   #   #      #    #   #
 // #    # #    # #   #   ######     ####   ####    #   #       ####    #
 
-        mkdir("plots/templates_shapes", 0777);
-        // mkdir(("plots/templates_shapes/"+lumiName).Data(), 0777);
+        TString outdir = "plots/templates_shapes/";
+        mkdir(outdir.Data(), 0777);
+        if(type != "") {outdir+=  type + "/"; mkdir(outdir.Data(), 0777);}
 
     	//Output
-    	TString output_plot_name = "plots/templates_shapes/";
-    	output_plot_name+= total_var_list[ivar] + "_" + region +"_templatesShapes";
+    	TString output_plot_name = outdir + total_var_list[ivar] + "_" + region +"_templatesShapes";
     	if(channel != "") {output_plot_name+= "_" + channel;}
     	output_plot_name+= this->filename_suffix + this->plot_extension;
 

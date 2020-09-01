@@ -188,7 +188,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
 # //--------------------------------------------
 #Scatterplot
 
-    if opts["parametrizedNN"] == True:
+    if opts["parameterizedNN"] == True:
         fig = plt.figure('splot3', figsize=(10, 10))
         # plt.title('Predicted VS True '+nodename)
         plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string
@@ -300,7 +300,7 @@ def Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_tes
   ####    #   #    # ###### #    #  ####
 
 # Adapted from code by Sebastian
-#FIXME -- adapt ranges, etc.
+#TBD -- adapt ranges, etc.
 def doEvaluationPlots(yTest, yPredicted, weightTest, weight_dir):
 
     if not os.path.exists(weight_dir):

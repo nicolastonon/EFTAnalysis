@@ -73,7 +73,7 @@ optsTrain = {
 "targetVarIdx": -1, #List of indices *in the list of input features* (NB: only for convenience) of variable(s) to use as target(s) for regression; the var(s) get removed from training and from the list later. If multiple indices provided, multiple are regressed. If set to < 0, the target will be defined in the Get_Targets() function
 "comparVarIdx": -1, #Index *in the list of input features* of a var to compare to predictions in some validation plots (e.g.: Truth vs Pred vs kinReco). If < 0, not used
 
-#=== Event preselection ===# #FIXME
+#=== Event preselection ===#
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 "cuts": "is_signal_SR",
 # "cuts": "is_tzq_SR",
