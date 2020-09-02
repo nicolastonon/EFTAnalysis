@@ -25,9 +25,9 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
-# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 # "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
@@ -38,7 +38,7 @@ optsTrain = {
 "splitTrainValTestData": [0.60, 0.20, 0.20], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 4, #Number of hidden layers
-"nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
+"nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
 "activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
 "activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
@@ -56,9 +56,9 @@ optsTrain = {
 "batchSizeClass": 2000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+# "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_ctw_5",
-# "refPoint": "rwgt_ctz_5",
+"refPoint": "rwgt_ctz_5",
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
@@ -99,17 +99,17 @@ _list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-_list_processClasses.append(["tZq"])
-_list_processClasses.append(["ttZ"])
+# _list_processClasses.append(["tZq"])
+# _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
-# _list_processClasses.append(["PrivMC_ttZ"])
+_list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
-_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
+# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"]) #WARNING: too low statistics for DY/ZGToLLG_01J, degrades performance
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["tZq", "ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
@@ -119,14 +119,14 @@ _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-_list_labels.append("tZq")
-_list_labels.append("ttZ")
+# _list_labels.append("tZq")
+# _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_ttZ")
+_list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")
 # _list_labels.append("SM")
-_list_labels.append("Backgrounds")
+# _list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
 
 # //--------------------------------------------
@@ -165,23 +165,23 @@ _list_features.append("dR_blW")
 _list_features.append("dR_tClosestJet")
 _list_features.append("dR_bW") #!
 _list_features.append("dEta_jprimeClosestLep")
+# '''
+
+# '''
+_list_features.append("cosThetaStarPolTop")
+_list_features.append("cosThetaStarPolZ")
+_list_features.append("dR_tjprime")
+_list_features.append("dEta_bjprime") #!
+_list_features.append("dR_bjprime") #!
+_list_features.append("dR_lWjprime") #!
+_list_features.append("dR_Zjprime") #!
+_list_features.append("dEta_lWjprime") #!
+# '''
+
 # _list_features.append("dR_tClosestLep")
 # _list_features.append("recoLepTopLep_Eta") #!
 # _list_features.append("maxDiJet_dPhi")
 # _list_features.append("dR_jprimeClosestLep")
-# _list_features.append("cosThetaStarPolTop")
-# _list_features.append("cosThetaStarPolZ")
-# '''
-
-'''
-_list_features.append("dR_tjprime")
-_list_features.append("dR_bjprime") #!
-_list_features.append("dR_lWjprime") #!
-_list_features.append("dR_Zjprime") #!
-_list_features.append("dEta_bjprime") #!
-_list_features.append("dEta_lWjprime") #!
-'''
-
 # _list_features.append("jprime_Pt") #!
 # _list_features.append("DeepJet_2nd") #!
 # _list_features.append("maxDeepCSV") #!

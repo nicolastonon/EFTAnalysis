@@ -49,3 +49,4 @@ metrics --> categorical_accuracy
 NN_strategy --> MVA_SM
 ----------------- 
 
+End of NN training and evaluation :01-sept.-2020 (14:07:50)

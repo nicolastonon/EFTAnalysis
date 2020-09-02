@@ -72,7 +72,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -95,6 +95,8 @@ class TopEFT_analysis
     void Set_Luminosity(TString);
 
 //--- MEMBERS
+    TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
+
     TMVA::Reader *reader, *reader_tmp;
     //NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
     TFModel* clfy_tmp=NULL; //NN classifier
@@ -146,7 +148,6 @@ class TopEFT_analysis
 	TString signal_process;
     TString dir_ntuples; //Path to base dir. containing Ntuples
     TString dir_ntuples_SR; //Path to dir. containing split Ntuples containing only SR events
-    TString t_name;
 	TString plot_extension;
     vector<TString> v_lumiYears;
     TString lumiName;

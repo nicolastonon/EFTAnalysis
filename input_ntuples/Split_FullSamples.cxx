@@ -359,7 +359,7 @@ int main(int argc, char **argv)
 //--- Options---------------------------------
 //--------------------------------------------
     //GammaConv and Fakes_MC require running over all MC samples, but only for the relevant categories
-    bool make_nominal_samples = true;
+    bool make_nominal_samples = true; //Keep =true for now
 
     bool tree_name = "result";
 
