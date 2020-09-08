@@ -9,7 +9,7 @@ opts = {
 "wcs": ['ctz'],
 "wc": 'ctz', #If want to float a single operator
 "wc_ranges": { #Ranges for scans, plots, etc.
-                'ctz':  [-6,6],
+                'ctz':  [-4,4],
                 'ctw':  [-6,6],
                 'cpq3': [-6,6],
                 'cpqm': [-6,6],

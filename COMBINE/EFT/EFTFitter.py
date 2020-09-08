@@ -206,33 +206,37 @@ class EFTFit(object):
         logging.info(colors.fg.lightblue + "Done with SM best fit !" + colors.reset)
         self.printBestFitsSM(name)
 
-    def bestFitEFT(self, name='.EFT', params_POI=[], startValuesString='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2):
+    def bestFitEFT(self, name='.EFT', params_POI=[], startValue='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2, fixedPointNLL=False):
         '''
         Perform a MLF to find the best fit value of the POI(s).
 
-        NB: the error 'Looks like the last fit did not float this parameter.' could arise e.g. if the bin names differ between file/datacard/EFT parametrization file.
+        NB: the error 'Looks like the last fit did not float this parameter' could arise e.g. if the bin names differ between file/datacard/EFT parametrization file.
         '''
 
         ### Multidimensional fit ###
         logging.info(colors.fg.lightblue + "Enter function bestFitEFT()\n" + colors.reset)
 
         if params_POI == []: params_POI = self.wcs
+        if name == '': name = '.EFT'
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args=['combine','-d','./EFTWorkspace.root','--saveFitResult','-M','MultiDimFit','-H','AsymptoticLimits','--cminPoiOnlyFit']
+        args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
 
-        if name:                args.extend(['-n','{}'.format(name)])
+        if fixedPointNLL:
+            args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Access absolute NLL
+            args.extend(['--algo','fixed','--fixedPointPOIs','ctz={}'.format(startValue)]) #FIXME
+        args.extend(['-n','{}'.format(name)])
         if params_POI:          args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
-        args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 1
-        # if startValuesString:   args.extend(['--setParameters',startValuesString]) #Set POI default value for generating toys (otherwise, use B-only model)
+        if not fixedPointNLL and startValue is not '': args.extend(['--setParameters',','.join('{}={}'.format(wc, startValue) for wc in params_POI)]) #Set POI default value for generating toys (otherwise, use B-only model)
+        else: args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 1
         if not freeze:          args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*'])
-        if exp:                 args.extend(['-t', '-1']) #Assume MC expected (Asimov?)
+        if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
         if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
         if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
-        # args.extend(['--setParameterRanges','{}={},{}'.format(param,scanmax)])
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in params_POI)])
 
         if verbosity> 0: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -243,7 +247,7 @@ class EFTFit(object):
         process.wait()
         logging.info(colors.fg.lightblue + "Done with bestFitEFT." + colors.reset)
 
-        self.printBestFitsEFT(name)
+        if not fixedPointNLL: self.printBestFitsEFT(name)
 
 
   ####  #####  # #####      ####   ####    ##   #    #
@@ -969,6 +973,9 @@ if __name__ == "__main__":
     exp = False #True <-> Asimov a-priori expected; False <-> observed
     scan_dim = '1D' #'1d' <-> 1D scan (default); '2d' <-> 2D scan
     verb=0
+    name = '' #Suffix added to output filenames
+    startValue = '' #Starting value for the POI
+    fixedPointNLL = False #True <-> perform the NLL scan at a fixed point (different Combine options)
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -978,13 +985,19 @@ if __name__ == "__main__":
     parser.add_argument("-m", metavar="m", help="SM or EFT")
     parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
     parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
+    parser.add_argument("--fixed", metavar="fixed", help="Get NLL for fixed point", nargs='?', const=1)
+    parser.add_argument("-name", metavar="name", help="add suffix to output filename")
+    parser.add_argument("-val", metavar="val", help="Starting value for the POI")
 
     args = parser.parse_args()
     if args.m: mode = args.m
     if args.d: datacard_path = args.d
     if args.v: verb = int(args.v)
     if args.exp: exp = True
+    if args.name: name = args.name
+    if args.val: startValue = args.val
     if args.dim == '2D' or args.dim == '2D': scan_dim = '2D'
+    if args.fixed: fixedPointNLL = True
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1003,9 +1016,12 @@ if __name__ == "__main__":
         POIs = opts['wcs'] #Multiple operators
 
         fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
-        fitter.bestFitEFT(params_POI=POIs, exp=exp, verbosity=verb)
-        if scan_dim=='1D': fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb)
-        elif scan_dim=='2D': fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb)
+
+        fitter.bestFitEFT(params_POI=POIs, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL)
+
+        if not fixedPointNLL:
+            if scan_dim=='1D': fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb)
+            elif scan_dim=='2D': fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb)
 
         #fitter.printIntervalFitsEFT(basename='.EFT')
         # fitter.batch1DScanEFT() # Freeze other WCs

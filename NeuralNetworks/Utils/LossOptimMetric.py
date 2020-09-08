@@ -5,6 +5,7 @@ from tensorflow.keras.optimizers import SGD, Adam,Nadam, RMSprop, Adadelta
 from tensorflow.keras import backend as K
 from Utils.ColoredPrintout import colors
 from Utils.adabound_tf import AdaBound
+from focal_loss import BinaryFocalLoss
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -92,7 +93,7 @@ def Get_Loss_Optim_Metrics(opts):
         # loss = ['mean_squared_logarithmic_error', 'mean_squared_logarithmic_error']
         lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
 
-    # loss = [focal_loss(gamma=2, alpha=.25)]
+    # loss = BinaryFocalLoss(gamma=2) #Larger gamma <-> more focus on hard-to-classify events
 
     return loss, optim, metrics, lossWeights
 

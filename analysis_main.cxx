@@ -17,18 +17,18 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
     bool use_systematics = false; //true <-> will compute/store systematics selected below
-    TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
+    TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
 
     //-- M V A    S T R A T E G Y --
-    TString classifier_name = "NN"; //'BDT' or 'NN'
+    TString classifier_name = "BDT"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
     bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
-        float cut_value_tZq = 0.7, cut_value_ttZ = 0.4; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
+        float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
-        bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
+        bool also_applyCut_onMaxNodeValue = true; //FIXME //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
     bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
@@ -43,8 +43,8 @@ int main(int argc, char **argv)
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
     TString plot_extension = ".png"; //extension of plots
-    bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only: true <-> only include events if they have their max output value in the corresponding node
-    bool plot_onlyMVACutEvents = true; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
+    bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only (EFT strategy 2): true <-> only include events if they have their max output value in the corresponding node
+    bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parametrized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
 
@@ -185,26 +185,31 @@ int main(int argc, char **argv)
 //For NN, will read necessary input files in logfile, and include them automatically
 
     std::vector<TString > thevarlist;
-    thevarlist.push_back("mTW");
+    thevarlist.push_back("recoZ_Pt");
+    thevarlist.push_back("recoZ_Eta");
     thevarlist.push_back("mHT");
+    thevarlist.push_back("mTW");
     thevarlist.push_back("Mass_3l");
-    thevarlist.push_back("maxEtaJet");
-    thevarlist.push_back("jPrimeAbsEta");
+    thevarlist.push_back("maxDelPhiLL");
     thevarlist.push_back("lAsymmetry");
-    // thevarlist.push_back("maxDelPhiLL");
-    // thevarlist.push_back("maxDeepJet");
-    // thevarlist.push_back("leptonCharge");
-    // thevarlist.push_back("cosThetaStarPolTop");
-    // thevarlist.push_back("cosThetaStarPolZ");
-    // thevarlist.push_back("recoZ_Pt");
-    // thevarlist.push_back("recoZ_Eta");
-    // thevarlist.push_back("recoZ_M");
-    // thevarlist.push_back("recoTopLep_Pt");
-    // thevarlist.push_back("recoTopLep_Eta");
-    // thevarlist.push_back("recoTopLep_M");
-    // thevarlist.push_back("TopZsystem_Pt");
-    // thevarlist.push_back("TopZsystem_M");
-    // thevarlist.push_back("jprime_Pt");
+    thevarlist.push_back("jPrimeAbsEta");
+    thevarlist.push_back("maxEtaJet");
+    thevarlist.push_back("maxDeepJet");
+    thevarlist.push_back("njets");
+    thevarlist.push_back("nbjets");
+    thevarlist.push_back("recoLepTop_Pt");
+    thevarlist.push_back("recoLepTop_Eta");
+    thevarlist.push_back("TopZsystem_M");
+    thevarlist.push_back("recoLepTopLep_Pt");
+    thevarlist.push_back("mbjMax");
+    thevarlist.push_back("maxDiJet_Pt");
+    thevarlist.push_back("maxDelRbL");
+    thevarlist.push_back("minDelRbL");
+    thevarlist.push_back("dR_ZlW");
+    thevarlist.push_back("dR_blW");
+    thevarlist.push_back("dR_tClosestJet");
+    thevarlist.push_back("dR_bW");
+    thevarlist.push_back("dEta_jprimeClosestLep");
 
 
 //---------------------------------------------------------------------------
@@ -282,10 +287,10 @@ int main(int argc, char **argv)
 //*** CHOOSE HERE FROM BOOLEANS WHAT YOU WANT TO DO !
 
 //-----------------    TRAINING
-    bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
+    bool train_BDT = true; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -293,7 +298,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 

@@ -25,40 +25,41 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples. Only label regression supported yet [central or pure-EFT samples only]
-"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
 # "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training/architecture settings ===#
-"nEpochs": 40, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-"splitTrainValTestData": [0.60, 0.20, 0.20], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low)
+"nEpochs": 30, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nHiddenLayers": 4, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
-"activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
+"activInputLayer": 'relu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
 "activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
-"regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
+"dropoutRate": 0.4, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"regularizer": ['L2', 0.001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
-"learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence
+"learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
 "balancedClasses": True, #True <-> apply event SFs in training to balance the total weights of all classes
+"earlyStopping": True, #True <-> use Keras' early stopping
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
 "maxEventsPerClass": -1, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
-"batchSizeClass": 2000, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeClass": 1024, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
-# "refPoint": "rwgt_ctw_5",
-"refPoint": "rwgt_ctz_5",
+"refPoint": "rwgt_ctw_5",
+# "refPoint": "rwgt_ctz_8",
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
@@ -82,10 +83,14 @@ optsTrain = {
 # "cuts": "is_ttz_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
+#=== Input features ===#
+"useHardCodedListInputFeatures": False, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below
+"useLowLevelFeatures": True, #True <-> include P4 vectors corresponding to 3 selected leptons, and up to 4 hardest jets #(+ btagging score) not for now
+
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
-"storeInTestDirectory": False, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 }
 
 # Analysis options
@@ -99,17 +104,18 @@ _list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-# _list_processClasses.append(["tZq"])
-# _list_processClasses.append(["ttZ"])
+_list_processClasses.append(["tZq"])
+_list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
-_list_processClasses.append(["PrivMC_ttZ"])
+# _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
-# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
+_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
+# _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"]) #WARNING: too low statistics for DY/ZGToLLG_01J, degrades performance
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
 # _list_processClasses.append(["tZq", "ttW", "ttH", "WZ", "ZZ4l", "TTGamma_Dilep", "WZZ", "WWZ", "tWZ", "ZGToLLG_01J", "TTbar_DiLep", "DY"])
@@ -119,14 +125,14 @@ _list_processClasses.append(["PrivMC_ttZ"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-# _list_labels.append("tZq")
-# _list_labels.append("ttZ")
+_list_labels.append("tZq")
+_list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-_list_labels.append("PrivMC_ttZ")
+# _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")
 # _list_labels.append("SM")
-# _list_labels.append("Backgrounds")
+_list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
 
 # //--------------------------------------------
@@ -167,7 +173,7 @@ _list_features.append("dR_bW") #!
 _list_features.append("dEta_jprimeClosestLep")
 # '''
 
-# '''
+'''
 _list_features.append("cosThetaStarPolTop")
 _list_features.append("cosThetaStarPolZ")
 _list_features.append("dR_tjprime")
@@ -176,7 +182,7 @@ _list_features.append("dR_bjprime") #!
 _list_features.append("dR_lWjprime") #!
 _list_features.append("dR_Zjprime") #!
 _list_features.append("dEta_lWjprime") #!
-# '''
+'''
 
 # _list_features.append("dR_tClosestLep")
 # _list_features.append("recoLepTopLep_Eta") #!
@@ -212,39 +218,6 @@ _list_features.append("dEta_lWjprime") #!
 # _list_features.append("recoLepTopB_Phi")
 # _list_features.append("recoLepTop_Phi")
 
-'''
-_list_features.append("lep1_pt")
-_list_features.append("lep2_pt")
-_list_features.append("lep3_pt");
-_list_features.append("lep1_eta")
-_list_features.append("lep2_eta")
-_list_features.append("lep3_eta")
-_list_features.append("lep1_phi")
-_list_features.append("lep2_phi")
-_list_features.append("lep3_phi")
-
-_list_features.append("jet1_pt")
-_list_features.append("jet2_pt")
-_list_features.append("jet3_pt")
-_list_features.append("jet1_eta")
-_list_features.append("jet2_eta")
-_list_features.append("jet3_eta")
-_list_features.append("jet1_phi")
-_list_features.append("jet2_phi")
-_list_features.append("jet3_phi")
-_list_features.append("jet4_pt")
-_list_features.append("jet4_eta")
-_list_features.append("jet4_phi")
-## _list_features.append("jet1_DeepCSV")
-## _list_features.append("jet2_DeepCSV")
-## _list_features.append("jet3_DeepCSV")
-## _list_features.append("jet4_DeepCSV")
-_list_features.append("jet1_DeepJet")
-_list_features.append("jet2_DeepJet")
-_list_features.append("jet3_DeepJet")
-_list_features.append("jet4_DeepJet")
-'''
-
 
 
 
@@ -277,6 +250,7 @@ from Utils.ColoredPrintout import colors
 from Utils.Validation_Control import *
 from Utils.Predictions import *
 from Utils.DataGenerator import *
+import Utils.InputFeatures
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -330,7 +304,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
  # #    # #   #
 
     #-- Initialization, sanity checks
-    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
     print(colors.fg.lightgrey, '\n===> Saving NN settings to: ', _weightDir + "NN_settings.txt", colors.reset)
     print(colors.fg.lightgrey, '\n===> Saving NN features list and node names to: ', _weightDir + "NN_info.txt", colors.reset)
 
@@ -361,7 +335,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         model.compile(loss=_loss, loss_weights=_lossWeights, optimizer=_optim, metrics=[_metrics]) #For multiclass classification
 
         #-- Define list of callbacks
-        callbacks_list = Get_Callbacks(_weightDir)
+        callbacks_list = Get_Callbacks(optsTrain, _weightDir)
         # ckpt_dir = os.path.dirname(ckpt_path); history = 0
 
         #-- Fit model (TRAIN)

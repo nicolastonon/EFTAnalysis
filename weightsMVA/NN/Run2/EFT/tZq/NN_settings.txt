@@ -1,28 +1,29 @@
-Start of NN training :01-Sep-2020 (14:25:13)
+Start of NN training :03-Sep-2020 (13:52:03)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
 strategy --> CARL_singlePoint
-nEpochs --> 40
-splitTrainValTestData --> [0.6, 0.2, 0.2]
-nHiddenLayers --> 4
-nNeuronsAllHiddenLayers --> 50
+nEpochs --> 20
+splitTrainValTestData --> [0.8, 0.0, 0.2]
+nHiddenLayers --> 2
+nNeuronsAllHiddenLayers --> 20
 activInputLayer --> tanh
 activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.5
+dropoutRate --> 0.8
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
 learnRate --> 0.001
 balancedClasses --> True
+earlyStopping --> False
 maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_val --> -1
 nEventsTot_test --> -1
-batchSizeClass --> 2000
+batchSizeClass --> 512
 refPoint --> rwgt_ctz_5
 listOperatorsParam --> ['ctz', 'ctw']
 nPointsPerOperator --> 30
@@ -35,6 +36,8 @@ regress_onLogr --> False
 targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> is_signal_SR
+useHardCodedListInputFeatures --> True
+useLowLevelFeatures --> False
 makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> False
@@ -42,11 +45,11 @@ parameterizedNN --> False
 regress --> False
 nofOutputNodes --> 1
 maxEvents --> -1
-batchSize --> 2000
+batchSize --> 512
 samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
 NN_strategy --> MVA_EFT
 ----------------- 
 
-End of NN training and evaluation :01-sept.-2020 (14:32:48)
+End of NN training and evaluation :03-sept.-2020 (13:53:19)

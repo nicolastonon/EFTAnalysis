@@ -29,7 +29,7 @@ def Get_Intersection_X(graph, y_line):
     xmin, xmax, y_tmp = ROOT.Double(0), ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
     graph.GetPoint(0, xmin, y_tmp) #First point
     graph.GetPoint(graph.GetN()-1, xmax, y_tmp) #Last point
-    # print('xmin', xmin, 'xmax', xmax)
+    #print('xmin', xmin, 'xmax', xmax)
 
     list_X_intersects = []
     step = 0.001 #Desired precision in X (if too coarse, intersection lines/fill areas are displaced)
@@ -42,12 +42,12 @@ def Get_Intersection_X(graph, y_line):
             list_X_intersects.append(x)
 
     if(len(list_X_intersects)==0):
-        print(colors.fg.orange + '[Get_Intersection_X] Warning: no intersection found with NLL function. This indicates that the fit rootfile may be empty/incorrect, or simply that the precision is not sufficient to exclude any point at the given threshold ' + str(y_line) + ' (<-> no intersection)' + colors.reset)
+        print(colors.fg.orange + '[Get_Intersection_X] Warning: no intersection found with zz function. This indicates that the fit rootfile may be empty/incorrect, or simply that the precision is not sufficient to exclude any point at the given threshold ' + str(y_line) + ' (<-> no intersection)' + colors.reset)
         return []
 
     if(len(list_X_intersects)>=2): list_X_intersects = [list_X_intersects[idx] for idx in [0,len(list_X_intersects)-1]] #remove?
 
-    # print(list_X_intersects)
+    #print(list_X_intersects)
     return list_X_intersects
 
 def Get_Parameter_LegName(name):
@@ -267,6 +267,9 @@ class EFTPlot(object):
             WC_values.append(limitTree.GetLeaf(param).GetValue(0))
             NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
         NLL_values = [val-min(NLL_values) for val in NLL_values]
+	if WC_values[0] > WC_values[1]: #Trick: got cases were first point is ~0, and only second point is correct (negative bound)
+	    WC_values.pop(0); NLL_values.pop(0)
+	#print(WC_values)
         graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
         graph.Draw("AL") #A:axes, P: markers, L:line
         del NLL_values, WC_values
@@ -276,7 +279,7 @@ class EFTPlot(object):
             x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
             # print(ipt, x, y)
             graph.GetPoint(ipt, x, y)
-            if (ipt==0 or ipt==graph.GetN()) and (x==0. or x==1.): graph.RemovePoint(ipt)
+            if (ipt==0 or ipt==graph.GetN()) and ((x==0. or x==1.)): graph.RemovePoint(ipt)
             # else: print(x, y)
 
         #-- Axis ranges
@@ -355,7 +358,8 @@ class EFTPlot(object):
                 x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
                 fgraph68.GetPoint(ipt, x, y)
                 # print(x, y)
-                if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
+		#print(list_X_intersects68)
+                if (len(list_X_intersects68)>0 and x<=list_X_intersects68[0]) or (len(list_X_intersects68)>1 and x>=list_X_intersects68[1]) or (x==0 and y==0):
                     # print('ipt', ipt)
                     fgraph68.RemovePoint(ipt)
                 else: ipt+= 1
@@ -1350,6 +1354,224 @@ class EFTPlot(object):
 
         return fit_array
 
+
+######## ########  ######  ######## #### ##    ##  ######
+   ##    ##       ##    ##    ##     ##  ###   ## ##    ##
+   ##    ##       ##          ##     ##  ####  ## ##
+   ##    ######    ######     ##     ##  ## ## ## ##   ####
+   ##    ##             ##    ##     ##  ##  #### ##    ##
+   ##    ##       ##    ##    ##     ##  ##   ### ##    ##
+   ##    ########  ######     ##    #### ##    ##  ######
+
+    def TEST_NLL_1D(self, mode='SM', param='', log=False):
+        '''
+        xxx
+        '''
+
+        list_filepaths = []
+        list_filepaths.append('./higgsCombine_ctz_-4.MultiDimFit.mH120.root')
+        list_filepaths.append('./higgsCombine_ctz_-2.MultiDimFit.mH120.root')
+        list_filepaths.append('./higgsCombine_ctz_0.MultiDimFit.mH120.root')
+        list_filepaths.append('./higgsCombine_ctz_2.MultiDimFit.mH120.root')
+        list_filepaths.append('./higgsCombine_ctz_4.MultiDimFit.mH120.root')
+
+        if not param:
+            logging.error("No param specified!")
+            return
+        if not os.path.exists(filepath):
+            logging.error("File " + filepath + " does not exist!".format(mode))
+            return
+
+        logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
+
+        ROOT.gROOT.SetBatch(True)
+        c = ROOT.TCanvas('','',1000,800)
+        c.SetGrid(1)
+        c.SetTopMargin(0.1)
+        l = c.GetLeftMargin()
+
+        #-- Get scan TTree
+        rootFile = ROOT.TFile.Open(filepath)
+        limitTree = rootFile.Get('limit')
+
+        #-- Get x-y coordinates for TGraph representing NLL function
+        WC_values = []; NLL_values = []
+        for entry in range(limitTree.GetEntries()):
+            limitTree.GetEntry(entry)
+            WC_values.append(limitTree.GetLeaf(param).GetValue(0))
+            NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
+        NLL_values = [val-min(NLL_values) for val in NLL_values]
+        graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
+        graph.Draw("AL") #A:axes, P: markers, L:line
+        del NLL_values, WC_values
+
+        #-- Small fix needed to plot line instead of markers: remove un-necessary point at origin (0 or 1 depending on parameter)
+        for ipt in range(graph.GetN()):
+            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            # print(ipt, x, y)
+            graph.GetPoint(ipt, x, y)
+            if (ipt==0 or ipt==graph.GetN()) and (x==0. or x==1.): graph.RemovePoint(ipt)
+            # else: print(x, y)
+
+        #-- Axis ranges
+        xmin = graph.GetXaxis().GetXmin()
+        xmax = graph.GetXaxis().GetXmax()
+        graph.SetMinimum(0.001) #Don't display 0 label
+        graph.SetMaximum(10.) #Arbitrary
+        xmin = self.wc_ranges[param][0]
+        xmax = self.wc_ranges[param][1]
+        graph.GetXaxis().SetRangeUser(xmin,xmax)
+
+        #-- y coordinates corresponding to relevant NLL thresholds
+        yval_68 = 1 #68% CL <-> 1 sigma <-> nll=1
+        yval_95 = 3.84 #95% CL <-> ~2 sigma <-> nll=3.84
+        # yval_2sigmas = 4 #~95.45% CL <-> 2 sigma <-> nll=4
+
+        #-- Display vertical lines at each intersection of the NLL function with the 95% CL threshold
+        list_X_intersects95 = Get_Intersection_X(graph, yval_95)
+        lines_X_intersects95 = []
+        if len(list_X_intersects95) > 0:
+            for i,x in enumerate(list_X_intersects95):
+                lines_X_intersects95.append(ROOT.TLine(x,0,x,yval_95))
+                # lines_X_intersects95[i].Draw('same') #Draw last
+                lines_X_intersects95[i].SetLineColor(ROOT.kRed+1)
+                lines_X_intersects95[i].SetLineWidth(3)
+                lines_X_intersects95[i].SetLineStyle(7)
+
+            # Create and draw filled TGraph (shaded area below NLL function representing 2sigmas area)
+            # fgraph95 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
+            fgraph95 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph95.GetN():
+            # for ipt in range(fgraph95.GetN()):
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph95.GetPoint(ipt, x, y)
+                # print(x, y)
+                if len(list_X_intersects95)>=2 and (x<=list_X_intersects95[0] or x>=list_X_intersects95[1]):
+                    # print(ipt, x, y)
+                    fgraph95.RemovePoint(ipt)
+                else: ipt+= 1
+
+            # Trick: manually set first and last points to get the filled area properly defined
+            if len(list_X_intersects95)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                fgraph95.SetPoint(0, list_X_intersects95[0], 0) #Add first point at y=0
+                fgraph95.InsertPointBefore(1, list_X_intersects95[0], yval_95) #Add second point at y=Y
+                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], yval_95) #Add first-to-last point at y=Y
+                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], 0) #Add last point at y=0
+
+                #-- Printouts
+                # print(fgraph95.GetN())
+                # for ipt in range(0, fgraph95.GetN()):
+                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                #     fgraph95.GetPoint(ipt, x, y)
+                #     print(ipt, x, y)
+
+                fgraph95.SetFillColorAlpha(ROOT.kRed+1, 0.55)
+                fgraph95.SetFillStyle(3001)
+                # fgraph95.SetFillColor(18)
+                # fgraph95.SetFillStyle(3004)
+                fgraph95.Draw("F same")
+
+        #-- Idem for 68% CL -- not drawn for now
+        list_X_intersects68 = Get_Intersection_X(graph, yval_68)
+        lines_X_intersects68 = []
+        if len(list_X_intersects68) > 0:
+            for i,x in enumerate(list_X_intersects68):
+                lines_X_intersects68.append(ROOT.TLine(x,0,x,yval_68))
+                lines_X_intersects68[i].SetLineColor(ROOT.kRed+1)
+                lines_X_intersects68[i].SetLineWidth(3)
+                lines_X_intersects68[i].SetLineStyle(7)
+
+            fgraph68 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
+            # fgraph68 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph68.GetN():
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph68.GetPoint(ipt, x, y)
+                # print(x, y)
+                if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
+                    # print('ipt', ipt)
+                    fgraph68.RemovePoint(ipt)
+                else: ipt+= 1
+
+            if len(list_X_intersects68)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                fgraph68.SetPoint(0, list_X_intersects68[0], 0) #Add first point at y=0
+                fgraph68.InsertPointBefore(1, list_X_intersects68[0], yval_68) #Add second point at y=Y
+                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], yval_68) #Add first-to-last point at y=Y
+                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], 0) #Add last point at y=0
+
+                #-- Printouts
+                # print(fgraph68.GetN())
+                # for ipt in range(0, fgraph68.GetN()):
+                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                #     fgraph68.GetPoint(ipt, x, y)
+                #     print(ipt, x, y)
+
+                fgraph68.SetFillColor(12)
+                fgraph68.SetFillStyle(3001)
+                fgraph68.Draw("F same")
+
+        # Draw vertical lines
+        for iline in range(len(lines_X_intersects95)):
+            lines_X_intersects95[iline].Draw('same')
+
+        # 1 sigma horizontal line
+        line_Y_1sigma = ROOT.TLine(xmin,yval_68,xmax,yval_68)
+        line_Y_1sigma.Draw('same')
+        line_Y_1sigma.SetLineColor(12) #Grey
+        # line_Y_1sigma.SetLineColor(ROOT.kRed+1)
+        line_Y_1sigma.SetLineWidth(3)
+        line_Y_1sigma.SetLineStyle(7)
+
+        # 2 sigma horizontal line #NB: for 95% CL (exclusion limits), use 3.84 instead of 4
+        line_Y_2sigmas = ROOT.TLine(xmin,yval_95,xmax,yval_95)
+        line_Y_2sigmas.Draw('same')
+        line_Y_2sigmas.SetLineColor(ROOT.kRed+1)
+        line_Y_2sigmas.SetLineWidth(3)
+        line_Y_2sigmas.SetLineStyle(7)
+
+        #-- Legend
+        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
+        leg.AddEntry(graph, "Profiled log-likelihood", "L")
+        if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
+        if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
+        leg.Draw("same")
+
+        #-- Labels
+        graph.SetTitle("")
+        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
+        graph.SetMarkerStyle(8)
+        graph.SetMarkerSize(1)
+        # graph.GetXaxis().SetTitle(param)
+        graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
+        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
+
+        cmsText = "CMS";
+        latex = ROOT.TLatex()
+        latex.SetNDC();
+        latex.SetTextColor(ROOT.kBlack);
+        latex.SetTextFont(61);
+        latex.SetTextAlign(11);
+        latex.SetTextSize(0.06);
+        latex.DrawLatex(l+0.01, 0.92, cmsText)
+
+        extraText = "Preliminary simulation";
+        latex.SetTextFont(52);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(l+0.12, 0.92, extraText)
+
+        latex.SetTextFont(42);
+        latex.SetTextAlign(31);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
+
+        #-- Save
+        if log:
+            graph.SetMinimum(0.1)
+            graph.SetLogz()
+            c.Print('scan1D_{}_log.png'.format(param))
+        else: c.Print('scan1D_{}.png'.format(param))
 
 # //--------------------------------------------
 # //--------------------------------------------

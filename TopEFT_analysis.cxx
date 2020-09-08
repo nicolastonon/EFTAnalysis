@@ -369,7 +369,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 //--- OPTIONS --------------------------------
 //--------------------------------------------
 	bool use_relative_weights = false; //false <-> use abs(weight), much faster if there are many negative weights
-    int nmaxEv = 10000; //max nof events for train or test
+    int nmaxEv = 100000; //max nof events for train or test; -1 <-> use all available events //NB: full Run 2 is too much
     float trainingEv_proportion = 0.7;
 //--------------------------------------------
 //--------------------------------------------
@@ -417,7 +417,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	// }
     // tmp+= cat_tmp + "==1";
 
-    tmp = "!TMath::IsNaN(mTW)"; //TMP fix... because trained on 0jet events ?
+    tmp = "!TMath::IsNaN(mTW) && !std::isinf(abs(TopZsystem_M))"; //TMP fix... because trained on 0jet events ?
 
 	//--- Define additionnal cuts
 	for(int ivar=0; ivar<v_cut_name.size(); ivar++)
@@ -535,12 +535,20 @@ void TopEFT_analysis::Train_BDT(TString channel)
             // }
 
             //-- TMP sample list
-            if(samplename_tmp != "tZq" && samplename_tmp != "ttZ" && !samplename_tmp.Contains("ttH") && samplename_tmp.Contains("ttW") && samplename_tmp.Contains("WZ") && samplename_tmp.Contains("ZZ4l") && samplename_tmp.Contains("TTbar_DiLep") && samplename_tmp.Contains("DY") ) {continue;}
+            if(samplename_tmp != "tZq" && samplename_tmp != "ttZ" && samplename_tmp != "ttH" && samplename_tmp != "ttW" && samplename_tmp != "WZ" && samplename_tmp != "ZZ4l" && samplename_tmp != "TTbar_DiLep" ) {continue;}
 
     		cout<<endl<<"-- Sample : "<<sample_list[isample]<<endl;
 
+            //-- Select Ntuple (sub-)directory
+            TString dir_ntuples_tmp = dir_ntuples;
+            if(region=="tZq" || region=="ttZ" || region=="signal") {dir_ntuples_tmp = dir_ntuples_SR; cout<<endl<<FMAG("NB: will use SR sub-samples ! Make sure they are up-to-date !")<<endl<<endl;}
+            if(dir_ntuples_tmp == dir_ntuples_SR && !Check_File_Existence((dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")))
+            {
+                cout<<endl<<FMAG("Warning : SR sub-sample (produced with code input_ntuples/Split_FullSamples) "<<(dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")<<" not found ! Assuming that split ntuples are not available --> Will use full ntuples ! (slower)")<<endl<<endl;
+                dir_ntuples_tmp = dir_ntuples;
+            }
             // --- Register the training and test trees
-            TString inputfile = dir_ntuples + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
+            TString inputfile = dir_ntuples_tmp + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
 
 
 //--------------------------------------------
@@ -629,10 +637,10 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	//-- Choose dataset splitting
 	TString nTraining_Events_sig = "", nTraining_Events_bkg = "", nTesting_Events_sig = "", nTesting_Events_bkg = "";
 
-    int nTrainEvSig = (nEvents_sig * trainingEv_proportion < nmaxEv) ? nEvents_sig * trainingEv_proportion : nmaxEv;
-    int nTrainEvBkg = (nEvents_bkg * trainingEv_proportion < nmaxEv) ? nEvents_bkg * trainingEv_proportion : nmaxEv;
-    int nTestEvSig = (nEvents_sig * (1-trainingEv_proportion) < nmaxEv) ? nEvents_sig * (1-trainingEv_proportion) : nmaxEv;
-    int nTestEvBkg = (nEvents_bkg * (1-trainingEv_proportion) < nmaxEv) ? nEvents_bkg * (1-trainingEv_proportion) : nmaxEv;
+    int nTrainEvSig = ((nmaxEv == -1 || nEvents_sig * trainingEv_proportion     < nmaxEv)) ? nEvents_sig * trainingEv_proportion     : nmaxEv;
+    int nTrainEvBkg = ((nmaxEv == -1 || nEvents_bkg * trainingEv_proportion     < nmaxEv)) ? nEvents_bkg * trainingEv_proportion     : nmaxEv;
+    int nTestEvSig  = ((nmaxEv == -1 || nEvents_sig * (1-trainingEv_proportion) < nmaxEv)) ? nEvents_sig * (1-trainingEv_proportion) : nmaxEv;
+    int nTestEvBkg  = ((nmaxEv == -1 || nEvents_bkg * (1-trainingEv_proportion) < nmaxEv)) ? nEvents_bkg * (1-trainingEv_proportion) : nmaxEv;
 
     nTraining_Events_sig = Convert_Number_To_TString(nTrainEvSig, 12);
     nTraining_Events_bkg = Convert_Number_To_TString(nTrainEvBkg, 12);
@@ -646,7 +654,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	cout<<BOLD(FBLU("-- Requesting "<<nTesting_Events_bkg<<" Testing events [BACKGROUND]"))<<endl;
 	cout<<BOLD(FBLU("==================================="))<<endl<<endl<<endl<<endl;
 
-    myDataLoader->PrepareTrainingAndTestTree(mycuts, mycutb, "nTrain_Signal="+nTraining_Events_sig+":nTrain_Background="+nTraining_Events_bkg+":nTest_Signal="+nTesting_Events_sig+":nTest_Background="+nTesting_Events_bkg+":SplitMode=Random:!V");
+    myDataLoader->PrepareTrainingAndTestTree(mycuts, mycutb, "nTrain_Signal="+nTraining_Events_sig+":nTrain_Background="+nTraining_Events_bkg+":nTest_Signal="+nTesting_Events_sig+":nTest_Background="+nTesting_Events_bkg+":SplitMode=Random:EqualTrainSample:!V"); //EqualTrainSample = ?
 
 	//-- for quick testing -- few events
 	// myDataLoader->PrepareTrainingAndTestTree(mycuts, mycutb, "nTrain_Signal=10:nTrain_Background=10:nTest_Signal=10:nTest_Background=10:SplitMode=Random:NormMode=NumEvents:!V");
@@ -683,10 +691,10 @@ void TopEFT_analysis::Train_BDT(TString channel)
     // method_options= "!H:!V:NTrees=200:BoostType=Grad:Shrinkage=0.10:!UseBaggedBoost:nCuts=200:MinNodeSize=5%:NNodesMax=5:MaxDepth=8:NegWeightTreatment=PairNegWeightsGlobal:CreateMVAPdfs:DoBoostMonitor=True";
 
     //tHq2017
-    method_options = "!H:!V:NTrees=200:nCuts=40:MaxDepth=4:BoostType=Grad:Shrinkage=0.10:!UseBaggedGrad:NegWeightTreatment=PairNegWeightsGlobal:CreateMVAPdfs";
+    // method_options = "!H:!V:NTrees=200:nCuts=40:MaxDepth=4:BoostType=Grad:Shrinkage=0.10:!UseBaggedGrad:NegWeightTreatment=PairNegWeightsGlobal:CreateMVAPdfs";
 
     //Testing
-    // method_options = "!H:!V:NTrees=800:nCuts=200:MaxDepth=4:MinNodeSize=5%:UseBaggedBoost=True:BaggedSampleFraction=0.5:BoostType=Grad:Shrinkage=0.10:NegWeightTreatment=PairNegWeightsGlobal";
+    // method_options = "!H:!V:NTrees=200:nCuts=40:MaxDepth=4:MinNodeSize=5%:UseBaggedBoost=True:BaggedSampleFraction=0.5:BoostType=Grad:Shrinkage=0.10";
 
     //Quick test
     // method_options = "!H:!V:NTrees=20:nCuts=5:MaxDepth=1:MinNodeSize=10%:UseBaggedBoost=True:BaggedSampleFraction=0.5:BoostType=Grad:Shrinkage=0.10";
@@ -792,7 +800,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 //--- OPTIONS --------------------------------
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU-time)
-    int nentries_max = 1000; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
+    int nentries_max = -1; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
 //--------------------------------------------
 //--------------------------------------------
 
@@ -885,17 +893,20 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";}
     else
     {
+        TString region_tmp = region;
         if(use_predefined_EFT_strategy)
         {
             if(make_SMvsEFT_templates_plots)
             {
+                if(region_tmp == "signal") {region_tmp = "";} //Don't need this info in filename (default)
+
                 MVA_type+= "EFT";
                 if(categorization_strategy > 0) {MVA_type+= Convert_Number_To_TString(categorization_strategy);}
                 if(this->scanOperators_paramNN) {MVA_type+= "param";}
             }
             else {MVA_type+= "SM";}
         }
-        output_file_name = "outputs/Templates_" + template_name + "_" + MVA_type + "_" + region + "_" + lumiName + filename_suffix + ".root";
+        output_file_name = "outputs/Templates_" + template_name + "_" + MVA_type + "_" + region_tmp + "_" + lumiName + filename_suffix + ".root";
     }
 	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
 
@@ -931,7 +942,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	//Template binning
     nbins = 20;
 	double xmin = -1, xmax = 1; //BDT: [-1,1]
-    if(template_name == "NN") {xmin = 0;} //NN: [0,1]
+    if(template_name == "NN") //NN: [0,1]
+    {
+        xmin = 0;
+        if(!makeHisto_inputVars && !make_SMvsEFT_templates_plots && categorization_strategy==2 && plot_onlyMaxNodeEvents) {xmin = 0.3; nbins = 10;} //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
+    }
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
     else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 500;} //1 bin per sub-category
 
@@ -963,7 +978,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 if(cat_tmp == "signal" || cat_tmp == "ttZ") total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_SRttZ");
                 if(cat_tmp == "signal" && !this->scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
                 {
-                    total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_CR");
+                    if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
+                    else {total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_CR");}
                 }
             }
 
@@ -2013,6 +2029,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		cout<<"-- Setting 'use_combine_file = false' !"<<endl;
 		use_combine_file = false;
 	}
+    else if(make_SMvsEFT_templates_plots && categorization_strategy > 0 && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
 
 	//-- Want to plot ALL selected variables
 	vector<TString> total_var_list;
@@ -2057,7 +2074,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
                 total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_SRttZ");
                 if(EFTpoint == "") //No CR for parametrized MVA scan
                 {
-                    total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_CR");
+                    if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
+                    else {total_var_list.push_back(total_var_list_tmp[ivar] + "_" + MVA_type + "_CR");}
                 }
             }
         } //Use categ. strategy
@@ -3446,8 +3464,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 	{
         input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix +".root";
 	}
-	else //OBSOLETE
+	else
 	{
+        if(make_SMvsEFT_templates_plots && categorization_strategy > 0 && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
+
         input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
     }
 
@@ -4026,6 +4046,8 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                         int n_singleBins = 0; //Default: will only merge: a) entire histograms, b) histograms stored as single bin //Gets updated below depending on strategy
                         for(int ibin=-1; ibin<n_singleBins+1; ibin++) //Convention (depending on NN_strategy): bin==-1 <-> merge full histogram; bin==0 <-> merge histo stored as single bin (counting exp.); bin>0 <-> merge corresponding template bin (individually)
                         {
+                            if(!make_SMvsEFT_templates_plots && ibin >= 0) {break;} //SM vs SM templates: don't need per-bin (and single-bin) histograms
+
                             // cout<<"ibin "<<ibin<<" ("<<"n_singleBins "<<n_singleBins<<")"<<endl;
             				for(int isample=0; isample<sample_list.size(); isample++)
             				{
@@ -4109,7 +4131,6 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
 
                                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                                     histoname_new.ReplaceAll('-', 'm');
-
 
             						if(force_normTemplate_positive)
             						{

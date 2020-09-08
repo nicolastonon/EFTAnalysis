@@ -19,6 +19,7 @@ from matplotlib import pyplot as plt
 from Utils.ColoredPrintout import colors
 from tensorflow.keras.models import load_model
 from Utils.LossOptimMetric import Get_Loss_Optim_Metrics
+from Utils.InputFeatures import *
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -437,6 +438,56 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         print(colors.fg.red, 'Wrong option [splitTrainValTestData]', colors.reset); exit(1)
 
 # //--------------------------------------------
+#-- Set/update list of input features
+
+    #-- User can choose to use a case-specific list of input features (hard-coded in 'InputFeatures.py'); otherwise, use list of features defined in the main code
+    if opts["useHardCodedListInputFeatures"]:
+
+        #Hardcode different use-cases here
+        # if opts["strategy"] is "classifier":
+        if opts["strategy"] is "CARL_singlePoint":
+            if 'tZq' in labels_list[0]: list_features = features_CARL_singlePoint_tZq
+            elif 'ttZ' in labels_list[0]: list_features = features_CARL_singlePoint_ttZ
+        # elif opts["strategy"] is "CARL":
+
+        else: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
+
+    # '''
+    if opts["useLowLevelFeatures"]: #Also include (hardcoded) low-level input features
+        list_features.append("lep1_pt")
+        list_features.append("lep2_pt")
+        list_features.append("lep3_pt");
+        list_features.append("lep1_eta")
+        list_features.append("lep2_eta")
+        list_features.append("lep3_eta")
+        list_features.append("lep1_phi")
+        list_features.append("lep2_phi")
+        list_features.append("lep3_phi")
+
+        list_features.append("jet1_pt")
+        list_features.append("jet2_pt")
+        list_features.append("jet3_pt")
+        list_features.append("jet1_eta")
+        list_features.append("jet2_eta")
+        list_features.append("jet3_eta")
+        list_features.append("jet1_phi")
+        list_features.append("jet2_phi")
+        list_features.append("jet3_phi")
+        list_features.append("jet4_pt")
+        list_features.append("jet4_eta")
+        list_features.append("jet4_phi")
+        # list_features.append("jet1_DeepJet")
+        # list_features.append("jet2_DeepJet")
+        # list_features.append("jet3_DeepJet")
+        # list_features.append("jet4_DeepJet")
+        
+        ## list_features.append("jet1_DeepCSV")
+        ## list_features.append("jet2_DeepCSV")
+        ## list_features.append("jet3_DeepCSV")
+        ## list_features.append("jet4_DeepCSV")
+    # '''
+
+# //--------------------------------------------
 #-- Define path-related variables
 
     weightDir = "../weightsMVA/NN/" + lumiName + '/' #Base output dir
@@ -472,7 +523,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     Write_Timestamp_toLogfile(weightDir, 0)
     Dump_NN_Options_toLogFile(opts, weightDir)
 
-    return lumiName, weightDir, h5modelName, ntuplesDir, opts["batchSize"]
+    return lumiName, weightDir, h5modelName, ntuplesDir, opts["batchSize"], list_features
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -781,13 +832,23 @@ def GetLegendNameEFTpoint(list_points):
 
 # //--------------------------------------------
 # //--------------------------------------------
-#Convert classifier response (s) <-> likelihood ratio (r)
 
+#-- Convert classifier response (s) <-> likelihood ratio (r)
 def s_from_r(r):
     return np.clip(1.0 / (1.0 + r), 0.0, 1.0)
 
 def r_from_s(s, epsilon=1.0e-6):
     return np.clip((1.0 - s + epsilon) / (s + epsilon), epsilon, None)
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#-- Remove events which have w_EFT/w_SM > x from input arrays
+def Remove_LargeEFTWeight_Events(w_EFT, threshold):
+
+    mask = np.where(np.abs(w_EFT) < np.mean(np.abs(w_EFT)) * threshold)
+
+    return mask
 
 # //--------------------------------------------
 # //--------------------------------------------

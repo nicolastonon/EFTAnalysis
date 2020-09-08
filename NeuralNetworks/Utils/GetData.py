@@ -91,6 +91,14 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
     else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Split data into train / val / test datasets
 
+    #FIXME #FIXME
+    mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30)
+    x_train = x_train[mask_largeEFTweights]
+    y_train = y_train[mask_largeEFTweights]
+    y_process_train = y_process_train[mask_largeEFTweights]
+    PhysicalWeights_train = PhysicalWeights_train[mask_largeEFTweights]
+    LearningWeights_train = LearningWeights_train[mask_largeEFTweights]
+
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     transfType='quantile' #'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
     xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, opts["parameterizedNN"], transfType=transfType)
@@ -172,7 +180,7 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
                 print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts).shape[0], 'entries)') #Dummy variable, just to read the nof entries
-                if nevents is not None: print('(---> Will consider at most ' + str(nevents) + ' entries)')
+                if nevents is not None: print('(---> Will consider at most ' + str(nevents) + ' entries [<-> maxEventsPerClass])')
                 print('\n\n')
 
                 # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts)) #Store values of input features into array, append to list
@@ -794,7 +802,7 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             y_process[::2] = 0
 
     #-- Check for presence of very large weights
-    remove_largeWeight_events = False #NB: not correct because the mean should be computed separately for each process class... ! #Remove events with too large weights (may bias the training) -- not for training against pure-EFT samples, where weights are very imbalanced by construction
+    remove_largeWeight_events = False #NB: not correct because can only remove events from training sample #NB: not correct because the mean should be computed separately for each process class... ! #Remove events with too large weights (may bias the training) -- not for training against pure-EFT samples, where weights are very imbalanced by construction
     if opts["samplesType"] is not "centralVSpureEFT" and len(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100]) > 0:
         print('Warning: very large event weights found (global mean = ',np.mean(PhysicalWeights_allClasses),') :')
         print(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100])
@@ -836,7 +844,6 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
 
     return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=1-_trainsize, shuffle=True)
 
-#FIXME
 #Split into train/val/test datasets
 #NB: don't simply call sklearn.train_test_split twice, because this makes the fractions complicated (x% of y%...)
 def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses):

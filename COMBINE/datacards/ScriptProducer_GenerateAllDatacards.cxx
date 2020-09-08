@@ -41,8 +41,15 @@
 
 using namespace std;
 
-
 //--------------------------------------------
+//  ######  ########  ########    ###    ######## ########
+// ##    ## ##     ## ##         ## ##      ##    ##
+// ##       ##     ## ##        ##   ##     ##    ##
+// ##       ########  ######   ##     ##    ##    ######
+// ##       ##   ##   ##       #########    ##    ##
+// ##    ## ##    ##  ##       ##     ##    ##    ##
+//  ######  ##     ## ######## ##     ##    ##    ########
+
 //  ######   ######  ########  #### ########  ########    ########  #######  ########
 // ##    ## ##    ## ##     ##  ##  ##     ##    ##       ##       ##     ## ##     ##
 // ##       ##       ##     ##  ##  ##     ##    ##       ##       ##     ## ##     ##
@@ -65,6 +72,13 @@ using namespace std;
  */
 void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded)
 {
+//  ####  ###### ##### #    # #####
+// #      #        #   #    # #    #
+//  ####  #####    #   #    # #    #
+//      # #        #   #    # #####
+// #    # #        #   #    # #
+//  ####  ######   #    ####  #
+
     //Check if use shape syst or not
 	TString systChoice;
 	if(include_systematics == 'y') {systChoice = "withShape";}
@@ -77,26 +91,32 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 	else if(include_statistical == 'n') {statChoice = "noStat";}
     else {cout<<"Wrong arguments ! Abort !"<<endl; return;}
 
-    //If specific arguments were chosen at command line, modify the vectors defined in the main
-    // if(template_name != "0") {v_templates.resize(0); v_templates.push_back(template_name);}
-	// if(region != "0") //else if region = 0, use vector as it is defined in main
-    // {
-    //     if(region == "1")
-    //     {
-    //         v_regions.resize(0);
-    //         v_regions.push_back("xxx");
-    //     }
-    //     else {v_regions.resize(0); v_regions.push_back(region);}
-    // }
+    // If specific arguments were chosen at command line, modify the vectors defined in the main
+    if(template_name != "") {v_templates.resize(0); v_templates.push_back(template_name);}
+    else if(!v_templates.size()) {cout<<"Template name not set ! Abort !"<<endl; return;}
 
-    //FIXME -- hardcoded !! tmp test
-    if(scan_operator_hardcoded && mode_histoBins==1)
+    //FIXME -- HARDCODED -- TMP TESTING
+    vector<TString> v_WCs_operator_scan1 = {"-999"}; //HARDCODED
+    TString operator_scan1 = "";
+    if(scan_operator_hardcoded)
     {
-        v_templates.resize(0);
-        for(int istep=-5; istep<=5; istep++)
-        {
-            v_templates.push_back("NN_"+std::to_string(istep));
-        }
+        mode_histoBins = 1; //Scan on parametrized NN --> consider each histogram bin separately
+
+        operator_scan1 = "ctz";
+        v_WCs_operator_scan1 = {"-4","-2","-1","0","1","2","4"};
+
+        v_regions.resize(0);
+        v_regions.push_back("SRtZq");
+        v_regions.push_back("SRttZ");
+
+        v_templates[0]+= "param";
+
+        // v_templates.resize(0);
+        // v_templates.push_back("NN_EFT1_ctz_-4");
+        // v_templates.push_back("NN_EFT1_ctz_-2");
+        // v_templates.push_back("NN_EFT1_ctz_-0");
+        // v_templates.push_back("NN_EFT1_ctz_2");
+        // v_templates.push_back("NN_EFT1_ctz_4");
     }
 
     vector<TString> v_lumiYears;
@@ -114,128 +134,176 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     int nbins = -1; //If 'mode_histoBins=1', will read histogram binning in rootfile and create 1 datacard per histo bin
 
+
+// # #    # #####  # #    # # #####  #    #   ##   #
+// # ##   # #    # # #    # # #    # #    #  #  #  #
+// # # #  # #    # # #    # # #    # #    # #    # #
+// # #  # # #    # # #    # # #    # #    # ###### #
+// # #   ## #    # #  #  #  # #    # #    # #    # #
+// # #    # #####  #   ##   # #####   ####  #    # ######
+
+// #####    ##   #####   ##    ####    ##   #####  #####   ####
+// #    #  #  #    #    #  #  #    #  #  #  #    # #    # #
+// #    # #    #   #   #    # #      #    # #    # #    #  ####
+// #    # ######   #   ###### #      ###### #####  #    #      #
+// #    # #    #   #   #    # #    # #    # #   #  #    # #    #
+// #####  #    #   #   #    #  ####  #    # #    # #####   ####
+
 //--------------------------------------------
 //--- First loop over years/regions/templates
-//===> Commands to produce single datacards
+//===> Commands to produce individual datacards
 
-    for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+
+    for(int ipt_EFT=0; ipt_EFT<v_WCs_operator_scan1.size(); ipt_EFT++)
     {
-        for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
+        for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
         {
-            // cout<<"v_regions[iregion] "<<v_regions[iregion]<<endl;
-
-    		//Need to add "CR" prefix for CRs
-    		// TString region_tmp = v_regions[iregion];
-    		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
-            TString region_tmp = "";
-
-            for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
+            for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
             {
-                // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
-
-                TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
-
-    			//Make subdir for single datacards
-    			file_out <<"mkdir "<<dir<<endl<<endl;
-                file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
-
-    		    // TString file_histos = "../templates/Combine_Input.root";
-                // TString file_histos = "../../../templates/Templates_"+v_templates[itemplate]+"_"+region_tmp+"_"+lumiName+".root";
-                // TString tmp = (v_templates[itemplate].Contains("NN") ? "NN" : v_templates[itemplate]);
-                TString tmp = v_templates[itemplate];
-                TString file_histos = "../../../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //Path to write into datacard
-    			cout<<endl<<FYEL("---> Will use filepath : "<<file_histos<<"")<<endl<<endl;
-
-                TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
-                if(mode_histoBins==1) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
+                for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
                 {
-                    TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
-                    TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
-                    if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
-                    // cout<<"hname_tmp "<<hname_tmp<<endl;
-                    TH1F* h_tmp = (TH1F*) f_tmp->Get(hname_tmp);
-                    nbins = h_tmp->GetNbinsX();
-                    delete h_tmp; h_tmp = NULL; f_tmp->Close();
-                    if(nbins == -1) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
-                }
+                    // cout<<"v_regions[iregion] "<<v_regions[iregion]<<endl;
 
-                if(nbins<0) {nbins=1;} //Need to loop at least once by default
-    			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++)
-    			{
-                    for(int ibin=1; ibin<nbins+1; ibin++)
+            		//Need to add "CR" prefix for CRs
+            		// TString region_tmp = v_regions[iregion];
+            		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
+                    TString region_tmp = "";
+                    // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
+
+                    TString var = v_templates[itemplate] + "_" + v_regions[iregion];
+                    if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
+                    if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+
+                    //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
+                    var.ReplaceAll('-', 'm');
+
+        			//Make subdir for single datacards
+        			file_out <<"mkdir "<<dir<<endl<<endl;
+                    file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
+
+        		    // TString file_histos = "../templates/Combine_Input.root";
+                    TString tmp = v_templates[itemplate];
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
+                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT1param__2017.root";} //FIXME
+
+                    TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
+        			cout<<endl<<FMAG("---> Will use filepath : ")<<file_histos<<endl<<endl;
+
+                    if(mode_histoBins==1) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
                     {
-                        if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
-
-                        TString var_tmp = var;
-                        if(mode_histoBins==1 && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
-                        else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
-
-        				file_out<<"python Parser_Datacard_Template.py "
-                        + var_tmp + " "
-                        + v_channel[ilepchan] + " "
-                        + v_lumiYears[iyear] + " "
-        				+ file_histos + " "
-        				+ systChoice + " "
-        				+ statChoice + " "
-                        + dir + v_lumiYears[iyear] + " "
-        				<<endl;
+                        TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
+                        TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
+                        if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
+                        // cout<<"hname_tmp "<<hname_tmp<<endl;
+                        TH1F* h_tmp = (TH1F*) f_tmp->Get(hname_tmp);
+                        nbins = h_tmp->GetNbinsX();
+                        delete h_tmp; h_tmp = NULL; f_tmp->Close();
+                        if(nbins == -1) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
                     }
-    			}
 
-    			file_out<<endl<<endl;
-        	} //template loop
-        } //region loop
-    }
+                    if(nbins<0) {nbins=1;} //Need to loop at least once by default
+        			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++)
+        			{
+                        for(int ibin=1; ibin<nbins+1; ibin++)
+                        {
+                            // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
-	//Command to execute the script which combines the datacards
-	file_out<<"python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/scripts/combineCards.py ";
+                            TString var_tmp = var;
+                            if(mode_histoBins==1 && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
+
+            				file_out<<"python Parser_Datacard_Template.py "
+                            + var_tmp + " "
+                            + v_channel[ilepchan] + " "
+                            + v_lumiYears[iyear] + " "
+            				+ file_histos + " "
+            				+ systChoice + " "
+            				+ statChoice + " "
+                            + dir + v_lumiYears[iyear] + " "
+            				<<endl;
+                        } //bin loop
+        			} //channel loop
+
+        			file_out<<endl<<endl;
+            	} //template loop
+            } //region loop
+        } //year loop
+    } //EFT loop
+
+
+//  ####   ####  #    # #####  # #    # ###### #####
+// #    # #    # ##  ## #    # # ##   # #      #    #
+// #      #    # # ## # #####  # # #  # #####  #    #
+// #      #    # #    # #    # # #  # # #      #    #
+// #    # #    # #    # #    # # #   ## #      #    #
+//  ####   ####  #    # #####  # #    # ###### #####
+
+// #####    ##   #####   ##    ####    ##   #####  #####
+// #    #  #  #    #    #  #  #    #  #  #  #    # #    #
+// #    # #    #   #   #    # #      #    # #    # #    #
+// #    # ######   #   ###### #      ###### #####  #    #
+// #    # #    #   #   #    # #    # #    # #   #  #    #
+// #####  #    #   #   #    #  ####  #    # #    # #####
 
 //--------------------------------------------
 //--- Second loop over years/regions/templates
 //===> Give all the single datacards as arguments to the script, for combination
-    for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+
+    for(int ipt_EFT=0; ipt_EFT<v_WCs_operator_scan1.size(); ipt_EFT++)
     {
-        for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
+        //Command to execute the script which combines the datacards
+        file_out<<"python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/scripts/combineCards.py ";
+
+        for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
         {
-    		//Need to add "CR" prefix for CRs
-    		TString region_tmp = v_regions[iregion];
-    		if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
+            for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
+            {
+        		//Need to add "CR" prefix for CRs
+        		// TString region_tmp = v_regions[iregion];
+        		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
 
-    	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
-    	    {
-                TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+        	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
+        	    {
+                    TString var = v_templates[itemplate] + "_" + v_regions[iregion];
+                    if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
-    			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
-    			{
-                    for(int ibin=1; ibin<nbins+1; ibin++)
-                    {
-                        if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
+                    if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
 
-                        TString var_tmp = var;
-                        if(mode_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
-                        else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
+                    //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
+                    var.ReplaceAll('-', 'm');
 
-        				file_out<<var_tmp;
-        				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
-                        file_out<<"_"+v_lumiYears[iyear];
-                        file_out<<"=" + dir + v_lumiYears[iyear] + "/"
-        				+ "datacard_"+var_tmp;
-        				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
-        				file_out<<".txt ";
-                    }
-    			}
-    		} //template loop
-    	} //region loop
-    } //years loop
+        			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
+        			{
+                        for(int ibin=1; ibin<nbins+1; ibin++)
+                        {
+                            // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
-	TString output_name = "COMBINED_Datacard_TemplateFit";
-    if(systChoice == "noShape") output_name+= "_noShape";
-    if(statChoice == "noStat") output_name+= "_noStat";
-	output_name+= ".txt";
+                            TString var_tmp = var;
+                            if(mode_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
 
-	file_out<<"> "<<output_name<<endl<<endl;
+            				file_out<<var_tmp;
+            				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+                            file_out<<"_"+v_lumiYears[iyear];
+                            file_out<<"=" + dir + v_lumiYears[iyear] + "/"
+            				+ "datacard_"+var_tmp;
+            				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+            				file_out<<".txt ";
+                        } //bin loop
+        			} //channel loop
+
+        		} //template loop
+        	} //region loop
+        } //years loop
+
+    	TString output_name = "COMBINED_Datacard_TemplateFit";
+        if(systChoice == "noShape") output_name+= "_noShape";
+        if(statChoice == "noStat") output_name+= "_noStat";
+        if(scan_operator_hardcoded) {output_name+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
+    	output_name+= ".txt";
+
+    	file_out<<"> "<<output_name<<endl<<endl;
+    } //EFT loop
 
 //datacard for single channels
 /*
@@ -258,8 +326,6 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 }
 */
 
-	// file_out<<"mv datacard_*.txt datacards_TemplateFit/"<<endl;
-
 	file_out.close();
 
 	system("chmod 755 makeDatacardsForTemplateFit.sh");
@@ -272,6 +338,10 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 
 	return;
 }
+
+
+
+
 
 
 
@@ -356,8 +426,17 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cin>>mode_histoBins;
     }
 
+    //Set the template name (e.g.'NN_EFT2') to be looked for in the rootfiles //If ignored, use the value set in the main
+    cout<<endl<<FYEL("=== Set the template name (to read corresponding histograms) ===")<<endl;
+    cout<<ITAL(DIM("'' <-> use value set in main()"))<<endl;
+    cout<<ITAL(DIM(<<"..."));
+    cin>>template_name;
+
     return;
 }
+
+
+
 
 
 
@@ -380,9 +459,11 @@ int main()
 // Can set options here
 //--------------------------------------------
     vector<TString> v_templates; //'NN', 'BDT', ...
-    v_templates.push_back("NN_EFT1");
     // v_templates.push_back("NN_EFT");
+    //v_templates.push_back("NN_EFT1");
+    v_templates.push_back("NN_EFT2");
     // v_templates.push_back("NN_SM");
+    // v_templates.push_back("Zpt_EFT1");
     // v_templates.push_back("categ");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
@@ -412,7 +493,7 @@ int main()
 
 //Automated
 //--------------------------------------------
-    TString template_name = "0", region = "0";
+    TString template_name = "", region = "0";
     Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins);
 
 	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded);

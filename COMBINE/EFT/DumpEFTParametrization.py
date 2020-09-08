@@ -1,3 +1,4 @@
+
 #-- Extract EFT parameterization from TH1EFT objects
 # Adapted from: https://github.com/cms-govner/EFTFit
 # NB: EFT parametrizations are extracted from all TH1EFT objects (<-> bins) found in file. However, if e.g. only tZq is treated as signal in the datacard, the parametrizations for ttZ will be ignored (since we then use the central SM ttZ sample) !
@@ -107,13 +108,15 @@ fits = OrderedDict(sorted(fits.items()))
 
 print(colors.fg.lightblue + "... Done !\n" + colors.reset)
 
+if bool(fits) is False: print(colors.fg.red + "Warning: empty dictionnary !\n" + colors.reset)
+
 #Summary printout and save results
 # //--------------------------------------------
 if verbose:
     # print "Processes:",[key[0] for key in fits.keys()]
     # print "Bins:",[key[1] for key in fits.keys()]
-    print "Keys:",fits.keys()
     # print "Fits:", fits
+    print("Keys:", fits.keys())
 
 #Store fits
 np.save('Parameterization_EFT.npy', fits)
