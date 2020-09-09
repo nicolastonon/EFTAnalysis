@@ -329,7 +329,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 {
                     yield_tmp+= weight; statErr_tmp+= weight*weight;
 
-                    if(v_label[isample] == signal || v_label[isample] == "signal") //Signals, group together
+                    if(v_label[isample] == signal || v_label[isample] == "signal" || (signal=="signal" && (v_label[isample]=="tZq" || v_label[isample]=="ttZ"))) //Signals, group together
                     {
                         yield_signals+= weight;
                         statErr_signals+= weight*weight;
@@ -464,11 +464,13 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
     //-- Default args (can be over-riden via command line args)
-    TString signal = "tZq";
+    TString signal = "signal"; //tZq/ttZ/signal (both)
+
     // TString category = "is_tzq_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     // TString category = "is_tZq_3l_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     // TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
     bool group_samples_together = true; //true <-> group similar samples together
@@ -513,8 +515,9 @@ int main(int argc, char **argv)
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
     v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
 
-    v_samples.push_back("tWZ"); v_label.push_back("tWZ");
+    v_samples.push_back("ttZ_M1to10"); v_label.push_back("ttZ_M1to10");
 
+    v_samples.push_back("tWZ"); v_label.push_back("tWZ");
     v_samples.push_back("tHq"); v_label.push_back("tX");
     v_samples.push_back("tHW"); v_label.push_back("tX");
     v_samples.push_back("tGJets"); v_label.push_back("tX");

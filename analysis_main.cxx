@@ -19,6 +19,7 @@ int main(int argc, char **argv)
     bool use_systematics = false; //true <-> will compute/store systematics selected below
     TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
+    bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "BDT"; //'BDT' or 'NN'
@@ -28,7 +29,7 @@ int main(int argc, char **argv)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
-        bool also_applyCut_onMaxNodeValue = true; //FIXME //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
+        bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
     bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
@@ -138,6 +139,7 @@ int main(int argc, char **argv)
 
     //t(t)X
     thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tX");
+    thesamplelist.push_back("ttZ_M1to10"); thesamplegroups.push_back("tX"); //Separate from ttZ because misses PDF weights, etcc.
     thesamplelist.push_back("tHq"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("tHW"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("ttH"); thesamplegroups.push_back("tX");
@@ -167,9 +169,17 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("Xg");
     thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("Xg");
 
-    //NPL
-    thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
-    thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
+    //NPL (Fakes)
+    if(use_DD_NPL) //Data-driven
+    {
+        thesamplelist.push_back("NPL"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("NPL_MC"); thesamplegroups.push_back("NPL"); //Substract prompt MC contribution from AR
+    }
+    else //MC
+    {
+        thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
+    }
 
 
 //---------------------------------------------------------------------------
@@ -348,7 +358,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################

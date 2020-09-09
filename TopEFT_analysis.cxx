@@ -34,7 +34,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -120,7 +120,14 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     dir_ntuples = "./input_ntuples/";
     dir_ntuples_SR = dir_ntuples + "SR/";
-	// cout<<"dir_ntuples : "<<dir_ntuples<<endl;
+    TString dir_ntuples_tmp = dir_ntuples;
+    if(region=="tZq" || region=="ttZ" || region=="signal") {dir_ntuples = dir_ntuples_SR; cout<<endl<<FMAG("NB: will use SR sub-samples ! Make sure they are up-to-date !")<<endl<<endl;}
+    if(dir_ntuples == dir_ntuples_SR && !Check_File_Existence((dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")))
+    {
+        cout<<endl<<FMAG("Warning : SR sub-sample (produced with code input_ntuples/Split_FullSamples) "<<(dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")<<" not found ! Assuming that split ntuples are not available --> Will use full ntuples ! (slower)")<<endl<<endl;
+        dir_ntuples = "./input_ntuples/";
+    }
+    // cout<<"dir_ntuples : "<<dir_ntuples<<endl;
 
 	//-- Get colors
     int color_scheme = 0; //Check color scheme definitions directly in Get_Samples_Colors()
@@ -288,6 +295,20 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
             if(!this->make_SMvsEFT_templates_plots) {cout<<BOLD(FRED("ERROR: option [scanOperators_paramNN=true] can only be used with option [make_SMvsEFT_templates_plots=true] ! Abort !"))<<endl; stop_program = true;}
             if( (this->operator_scan1 != "" && !this->v_WCs_operator_scan1.size()) || (this->operator_scan2 != "" && !this->v_WCs_operator_scan2.size()) ) {cout<<BOLD(FRED("ERROR: option [operator_scan1] or [operator_scan2] is non-empty, but the corresponding list of WC values is empty ! Abort !"))<<endl; stop_program = true;}
         }
+    }
+
+    //NPL background
+    this->use_DD_NPL = use_DD_NPL;
+
+    if(use_DD_NPL) //Data-driven
+    {
+        thesamplelist.push_back("NPL"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("NPL_MC"); thesamplegroups.push_back("NPL"); //Substract prompt MC contribution from AR
+    }
+    else //MC
+    {
+        thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -539,16 +560,8 @@ void TopEFT_analysis::Train_BDT(TString channel)
 
     		cout<<endl<<"-- Sample : "<<sample_list[isample]<<endl;
 
-            //-- Select Ntuple (sub-)directory
-            TString dir_ntuples_tmp = dir_ntuples;
-            if(region=="tZq" || region=="ttZ" || region=="signal") {dir_ntuples_tmp = dir_ntuples_SR; cout<<endl<<FMAG("NB: will use SR sub-samples ! Make sure they are up-to-date !")<<endl<<endl;}
-            if(dir_ntuples_tmp == dir_ntuples_SR && !Check_File_Existence((dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")))
-            {
-                cout<<endl<<FMAG("Warning : SR sub-sample (produced with code input_ntuples/Split_FullSamples) "<<(dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")<<" not found ! Assuming that split ntuples are not available --> Will use full ntuples ! (slower)")<<endl<<endl;
-                dir_ntuples_tmp = dir_ntuples;
-            }
             // --- Register the training and test trees
-            TString inputfile = dir_ntuples_tmp + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
+            TString inputfile = dir_ntuples + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
 
 
 //--------------------------------------------
@@ -848,14 +861,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         else if(categorization_strategy == 1 && (make_SMvsEFT_templates_plots || (!make_SMvsEFT_templates_plots && plot_onlyMVACutEvents)) ) {apply_MVASM_cut = true;}
     }
 
-    TString dir_ntuples_tmp = dir_ntuples;
-    if((region=="tZq" || region=="ttZ" || region=="signal") || use_predefined_EFT_strategy) {dir_ntuples_tmp = dir_ntuples_SR; cout<<endl<<FMAG("NB: will use SR sub-samples ! Make sure they are up-to-date !")<<endl<<endl;}
-    if(dir_ntuples_tmp == dir_ntuples_SR && !Check_File_Existence((dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")))
-    {
-        cout<<endl<<FMAG("Warning : SR sub-sample (produced with code input_ntuples/Split_FullSamples) "<<(dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")<<" not found ! Assuming that split ntuples are not available --> Will use full ntuples ! (slower)")<<endl<<endl;
-        dir_ntuples_tmp = dir_ntuples;
-    }
-
     //Can fill these vectors via call to Get_VectorAllEvents_passMVACut() to determine beforehand, for each sample, whether each event passes or not a given MVA cut
     vector<int> v_isEventPassMVACut_multiclass; //For MVA-SM-multiclass
     vector<int> v_isEventPassMVACut_tZq; //For MVA-SM-tZq
@@ -1024,10 +1029,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 // #      #    # #    # #      #    #
 // ######  ####   ####  #       ####
 
-	// cout<<endl<<ITAL("-- Ntuples directory : "<<dir_ntuples_tmp<<"")<<endl<<endl;
+	// cout<<endl<<ITAL("-- Ntuples directory : "<<dir_ntuples<<"")<<endl<<endl;
 
     // float tmp_compare = 0;
-    float total_nentries_toProcess = Count_Total_Nof_Entries(dir_ntuples_tmp, nominal_tree_name, sample_list, systTree_list, v_cut_name, v_cut_def, v_lumiYears, makeHisto_inputVars, noSysts_inputVars);
+    float total_nentries_toProcess = Count_Total_Nof_Entries(dir_ntuples, nominal_tree_name, sample_list, systTree_list, v_cut_name, v_cut_def, v_lumiYears, makeHisto_inputVars, noSysts_inputVars);
 
     cout<<endl<<FBLU(OVERLINE("                           "))<<endl;
     cout<<FBLU(BOLD("...Will process a total of "<<std::setprecision(12)<<total_nentries_toProcess<<" entries..."))<<endl;
@@ -1149,7 +1154,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		// cout<<endl<<endl<<UNDL(FBLU("Sample : "<<sample_list[isample]<<""))<<endl;
 
     		//Open input TFile
-    		TString inputfile = dir_ntuples_tmp + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
+    		TString inputfile = dir_ntuples + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
 
             v_isEventPassMVACut_tZq.clear(); v_isEventPassMVACut_ttZ.clear(); v_isEventPassMVACut_multiclass.clear();
             if(use_predefined_EFT_strategy)
@@ -4101,7 +4106,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                                 }
 
             					int factor = +1; //Addition
-            					// if(sample_list[isample] == "Fakes_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes)
+            					if(sample_list[isample] == "NPL_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes) //FIXME
 
             					if(h_tmp != 0)
             					{
