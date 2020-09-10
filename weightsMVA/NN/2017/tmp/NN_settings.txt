@@ -1,4 +1,4 @@
-Start of NN training :03-Sep-2020 (18:29:49)
+Start of NN training :10-Sep-2020 (18:43:46)
 
 OPTIONS
 ----------------- 
@@ -6,14 +6,14 @@ TTree --> result
 eventWeightName --> 
 strategy --> CARL_singlePoint
 nEpochs --> 20
-splitTrainValTestData --> [0.7, 0.0, 0.3]
-nHiddenLayers --> 4
-nNeuronsAllHiddenLayers --> 20
+splitTrainValTestData --> [0.6, 0.2, 0.2]
+nHiddenLayers --> 3
+nNeuronsAllHiddenLayers --> 50
 activInputLayer --> tanh
-activHiddenLayers --> lrelu
+activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.2
+dropoutRate --> 0.4
 regularizer --> ['l2', 0.001]
 optimizer --> Adam
 learnRate --> 0.001
@@ -23,8 +23,8 @@ maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_val --> -1
 nEventsTot_test --> -1
-batchSizeClass --> 256
-refPoint --> rwgt_ctw_5
+batchSizeClass --> 512
+refPoint --> rwgt_ctz_10
 listOperatorsParam --> ['ctz', 'ctw']
 nPointsPerOperator --> 30
 minWC --> -5
@@ -37,7 +37,7 @@ targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> is_signal_SR
 useHardCodedListInputFeatures --> True
-useLowLevelFeatures --> True
+useLowLevelFeatures --> False
 makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> True
@@ -45,11 +45,10 @@ parameterizedNN --> False
 regress --> False
 nofOutputNodes --> 1
 maxEvents --> -1
-batchSize --> 256
+batchSize --> 512
 samplesType --> onlySMEFT
-loss --> <focal_loss._binary_focal_loss.BinaryFocalLoss object at 0x7f10401a3090>
+loss --> binary_crossentropy
 metrics --> binary_accuracy
 NN_strategy --> MVA_EFT
 ----------------- 
 
-End of NN training and evaluation :03-sept.-2020 (18:31:29)

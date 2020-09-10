@@ -387,6 +387,10 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
     lw = 2 #linewidth
 
+    #FIXME
+    print('MEAN: ', np.mean(list_predictions_train_allNodes_allClasses[0][0]))
+    print('MEAN: ', np.mean(list_predictions_test_allNodes_allClasses[0][0]))
+
     for inode in range(nofOutputNodes):
 
 #-- Binary ROCs
@@ -930,13 +934,14 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     list_features = np.array(list_features)
     indices = []
     for ivar in range(len(list_features)):
-        if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV','_DeepJet')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        if doNotPlotP4 and len(list_features) > 5 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV','_DeepJet')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
         if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar)
 
-    indices = np.array(indices, dtype=int)
-    mask = np.ones(len(list_features), np.bool)
-    mask[indices] = 0
-    # print(indices)
+    mask = np.ones(len(list_features), np.bool) #Default
+    if len(indices) < len(list_features): #Protection: ignore doNotPlotP4 if only low-level vars are included
+        indices = np.array(indices, dtype=int)
+        mask[indices] = 0
+        # print(indices)
 
     maxEvents=50000 #Don't need all events
 
@@ -1044,12 +1049,13 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     list_features = np.array(list_features)
     indices = []
     for ivar in range(len(list_features)):
-        if doNotPlotP4 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+        if doNotPlotP4 and len(list_features) > 5 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV','_DeepJet')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
         # if opts["parameterizedNN"] == True and ivar >= len(list_features)-len(opts["listOperatorsParam"]): indices.append(ivar) #Don't show input WCs
 
-    indices = np.array(indices, dtype=int)
-    mask = np.ones(len(list_features), np.bool)
-    mask[indices] = 0
+    mask = np.ones(len(list_features), np.bool) #Default
+    if len(indices) < len(list_features): #Protection: ignore doNotPlotP4 if only low-level vars are included
+        indices = np.array(indices, dtype=int)
+        mask[indices] = 0
 
     #-- Convert np array to pd dataframe
     df = pd.DataFrame(data=x[:,:][:,mask], columns=list_features[mask]) #x = (events, vars) ; colums names are var names

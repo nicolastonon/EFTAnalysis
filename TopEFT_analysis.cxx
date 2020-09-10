@@ -299,16 +299,10 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     //NPL background
     this->use_DD_NPL = use_DD_NPL;
-
-    if(use_DD_NPL) //Data-driven
+    if(!Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL.root")))
     {
-        thesamplelist.push_back("NPL"); thesamplegroups.push_back("NPL");
-        thesamplelist.push_back("NPL_MC"); thesamplegroups.push_back("NPL"); //Substract prompt MC contribution from AR
-    }
-    else //MC
-    {
-        thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
-        thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
+        cout<<endl<<FMAG("ERROR : option [use_DD_NPL=true] but could not find corresponding file "<<dir_ntuples + v_lumiYears[0] + "/NPL.root"<<" ! Please fix")<<endl<<endl;
+        stop_program = true;
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -422,8 +416,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 //--------------------------------------------
 
 	//---Apply additional cuts on the signal and background samples (can be different)
-	TCut mycuts = "";
-	TCut mycutb = "";
+	TCut mycut = "";
 	TString tmp = "";
 
 	//--- CHOOSE TRAINING EVENTS <--> cut on corresponding category
@@ -438,7 +431,9 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	// }
     // tmp+= cat_tmp + "==1";
 
-    tmp = "!TMath::IsNaN(mTW) && !std::isinf(abs(TopZsystem_M))"; //TMP fix... because trained on 0jet events ?
+    if(cat_tmp == "") {cat_tmp = "1";}
+
+    tmp = cat_tmp + " && !TMath::IsNaN(mTW) && !std::isinf(abs(TopZsystem_M))"; //TMP fix... because trained on 0jet events ?
 
 	//--- Define additionnal cuts
 	for(int ivar=0; ivar<v_cut_name.size(); ivar++)
@@ -467,17 +462,17 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	bool split_by_leptonChan = false;
 	if(split_by_leptonChan && (channel != "all" && channel != ""))
 	{
-		if(channel == "uuu" || channel == "uu")	{mycuts = "channel==0"; mycutb = "channel==0";}
-		else if(channel == "uue" || channel == "ue") {mycuts = "channel==1"; mycutb = "channel==1";}
-		else if(channel == "eeu" || channel == "ee") {mycuts = "channel==2"; mycutb = "channel==2";}
-		else if(channel == "eee") {mycuts = "channel==3"; mycutb = "channel==3";}
+		if(channel == "uuu" || channel == "uu")	{mycut = "channel==0";}
+		else if(channel == "uue" || channel == "ue") {mycut = "channel==1";}
+		else if(channel == "eeu" || channel == "ee") {mycut = "channel==2";}
+		else if(channel == "eee") {mycut = "channel==3";}
 		else {cout << "WARNING : wrong channel name while training " << endl;}
 	}
 
 	cout<<"-- Will apply the following cut(s) : "<<BOLD(FGRN(""<<tmp<<""))<<endl<<endl<<endl<<endl;
 	usleep(2000000); //Pause for 2s (in microsec)
 
-	if(tmp != "") {mycuts+= tmp; mycutb+= tmp;}
+	if(tmp != "") {mycut+= tmp;}
 
 	//--------------------------------------------
 	//---------------------------------------------------------------
@@ -546,6 +541,10 @@ void TopEFT_analysis::Train_BDT(TString channel)
         {
             TString samplename_tmp = sample_list[isample];
 
+            TString mycut_string_tmp = mycut.GetTitle(); //Modify flag for NPL samples
+            if(samplename_tmp.Contains("NPL", TString::kIgnoreCase) || samplename_tmp.Contains("DY", TString::kIgnoreCase) || samplename_tmp.Contains("ttbar", TString::kIgnoreCase)) {mycut_string_tmp = mycut_string_tmp.ReplaceAll("_SR", "_SRFake"); mycut_string_tmp = mycut_string_tmp.ReplaceAll("_CR", "_CRFake");}
+            TCut mycut_tmp = mycut_string_tmp.Data();
+
             //-- Protections
             if(sample_list[isample] == "DATA") {continue;} //don't use data for training
 
@@ -592,7 +591,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
         //-- Choose between absolute/relative weights for training
     		if(samplename_tmp.Contains(signal_process) )
     		{
-                nEvents_sig+= tree->GetEntries(mycuts); myDataLoader->AddSignalTree(tree, signalWeight);
+                nEvents_sig+= tree->GetEntries(mycut); myDataLoader->AddSignalTree(tree, signalWeight);
 
     			if(use_relative_weights)
     			{
@@ -611,7 +610,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
     		}
     		else
     		{
-                nEvents_bkg+= tree->GetEntries(mycutb); myDataLoader->AddBackgroundTree(tree, backgroundWeight);
+                nEvents_bkg+= tree->GetEntries(mycut); myDataLoader->AddBackgroundTree(tree, backgroundWeight);
 
                 if(use_relative_weights)
     			{
@@ -642,7 +641,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 // #      #    # ###### #      #    # #    # ######      #   #    # ###### ######  ####
 //--------------------------------------------
 
-	if(mycuts != mycutb) {cout<<__LINE__<<FRED("PROBLEM : cuts are different for signal and background ! If this is normal, modify code -- Abort")<<endl; delete myDataLoader; return;}
+	// if(mycuts != mycutb) {cout<<__LINE__<<FRED("PROBLEM : cuts are different for signal and background ! If this is normal, modify code -- Abort")<<endl; delete myDataLoader; return;}
 
 	// If nTraining_Events=nTesting_Events="0", half of the events in the tree are used for training, and the other half for testing
 	//NB : when converting nEvents to TString, make sure to ask for sufficient precision !
@@ -667,10 +666,10 @@ void TopEFT_analysis::Train_BDT(TString channel)
 	cout<<BOLD(FBLU("-- Requesting "<<nTesting_Events_bkg<<" Testing events [BACKGROUND]"))<<endl;
 	cout<<BOLD(FBLU("==================================="))<<endl<<endl<<endl<<endl;
 
-    myDataLoader->PrepareTrainingAndTestTree(mycuts, mycutb, "nTrain_Signal="+nTraining_Events_sig+":nTrain_Background="+nTraining_Events_bkg+":nTest_Signal="+nTesting_Events_sig+":nTest_Background="+nTesting_Events_bkg+":SplitMode=Random:EqualTrainSample:!V"); //EqualTrainSample = ?
+    myDataLoader->PrepareTrainingAndTestTree(mycut, mycut, "nTrain_Signal="+nTraining_Events_sig+":nTrain_Background="+nTraining_Events_bkg+":nTest_Signal="+nTesting_Events_sig+":nTest_Background="+nTesting_Events_bkg+":SplitMode=Random:EqualTrainSample:!V"); //EqualTrainSample = ?
 
 	//-- for quick testing -- few events
-	// myDataLoader->PrepareTrainingAndTestTree(mycuts, mycutb, "nTrain_Signal=10:nTrain_Background=10:nTest_Signal=10:nTest_Background=10:SplitMode=Random:NormMode=NumEvents:!V");
+	// myDataLoader->PrepareTrainingAndTestTree(mycut, mycut, "nTrain_Signal=10:nTrain_Background=10:nTest_Signal=10:nTest_Background=10:SplitMode=Random:NormMode=NumEvents:!V");
 
     //Output rootfile containing TMVAGui infos, ROCS, ... for control
     TString basename = classifier_name;
@@ -1153,6 +1152,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     	{
     		// cout<<endl<<endl<<UNDL(FBLU("Sample : "<<sample_list[isample]<<""))<<endl;
 
+            bool isFake = false; //Identify NPL samples (different flags)
+            if(sample_list[isample].Contains("NPL", TString::kIgnoreCase) || sample_list[isample].Contains("DY", TString::kIgnoreCase) || sample_list[isample].Contains("ttbar", TString::kIgnoreCase)) {isFake = true;}
+
     		//Open input TFile
     		TString inputfile = dir_ntuples + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
 
@@ -1313,7 +1315,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				tree->SetBranchStatus(v_cut_name[i], 1);
                     if(v_cut_name[i].BeginsWith("is") || v_cut_name[i].BeginsWith("passed") ) //Categories are encoded into Char_t, not float
     				{
-    					tree->SetBranchAddress(v_cut_name[i], &v_cut_char[i]);
+                        if(!isFake) {tree->SetBranchAddress(v_cut_name[i], &v_cut_char[i]);}
+                        else {tree->SetBranchStatus(v_cut_name[i]+"Fake", 1); tree->SetBranchAddress(v_cut_name[i]+"Fake", &v_cut_char[i]);} //Fake <-> separate flag
     				}
     				else //All others are floats
     				{
@@ -1325,7 +1328,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			Char_t is_goodCategory = true; //Cut on event category flag
                 if(cat_tmp != "")
                 {
-                    TString cat_name = Get_Category_Boolean_Name(cat_tmp);
+                    TString cat_name = Get_Category_Boolean_Name(cat_tmp, isFake);
 
                     bool alreadyCutOnFlag = false; //Check if address of category flag is already set and cut on (don't cut again)
                     for(int icut=0; icut<v_cut_name.size(); icut++)
@@ -1345,8 +1348,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 Char_t is_tZqSR, is_ttZSR;
                 if(use_predefined_EFT_strategy && categorization_strategy == 1)
                 {
-                    tree->SetBranchStatus(Get_Category_Boolean_Name("tZq"), 1); tree->SetBranchAddress(Get_Category_Boolean_Name("tZq"), &is_tZqSR);
-                    tree->SetBranchStatus(Get_Category_Boolean_Name("ttZ"), 1); tree->SetBranchAddress(Get_Category_Boolean_Name("ttZ"), &is_ttZSR);
+                    tree->SetBranchStatus(Get_Category_Boolean_Name("tZq", isFake), 1); tree->SetBranchAddress(Get_Category_Boolean_Name("tZq", isFake), &is_tZqSR);
+                    tree->SetBranchStatus(Get_Category_Boolean_Name("ttZ", isFake), 1); tree->SetBranchAddress(Get_Category_Boolean_Name("ttZ", isFake), &is_ttZSR);
                 }
 
     			//--- Cut on relevant categorization (lepton flavour, btagging, charge)
@@ -1779,7 +1782,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                         }
                                     }
                                     WCPoint wcp = WCPoint((string) wcpt_name, 1.);
-                                    v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(wcp); //FIXME //-- actually, should keep SM norm ? (rescaling done in Combine)
+                                    // v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(wcp); //FIXME //-- actually, should keep SM norm ? (rescaling done in Combine)
                                 }
 
                                 //Obsolete? -- Apply ad-hoc scale factor to private ttZ sample so that SM yield matches that of central ttZ sample
@@ -1976,7 +1979,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison... //Experimental
 
-    bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
+    bool superimpose_EFThist = false; //true <-> superimpose shape of EFT hists
         bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
         v_EFT_samples.push_back("PrivMC_tZq");
@@ -2319,11 +2322,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				h_tmp->SetFillStyle(1001);
     				if(samplename == "Fakes") {h_tmp->SetFillStyle(3005);}
     		        else if(samplename == "QFlip" ) {h_tmp->SetFillStyle(3006);}
-    		        // else if(samplename.Contains("TTbar") || samplename.Contains("TTJet") )
-    				// {
-    					// h_tmp->SetFillStyle(3005);
-    				// 	if(samplename.Contains("Semi") ) {h_tmp->SetLineWidth(0);}
-    				// }
 
     				h_tmp->SetFillColor(color_list[isample]);
     				h_tmp->SetLineColor(kBlack);
@@ -2718,7 +2716,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
             else if(MC_samples_legend[i] == "WWZ") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
             else if(MC_samples_legend[i] == "TTGamma_Dilep") {qw->AddEntry(v_MC_histo[i], "X+#gamma", "f");}
-            else if(MC_samples_legend[i] == "TTbar_DiLep") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
+            else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
             // else if(MC_samples_legend[i] == "ZZ4l") {qw->AddEntry(v_MC_histo[i], "ZZ", "f");}
             // else if(MC_samples_legend[i] == "tHq") {qw->AddEntry(v_MC_histo[i], "tX", "f");}
             // else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
@@ -2728,11 +2726,14 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
             // else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "TTbar") {qw->AddEntry(v_MC_histo[i], "t#bar{t}", "f");}
 		}
 
-        for(int isample=0; isample<v_EFT_samples.size(); isample++)
+        if(superimpose_EFThist)
         {
-            for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
+            for(int isample=0; isample<v_EFT_samples.size(); isample++)
             {
-                qw->AddEntry(v2_th1eft[ipoint][isample], v2_th1eft_labels[ipoint][isample], "L");
+                for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
+                {
+                    qw->AddEntry(v2_th1eft[ipoint][isample], v2_th1eft_labels[ipoint][isample], "L");
+                }
             }
         }
 
@@ -3232,15 +3233,16 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 		text2.SetTextSize(0.045);
 		text2.SetTextFont(42);
 
-		TString info_data = "l^{#pm}l^{#pm}l^{#pm}";
-        if (channel=="eee")    info_data = "eee";
-		else if (channel=="eeu")  info_data = "ee#mu";
-		else if (channel=="uue")  info_data = "#mu#mu e";
-		else if (channel=="uuu") info_data = "#mu#mu #mu";
+        TString info_data = Get_Region_Label(region);
+        // TString info_data = "l^{#pm}l^{#pm}l^{#pm}";
+        if(channel=="eee")    info_data = "eee";
+		else if(channel=="eeu")  info_data = "ee#mu";
+		else if(channel=="uue")  info_data = "#mu#mue";
+		else if(channel=="uuu") info_data = "#mu#mu#mu";
 
 		// if(h_sum_data->GetBinContent(h_sum_data->GetNbinsX() ) > h_sum_data->GetBinContent(1) ) {text2.DrawLatex(0.55,0.87,info_data);}
 		// else {text2.DrawLatex(0.20,0.87,info_data);}
-		if(!superimpose_EFThist) {text2.DrawLatex(0.23,0.86,info_data);}
+		if(!superimpose_EFThist && info_data != "") {text2.DrawLatex(0.23,0.86,info_data);}
 
 
 // #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
@@ -3661,7 +3663,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                     else if(v_groups[isample] == "GammaConv") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "#gamma-conv.", "L");}
                     else if(v_groups[isample] == "TTGamma_Dilep") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "X+#gamma", "L");}
                     else if(v_groups[isample] == "DY" ) {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "V+jets", "L");}
-                    else if(v_groups[isample] == "TTbar_DiLep" ) {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "t#bar{t}", "L");}
+                    else if(v_groups[isample] == "TTbar_DiLep" || v_groups[isample] == "NPL") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "t#bar{t}", "L");}
                     else {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], v_groups[isample], "L");}
     			}
 
@@ -4106,7 +4108,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                                 }
 
             					int factor = +1; //Addition
-            					if(sample_list[isample] == "NPL_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes) //FIXME
+            					// if(sample_list[isample] == "NPL_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes) //FIXME already accounted for
 
             					if(h_tmp != 0)
             					{

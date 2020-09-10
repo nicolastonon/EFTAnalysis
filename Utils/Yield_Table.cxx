@@ -216,6 +216,9 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             //--- Cut on relevant event selection (e.g. 3l SR, ttZ CR, etc.) -- stored as Char_t
             Char_t is_goodCategory; //Categ. of event
+            TString category_tmp = category;
+            if(v_samples[isample].Contains("NPL", TString::kIgnoreCase) || v_samples[isample].Contains("DY", TString::kIgnoreCase) || v_samples[isample].Contains("ttbar", TString::kIgnoreCase)) {category_tmp+= "Fake";} //Different flags for fakes
+
             // if(category != "")
             // {
             //     TString cat_name = Get_Category_Boolean_Name(category);
@@ -223,10 +226,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             //     t->SetBranchAddress(cat_name, &is_goodCategory);
             // }
 
-            if(category != "")
+            if(category_tmp != "")
             {
-                t->SetBranchStatus(category, 1);
-                t->SetBranchAddress(category, &is_goodCategory);
+                t->SetBranchStatus(category_tmp, 1);
+                t->SetBranchAddress(category_tmp, &is_goodCategory);
             }
 
             // UInt_t njets, nbjets;
@@ -295,9 +298,6 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     // }
                 }
 
-                //-- test cuts on njets
-                // if(njets != 2 || nbjets != 2) {continue;}
-
                 //Private MC sample : need to do some rescaling
                 if(v_samples[isample].Contains("Priv") && idx_sm != -1)
                 {
@@ -335,7 +335,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                         statErr_signals+= weight*weight;
                         // cout<<"yield_signals "<<yield_signals<<endl;
                     }
-                    else if(v_samples[isample] != "DATA" && !v_samples[isample].Contains("Priv")) //Backgrounds
+                    else if(v_samples[isample] != "DATA" && !v_samples[isample].Contains("Priv") && !v_samples[isample].Contains("TTbar") && !v_samples[isample].Contains("DY")) //Backgrounds //Don't consider: signals / private samples / MC fakes / ...
                     {
                         yield_bkg+= weight;
                     }
@@ -354,7 +354,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     file_out<<left<<setw(25)<<v_label[isample]<<setprecision(4)<<yield_tmp;
                     // file_out<<v_label[isample]<<"\\t"<<yield_tmp;
 
-                    file_out<<" (+/- "<<statErr_tmp<<" stat.)"<<endl;
+                    file_out<<" (+/- "<<sqrt(statErr_tmp)<<" stat.)"<<endl;
                     // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
 
                     yield_tmp = 0; //Reset after writing to file
@@ -380,6 +380,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
         {
             if(v_samples[isample] == "DATA") {continue;} //printed separately
 
+            //Combine errors from all years quadratically
             yield_currentGroup+= v_yields_proc_allYears[isample], statErr_currentGroup+= v_statErr_proc_allYears[isample]*v_statErr_proc_allYears[isample];
 
             if(group_samples_together && v_samples[isample] != "DATA" && isample < v_label.size()-1 && v_label[isample] == v_label[isample+1]) //Sum processes from same group
@@ -387,14 +388,12 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 continue;
             }
 
-            statErr_currentGroup = sqrt(statErr_currentGroup); //compute error
-
             //Printout
             file_out<<"--------------------------------------------"<<endl;
             file_out<<left<<setw(25)<<v_label[isample]<<setprecision(4)<<yield_currentGroup;
             // file_out<<v_label[isample]<<"\\t"<<yield_tmp;
 
-            file_out<<" (+/- "<<statErr_currentGroup<<" stat.)"<<endl;
+            file_out<<" (+/- "<<sqrt(statErr_currentGroup)<<" stat.)"<<endl;
             // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
 
             yield_currentGroup = 0; statErr_currentGroup = 0; //Reset
@@ -466,10 +465,8 @@ int main(int argc, char **argv)
     //-- Default args (can be over-riden via command line args)
     TString signal = "signal"; //tZq/ttZ/signal (both)
 
-    // TString category = "is_tzq_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
     TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_tZq_3l_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_ttz_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    // TString category = "is_wz_CR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
 
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
@@ -521,7 +518,6 @@ int main(int argc, char **argv)
     v_samples.push_back("tHq"); v_label.push_back("tX");
     v_samples.push_back("tHW"); v_label.push_back("tX");
     v_samples.push_back("tGJets"); v_label.push_back("tX");
-    // v_samples.push_back("ST"); v_label.push_back("tX");
 
     v_samples.push_back("ttH"); v_label.push_back("ttH");
     v_samples.push_back("ttW"); v_label.push_back("ttW");
@@ -547,10 +543,19 @@ int main(int argc, char **argv)
     v_samples.push_back("ZGToLLG_01J"); v_label.push_back("Xg");
     v_samples.push_back("ggToZZTo4l"); v_label.push_back("Xg");
 
-    v_samples.push_back("DY"); v_label.push_back("DY");
-
+    //MC nonprompt fakes
     v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");
     v_samples.push_back("TTbar_SemiLep"); v_label.push_back("TTbar_SemiLep");
+    v_samples.push_back("DY"); v_label.push_back("DY");
+    v_samples.push_back("NPL_MC"); v_label.push_back("NPL_MC");
+
+    //DD nonprompt fakes
+    v_samples.push_back("NPL"); v_label.push_back("NPL");
+
+    //TMP
+    v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
+    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("TTbar_SemiLep");
+    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
 
 //--------------------------------------------
 

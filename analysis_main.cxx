@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
 
     //-- M V A    S T R A T E G Y --
-    TString classifier_name = "BDT"; //'BDT' or 'NN'
+    TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
     bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
@@ -130,8 +130,8 @@ int main(int argc, char **argv)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
-    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
 
     //Signals (central samples)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
@@ -297,7 +297,7 @@ int main(int argc, char **argv)
 //*** CHOOSE HERE FROM BOOLEANS WHAT YOU WANT TO DO !
 
 //-----------------    TRAINING
-    bool train_BDT = true; //Train selected BDT in selected region (with events in training category)
+    bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
     bool create_templates = false; //Create MVA templates
@@ -312,7 +312,7 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = false; //Plot input variables
+    bool draw_input_vars = true; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;

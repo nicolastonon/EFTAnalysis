@@ -2,6 +2,7 @@
 
 using namespace std;
 
+
 //--------------------------------------------
 // ##        #######  ##      ##         ##       ######## ##     ## ######## ##
 // ##       ##     ## ##  ##  ##         ##       ##       ##     ## ##       ##
@@ -783,17 +784,26 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 {
 	if(argc >= 2)
 	{
-        if(!strcmp(argv[1],"2016") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
-        else if(!strcmp(argv[1],"2017") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
-        else if(!strcmp(argv[1],"2018") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"201617") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
-        else if(!strcmp(argv[1],"201618") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"201718") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-        else if(!strcmp(argv[1],"Run2") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+        TString arg1 = (TString) argv[1]; arg1.ToLower();
 
-        else if(!strcmp(argv[1],"tZq")) {region_choice = "tZq";}
-        else if(!strcmp(argv[1],"ttZ")) {region_choice = "ttZ";}
-        // else if(!strcmp(argv[1],"tWZ")) {region_choice = "tWZ";}
+        if(arg1 == "2016") {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
+        else if(arg1 == "2017") {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
+        else if(arg1 == "2018") {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
+        else if(arg1 == "201617") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
+        else if(arg1 == "201618") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
+        else if(arg1 == "201718") {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+        else if(arg1 == "run2") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+
+        else if(arg1 == "tzq") {region_choice = "tZq";}
+        else if(arg1 == "ttz") {region_choice = "ttZ";}
+        else if(arg1 == "twz") {region_choice = "tWZ";}
+        else if(arg1 == "signal") {region_choice = "signal";}
+        else if(arg1 == "vg") {region_choice = "Vg";}
+        else if(arg1 == "zz") {region_choice = "zz";}
+        else if(arg1 == "tx") {region_choice = "tX";}
+        else if(arg1 == "tt") {region_choice = "tt";}
+        else if(arg1 == "wz") {region_choice = "wz";}
+        else if(arg1 == "dy") {region_choice = "dy";}
 
         else
         {
@@ -809,17 +819,26 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
 		if(argc >= 3)
 		{
-            if(!strcmp(argv[2],"tZq")) {region_choice = "tZq";}
-            else if(!strcmp(argv[2],"ttZ")) {region_choice = "ttZ";}
-            // else if(!strcmp(argv[2],"tWZ")) {region_choice = "tWZ";}
+            TString arg2 = (TString) argv[2]; arg2.ToLower();
 
-            else if(!strcmp(argv[2],"2016") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
-            else if(!strcmp(argv[2],"2017") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
-            else if(!strcmp(argv[2],"2018") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"201617") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
-            else if(!strcmp(argv[2],"201618") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"201718") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
-            else if(!strcmp(argv[2],"Run2") ) {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+            if(arg2 == "2016") {v_lumiYear.resize(0); v_lumiYear.push_back("2016");}
+            else if(arg2 == "2017") {v_lumiYear.resize(0); v_lumiYear.push_back("2017");}
+            else if(arg2 == "2018") {v_lumiYear.resize(0); v_lumiYear.push_back("2018");}
+            else if(arg2 == "201617") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017");}
+            else if(arg2 == "201618") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2018");}
+            else if(arg2 == "201718") {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+            else if(arg2 == "run2") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
+
+            else if(arg2 == "tzq") {region_choice = "tZq";}
+            else if(arg2 == "ttz") {region_choice = "ttZ";}
+            else if(arg2 == "twz") {region_choice = "tWZ";}
+            else if(arg2 == "signal") {region_choice = "signal";}
+            else if(arg2 == "vg") {region_choice = "Vg";}
+            else if(arg2 == "zz") {region_choice = "zz";}
+            else if(arg2 == "tx") {region_choice = "tX";}
+            else if(arg2 == "tt") {region_choice = "tt";}
+            else if(arg2 == "wz") {region_choice = "wz";}
+            else if(arg2 == "dy") {region_choice = "dy";}
 
 			else
 			{
@@ -928,6 +947,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
 
             else if(v_samples[isample] == "TTbar_DiLep") {v_colors[isample] = kGray+2;} //kPink-4, kCyan-6;
             else if(v_samples[isample] == "TTbar_SemiLep") {v_colors[isample] = kGray+2;}
+            else if(v_samples[isample].Contains("NPL")) {v_colors[isample] = kGray+2;}
 		}
 	}
 
@@ -980,6 +1000,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             else if(v_samples[isample] == "DY") {v_colors[isample] = kGray;}
             else if(v_samples[isample] == "TTbar_DiLep") {v_colors[isample] = kGray;}
             else if(v_samples[isample] == "TTbar_SemiLep") {v_colors[isample] = kGray;}
+            else if(v_samples[isample].Contains("NPL")) {v_colors[isample] = kGray;}
 		}
 	}
 
@@ -1133,24 +1154,31 @@ TString Get_Variable_Name(TString var)
 }
 
 //Get var name corresponding to category
-TString Get_Category_Boolean_Name(TString region)
+//isFake <-> use different flags for prompt/fake events
+TString Get_Category_Boolean_Name(TString region, bool isFake)
 {
+    TString name = "";
+
     // if(region=="tZq") {return "is_tZq_3l_SR";}
     // else if(region=="ttZ") {return "is_ttZ_3l_SR";}
     // else if(region=="tWZ") {return "is_tWZ_3l_SR";}
 
-    if(region=="signal") {return "is_signal_SR";}
-    else if(region=="tZq") {return "is_tzq_SR";}
-    else if(region=="ttZ") {return "is_ttz_SR";}
+    if(region=="signal") {name = "is_signal_SR";}
+    else if(region=="tZq") {name = "is_tzq_SR";}
+    else if(region=="ttZ") {name = "is_ttz_SR";}
 
-    else if(region=="VG") {return "is_Vg_SR";}
-    else if(region=="ZZ") {return "is_zz_SR";}
-    else if(region=="tX") {return "is_tX_SR";}
-    else if(region=="tt") {return "is_tt_SR";}
-    else if(region=="WZ") {return "is_wz_SR";}
-    else if(region=="DY") {return "is_dy_SR";}
+    else if(region=="Vg") {name = "is_Vg_CR";}
+    else if(region=="zz") {name = "is_zz_CR";}
+    else if(region=="tX") {name = "is_tX_CR";}
+    else if(region=="tt") {name = "is_tt_CR";}
+    else if(region=="wz") {name = "is_wz_CR";}
+    else if(region=="dy") {name = "is_dy_CR";}
 
-    return "";
+    else {cout<<"Warning: empty category name..."<<endl;}
+
+    if(isFake && name != "") {name+= "Fake";}
+
+    return name;
 }
 
 //Computes total nof entries which will be processed by the Produce_Templates() function, so that the Timebar is correct
@@ -1402,13 +1430,13 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 		fullpath = "./outputs/fitDiagnostics_";
 		fullpath+= template_type + "_" + region + filename_suffix + ".root";
 
-        cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
+        cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
 		else
         {
             fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
 
-            cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
+            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
             if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
             else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
         }
@@ -1430,9 +1458,25 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
 		else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
 
-        cout<<DIM("Trying to open Template file "<<fullpath<<" ... ");
+        cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
-        else {cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found ! Can not plot any histogram !"))<<endl; return "";}
+        else
+        {
+            cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found !"))<<endl;
+            if(year != "Run2") //Retry with Run2 file
+            {
+                if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_Run2" + filename_suffix + ".root";} //Input variables
+                else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_Run2" + filename_suffix + ".root";} //Templates
+                cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
+                if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+                else
+                {
+                    cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found ! Can not plot any histogram !"))<<endl;
+                    return "";
+                }
+            }
+            else {return "";}
+        }
     }
 
     return fullpath;
@@ -1471,4 +1515,22 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
     if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl; return false;} //Need this info for NN
 
     return true;
+}
+
+TString Get_Region_Label(TString region)
+{
+    TString label = "";
+
+    if(region=="signal") {name = "SR";}
+    else if(region=="tZq") {name = "tZq SR";}
+    else if(region=="ttZ") {name = "ttZ SR";}
+
+    else if(region=="Vg") {name = "V#gamma CR";}
+    else if(region=="zz") {name = "ZZ CR";}
+    else if(region=="tX") {name = "tX CR";}
+    else if(region=="tt") {name = "t#bar{t} CR";}
+    else if(region=="wz") {name = "WZ CR";}
+    else if(region=="dy") {name = "DY CR";}
+
+    return label;
 }

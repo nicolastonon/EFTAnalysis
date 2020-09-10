@@ -473,14 +473,15 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         list_features.append("jet1_phi")
         list_features.append("jet2_phi")
         list_features.append("jet3_phi")
-        list_features.append("jet4_pt")
-        list_features.append("jet4_eta")
-        list_features.append("jet4_phi")
-        # list_features.append("jet1_DeepJet")
-        # list_features.append("jet2_DeepJet")
-        # list_features.append("jet3_DeepJet")
+        list_features.append("jet1_DeepJet")
+        list_features.append("jet2_DeepJet")
+        list_features.append("jet3_DeepJet")
+
+        # list_features.append("jet4_pt")
+        # list_features.append("jet4_eta")
+        # list_features.append("jet4_phi")
         # list_features.append("jet4_DeepJet")
-        
+
         ## list_features.append("jet1_DeepCSV")
         ## list_features.append("jet2_DeepCSV")
         ## list_features.append("jet3_DeepCSV")

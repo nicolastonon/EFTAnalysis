@@ -91,13 +91,13 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
     else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Split data into train / val / test datasets
 
-    #FIXME #FIXME
-    mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30)
-    x_train = x_train[mask_largeEFTweights]
-    y_train = y_train[mask_largeEFTweights]
-    y_process_train = y_process_train[mask_largeEFTweights]
-    PhysicalWeights_train = PhysicalWeights_train[mask_largeEFTweights]
-    LearningWeights_train = LearningWeights_train[mask_largeEFTweights]
+    #FIXME
+    # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30)
+    # x_train = x_train[mask_largeEFTweights]
+    # y_train = y_train[mask_largeEFTweights]
+    # y_process_train = y_process_train[mask_largeEFTweights]
+    # PhysicalWeights_train = PhysicalWeights_train[mask_largeEFTweights]
+    # LearningWeights_train = LearningWeights_train[mask_largeEFTweights]
 
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     transfType='quantile' #'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
@@ -149,6 +149,12 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
         list_SMweights_proc = [] #Store SM weights for easy access (for private samples only)
         for iproc, process in enumerate(procClass): #Loop on physics processes (samples)
 
+            cuts_tmp = cuts
+            isNPLsample = False
+            if "npl" in process.lower() or "dy" in process.lower() or "ttbar" in process.lower():
+                isNPLsample = True
+                cuts_tmp = cuts.replace("_SR", "_SRFake"); cuts_tmp = cuts.replace("_SR", "_CRFake") #NPL sample <-> different category flags
+
             isPrivMCsample = False
             if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process):
                 print('process', process); print('label', label)
@@ -179,30 +185,30 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 if opts["parameterizedNN"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
-                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts).shape[0], 'entries)') #Dummy variable, just to read the nof entries
+                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts_tmp).shape[0], 'entries)') #Dummy variable, just to read the nof entries
                 if nevents is not None: print('(---> Will consider at most ' + str(nevents) + ' entries [<-> maxEventsPerClass])')
                 print('\n\n')
 
-                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts)) #Store values of input features into array, append to list
+                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts_tmp)) #Store values of input features into array, append to list
 
                 #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
                 #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
-                # x_tmp = tree2array(tree, branches=list_features, selection=cuts, start=0,stop=nevents)
-                x_tmp = tree2array(tree, branches=list_features, selection=cuts); x_tmp = x_tmp[:nevents]
+                # x_tmp = tree2array(tree, branches=list_features, selection=cuts_tmp, start=0,stop=nevents)
+                x_tmp = tree2array(tree, branches=list_features, selection=cuts_tmp); x_tmp = x_tmp[:nevents]
                 x_tmp = np.column_stack([x_tmp[name] for name in x_tmp.dtype.names]) #1D --> 2D
                 x_tmp = x_tmp.astype(np.float32) #Convert all to floats
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
-                # if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts, start=0,stop=nevents))
-                # elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
-                # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts, start=0,stop=nevents))
-                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts)[:nevents])
-                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
-                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts)[:nevents])
+                # if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_tmp, start=0,stop=nevents))
+                # elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_tmp, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp, start=0,stop=nevents))
+                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_tmp)[:nevents])
+                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_tmp)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents])
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
-                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts, isPureEFT, iproc, nevents)
+                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts_tmp, isPureEFT, iproc, nevents)
                 list_EFTweights_proc.append(EFTweights_proc_tmp); list_EFTweightIDs_proc.append(EFTweightIDs_proc_tmp); list_SMweights_proc.append(SMweights_proc_tmp)
 
         #-- Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 single array per process class
@@ -896,7 +902,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
     transfType: 'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
     '''
 
-    nmax = 100000 #Don't compute means shifts and scales on more than nmax events (slow)
+    nmax = 100000 #None <-> use all events; else: don't compute means shifts and scales on more than nmax events (slow)
     np.set_printoptions(precision=3)
     xTrainRescaled = None
 
@@ -908,8 +914,9 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, parameterizedN
 
     #--- QUANTILE RESCALING
     # a = median ; b = scale
-    if transfType == 'quantile':
-        frac=0.99 #Fraction of event within [-1;+1] -- e.g. 0.68 or 0.95
+    if transfType == 'quantile': #frac = Fraction of event within [-1;+1] -- e.g. 0.68 or 0.95
+        # frac=0.99
+        frac=0.95
         shift_, scale_ = get_normalization_iqr(x_train[:nmax], frac)
         # if parameterizedNN==False: xTrainRescaled = normalize(x_train, shift_, scale_) #Apply transformation on train events -- for control
         xTrainRescaled = normalize(x_train, shift_, scale_)
