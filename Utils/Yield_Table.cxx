@@ -381,7 +381,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             if(v_samples[isample] == "DATA") {continue;} //printed separately
 
             //Combine errors from all years quadratically
-            yield_currentGroup+= v_yields_proc_allYears[isample], statErr_currentGroup+= v_statErr_proc_allYears[isample]*v_statErr_proc_allYears[isample];
+            yield_currentGroup+= v_yields_proc_allYears[isample], statErr_currentGroup+= v_statErr_proc_allYears[isample]; //NB: no need to square uncert. here, it is already ! (cf. above)
 
             if(group_samples_together && v_samples[isample] != "DATA" && isample < v_label.size()-1 && v_label[isample] == v_label[isample+1]) //Sum processes from same group
             {
@@ -466,7 +466,7 @@ int main(int argc, char **argv)
     TString signal = "signal"; //tZq/ttZ/signal (both)
 
     TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_wz_CR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    // TString category = "is_Vg_CR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
 
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee

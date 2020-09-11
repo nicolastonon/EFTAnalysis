@@ -800,10 +800,10 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
         else if(arg1 == "signal") {region_choice = "signal";}
         else if(arg1 == "vg") {region_choice = "Vg";}
         else if(arg1 == "zz") {region_choice = "zz";}
-        else if(arg1 == "tx") {region_choice = "tX";}
         else if(arg1 == "tt") {region_choice = "tt";}
         else if(arg1 == "wz") {region_choice = "wz";}
         else if(arg1 == "dy") {region_choice = "dy";}
+        else if(arg1 == "tx") {region_choice = "tX";} //Obsolete
 
         else
         {
@@ -835,10 +835,10 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
             else if(arg2 == "signal") {region_choice = "signal";}
             else if(arg2 == "vg") {region_choice = "Vg";}
             else if(arg2 == "zz") {region_choice = "zz";}
-            else if(arg2 == "tx") {region_choice = "tX";}
             else if(arg2 == "tt") {region_choice = "tt";}
             else if(arg2 == "wz") {region_choice = "wz";}
             else if(arg2 == "dy") {region_choice = "dy";}
+            else if(arg2 == "tx") {region_choice = "tX";} //Obsolete
 
 			else
 			{
@@ -1073,7 +1073,7 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "maxDijetMass") {nbins = 10; xmin = 0; xmax = 1000;}
     else if(var == "maxDijetPt") {nbins = 20; xmin = 0; xmax = 400;}
     else if(var == "maxDelPhiLL") {nbins = 10; xmin = 0; xmax = 3.5;}
-    else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 100; xmax = 500;}
+    else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 50; xmax = 500;}
     else if(var == "leptonCharge") {nbins = 3; xmin = -1.5; xmax = 1.5;}
     else if(var == "mTW") {nbins = 20; xmin = 0.; xmax = 200;}
     else if(var == "recoZ_Mass") {nbins = 20; xmin = 75.; xmax = 110;}
@@ -1268,9 +1268,9 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TStrin
 TString Get_Modified_SystName(TString systname, TString lumiYear)
 {
     //Only list the systematics which are *not* to be correlated in-between years (i.e., need to give them a unique name per year)
-    if(systname.BeginsWith("prefiring")
-    || systname.BeginsWith("Btag")
-    || systname.BeginsWith("LepEff")
+    if(systname.BeginsWith("BtagHFstats")
+    || systname.BeginsWith("BtagLFstats")
+    || systname.BeginsWith("BtagCF")
     )
     {
         if(systname.EndsWith("Up"))
@@ -1446,7 +1446,6 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         TString MVA_type = "";
         if(is_templateFile && categorization_strategy>0)
         {
-            MVA_type = "_";
             if(MVA_EFT)
             {
                 MVA_type+= "EFT" + Convert_Number_To_TString(categorization_strategy);
@@ -1454,6 +1453,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
             }
             else {MVA_type+= "SM";}
         }
+        if(MVA_type != "") {MVA_type = "_" + MVA_type;}
 
 		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
 		else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
@@ -1521,16 +1521,16 @@ TString Get_Region_Label(TString region)
 {
     TString label = "";
 
-    if(region=="signal") {name = "SR";}
-    else if(region=="tZq") {name = "tZq SR";}
-    else if(region=="ttZ") {name = "ttZ SR";}
+    if(region=="signal") {label = "SR";}
+    else if(region=="tZq") {label = "tZq SR";}
+    else if(region=="ttZ") {label = "ttZ SR";}
 
-    else if(region=="Vg") {name = "V#gamma CR";}
-    else if(region=="zz") {name = "ZZ CR";}
-    else if(region=="tX") {name = "tX CR";}
-    else if(region=="tt") {name = "t#bar{t} CR";}
-    else if(region=="wz") {name = "WZ CR";}
-    else if(region=="dy") {name = "DY CR";}
+    else if(region=="Vg") {label = "V#gamma CR";}
+    else if(region=="zz") {label = "ZZ CR";}
+    else if(region=="tX") {label = "tX CR";}
+    else if(region=="tt") {label = "t#bar{t} CR";}
+    else if(region=="wz") {label = "WZ CR";}
+    else if(region=="dy") {label = "DY CR";}
 
     return label;
 }

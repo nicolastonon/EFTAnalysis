@@ -54,9 +54,37 @@ else:
     print("Wrong statChoice value ! should be 'withStat' or 'noStat'")
     exit()
 
-is201617=""
-if year=="2018":
-    is201617="#"
+#Deal with all possible year correlations
+is2016="#"
+is2017="#"
+is2018="#"
+is201617="#"
+is201718="#"
+if year=="2016":
+    is2016=""
+    is201617=""
+elif year=="2017":
+    is2017=""
+    is201617=""
+    is201718=""
+elif year=="2018":
+    is2018=""
+    is201718=""
+
+#Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
+Lumi1617 = "-"
+Lumi1718 = "-"
+LumiXY = "-"
+if year=="2016":
+    Lumi1617 = "1.008"
+    LumiXY = "1.009"
+elif year=="2017":
+    Lumi1617 = "1.006"
+    Lumi1718 = "1.004"
+    LumiXY = "1.008"
+elif year=="2018":
+    Lumi1718 = "1.003"
+    LumiXY = "1.02"
 
 #--------------------------------------------
 # ele_sys = "" #Ele systematics only in ele channels
@@ -72,15 +100,22 @@ rateVal = "1" #or '2' to double the rate of the process ? (verify)
 
 
 #--------------------------------------------
-s = open( fileToSearch).read()
+s = open(fileToSearch).read()
 
 #-- REPLACE KEYWORDS
+s = s.replace("[YEAR]", year)
+s = s.replace("[2016]", is2016)
+s = s.replace("[2017]", is2017)
+s = s.replace("[2018]", is2018)
+s = s.replace("[201617]", is201617)
+s = s.replace("[201718]", is201718)
+s = s.replace("[Lumi1617]", Lumi1617)
+s = s.replace("[Lumi1718]", Lumi1718)
+s = s.replace("[LumiXY]", LumiXY)
+
 s = s.replace("[SHAPE]", shape)
 s = s.replace("[STAT]", stat)
-s = s.replace("[YEAR]", year)
-s = s.replace("[201617]", is201617)
 s = s.replace("filetoread", theFiletoRead)
-# s = s.replace("var_chan", varchan)
 s = s.replace("[VAR]",theVar)
 s = s.replace("_[CHAN]", channel)
 

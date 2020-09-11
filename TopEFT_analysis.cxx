@@ -20,6 +20,7 @@
 
 using namespace std;
 
+
 //---------------------------------------------------------------------------
 // ####    ##    ##    ####    ########
 //  ##     ###   ##     ##        ##
@@ -34,7 +35,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool use_SManalysis_strategy)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -63,8 +64,9 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     this->signal_process = signal_process;
     if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "tWZ") {cout<<BOLD(FRED("ERROR ! [signal_process] option not recognized ! Abort..."))<<endl; stop_program = true;}
 
-    if(region == "tZq" && signal_process != "tZq") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
-    else if(region == "ttZ" && signal_process != "ttZ") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
+    //-- Obsolete (not compatible with use_SManalysis_strategy use-case)
+    // if(region == "tZq" && signal_process != "tZq") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
+    // else if(region == "ttZ" && signal_process != "ttZ") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
 
     this->make_SMvsEFT_templates_plots = make_SMvsEFT_templates_plots;
 
@@ -240,6 +242,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     array_PU = NULL;
     array_prefiringWeight = NULL;
     array_Btag = NULL;
+    array_jetPileupID = NULL;
+    array_fakeFactor = NULL;
     // array_LepEff_mu = NULL;
     // array_LepEff_el = NULL;
     // array_LepEffLoose_mu = NULL;
@@ -299,10 +303,16 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     //NPL background
     this->use_DD_NPL = use_DD_NPL;
-    if(!Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL.root")))
+    if(!Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL.root")) || !Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL.root")))
     {
-        cout<<endl<<FMAG("ERROR : option [use_DD_NPL=true] but could not find corresponding file "<<dir_ntuples + v_lumiYears[0] + "/NPL.root"<<" ! Please fix")<<endl<<endl;
+        cout<<endl<<FMAG("ERROR : option [use_DD_NPL=true] but could not find corresponding file (either "<<dir_ntuples + v_lumiYears[0] + "/NPL.root, or " + dir_ntuples + v_lumiYears[0] + "/NPL_MC.root"<<" ! Please check & fix")<<endl<<endl;
         stop_program = true;
+    }
+
+    this->use_SManalysis_strategy = use_SManalysis_strategy;
+    if(use_SManalysis_strategy)
+    {
+        if(region != "tZq" && region != "ttZ" && region != "wz" && region != "zz" && region != "Vg") {cout<<"ERROR: you have set option [use_SManalysis_strategy=true] but selected wrong region "<<region<<endl; stop_program = true;}
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -546,7 +556,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
             TCut mycut_tmp = mycut_string_tmp.Data();
 
             //-- Protections
-            if(sample_list[isample] == "DATA") {continue;} //don't use data for training
+            if(sample_list[isample] == "DATA") {continue;} //Don't use data for training
 
             //Can hardcode here the backgrounds against which to train, instead of considering full list of samples
             // if(signal_process == "tZq")
@@ -844,7 +854,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     bool use_predefined_EFT_strategy = false;
     bool use_maxNode_events = false;
     bool apply_MVASM_cut = false;
-    if(!makeHisto_inputVars && categorization_strategy > 0)
+    TString MVA_type = "";
+    if(!makeHisto_inputVars && categorization_strategy > 0 && !use_SManalysis_strategy)
     {
         use_predefined_EFT_strategy = true;
 
@@ -855,6 +866,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             cat_tmp = "signal";
             signal_process = "tZq";
         }
+
+        if(make_SMvsEFT_templates_plots) {MVA_type = "EFT";}
+        else {MVA_type = "SM";}
 
         if(categorization_strategy == 2 && (make_SMvsEFT_templates_plots || (!make_SMvsEFT_templates_plots && plot_onlyMaxNodeEvents)) ) {use_maxNode_events = true;} //Cases for which we want to cut on a multiclass MVA-SM
         else if(categorization_strategy == 1 && (make_SMvsEFT_templates_plots || (!make_SMvsEFT_templates_plots && plot_onlyMVACutEvents)) ) {apply_MVASM_cut = true;}
@@ -883,6 +897,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         array_PU = new double[2];
         array_prefiringWeight = new double[2];
         array_Btag = new double[16];
+        array_jetPileupID = new double[4];
+        array_fakeFactor = new double[2];
         // array_LepEff_mu = new double[4];
         // array_LepEff_el = new double[4];
         // array_LepEffLoose_mu = new double[2];
@@ -890,29 +906,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         // array_LepEffTight_mu = new double[2];
         // array_LepEffTight_el = new double[2];
     }
-
-	//-- Create output file
-    TString output_file_name = "";
-    TString MVA_type = "";
-	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";}
-    else
-    {
-        TString region_tmp = region;
-        if(use_predefined_EFT_strategy)
-        {
-            if(make_SMvsEFT_templates_plots)
-            {
-                if(region_tmp == "signal") {region_tmp = "";} //Don't need this info in filename (default)
-
-                MVA_type+= "EFT";
-                if(categorization_strategy > 0) {MVA_type+= Convert_Number_To_TString(categorization_strategy);}
-                if(this->scanOperators_paramNN) {MVA_type+= "param";}
-            }
-            else {MVA_type+= "SM";}
-        }
-        output_file_name = "outputs/Templates_" + template_name + "_" + MVA_type + "_" + region_tmp + "_" + lumiName + filename_suffix + ".root";
-    }
-	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
 
     if(!makeHisto_inputVars)
     {
@@ -1009,9 +1002,33 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 }
             } //MVA EFT scan
         } //Predefined strategy
+
+        if(use_SManalysis_strategy) //Hard-coded, following SM analysis strategy
+        {
+            total_var_list.clear();
+            if(region == "tZq" || region == "ttZ") {total_var_list.push_back("NN");}
+            else if(region == "wz") {total_var_list.push_back("mTW");}
+            else if(region == "zz") {total_var_list.push_back("countExp");}
+            else if(region == "Vg") {total_var_list.push_back("channel");}
+            template_name = total_var_list[0];
+        }
 	} //Templates
 
     vector<float> total_var_floats(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
+
+    //-- Create output file
+    TString output_file_name = "";
+	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";}
+    else
+    {
+        if(use_predefined_EFT_strategy && make_SMvsEFT_templates_plots)
+        {
+            if(categorization_strategy > 0) {MVA_type+= Convert_Number_To_TString(categorization_strategy);}
+            if(this->scanOperators_paramNN) {MVA_type+= "param";}
+        }
+        output_file_name = "outputs/Templates_" + template_name + (MVA_type == ""? "":"_" + MVA_type) + "_" + region + "_" + lumiName + filename_suffix + ".root";
+    }
+	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
 
 
 // #    #      ##      #    #    #
@@ -1216,6 +1233,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		for(int itree=0; itree<systTree_list.size(); itree++)
     		{
                 if(sample_list[isample] == "DATA" && systTree_list[itree] != "") {continue;}
+                if(sample_list[isample].Contains("NPL") && systTree_list[itree] != "") {continue;}
 
     			tree = 0;
                 TString tmp = systTree_list[itree];
@@ -1243,6 +1261,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                 float njets, nbjets; //Needed for 'categ' templates
                 float* mTW = 0; //Needed for CR EFT template
+                int idx_mTW = -1; //Must keep track of this variable's index, and whether its address is already set
     			if(makeHisto_inputVars)
     			{
     				for(int i=0; i<total_var_list.size(); i++)
@@ -1255,7 +1274,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			{
                     if(template_name=="BDT" || template_name=="NN") //Activate input features needed for MVA evaluation (same as used for training)
                     {
-                        int idx_mTW = -1; //Must keep track of this variable's index, and whether its address is already set
                         for(int i=0; i<var_list.size(); i++)
                         {
                             if(!isample) {cout<<DIM("MVA 1 -- "<<i<<" -- Activate variable '"<<var_list[i]<<"'")<<endl;}
@@ -1287,12 +1305,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 }
                             }
                         } //2nd MVA
-
-                        //-- mTW address
-                        tree->SetBranchStatus("mTW", 1);
-                        if(idx_mTW >= 0) {mTW = &var_list_floats[idx_mTW];} //Point to float already storing the value
-                        else {tree->SetBranchAddress("mTW", mTW);} //Set address
-
                     } //MVA templates
                     else if(template_name=="categ") //Need to read jet/bjet multiplicities of each event
                     {
@@ -1307,6 +1319,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
                     }
     			}
+
+                //-- mTW address
+                tree->SetBranchStatus("mTW", 1);
+                if(idx_mTW >= 0) {mTW = &var_list_floats[idx_mTW];} //Point to float already storing the value
+                else {mTW = new float; tree->SetBranchAddress("mTW", mTW);} //Need to allocate memory for mTW and set its adress to the relevant branch
 
     			for(int i=0; i<v_cut_name.size(); i++)
     			{
@@ -1389,6 +1406,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				//-- Protections : not all syst weights apply to all samples, etc.
     				if(sample_list[isample] == "DATA") {break;}
     				if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
+                    if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
 
                     //Set proper branch address (hard-coded mapping)
                     SetBranchAddress_SystVariationArray(tree, syst_list[isyst], v_double_systWeights, isyst);
@@ -1402,7 +1420,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			for(int ichan=0; ichan<channel_list.size(); ichan++)
     			{
-    				if((channel_list.size() > 1 && channel_list[ichan] == "") || sample_list[isample] == "DATA" || systTree_list[itree] != "") {v3_histo_chan_syst_var[ichan].resize(1);} //Cases for which we only need to store the nominal weight
+    				if((channel_list.size() > 1 && channel_list[ichan] == "") || sample_list[isample] == "DATA"  || systTree_list[itree] != "") {v3_histo_chan_syst_var[ichan].resize(1);} //Cases for which we only need to store the nominal weight
 
                     //Reserve memory for TH1Fs
     				if(sample_list[isample] == "DATA" || systTree_list[itree] != "") //1 single weight
@@ -1428,7 +1446,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             //-- Hard-coded template binnings
                             int nbins_tmp = nbins; double xmin_tmp = xmin, xmax_tmp = xmax;
-                            if(total_var_list[ivar].Contains("mTW")) {nbins_tmp=20; xmin_tmp=0; xmax_tmp=200;}
+
+                            if(use_SManalysis_strategy) {xmin_tmp = 0;}
+
+                            if(total_var_list[ivar].Contains("mTW"))
+                            {
+                                nbins_tmp=20; xmin_tmp=0; xmax_tmp=200;
+                                // if(use_SManalysis_strategy) {nbins_tmp=13; xmax_tmp=150;} //Keep my binning for now
+                            }
+                            else if(total_var_list[ivar].Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
+                            else if(total_var_list[ivar].Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
 
                             v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp);
 
@@ -1530,7 +1557,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         }
 
                         if(template_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(BDT_method_name);} //BDT output value
-
                         else if(template_name == "NN" && !use_predefined_EFT_strategy) //NN output value //Default
                         {
                             clfy1_outputs = clfy1->evaluate(var_list_floats); //Evaluate output node(s) value(s)
@@ -1538,6 +1564,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             NN_iMaxNode = -1;
                             for(int inode=0; inode<NN_nNodes; inode++)
                             {
+                                if(use_SManalysis_strategy && region == "ttZ") {total_var_floats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
+
                                 total_var_floats[inode] = clfy1_outputs[inode];
                                 if(clfy1_outputs[inode] > mva_tmp) {mva_tmp = clfy1_outputs[inode]; NN_iMaxNode = inode;} //Store max. node info
                             }
@@ -1558,6 +1586,18 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         {
                             total_var_floats[0] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
                             // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<total_var_floats[0]<<endl;
+                        }
+                        else if(template_name == "mTW")
+                        {
+                            total_var_floats[0] = *mTW;
+                        }
+                        else if(template_name == "countExp")
+                        {
+                            total_var_floats[0] = 0.5;
+                        }
+                        else if(template_name == "channel") //Hard-coded from main SM analysis
+                        {
+                            total_var_floats[0] = (channel==1 || channel==3)? 0.5:1.5;
                         }
                         //NB: no need to set anything more for Zpt template, its address is already set
                     } //Templates
@@ -1587,93 +1627,89 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         bool cat_alreadyFound = false; //For pre-defined strategies, fill orthogonal categories
                         for(int ivar=0; ivar<total_var_list.size(); ivar++)
                         {
-                            if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
+                            if(!makeHisto_inputVars) //TEMPLATES
                             {
-                                int idx_EFT_var = ivar; //Trick: by default, for predefined EFT strategies, there are 3 variables (hard-coded); but if we scan operators, there are 3 * N1 * N2 variables --> Determine which 'original variable' (tzq, ttz, cr) they correspond to
-                                if(scanOperators_paramNN && this->scanOperators_paramNN)
+                                //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
+                                if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
                                 {
-                                    if(ivar < (v_WCs_operator_scan1.size() * v_WCs_operator_scan2.size())) {idx_EFT_var = 0;}
-                                    else {idx_EFT_var = 1;}
-                                }
-
-                                if(categorization_strategy == 1) //Strategy 1
-                                {
-                                    if(cat_alreadyFound && !this->scanOperators_paramNN) {continue;}
-                                    else if(idx_EFT_var == 0 && (!is_tZqSR || (apply_MVASM_cut && !v_isEventPassMVACut_tZq[ientry]))) {continue;} //Event did not pass the required MVA-SM-tZq cut
-                                    else if(idx_EFT_var == 1 && (!is_ttZSR || (apply_MVASM_cut && !v_isEventPassMVACut_ttZ[ientry]))) {continue;} //Event did not pass the required MVA-SM-ttZ cut
-                                    cat_alreadyFound = true;
-                                }
-                                else //Strategy 2
-                                {
-                                    // cout<<"ivar "<<ivar<<" / v_isEventPassMVACut_multiclass[ientry] "<<v_isEventPassMVACut_multiclass[ientry]<<endl;
-                                    if(use_maxNode_events && v_isEventPassMVACut_multiclass[ientry] != idx_EFT_var) {continue;} //Current node is not max node
-                                }
-
-                                //-- If scanning EFT operators, need to set the values of input WCs accordingly
-                                if(scanOperators_paramNN && this->scanOperators_paramNN)
-                                {
-                                    for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                                    int idx_EFT_var = ivar; //Trick: by default, for predefined EFT strategies, there are 3 variables (hard-coded); but if we scan operators, there are 3 * N1 * N2 variables --> Determine which 'original variable' (tzq, ttz, cr) they correspond to
+                                    if(scanOperators_paramNN && this->scanOperators_paramNN)
                                     {
-                                        for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                                        if(ivar < (v_WCs_operator_scan1.size() * v_WCs_operator_scan2.size())) {idx_EFT_var = 0;}
+                                        else {idx_EFT_var = 1;}
+                                    }
+
+                                    if(categorization_strategy == 1) //Strategy 1
+                                    {
+                                        if(cat_alreadyFound && !this->scanOperators_paramNN) {continue;}
+                                        else if(idx_EFT_var == 0 && (!is_tZqSR || (apply_MVASM_cut && !v_isEventPassMVACut_tZq[ientry]))) {continue;} //Event did not pass the required MVA-SM-tZq cut
+                                        else if(idx_EFT_var == 1 && (!is_ttZSR || (apply_MVASM_cut && !v_isEventPassMVACut_ttZ[ientry]))) {continue;} //Event did not pass the required MVA-SM-ttZ cut
+                                        cat_alreadyFound = true;
+                                    }
+                                    else //Strategy 2
+                                    {
+                                        // cout<<"ivar "<<ivar<<" / v_isEventPassMVACut_multiclass[ientry] "<<v_isEventPassMVACut_multiclass[ientry]<<endl;
+                                        if(use_maxNode_events && v_isEventPassMVACut_multiclass[ientry] != idx_EFT_var) {continue;} //Current node is not max node
+                                    }
+
+                                    //-- If scanning EFT operators, need to set the values of input WCs accordingly
+                                    if(scanOperators_paramNN && this->scanOperators_paramNN)
+                                    {
+                                        for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
                                         {
-                                            if(operator_scan2 == "" && iop2>0) {break;} //1D scan only
-                                            if(ivar == (iop1*v_WCs_operator_scan2.size()+iop2+idx_EFT_var*v_WCs_operator_scan1.size()*v_WCs_operator_scan2.size()))
+                                            for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
                                             {
-                                                if(idx_EFT_var == 0) //tZq MVA
+                                                if(operator_scan2 == "" && iop2>0) {break;} //1D scan only
+                                                if(ivar == (iop1*v_WCs_operator_scan2.size()+iop2+idx_EFT_var*v_WCs_operator_scan1.size()*v_WCs_operator_scan2.size()))
                                                 {
-                                                    var_list_floats[idx1_operator_scan1] = v_WCs_operator_scan1[iop1];
-                                                    var_list_floats[idx1_operator_scan2] = v_WCs_operator_scan2[iop2];
-                                                    // cout<<iop1<<" var "<<idx1_operator_scan1<<" ==> "<<v_WCs_operator_scan1[iop1]<<endl;
-                                                    // cout<<iop2<<" var "<<idx1_operator_scan2<<" ==> "<<v_WCs_operator_scan2[iop2]<<endl;
-                                                }
-                                                else if(idx_EFT_var == 1) //ttZ MVA
-                                                {
-                                                    var_list_floats_2[idx2_operator_scan1] = v_WCs_operator_scan1[iop1];
-                                                    var_list_floats_2[idx2_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                    if(idx_EFT_var == 0) //tZq MVA
+                                                    {
+                                                        var_list_floats[idx1_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        var_list_floats[idx1_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                        // cout<<iop1<<" var "<<idx1_operator_scan1<<" ==> "<<v_WCs_operator_scan1[iop1]<<endl;
+                                                        // cout<<iop2<<" var "<<idx1_operator_scan2<<" ==> "<<v_WCs_operator_scan2[iop2]<<endl;
+                                                    }
+                                                    else if(idx_EFT_var == 1) //ttZ MVA
+                                                    {
+                                                        var_list_floats_2[idx2_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        var_list_floats_2[idx2_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
 
-                                    //-- Re-evaluate output nodes values *at this particular EFT point*
-                                    if(idx_EFT_var == 0)
+                                        //-- Re-evaluate output nodes values *at this particular EFT point*
+                                        if(idx_EFT_var == 0)
+                                        {
+                                            clfy1_outputs = clfy1->evaluate(var_list_floats);
+                                            total_var_floats[ivar] = clfy1_outputs[0];
+                                        }
+                                        else if(idx_EFT_var == 1)
+                                        {
+                                            clfy2_outputs = clfy2->evaluate(var_list_floats_2);
+                                            total_var_floats[ivar] = clfy2_outputs[0];
+                                        }
+                                    } //MVA EFT scan
+                                    else if(template_name == "NN")
                                     {
-                                        clfy1_outputs = clfy1->evaluate(var_list_floats);
-                                        total_var_floats[ivar] = clfy1_outputs[0];
+                                        if(make_SMvsEFT_templates_plots) //SM vs EFT --> use EFT MVA or mTW)
+                                        {
+                                            if(idx_EFT_var==0) {clfy1_outputs = clfy1->evaluate(var_list_floats); total_var_floats[ivar] = clfy1_outputs[0];} //MVA-EFT-tZq
+                                            else if(idx_EFT_var==1) {clfy2_outputs = clfy2->evaluate(var_list_floats_2); total_var_floats[ivar] = clfy2_outputs[0];} //MVA-EFT-ttZ
+                                            else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;}
+                                            else {cout<<"ERROR: wrong index !"<<endl; continue;}
+                                        }
+                                        else //SM vs SM --> use multiclass MVA nodes
+                                        {
+                                            clfy1_outputs = clfy1->evaluate(var_list_floats);
+                                            total_var_floats[ivar] = clfy1_outputs[idx_EFT_var];
+                                        }
                                     }
-                                    else if(idx_EFT_var == 1)
-                                    {
-                                        clfy2_outputs = clfy2->evaluate(var_list_floats_2);
-                                        total_var_floats[ivar] = clfy2_outputs[0];
-                                    }
-                                } //MVA EFT scan
-                                else if(template_name == "NN")
-                                {
-                                    if(make_SMvsEFT_templates_plots) //SM vs EFT --> use EFT MVA or mTW)
-                                    {
-                                        if(idx_EFT_var==0) {clfy1_outputs = clfy1->evaluate(var_list_floats); total_var_floats[ivar] = clfy1_outputs[0];} //MVA-EFT-tZq
-                                        else if(idx_EFT_var==1) {clfy2_outputs = clfy2->evaluate(var_list_floats_2); total_var_floats[ivar] = clfy2_outputs[0];} //MVA-EFT-ttZ
-                                        else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;}
-                                        else {cout<<"ERROR: wrong index !"<<endl; continue;}
-                                    }
-                                    else //SM vs SM --> use multiclass MVA nodes
-                                    {
-                                        clfy1_outputs = clfy1->evaluate(var_list_floats);
-                                        total_var_floats[ivar] = clfy1_outputs[idx_EFT_var];
-                                    }
-                                }
-                                else if(template_name == "Zpt")
-                                {
-                                    total_var_floats[ivar] = total_var_floats[0]; //Branch address of Zpt is set to 'total_var_floats[0]' by default
-                                }
-                                else if(template_name == "categ") //Arbitrary binning depending on jets/bjets multiplicities
-                                {
-                                    total_var_floats[ivar] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
-                                    // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<total_var_floats[0]<<endl;
-                                }
-                                // cout<<"ivar "<<ivar<<" / total_var_floats[ivar] "<<total_var_floats[ivar]<<endl;
-                            }
-                            else if(makeHisto_inputVars) //Some features have their address set twice (but only works once) --> need to read the proper variable
+                                } //predefined EFT strategy
+                            } //Templates //NB: ALL OTHER CASES SHOULD HAVE BEEN TAKEN CARE OF ABOVE THIS
+
+                            //CONTROL HISTOGRAMS
+                            else //Some features have their address set twice (but only works once) --> need to read the proper variable
                             {
                                 if(total_var_list[ivar] == "channel") {total_var_floats[ivar] = channel;}
                             }
@@ -1681,9 +1717,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         					for(int isyst=0; isyst<syst_list.size(); isyst++)
         					{
                                 //-- Protections : not all syst weights apply to all samples, etc.
-                                if(sample_list[isample] == "DATA" && syst_list[isyst] != "") {break;}
+                                if((sample_list[isample] == "DATA") && syst_list[isyst] != "") {break;}
                                 else if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
                                 else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
+                                else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
 
         						// cout<<"-- sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
 
@@ -1710,7 +1747,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);
                                 }
                                 else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);}
-
                             } //syst loop
     					} //var loop
 
@@ -1743,6 +1779,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(sample_list[isample] == "DATA" && syst_list[isyst] != "") {break;}
                         else if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
                         else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
+                        else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
 
     					// cout<<"isyst "<<isyst<<endl;
 
@@ -1751,7 +1788,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						TString output_histo_name;
 
                             output_histo_name = total_var_list[ivar];
-							if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
+                            if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
+                            if(region != "" && !makeHisto_inputVars) {output_histo_name+= "_" + region;}
                             output_histo_name+= "_" + v_lumiYears[iyear] + "__" + samplename;
 							if(syst_list[isyst] != "") {output_histo_name+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
 							else if(systTree_list[itree] != "") {output_histo_name+= "__" + systTree_list[itree];}
@@ -1816,10 +1854,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             }
                             else
                             {
-                                if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+                                if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0 && sample_list[isample] != "NPL_MC") {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC sample has negative integral by construction !
 
                                 v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
-                                // cout<<"Wrote histo : "<<output_histo_name<<endl;
+                                // cout<<"Wrote histo : "<<output_histo_name<<" (Integral: "<<v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral()<<")"<<endl;
 
                                 //-- MVA-EFT: need to store each histogram bin separately so that they can be scaled independently in Combine
                                 if(!makeHisto_inputVars && make_SMvsEFT_templates_plots) {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
@@ -1836,7 +1874,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 if(isPrivMC) {delete v_wgts; delete v_ids;}
     			tree->ResetBranchAddresses(); //Detach tree from local variables (safe)
     			delete tree; tree = NULL;
-    		} //end tree loop
+                if(mTW && idx_mTW <= 0) {delete mTW; mTW = NULL;}
+            } //end tree loop
 
     		file_input->Close(); file_input = NULL;
     	} //end sample loop
@@ -1881,6 +1920,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(array_PU) {delete array_PU; array_PU = NULL;}
         if(array_prefiringWeight) {delete array_prefiringWeight; array_prefiringWeight = NULL;}
         if(array_Btag) {delete array_Btag; array_Btag = NULL;}
+        if(array_jetPileupID) {delete array_jetPileupID; array_jetPileupID = NULL;}
+        if(array_fakeFactor) {delete array_fakeFactor; array_fakeFactor = NULL;}
         // if(array_LepEff_mu) {delete array_LepEff_mu; array_LepEff_mu = NULL; }
         // if(array_LepEff_el) {delete array_LepEff_el; array_LepEff_el = NULL;}
         // if(array_LepEffLoose_mu) {delete array_LepEffLoose_mu; array_LepEffLoose_mu = NULL;}
@@ -1899,10 +1940,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 // #    # #      #   #  #    # #
 // #    # ###### #    #  ####  ######
 
-    if(!makeHisto_inputVars) //For COMBINE fit, want to directly merge contributions from different processes into single histograms
-    {
-        MergeSplit_Templates(output_file_name, total_var_list, template_name, region, true);
-    }
+    //For COMBINE fit, want to directly merge contributions from different processes into single histograms
+    //For control histograms, only need to substract MC NPL from data-driven NPL
+    MergeSplit_Templates(makeHisto_inputVars, output_file_name, total_var_list, template_name, region, true);
 
 	return;
 }
@@ -2195,6 +2235,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				//Protections, special cases
     				if(sample_list[isample].Contains("DATA") ) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
                     if(sample_list[isample].Contains("PrivMC"))  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //Only central samples get stacked, not private samples
+                    if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element
 
                     if(iyear==0 && !samplename.Contains("DATA")) //Add sample name to list (used for legend)
                     {
@@ -2213,6 +2254,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     				{
     					histo_name = total_var_list[ivar];
 	                    if(channel != "") {histo_name+= "_" + channel;}
+                        if(region != "" && !drawInputVars) {histo_name+= "_" + region;}
                         if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
     					histo_name+= + "_" + v_lumiYears[iyear];
                         histo_name+= + "__" + samplename;
@@ -2260,6 +2302,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
     					{
     						for(int itree=0; itree<systTree_list.size(); itree++)
     						{
+                                if((sample_list[isample] == "DATA" || sample_list[isample].Contains("NPL")) && systTree_list[itree] != "") {continue;}
+
     							for(int isyst=0; isyst<syst_list.size(); isyst++)
     							{
     								//-- Protections : not all syst weights apply to all samples, etc.
@@ -2476,6 +2520,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, TStrin
 
                         TString histo_name = total_var_list[ivar];
 	                    if(channel != "") {histo_name+= "_" + channel;}
+                        if(region != "" && !drawInputVars) {histo_name+= "_" + region;}
                         if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
     					histo_name+= "_" + v_lumiYears[iyear] + "__" + v_EFT_samples[isample];
                         // cout<<"histo_name "<<histo_name<<endl;
@@ -3940,6 +3985,24 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         else if(systname.EndsWith("CFerr2Down")) {index = 14;}
         else if(systname.EndsWith("CFerr2Up")) {index = 15;}
     }
+    else if(systname.BeginsWith("jetPUID"))
+    {
+        address_memberArray = array_jetPileupID;
+        array_name = "varWeightJetPileupID";
+        if(systname.EndsWith("EffDown")) {index = 1;}
+        else if(systname.EndsWith("EffUp")) {index = 0;}
+        else if(systname.EndsWith("MTDown")) {index = 3;}
+        else if(systname.EndsWith("MTUp")) {index = 2;}
+    }
+    else if(systname.BeginsWith("FakeFactor"))
+    {
+        address_memberArray = array_fakeFactor;
+        array_name = "varWeightFakeFactor";
+        if(systname.EndsWith("Down")) {index = 0;}
+        else if(systname.EndsWith("Up")) {index = 1;}
+    }
+
+    /*
     else if(systname.BeginsWith("LepEff_mu"))
     {
         if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_mu; array_name = "varWeightMuonLoose";}
@@ -3954,7 +4017,6 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         if(systname.EndsWith("Down")) {index = 0;}
         else if(systname.EndsWith("Up")) {index = 1;}
     }
-    /*
     else if(systname.BeginsWith("LepEff_mu"))
     {
         address_memberArray = array_LepEff_mu;
@@ -4022,11 +4084,11 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
  * ===> In addition to storing individual histos, also merge+store histos for the relevant process groups
  * NB: here the order of loops is important because we sum histograms recursively, and the 'sample_list' loop must be the most nested one !
  */
-void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> total_var_list, TString template_name, TString category, bool force_normTemplate_positive)
+void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString filename, vector<TString> total_var_list, TString template_name, TString category, bool force_normTemplate_positive)
 {
-	cout<<endl<<FYEL("==> Merging some templates in file : ")<<filename<<endl;
+	cout<<endl<<FYEL("==> Merging some histograms (according to sample group) in file : ")<<filename<<endl;
 
-	if(!Check_File_Existence(filename) ) {cout<<endl<<FRED("File "<<filename<<" not found! Abort template merging !")<<endl; return;}
+	if(!Check_File_Existence(filename) ) {cout<<endl<<FRED("File "<<filename<<" not found! Abort merging procedure !")<<endl; return;}
 	TFile* f = TFile::Open(filename, "UPDATE");
 
 	//NB :here the order of loops is important because we sum histograms recursively ! The 'sample_list' loop *must be the most nested one* !
@@ -4046,6 +4108,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
         			{
         				// if(((channel_list.size() > 1 && channel_list[ichan] == "") || systTree_list[itree] != "") && syst_list[isyst] != "") {continue;}
         				if(systTree_list[itree] != "" && syst_list[isyst] != "") {break;}
+                        else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
 
         				TH1F* h_merging = NULL; //Tmp merged histogram
 
@@ -4060,7 +4123,8 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
             				{
             					//-- Protections : not all syst weights apply to all samples, etc.
                                 if(sample_list[isample] == "DATA" && (systTree_list[itree] != "" || syst_list[isyst] != "")) {continue;} //nominal data only
-                                if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
+                                else if(makeHisto_inputVars && sample_groups[isample] != "NPL") {continue;} //For control plots, only need to substract prompt NPL from data-driven NPL
+                                else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
 
             					// cout<<endl<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl;
 
@@ -4082,6 +4146,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                                 histoname+= total_var_list[ivar];
                                 // if(category != "") {histoname+= "_" + category;}
             					if(channel_list[ichan] != "") {histoname+= "_" + channel_list[ichan];}
+                                if(region != "" && !makeHisto_inputVars) {histoname+= "_" + region;}
                                 histoname+= "_" + v_lumiYears[iyear] + "__" + samplename;
             					if(syst_list[isyst] != "") {histoname+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
             					else if(systTree_list[itree] != "") {histoname+= "__" + systTree_list[itree];}
@@ -4107,16 +4172,15 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                                     }
                                 }
 
-            					int factor = +1; //Addition
-            					// if(sample_list[isample] == "NPL_MC") {factor = -1;} //Substraction of 'MC Fakes' (prompt contribution to fakes) //FIXME already accounted for
-
+                                // cout<<"h_merging "<<h_merging<<endl;
+            					int factor = +1; //Addition //NB: NPL_MC events have negative weights by construction
             					if(h_tmp != 0)
             					{
             						if(!h_merging) {h_merging = (TH1F*) h_tmp->Clone();}
             						else {h_merging->Add(h_tmp, factor);}
+                                    // cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
             					}
             					else {cout<<"h_tmp null !"<<endl;}
-
             					// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
             					delete h_tmp; h_tmp = NULL;
@@ -4132,6 +4196,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
                                     histoname_new+= total_var_list[ivar];
                                     // if(category != "") {histoname_new+= "_" + category;}
                                     if(channel_list[ichan] != "") {histoname_new+="_"  + channel_list[ichan];}
+                                    if(region != "" && !makeHisto_inputVars) {histoname_new+= "_" + region;}
                                     histoname_new+= "_" + v_lumiYears[iyear] + "__" + sample_groups[isample];
                                     if(syst_list[isyst] != "") {histoname_new+= "__" + Get_Modified_SystName(syst_list[isyst], v_lumiYears[iyear]);}
                                     else if(systTree_list[itree] != "") {histoname_new+= "__" + systTree_list[itree];}
@@ -4142,7 +4207,7 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
             						if(force_normTemplate_positive)
             						{
             							//If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
-            							if(h_merging->Integral() <= 0)
+            							if(h_merging->Integral() <= 0 && sample_groups[isample] != "NPL") //Special case: NPL_MC has negative integral
             							{
             								// cout<<endl<<"While merging processes by groups ('Rares'/...) :"<<endl<<FRED(" h_merging->Integral() = "<<h_merging->Integral()<<" (<= 0) ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
             								Set_Histogram_FlatZero(h_merging, histoname_new, false);
@@ -4153,11 +4218,17 @@ void TopEFT_analysis::MergeSplit_Templates(TString filename, vector<TString> tot
 
             						f->cd();
             						h_merging->Write(histoname_new, TObject::kOverwrite);
-
             						// cout<<"-- Writing merged histo "<<histoname_new<<" with integral "<<h_merging->Integral()<<endl;
 
             						delete h_merging; h_merging = NULL;
-            					} //write histo
+
+                                    //Special case: for control histograms/plots, want to substract NPL_MC from (data-driven) NPL --> then overwrite "NPL" and delete "NPL_MC" (to avoid ambiguities)
+                                    if(sample_list[isample] == "NPL_MC")
+                                    {
+                                        f->Delete(histoname+";1"); //Delete (first cycle of) histogram
+                                        // cout<<DIM("Merged and deleted histogram "<<histoname+";1"<<"")<<endl;
+                                    }
+                                } //write histo
                             } //sample loop
                         } //bin loop
 

@@ -16,10 +16,11 @@ int main(int argc, char **argv)
 
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
-    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    bool use_systematics = true; //true <-> will compute/store systematics selected below
     TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
+    bool use_SManalysis_strategy = true; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
@@ -261,26 +262,31 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        //-- Implemented as separate TTrees
+        //-- Implemented as separate TTrees //MISSING
         // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
+        // theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
+        // theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
         theSystWeights.push_back("prefiringWeightDown"); theSystWeights.push_back("prefiringWeightUp");
         theSystWeights.push_back("BtagHFDown"); theSystWeights.push_back("BtagHFUp");
         theSystWeights.push_back("BtagLFDown"); theSystWeights.push_back("BtagLFUp");
-        theSystWeights.push_back("HFstats1Down"); theSystWeights.push_back("HFstats1Up");
-        theSystWeights.push_back("HFstats2Down"); theSystWeights.push_back("HFstats2Up");
-        theSystWeights.push_back("LFstats1Down"); theSystWeights.push_back("LFstats1Up");
-        theSystWeights.push_back("LFstats2Down"); theSystWeights.push_back("LFstats2Up");
-        theSystWeights.push_back("CFerr1Down"); theSystWeights.push_back("CFerr1Up");
-        theSystWeights.push_back("CFerr2Down"); theSystWeights.push_back("CFerr2Up");
+        theSystWeights.push_back("BtagHFstats1Down"); theSystWeights.push_back("BtagHFstats1Up");
+        theSystWeights.push_back("BtagHFstats2Down"); theSystWeights.push_back("BtagHFstats2Up");
+        theSystWeights.push_back("BtagLFstats1Down"); theSystWeights.push_back("BtagLFstats1Up");
+        theSystWeights.push_back("BtagLFstats2Down"); theSystWeights.push_back("BtagLFstats2Up");
+        theSystWeights.push_back("BtagCFerr1Down"); theSystWeights.push_back("BtagCFerr1Up");
+        theSystWeights.push_back("BtagCFerr2Down"); theSystWeights.push_back("BtagCFerr2Up");
+        theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp");
+        theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
+        theSystWeights.push_back("FakeFactorDown"); theSystWeights.push_back("FakeFactorUp");
 
-        // theSystWeights.push_back("LepEff_muLooseDown"); theSystWeights.push_back("LepEff_muLooseUp");
-        // theSystWeights.push_back("LepEff_muTightDown"); theSystWeights.push_back("LepEff_muTightUp");
-        // theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
-        // theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
-        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp");
+        //-- MISSING
+        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("BtagCFerr2Up");
+        // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup");
+        // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp");
+        // theSystWeights.push_back("TriggerDown"); theSystWeights.push_back("TriggerUp");
     }
 
 
@@ -300,7 +306,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -312,7 +318,7 @@ int main(int argc, char **argv)
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
@@ -358,7 +364,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SManalysis_strategy);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################

@@ -42,6 +42,28 @@
 using namespace std;
 
 //--------------------------------------------
+// ##     ## ######## ##       ########  ######## ########
+// ##     ## ##       ##       ##     ## ##       ##     ##
+// ##     ## ##       ##       ##     ## ##       ##     ##
+// ######### ######   ##       ########  ######   ########
+// ##     ## ##       ##       ##        ##       ##   ##
+// ##     ## ##       ##       ##        ##       ##    ##
+// ##     ## ######## ######## ##        ######## ##     ##
+//--------------------------------------------
+
+//HARD-CODED: define here whether the combination of region/template is valid (according to SM tZq differential analysis)
+bool Is_Template_Matching_Region(TString templatename, TString region)
+{
+    if(templatename == "NN" && (region == "tZq" || region == "ttZ")) {return true;}
+    if(templatename == "channel" && region == "Vg") {return true;}
+    if(templatename == "mTW" && region == "wz") {return true;}
+    if(templatename == "countExp" && region == "zz") {return true;}
+
+    return false;
+}
+
+
+//--------------------------------------------
 //  ######  ########  ########    ###    ######## ########
 // ##    ## ##     ## ##         ## ##      ##    ##
 // ##       ##     ## ##        ##   ##     ##    ##
@@ -70,7 +92,7 @@ using namespace std;
 /**
  * Produce script containing the commands to produce the datacards (single and combination) automatically
  */
-void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded)
+void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded, char use_SM_setup)
 {
 //  ####  ###### ##### #    # #####
 // #      #        #   #    # #    #
@@ -92,7 +114,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     else {cout<<"Wrong arguments ! Abort !"<<endl; return;}
 
     // If specific arguments were chosen at command line, modify the vectors defined in the main
-    if(template_name != "") {v_templates.resize(0); v_templates.push_back(template_name);}
+    if(template_name != "0") {v_templates.resize(0); v_templates.push_back(template_name);}
     else if(!v_templates.size()) {cout<<"Template name not set ! Abort !"<<endl; return;}
 
     //FIXME -- HARDCODED -- TMP TESTING
@@ -120,13 +142,31 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     }
 
     vector<TString> v_lumiYears;
-    if(lumiName.Contains("2016") ) {v_lumiYears.push_back("2016");}
-    else if(lumiName.Contains("2017") ) {v_lumiYears.push_back("2017");}
-    else if(lumiName.Contains("2018") ) {v_lumiYears.push_back("2018");}
-    else if(lumiName.Contains("201617") ) {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2017");}
-    else if(lumiName.Contains("201618") ) {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2018");}
-    else if(lumiName.Contains("201718") ) {v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
-    else if(lumiName.Contains("Run2") ) {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
+    if(lumiName == "2016") {v_lumiYears.push_back("2016");}
+    else if(lumiName == "2017") {v_lumiYears.push_back("2017");}
+    else if(lumiName == "2018") {v_lumiYears.push_back("2018");}
+    else if(lumiName == "201617") {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2017");}
+    else if(lumiName == "201618") {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2018");}
+    else if(lumiName == "201718") {v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
+    else if(lumiName == "Run2") {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
+
+    //Overrides some option to perform a fit following the setup of the main SM tZq differential analysis
+    //NB: just add all region and template names together here; then call dedicated hard-coded function to sort out relevant combinations
+    if(use_SM_setup == 'y')
+    {
+        v_regions.resize(0);
+        v_regions.push_back("tZq");
+        v_regions.push_back("ttZ");
+        v_regions.push_back("wz");
+        v_regions.push_back("zz");
+        v_regions.push_back("Vg");
+
+        v_templates.resize(0);
+        v_templates.push_back("NN");
+        v_templates.push_back("channel");
+        v_templates.push_back("mTW");
+        v_templates.push_back("countExp");
+    }
 
 	ofstream file_out("makeDatacardsForTemplateFit.sh"); //output script
 
@@ -162,13 +202,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             {
                 for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
                 {
-                    // cout<<"v_regions[iregion] "<<v_regions[iregion]<<endl;
+                    if(use_SM_setup == 'y' && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion])) {continue;}
 
-            		//Need to add "CR" prefix for CRs
-            		// TString region_tmp = v_regions[iregion];
-            		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
-                    TString region_tmp = "";
-                    // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
+                    // cout<<"v_regions[iregion] "<<v_regions[iregion]<<endl;
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
                     if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
@@ -183,7 +219,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
         		    // TString file_histos = "../templates/Combine_Input.root";
                     TString tmp = v_templates[itemplate];
-                    TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+region_tmp+"_"+lumiName+".root"; //For use within this code
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+v_regions[iregion]+"_"+lumiName+".root"; //For use within this code
                     if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT1param__2017.root";} //FIXME
 
                     TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
@@ -258,12 +294,10 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         {
             for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
             {
-        		//Need to add "CR" prefix for CRs
-        		// TString region_tmp = v_regions[iregion];
-        		// if(region_tmp == "ttW" || region_tmp == "ttZ" || region_tmp == "WZ" || region_tmp == "ZZ") {region_tmp = "CR_" + region_tmp;}
-
         	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
         	    {
+                    if(use_SM_setup == 'y' && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion])) {continue;}
+
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
                     if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
@@ -368,7 +402,7 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 //--------------------------------------------
 
 //Ask user to choose options at command line for script generation
-void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, int& mode_histoBins)
+void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, int& mode_histoBins, char& use_SM_setup)
 {
     cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
     cout<<ITAL(DIM(<<"['Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718'] ... "));
@@ -409,6 +443,12 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cin>>include_statistical;
     }
 
+    //Choose whether to perform a fit following the main SM differential tZq analysis (overrides some options)
+    cout<<endl<<FYEL("=== Do you wish to perform a fit in the SM differential tZq setup ? ===")<<endl;
+    cout<<ITAL(DIM(<<"['y' for yes (else no) ... "));
+    cin>>use_SM_setup;
+    if(use_SM_setup == 'y') {return;} //Overrides following options
+
     //Choose whether to create a single datacard for entire histo, or separate datacards for each histo bin (allows to parametrize each bin independently)
     cout<<endl<<FYEL("=== Create separate datacards for each histogram bin ? ===")<<endl;
     cout<<ITAL(DIM("0 <-> use full MVA distribution (default)"))<<endl;
@@ -428,7 +468,7 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
 
     //Set the template name (e.g.'NN_EFT2') to be looked for in the rootfiles //If ignored, use the value set in the main
     cout<<endl<<FYEL("=== Set the template name (to read corresponding histograms) ===")<<endl;
-    cout<<ITAL(DIM("'' <-> use value set in main()"))<<endl;
+    cout<<ITAL(DIM("'0' <-> use value set in main()"))<<endl;
     cout<<ITAL(DIM(<<"..."));
     cin>>template_name;
 
@@ -488,15 +528,16 @@ int main()
     char include_systematics = 'n';//'y' <-> datacards will include syst. uncertainties (as specified in template datacard)
     char include_statistical = 'n';//'y' <-> datacards will include stat. uncertainty (as specified in template datacard)
 
-    int mode_histoBins = 0; //0 <-> use full MVA distribution (default); 1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations; 2 <-> entire histogram treated as single bin (counting experiment)
 //--------------------------------------------
 
 //Automated
 //--------------------------------------------
-    TString template_name = "", region = "0";
-    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins);
+    int mode_histoBins = 0; //0 <-> use full MVA distribution (default); 1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations; 2 <-> entire histogram treated as single bin (counting experiment)
+    char use_SM_setup = 'n'; //'y' <-> overrides some option to perform a fit following the setup of the main SM tZq differential analysis
+    TString template_name = "0", region = "0";
+    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins, use_SM_setup);
 
-	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded);
+	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup);
 
 	return 0;
 }

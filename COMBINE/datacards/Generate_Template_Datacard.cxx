@@ -84,7 +84,8 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
 	// cout<<"syst "<<syst<<endl;
 	// cout<<"sample "<<sample<<endl;
 
-	// if(syst.Contains("ttH", TString::kIgnoreCase) && !sample.Contains("ttH")) {return false;}
+    if(syst.Contains("Fake", TString::kIgnoreCase) && !sample.Contains("NPL")) {return false;}
+    if(!syst.Contains("Fake", TString::kIgnoreCase) && sample.Contains("NPL")) {return false;}
 
 	return true;
 }
@@ -138,7 +139,7 @@ void Choose_Arguments_From_CommandLine(TString& signal)
  * @param v_normSystValue    value of these systematics
  * @param v_shapeSyst    list of shape systematics
  */
-void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_normSyst_isCorrelYears, vector<bool> v_shapeSyst_isCorrelYears)
+void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears)
 {
     TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
@@ -232,8 +233,16 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
     for(int isyst=0; isyst<v_normSyst.size(); isyst++)
     {
+        //Year-specific markers
+        if(v_normSyst[isyst].EndsWith("1617")) {outfile<<"[201617]";}
+        else if(v_normSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+        else if(v_normSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
+        else if(v_normSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
+        else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
+
         outfile<<v_normSyst[isyst];
-        if(!v_normSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for each year
+        // if(!v_normSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for each year
+
         outfile<<"\t"<<"lnN";
 
         for(int isample=0; isample<v_samples.size(); isample++)
@@ -245,7 +254,12 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
             if(Is_Syst_Match_Sample(v_normSyst[isyst], v_samples[isample])) //Other syst : check if applies to current samples (from name)
 			{
-				outfile<<v_normSystValue[isyst];
+                //-- Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
+                if(v_normSyst[isyst] == "Lumi1617") {outfile<<"[Lumi1617]";}
+                else if(v_normSyst[isyst] == "Lumi1718") {outfile<<"[Lumi1718]";}
+                else if(v_normSyst[isyst] == "LumiXY") {outfile<<"[LumiXY]";}
+
+				else {outfile<<v_normSystValue[isyst];} //Normal cases
 			}
 			else {outfile<<"-";}
         }
@@ -273,7 +287,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     for(int isample=0; isample<v_samples.size(); isample++)
     {
         // if(v_isSignal[isample] == 1) {continue;} //No norm. syst for signals
-		if(v_sampleUncert[isample] == -1) {continue;} //Don't apply lnN rate syst for some samples (ttZ, Fakes, etc.)
+		if(v_sampleUncert[isample] == -1) {continue;} //Don't apply lnN rate syst for some samples
 
 		// cout<<"Sample "<<v_samples[isample]<<" / Uncert = "<<v_sampleUncert[isample]<<endl;
 
@@ -288,6 +302,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         }
         outfile<<endl;
     }
+
 
  //  ####  #    #   ##   #####  ######
  // #      #    #  #  #  #    # #
@@ -306,9 +321,14 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         //-- the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
         //-- idem, [201617] can be used to disactivate the prefiring syst for 2018 !
         outfile<<"[SHAPE]";
-        if(v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";}
+        if(v_normSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";}
+        else if(v_normSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+        else if(v_normSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
+        else if(v_normSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
+        else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
+
         outfile<<v_shapeSyst[isyst]; //the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
-        if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for each year
+        if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
         outfile<<"\t"<<"shape";
 
         for(int isample=0; isample<v_samples.size(); isample++)
@@ -405,7 +425,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 int main()
 {
 
-//Read command line arguments
+//-- Read command line arguments
 //--------------------------------------------
     TString signal = "";
     Choose_Arguments_From_CommandLine(signal);
@@ -417,8 +437,9 @@ int main()
 //      # ###### #    # #####  #      #           #
 // #    # #    # #    # #      #      #      #    #
 //  ####  #    # #    # #      ###### ######  ####
-//--------------------------------------------
 
+//-- Sample / 0 = sig, 1 = bkg / -1 = rateParam, else = lnN uncertainty
+//--------------------------------------------
     vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
     if(signal == "efttzq") //Signal : tZq
     {
@@ -440,12 +461,12 @@ int main()
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
     }
-    else if(signal == "tzq") //Signals : tZq
+    else if(signal == "tzq") //Signal : tZq
     {
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
-    else if(signal == "ttz") //Signals : ttZ
+    else if(signal == "ttz") //Signal : ttZ
     {
         v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
@@ -453,17 +474,10 @@ int main()
     else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("Xg"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-
-    // v_samples.push_back("ttX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    // v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    // v_samples.push_back("VV"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    // v_samples.push_back("DY"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    // v_samples.push_back("TTbar_DiLep"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-
+    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
+    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
+    v_samples.push_back("Xg"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
+    v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(30);
 
 
  //               #     #
@@ -474,16 +488,22 @@ int main()
  // #      #   ## #    ##    #    #   #   #    #   #
  // ###### #    # #     #     ####    #    ####    #
 
-//lnN systematics. Write "1+X%". E.g for lnN symmetric of 10% => "1.10"
+//lnN systematics.
+//Write "1+X%". E.g for lnN symmetric of 10% => "1.10"
 //For a 5%/10% lnN asymmetric syst, write : "1.05/1.10"
-//NB : if syst contains e.g. "ttH" in the name, it will only apply to ttH sample ! hardcoded for thz "pdf" systs
+//-1 <-> values must be hardcoded (to allow for correlations with different values per year)
 //--------------------------------------------
-    vector<TString> v_normSyst; vector<TString> v_normSystValue; vector<bool> v_normSyst_isCorrelYears;
-    v_normSyst.push_back("Lumi"); v_normSystValue.push_back("1.023"); v_normSyst_isCorrelYears.push_back(false);
-
-	//-- Combine convention : "x/y" for asymmetric norm errors
-	// v_normSyst.push_back("QCDscale_ttH"); v_normSystValue.push_back("0.907/1.058");
-    // v_normSyst.push_back("Clos_e_bt_norm"); v_normSystValue.push_back("Closebtnorm");
+    vector<TString> v_normSyst; vector<TString> v_normSystValue;
+    v_normSyst.push_back("Lumi16"); v_normSystValue.push_back("1.022");
+    v_normSyst.push_back("Lumi17"); v_normSystValue.push_back("1.020");
+    v_normSyst.push_back("Lumi18"); v_normSystValue.push_back("1.015");
+    v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1");
+    v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1");
+    v_normSyst.push_back("LumiXY"); v_normSystValue.push_back("-1");
+    v_normSyst.push_back("Lumi"); v_normSystValue.push_back("1.023");
+    v_normSyst.push_back("Trigger16"); v_normSystValue.push_back("1.02");
+    v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02");
+    v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02");
 
 
 //  ####  #    #   ##   #####  ######     ####  #   #  ####  #####
@@ -493,16 +513,22 @@ int main()
 // #    # #    # #    # #      #         #    #   #   #    #   #
 //  ####  #    # #    # #      ######     ####    #    ####    #
 
+//-- Name of shape systematic / Whether syst is correlated between years (single nuisance) or not (1 per year)
 //--------------------------------------------
     vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
-    // v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("prefiringWeight"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagH"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagL"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("prefiringWeight"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
 
 
 //  ####    ##   #      #       ####
@@ -515,7 +541,7 @@ int main()
 //Function calls
 //--------------------------------------------
     //Generate the template datacards for ele and mu channels (some differences)
-    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_normSyst_isCorrelYears, v_shapeSyst_isCorrelYears);
+    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears);
 
     return 0;
 }

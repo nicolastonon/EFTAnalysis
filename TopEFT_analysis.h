@@ -72,7 +72,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -82,7 +82,7 @@ class TopEFT_analysis
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
-    void MergeSplit_Templates(TString, vector<TString>, TString="", TString = "",bool=true);
+    void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
     void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false);
 
@@ -158,17 +158,20 @@ class TopEFT_analysis
     bool is_blind;
     int nSampleGroups; //Nof sample groups (e.g. 'Rares',  ...)
     bool use_DD_NPL;
+    bool use_SManalysis_strategy;
 
     //Systematics variations arrays //More details in comments of func Handle_SystVariationArray()
     double* array_PU;
     double* array_prefiringWeight;
     double* array_Btag;
+    double* array_jetPileupID;
+    double* array_fakeFactor;
     // double* array_LepEff_mu;
     // double* array_LepEff_el;
-    double* array_LepEffLoose_mu;
-    double* array_LepEffLoose_el;
-    double* array_LepEffTight_mu;
-    double* array_LepEffTight_el;
+    // double* array_LepEffLoose_mu;
+    // double* array_LepEffLoose_el;
+    // double* array_LepEffTight_mu;
+    // double* array_LepEffTight_el;
 
     //-- For parametrized NN
     bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
