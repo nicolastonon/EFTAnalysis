@@ -40,10 +40,12 @@ SPLIT = Split_FullSamples.exe
 #Instructions
 all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
 
-#Create dictionnary (contains custom classes def.) and rootmap --> Necessary so that ROOT recognizes custom classes
-$(LIB): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/TH1EFT.cxx Utils/LinkDef.h
+$(DICT): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h
+	@rm myDict* myLib*
 	@echo "-- Creating dictionnary $(DICT) --"
-	@rootcling -f $(DICT) -rml myLib.so -rmf myLib.rootmap -c -p Utils/TH1EFT.h Utils/LinkDef.h
+	@rootcling -f $(DICT) -rml $(LIB) -rmf myLib.rootmap -c -p Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
+
+$(LIB): Utils/TH1EFT.cxx $(DICT)
 	@echo "-- Creating shared library $(LIB) --"
 	@$(CC) $(INCFLAGS) $(ROOTFLAGS) $(DICT) Utils/TH1EFT.cxx -shared -o $(LIB)
 	@echo ""
@@ -65,7 +67,7 @@ $(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o $(LIB)
 	@echo "###################################"
 	@echo ""
 
-$(YIELD):	Utils/Yield_Table.o Utils/Helper.o $(LIB)
+$(YIELD): Utils/Yield_Table.o Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo "-- Creating executable ./$(YIELD) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)
@@ -73,7 +75,7 @@ $(YIELD):	Utils/Yield_Table.o Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo ""
 
-$(SPLIT):	input_ntuples/Split_FullSamples.cxx
+$(SPLIT): input_ntuples/Split_FullSamples.cxx Utils/Helper.o $(LIB)
 	@echo "###################################""#"
 	@echo "-- Creating executable ./$(SPLIT) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS)

@@ -106,7 +106,7 @@ void Extract_Ranking_Info(TString, TString);
 void Get_Ranking_Vectors(TString, std::vector<TString>&, std::vector<double>&);
 void Compare_Histograms(TString, TString, TString, TString);
 float Rescale_Input_Variable(float, float, float);
-void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int);
+void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int, int=25);
 // void Set_Histogram_FlatZero(TH1F*&, TString="", bool=false);
 void Get_Mirror_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
 void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
@@ -120,16 +120,14 @@ bool Get_Variable_Range(TString, int&, double&, double&);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
 float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
-TString Get_Modified_SystName(TString, TString);
+TString Get_Modified_SystName(TString, TString, TString="");
 void Get_Pointer_GENHisto(TH1F*&, TString);
 vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
-// void StoreEachHistoBinIndividually(TFile*, TH1F*, TString);
-// template <class T> void StoreEachHistoBinIndividually(TFile*, T*&, TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
-TString Get_HistoFile_InputPath(bool, TString, TString, TString, TString, bool, TString, bool, int, bool=false);
+TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool=false);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, TString* NN_strategy=NULL);
-TString Get_Region_Label(TString);
+TString Get_Region_Label(TString, TString);
 //--------------------------------------------
 
 //--------------------------------------------
@@ -147,7 +145,7 @@ inline void Fill_TH1F_UnderOverflow(TH1F* h, double value, double weight)
 	return;
 };
 
-inline void Fill_TH1EFT_UnderOverflow(TH1EFT* h, double value, float weight, WCFit fit)
+inline void Fill_TH1EFT_UnderOverflow(TH1EFT* h, double value, float weight, WCFit& fit)
 {
     if(value >= h->GetXaxis()->GetXmax() ) {h->Fill(h->GetXaxis()->GetXmax() - (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //overflow in last bin
     else if(value <= h->GetXaxis()->GetXmin() ) {h->Fill(h->GetXaxis()->GetXmin() + (h->GetXaxis()->GetBinWidth(1) / 2), weight, fit);} //underflow in first bin

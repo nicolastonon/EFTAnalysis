@@ -119,6 +119,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
         TString dir_ntuples = "./input_ntuples/" + v_years[iyear] + "/";
+        // TString dir_ntuples = "./input_ntuples/SR/" + v_years[iyear] + "/";
 
     	//FIRST LOOP ON SAMPLES : check here if files are missing ; else, may interfer with summing of several processes (TTZ, Rares, ...)
     	for(int isample=0; isample<v_samples.size(); isample++)
@@ -186,6 +187,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                     TString ts = v_reweights_ids->at(iwgt);
                     if(ts.Contains("_sm", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //Found relevant index, no need to read this branch anymore
+                    else if(ts.Contains("EFTrwgt183_", TString::kIgnoreCase) ) {idx_sm = iwgt; t->SetBranchStatus("mc_EFTweightIDs", 0); break;} //TOP19001 convention
                 }
                 if(v_samples[isample].Contains("_c")) {idx_sm = -1;} //Pure-EFT sample
                 if(idx_sm == -1) {cout<<FRED("SM point not found !")<<endl;}
@@ -306,6 +308,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //with SFs
 
                     if(remove_totalSF) {weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];}  //no SF, basic formula
+
+                    //Tmp fix: wrong eventMCFactor and wrong SWEs
+                    if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;}
+                    else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -554,8 +560,8 @@ int main(int argc, char **argv)
 
     //TMP
     v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
-    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("TTbar_SemiLep");
-    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
+    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001"); //FIXME
+    v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
 
 //--------------------------------------------
 

@@ -16,11 +16,12 @@ int main(int argc, char **argv)
 
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
-    bool use_systematics = true; //true <-> will compute/store systematics selected below
     TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
+    bool use_systematics = false; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
-    bool use_SManalysis_strategy = true; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
+    bool use_SManalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
+    bool include_PrivMC_samples = true; //true <-> also process private SMEFT samples (necessary e.g. for limit-setting, but much slower)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = ""; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
+    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -66,8 +67,8 @@ int main(int argc, char **argv)
 
 	vector<TString> set_lumi_years;
     set_lumi_years.push_back("2016");
-    set_lumi_years.push_back("2017");
-    set_lumi_years.push_back("2018");
+    // set_lumi_years.push_back("2017");
+    // set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -127,12 +128,24 @@ int main(int argc, char **argv)
 //-- List of sample names (as found in ./input_ntuples) //thesamplegroups <-> can merge multiple ntuples into same group (plotting)
     vector<TString> thesamplelist, thesamplegroups;
 
-    //DATA (Single sample, in first position)
+    //FIXME
+    // thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
+    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
+    // thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
+    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+    // thesamplelist.push_back("PrivMC_tZq_TOP19001"); thesamplegroups.push_back("PrivMC_tZq_TOP19001");
+
+    //DATA (single sample, in first position)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
     //Private MC production including EFT weights
-    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
-    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    if(include_PrivMC_samples)
+    {
+        // thesamplelist.push_back("PrivMC_tZq_v2"); thesamplegroups.push_back("PrivMC_tZq");
+        thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+        thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    }
 
     //Signals (central samples)
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
@@ -212,7 +225,7 @@ int main(int argc, char **argv)
     thevarlist.push_back("recoLepTop_Eta");
     thevarlist.push_back("TopZsystem_M");
     thevarlist.push_back("recoLepTopLep_Pt");
-    thevarlist.push_back("mbjMax");
+    thevarlist.push_back("mbjMax"); //Some diagreement with NLO central sample
     thevarlist.push_back("maxDiJet_Pt");
     thevarlist.push_back("maxDelRbL");
     thevarlist.push_back("minDelRbL");
@@ -242,6 +255,11 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("njets");
     set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
+
+    set_v_add_var_names.push_back("jet1_pt");
+    set_v_add_var_names.push_back("lep1_pt");
+    set_v_add_var_names.push_back("cosThetaStarPolTop");
+    set_v_add_var_names.push_back("cosThetaStarPolZ");
 
 
 //---------------------------------------------------------------------------
@@ -283,10 +301,13 @@ int main(int argc, char **argv)
         theSystWeights.push_back("FakeFactorDown"); theSystWeights.push_back("FakeFactorUp");
 
         //-- MISSING
-        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("BtagCFerr2Up");
+        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp");
         // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup");
         // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp");
+        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp");
+        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp");
         // theSystWeights.push_back("TriggerDown"); theSystWeights.push_back("TriggerUp");
+        // theSystWeights.push_back("LeptonIDDown"); theSystWeights.push_back("LeptonIDUp");
     }
 
 
@@ -314,7 +335,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -398,7 +419,7 @@ int main(int argc, char **argv)
             float* ymax_fixed1 = new float; float* ymax_fixed2 = new float; bool store_ymax_fixed = true;
             for(int ipt=0; ipt<v_WCs_operator_scan1.size(); ipt++)
             {
-                theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file, operator1+"_"+v_WCs_operator_scan1[ipt],store_ymax_fixed, ymax_fixed1, ymax_fixed2); //chosen channel
+                theAnalysis->Draw_Templates(false, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, template_name, prefit, use_combine_file, operator1+"_"+v_WCs_operator_scan1[ipt],store_ymax_fixed, ymax_fixed1, ymax_fixed2); //chosen channel
                 store_ymax_fixed = false;
             }
             delete ymax_fixed1; ymax_fixed1 = NULL; delete ymax_fixed2; ymax_fixed2 = NULL;
@@ -406,13 +427,13 @@ int main(int argc, char **argv)
         //-- Default: make plots corresponding to selected user-options
         else
         {
-            theAnalysis->Draw_Templates(false, plotChannel, template_name, prefit, use_combine_file); //chosen channel
+            theAnalysis->Draw_Templates(false, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, template_name, prefit, use_combine_file); //chosen channel
 
             if(plotChannel == "") //By default, also want to plot templates in subchannels
             {
                 for(int ichan=1; ichan<thechannellist.size(); ichan++)
                 {
-                    theAnalysis->Draw_Templates(false, thechannellist[ichan], template_name, prefit, use_combine_file);
+                    theAnalysis->Draw_Templates(false, thechannellist[ichan], plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, template_name, prefit, use_combine_file);
                 }
             }
         }
@@ -420,12 +441,12 @@ int main(int argc, char **argv)
 
     if(draw_input_vars)
     {
-        theAnalysis->Draw_Templates(true, plotChannel);
+        theAnalysis->Draw_Templates(true, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents);
         if(draw_input_allChannels)
         {
             for(int ichan=1; ichan<thechannellist.size(); ichan++)
             {
-                theAnalysis->Draw_Templates(true, thechannellist[ichan]);
+                theAnalysis->Draw_Templates(true, thechannellist[ichan], plot_onlyMaxNodeEvents, plot_onlyMVACutEvents);
             }
         }
     }

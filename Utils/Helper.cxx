@@ -275,6 +275,7 @@ TString Split_TString_Into_Keys(TString ts, TString delim)
 
 /**
  * Count the number of histograms found in a TFile
+ * NB: very slow for huge files !
  */
 int Count_nofHistos_inTFile(TFile* f)
 {
@@ -626,39 +627,51 @@ float Rescale_Input_Variable(float value, float val1, float val2)
 }
 
 //Create WCFit object by fitting a sufficient number of WCPoint objects, corresponding to EFT points.
-void Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, const vector<float>& v_SWE, float wgt_baseline, float weightMENominal, float w_SMpoint, int idx_sm)
+void Get_WCFit(WCFit*& eft_fit, vector<string>* v_ids, vector<float>* v_wgts, const vector<float>& v_SWE, float wgt_baseline, float weightMENominal, float w_SMpoint, int idx_sm, int nweights)
 {
     bool debug = false;
 
-    for(int iwgt=1; iwgt<25; iwgt++) //Only loop on the minimal nof weights required in my case to overconstrain fit //Skip first point, expected to correspond to SM (treated separately)
-    // for(int iwgt=1; iwgt<v_ids->size(); iwgt++)
-    {
-        //Formula for a given point P: w = (baseline_event_weight / w_MEnominal) * reweight_P / SWE_baseline
-        //NB: account for 'baseline_event_weight / w_MEnominal' to account for scale factors (included in the default event weight 'baseline_event_weight')
-        float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[idx_sm]);
 
+    vector<WCPoint> v_wcpts; //Vector storing the WCPoint objects, to be passed to the WCFit object
+    // eft_fit->clear(); //Re-initialize object
+
+    for(int iwgt=1; iwgt<nweights; iwgt++) //Only loop on the minimal nof weights required in my case to overconstrain fit //Skip first point, expected to correspond to SM in my private samples (treated separately)
+    {
+        if(ToLower(v_ids->at(iwgt)) == "rwgt_sm") {continue;} //SM point added manually
+
+        //-- Formula for a given point P: w = (baseline_event_weight / w_MEnominal) * reweight_P / SWE_baseline
+        //-- NB: account for 'baseline_event_weight / w_MEnominal' to account for scale factors (included in the default event weight 'baseline_event_weight')
+        float w = wgt_baseline * v_wgts->at(iwgt) / (weightMENominal * v_SWE[idx_sm]);
+        // float w = wgt_nominal * v_wgts->at(iwgt) / v_SWE[iwgt];
+
+        //-- Printouts
         // cout<<"wgt_baseline "<<wgt_baseline<<endl;
         // cout<<"v_wgts->at(iwgt) "<<v_wgts->at(iwgt)<<endl;
         // cout<<"weightMENominal "<<weightMENominal<<endl;
         // cout<<"v_SWE[idx_sm] "<<v_SWE[idx_sm]<<endl;
         // cout<<"w "<<w<<endl;
 
-        if(ToLower(v_ids->at(iwgt)) == "rwgt_sm") {continue;} //SM point added manually
+        //-- Create WCPoint and copy it into WCFit object
+        // WCPoint wc_pt(v_ids->at(iwgt), w); //Create WCPoint object
+        // eft_fit->points.push_back(wc_pt); //Add WCPoint to WCFit object directly
 
-        // double w = wgt_nominal * v_wgts->at(iwgt) / v_SWE[iwgt];
-
-        WCPoint wc_pt(v_ids->at(iwgt), w); //Create WCPoint object
-
-        eft_fit->points.push_back(wc_pt); //Add WCPoint to WCFit object
+        v_wcpts.push_back(WCPoint(v_ids->at(iwgt), w));
     }
 
     //-- Include 'manually' the SM point as first element (not included automatically because named 'SM' and not via its operator values)
-    eft_fit->points.insert(eft_fit->points.begin(), eft_fit->points[0]); //Duplicate the first element
-    eft_fit->points[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
-    // eft_fit->points[0].wgt = v_wgts->at(idx_sm); //Set (new) first element to SM weight
-    eft_fit->points[0].wgt = w_SMpoint; //Set (new) first element to SM weight
+    if(idx_sm >= 0)
+    {
+        // eft_fit->points.insert(eft_fit->points.begin(), eft_fit->points[0]); //Duplicate the first element
+        // eft_fit->points[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
+        // eft_fit->points[0].wgt = w_SMpoint; //Set (new) first element to SM weight
 
-    eft_fit->fitPoints(); //Fit the WCPoint objects
+        v_wcpts.insert(v_wcpts.begin(), v_wcpts[0]); //Duplicate the first element
+        v_wcpts[0].setSMPoint(); //Set (new) first element to SM coeffs (all null)
+        v_wcpts[0].wgt = w_SMpoint; //Set (new) first element to SM weight
+    }
+
+    // eft_fit->fitPoints(); //Fit the WCPoint objects
+    eft_fit->fitPoints(v_wcpts); //Fit the WCPoint objects
 
     if(debug) //Printout WC values, compare true weight to corresponding fit result
     {
@@ -1070,8 +1083,9 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "mHT") {nbins = 10; xmin = 200; xmax = 1200;}
     else if(var == "top_mass") {nbins = 15; xmin = 100; xmax = 300;}
     else if(var == "dPhijj_max") {nbins = 10; xmin = 0; xmax = 3;}
-    else if(var == "maxDijetMass") {nbins = 10; xmin = 0; xmax = 1000;}
-    else if(var == "maxDijetPt") {nbins = 20; xmin = 0; xmax = 400;}
+    else if(var == "maxDijet_M") {nbins = 10; xmin = 100; xmax = 1000;}
+    else if(var == "maxDiJet_Pt") {nbins = 20; xmin = 100; xmax = 400;}
+    else if(var == "maxDijet_dPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
     else if(var == "maxDelPhiLL") {nbins = 10; xmin = 0; xmax = 3.5;}
     else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 50; xmax = 500;}
     else if(var == "leptonCharge") {nbins = 3; xmin = -1.5; xmax = 1.5;}
@@ -1080,13 +1094,26 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "lAsymmetry") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "Mass_tZ") {nbins = 10; xmin = 200; xmax = 1000;}
     else if(var == "maxDeepCSV" || var == "maxDeepJet" || var == "deepCSV_2nd" || var == "deepJet_2nd") {nbins = 20; xmin = 0.3; xmax = 1.1;}
-    else if(var == "maxDijetDelPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
     else if(var == "maxDelRbL") {nbins = 20; xmin = 1.; xmax = 5;}
     else if(var == "Top_delRbl" || var == "Top_delRbW") {nbins = 20; xmin = 0.; xmax = 4.5;}
     else if(var == "channel") {nbins = 4; xmin = 0.; xmax = 4;}
+    else if(var == "mbjMax") {nbins = 20; xmin = 0.; xmax = 8.;}
+    else if(var == "recoZ_Eta") {nbins = 20; xmin = 0.; xmax = 1.;}
+    else if(var == "recoLepTop_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
+    else if(var == "recoLepTop_Pt") {nbins = 20; xmin = 0.; xmax = 300.;}
+    else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
+
+    else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
+    else if(var == "jet1_pt") {nbins = 20; xmin = 50.; xmax = 600.;}
+    else if(var == "lep1_pt") {nbins = 20; xmin = 50.; xmax = 300.;}
+    else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 250.;}
+    else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
     else if(var.Contains("CSV", TString::kIgnoreCase)) {nbins = 20; xmin = 0.; xmax = 1.1;}
     else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 7.;}
+    else if(var.Contains("deta", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
+    else if(var.Contains("eta", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
+    else if(var.Contains("phi", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
     else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
 
     else if(var == "njets" || var == "nbjets") {nbins = 6; xmin = 0.; xmax = 6;}
@@ -1132,8 +1159,8 @@ TString Get_Variable_Name(TString var)
     if(var == "minDelRbL") {return "min. #DeltaR(b,l)";}
     if(var == "Top_delRbl") {return "#DeltaR#left(l^{t},b^{t}#right)";}
     if(var == "Top_delRbW") {return "#DeltaR#left(W^{t},b^{t}#right)";}
-    if(var == "cosThetaStarPol") {return "cos#left(#theta^{*}_{pol}#right)";}
-    if(var == "cosThetaStar") {return "cos#left(#theta^{*}#right)";}
+    if(var == "cosThetaStarPolTop") {return "cos#left(#theta^{* t}_{pol}#right)";}
+    if(var == "cosThetaStarPolZ") {return "cos#left(#theta^{* Z}_{pol}#right)";}
 
     //GenPlotter variables
     if(var == "Z_pt") {return "p_{T}(Z)";}
@@ -1155,6 +1182,7 @@ TString Get_Variable_Name(TString var)
 
 //Get var name corresponding to category
 //isFake <-> use different flags for prompt/fake events
+//NB: always call this function to automate cuts on flags, since they differ for NPL sample, etc.
 TString Get_Category_Boolean_Name(TString region, bool isFake)
 {
     TString name = "";
@@ -1265,9 +1293,9 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TStrin
 }
 
 //For systs uncorrelated between years, need to add the year in the systName (to make it unique)
-TString Get_Modified_SystName(TString systname, TString lumiYear)
+TString Get_Modified_SystName(TString systname, TString lumiYear, TString samplename)
 {
-    //Only list the systematics which are *not* to be correlated in-between years (i.e., need to give them a unique name per year)
+    //Only list the systematics which are *not* to be correlated in-between years //Need to add year as suffix (<-> unique)
     if(systname.BeginsWith("BtagHFstats")
     || systname.BeginsWith("BtagLFstats")
     || systname.BeginsWith("BtagCF")
@@ -1284,6 +1312,23 @@ TString Get_Modified_SystName(TString systname, TString lumiYear)
             int i = systname.Index("Down"); //Find position of suffix
             systname.Remove(i); //Remove suffix
             systname+= lumiYear+"Down"; //Add year + suffix
+        }
+    }
+    else if(systname.BeginsWith("ISR") //ME / ISR / FSR / ... are signal-dependent //Need to add sample name as suffix (<-> unique)
+        || systname.BeginsWith("FSR")
+        || systname.BeginsWith("ME"))
+    {
+        if(systname.EndsWith("Up"))
+        {
+            int i = systname.Index("Up"); //Find position of suffix
+            systname.Remove(i); //Remove suffix
+            systname+= samplename+"Up"; //Add year + suffix
+        }
+        else if(systname.EndsWith("Down"))
+        {
+            int i = systname.Index("Down"); //Find position of suffix
+            systname.Remove(i); //Remove suffix
+            systname+= samplename+"Down"; //Add year + suffix
         }
     }
 
@@ -1312,7 +1357,8 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString id)
 
     std::vector<std::string> words;
     split_string((string) id, words, "_");
-    if(words.at(0).compare("rwgt") != 0) {cout<<"Error: EFT ID should start with rwgt_ prefix ! "<<endl; return v;}
+    // if(words.at(0).compare("rwgt") != 0) {cout<<"Error: EFT ID should start with rwgt_ prefix ! "<<endl; return v;}
+    if(words.at(0).compare("rwgt") != 0 && words.at(0).find("EFTrwgt") == std::string::npos) {cout<<"Error: EFT ID should start with rwgt_ prefix ! "<<endl; return v;} //Add TOP19001 convention
 
     for (uint i=1; i < words.size(); i+= 2)
     {
@@ -1420,15 +1466,16 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString signal_process, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool parametrized)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool parametrized)
 {
     TString fullpath = ""; //Full input path
+    if(region != "") {region = "_" + region;}
 
 	if(use_CombineFile) //Reading a template file produced by Combine (specific naming conventions)
 	{
         //TRY 1 : look for Combine file
 		fullpath = "./outputs/fitDiagnostics_";
-		fullpath+= template_type + "_" + region + filename_suffix + ".root";
+		fullpath+= template_type + region + filename_suffix + ".root";
 
         cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
@@ -1444,8 +1491,10 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	else //Reading my own file
 	{
         TString MVA_type = "";
+        TString region_tmp = "_" + region;
         if(is_templateFile && categorization_strategy>0)
         {
+            region_tmp = "";
             if(MVA_EFT)
             {
                 MVA_type+= "EFT" + Convert_Number_To_TString(categorization_strategy);
@@ -1455,8 +1504,8 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         }
         if(MVA_type != "") {MVA_type = "_" + MVA_type;}
 
-		if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_" + year + filename_suffix + ".root";} //Input variables
-		else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_" + year + filename_suffix + ".root";} //Templates
+		if(!is_templateFile) {fullpath = "outputs/ControlHistograms" + region + "_" + year + filename_suffix + ".root";} //Input variables
+		else {fullpath = "outputs/Templates_" + template_type + MVA_type + region_tmp + "_" + year + filename_suffix + ".root";} //Templates
 
         cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
         if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
@@ -1465,8 +1514,8 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
             cout<<BOLD(FRED("ERROR: file "<<fullpath<<" not found !"))<<endl;
             if(year != "Run2") //Retry with Run2 file
             {
-                if(!is_templateFile) {fullpath = "outputs/ControlHistograms_" + region + "_Run2" + filename_suffix + ".root";} //Input variables
-                else {fullpath = "outputs/Templates_" + template_type + MVA_type + "_" + region + "_Run2" + filename_suffix + ".root";} //Templates
+                if(!is_templateFile) {fullpath = "outputs/ControlHistograms" + region + "_Run2" + filename_suffix + ".root";} //Input variables
+                else {fullpath = "outputs/Templates_" + template_type + MVA_type + region_tmp + "_Run2" + filename_suffix + ".root";} //Templates
                 cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
                 if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
                 else
@@ -1517,7 +1566,7 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
     return true;
 }
 
-TString Get_Region_Label(TString region)
+TString Get_Region_Label(TString region, TString variable)
 {
     TString label = "";
 
@@ -1531,6 +1580,10 @@ TString Get_Region_Label(TString region)
     else if(region=="tt") {label = "t#bar{t} CR";}
     else if(region=="wz") {label = "WZ CR";}
     else if(region=="dy") {label = "DY CR";}
+
+    if(variable.Contains("SRtZq")) {label = "tZq SR";}
+    else if(variable.Contains("SRttZ")) {label = "ttZ SR";}
+    else if(variable.Contains("_CR")) {label = "CR";}
 
     return label;
 }

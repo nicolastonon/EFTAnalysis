@@ -10,6 +10,7 @@
 
 #include "split_string.h"
 
+// #include "TString.h"
 #include "TMath.h"
 
 class WCPoint
@@ -57,8 +58,10 @@ public:
             // this->setStrength(words.at(i), std::stod(words.at(i+1)));
 
             //-- Force WC names to lowercase, to avoid errors (MG sometimes sets reweight names to lowercase by default...)
-            TString ts = words.at(i); ts.ToLower();
-            this->setStrength((std::string) ts, std::stod(words.at(i+1)));
+            // TString ts = words.at(i); ts.ToLower();
+            // this->setStrength((std::string) ts, std::stod(words.at(i+1)));
+            std::transform(words.at(i).begin(), words.at(i).end(), words.at(i).begin(), ::tolower); //std method to make string lowercase
+            this->setStrength(words.at(i), std::stod(words.at(i+1)));
 
             //-- Alternate naming convention of the type "min2p5". Not used anymore
             // TString ts = words.at(i+1);

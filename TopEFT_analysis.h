@@ -78,7 +78,7 @@ class TopEFT_analysis
 //--- METHODS
 	void Train_BDT(TString); //Train BDT
     void Produce_Templates(TString, bool, bool, bool, float, float, bool, bool); //Produce templates
-    void Draw_Templates(bool, TString, TString="", bool=true, bool=false, TString="", bool=false, float* ymax_fixed1=NULL, float* ymax_fixed2=NULL); //Draw templates or input variables
+    void Draw_Templates(bool, TString, bool, bool, TString="", bool=true, bool=false, TString="", bool=false, float* ymax_fixed1=NULL, float* ymax_fixed2=NULL); //Draw templates or input variables
     void Compare_TemplateShapes_Processes(TString, TString);
 
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
@@ -166,12 +166,10 @@ class TopEFT_analysis
     double* array_Btag;
     double* array_jetPileupID;
     double* array_fakeFactor;
-    // double* array_LepEff_mu;
-    // double* array_LepEff_el;
-    // double* array_LepEffLoose_mu;
-    // double* array_LepEffLoose_el;
-    // double* array_LepEffTight_mu;
-    // double* array_LepEffTight_el;
+    double* array_ME;
+    double* array_alphaS;
+    double* array_PDFtotal;
+    double* array_partonShower;
 
     //-- For parametrized NN
     bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)

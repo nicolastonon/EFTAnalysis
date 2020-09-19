@@ -38,6 +38,8 @@
 namespace std {} using namespace std;
 
 // Header files passed as explicit arguments
+#include "Utils/WCPoint.h"
+#include "Utils/WCFit.h"
 #include "Utils/TH1EFT.h"
 
 // Header files passed via #pragma extra_include
@@ -57,7 +59,7 @@ namespace ROOT {
       ::WCPoint *ptr = 0;
       static ::TVirtualIsAProxy* isa_proxy = new ::TIsAProxy(typeid(::WCPoint));
       static ::ROOT::TGenericClassInfo 
-         instance("WCPoint", "Utils/WCPoint.h", 15,
+         instance("WCPoint", "Utils/WCPoint.h", 16,
                   typeid(::WCPoint), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &WCPoint_Dictionary, isa_proxy, 4,
                   sizeof(::WCPoint) );
@@ -667,6 +669,8 @@ namespace ROOT {
 namespace {
   void TriggerDictionaryInitialization_myDict_Impl() {
     static const char* headers[] = {
+"Utils/WCPoint.h",
+"Utils/WCFit.h",
 "Utils/TH1EFT.h",
 0
     };
@@ -681,8 +685,8 @@ namespace {
 #pragma clang diagnostic ignored "-Wignored-attributes"
 #pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
 extern int __Cling_Autoloading_Map;
-class __attribute__((annotate("$clingAutoload$Utils/TH1EFT.h")))  WCPoint;
-class __attribute__((annotate("$clingAutoload$Utils/TH1EFT.h")))  WCFit;
+class __attribute__((annotate("$clingAutoload$Utils/WCPoint.h")))  WCPoint;
+class __attribute__((annotate("$clingAutoload$Utils/WCFit.h")))  WCFit;
 class __attribute__((annotate(R"ATTRDUMP(Needed to include custom class within ROOT)ATTRDUMP"))) __attribute__((annotate("$clingAutoload$Utils/TH1EFT.h")))  TH1EFT;
 )DICTFWDDCLS";
     static const char* payloadCode = R"DICTPAYLOAD(
@@ -691,6 +695,8 @@ class __attribute__((annotate(R"ATTRDUMP(Needed to include custom class within R
 
 #define _BACKWARD_BACKWARD_WARNING_H
 // Inline headers
+#include "Utils/WCPoint.h"
+#include "Utils/WCFit.h"
 #include "Utils/TH1EFT.h"
 
 #undef  _BACKWARD_BACKWARD_WARNING_H

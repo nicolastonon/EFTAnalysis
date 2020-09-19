@@ -1,3 +1,5 @@
+//FIXME -- test WZ splitting (new WZ ntuple)
+
 /* BASH CUSTOM */
 #define RST   "\e[0m"
 #define KBLK  "\e[30m"
@@ -96,6 +98,13 @@
 #include <cassert>     //Can be used to terminate program if argument is not true.
 #include <sys/stat.h> // to be able to use mkdir
 
+#include "../Utils/Helper.h"
+
+//Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/maste)
+// #include "../Utils/TH1EFT.h"
+#include "../Utils/WCPoint.h"
+#include "../Utils/WCFit.h"
+
 using namespace std;
 
 
@@ -108,23 +117,6 @@ using namespace std;
 // ##     ## ##       ##       ##        ##       ##    ##
 // ##     ## ######## ######## ##        ######## ##     ##
 //--------------------------------------------
-
-//Use stat function (from library sys/stat) to check if a file exists
-bool Check_File_Existence(const TString& name)
-{
-    struct stat buffer;
-    return (stat (name.Data(), &buffer) == 0); //true if file exists
-}
-
-//Convert a double into a TString
-// precision --> can choose if TString how many digits the TString should display
-TString Convert_Number_To_TString(double number, int precision=3)
-{
-	stringstream ss;
-	ss << std::setprecision(precision) << number;
-	TString ts = ss.str();
-	return ts;
-}
 
 /**
  * Return the name of the directory where to store the corresponding subsample
@@ -151,9 +143,98 @@ TString Get_Directory(TString cat)
 }
 
 
+//--------------------------------------------
+// ######## ######## ########    ########     ###    ########     ###    ##     ## ######## ######## ######## ########  #### ########    ###    ######## ####  #######  ##    ##
+// ##       ##          ##       ##     ##   ## ##   ##     ##   ## ##   ###   ### ##          ##    ##       ##     ##  ##       ##    ## ##      ##     ##  ##     ## ###   ##
+// ##       ##          ##       ##     ##  ##   ##  ##     ##  ##   ##  #### #### ##          ##    ##       ##     ##  ##      ##    ##   ##     ##     ##  ##     ## ####  ##
+// ######   ######      ##       ########  ##     ## ########  ##     ## ## ### ## ######      ##    ######   ########   ##     ##    ##     ##    ##     ##  ##     ## ## ## ##
+// ##       ##          ##       ##        ######### ##   ##   ######### ##     ## ##          ##    ##       ##   ##    ##    ##     #########    ##     ##  ##     ## ##  ####
+// ##       ##          ##       ##        ##     ## ##    ##  ##     ## ##     ## ##          ##    ##       ##    ##   ##   ##      ##     ##    ##     ##  ##     ## ##   ###
+// ######## ##          ##       ##        ##     ## ##     ## ##     ## ##     ## ########    ##    ######## ##     ## #### ######## ##     ##    ##    ####  #######  ##    ##
+//--------------------------------------------
 
+//For private SMEFT samples, can compute and store the per-event EFT parameterizations directly (then will only need to read it when processing the samples)
+void Store_EFTparameterization(TString filepath, TString nominal_tree_name)
+{
+    if(!filepath.Contains("PrivMC")) {return;} //For private SMEFT samples only
 
+    TFile* f = new TFile(filepath, "UPDATE");
+    TTree* t = (TTree*) f->Get(nominal_tree_name);
+    int nentries = t->GetEntries();
 
+    TString newTree_name = "EFTparameterization";
+
+    cout<<FYEL("--- STORING PER-EVENT EFT PARAMETERIZATIONS IN TTREE '"<<newTree_name<<"', IN FILE: '"<<filepath<<"' ...")<<endl;
+    cout<<"("<<nentries<<" entries) "<<endl;
+
+    // TH1EFT* th1eft = new TH1EFT("EFTparameterization", "EFTparameterization", 1, 0, 1);
+
+    //--- Branch address
+    double eventWeight; //Corresponds to 'nominalMEWeight_' in TopAnalysis code
+    float eventMCFactor; //Sample-specific SF (xsec*lumi/SWE)
+    Float_t weightMENominal;
+    t->SetBranchStatus("eventWeight", 1);
+    t->SetBranchAddress("eventWeight", &eventWeight);
+    t->SetBranchStatus("eventMCFactor", 1);
+    t->SetBranchAddress("eventMCFactor", &eventMCFactor);
+    t->SetBranchStatus("weightMENominal", 1);
+    t->SetBranchAddress("weightMENominal", &weightMENominal);
+
+    vector<float>* v_wgts = new vector<float>;
+    vector<string>* v_ids = new vector<string>;
+    t->SetBranchStatus("mc_EFTweights", 1);
+    t->SetBranchAddress("mc_EFTweights", &v_wgts);
+    t->SetBranchStatus("mc_EFTweightIDs", 1);
+    t->SetBranchAddress("mc_EFTweightIDs", &v_ids);
+
+    vector<float> v_SWE; //Store Sums of Weights (SWE) for all reweight points -- for private MC samples only
+    TString hSWE_name = "EFT_SumWeights";
+    if(!f->GetListOfKeys()->Contains(hSWE_name)) {cout<<"ERROR ! Histogram "<<hSWE_name<<" containing the sums of weights not found... Abort !"<<endl; return;}
+
+    //Read and store sums of weights (SWE)
+    TH1F* h_SWE = (TH1F*) f->Get(hSWE_name);
+    for(int ibin=0; ibin<h_SWE->GetNbinsX(); ibin++)
+    {
+        v_SWE.push_back(h_SWE->GetBinContent(ibin+1)); //1 SWE stored for each stored weight
+    }
+    delete h_SWE;
+
+    //For private EFT samples, get and store index of SM reweight
+    int idx_sm = -1;
+    t->GetEntry(0); //Read 1 entry
+    for(int iwgt=0; iwgt<v_ids->size(); iwgt++)
+    {
+        if(ToLower(v_ids->at(iwgt)).Contains("_sm") ) {idx_sm = iwgt; break;} //SM weight found
+        if(((TString) v_ids->at(iwgt)).Contains("EFTrwgt183_") ) {idx_sm = iwgt; break;} //SM weight found //TOP19001 sample
+    }
+    if(idx_sm == -1) {cout<<BOLD(FRED("Error: SM reweight not found in private sample ! Abort ! "))<<endl; return;}
+
+    //-- Create new additional branch
+    WCFit* eft_fit = new WCFit;
+    TTree* new_tree = new TTree(newTree_name, "");
+    new_tree->Branch("eft_fit", &eft_fit);
+
+    for(int ientry=0; ientry<nentries; ientry++)
+    {
+        t->GetEntry(ientry);
+
+        if(ientry%5000==0) {cout<<DIM(" --- "<<ientry<<" / "<<nentries<<"")<<endl;}
+
+        float w_SMpoint = eventWeight * eventMCFactor * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+        Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, (eventWeight*eventMCFactor), weightMENominal, w_SMpoint, idx_sm);
+        new_tree->Fill();
+    }
+
+    new_tree->Write();
+
+    delete eft_fit; eft_fit = NULL;
+    delete new_tree; new_tree = NULL;
+    f->Close();
+
+    cout<<endl<<FYEL("... Done !")<<endl<<endl;
+
+    return;
+}
 
 
 //--------------------------------------------
@@ -178,7 +259,7 @@ TString Get_Directory(TString cat)
 Create new subsample based on full sample, copying only events satisfying one selection at a time
 ==> Faster processing of ntuples
  */
-void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name, TString selection, TString sample, TString open_mode, vector<TString> v_TTrees, TString nominal_tree_name)
+void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name, TString selection, TString sample, vector<TString> v_TTrees, TString nominal_tree_name, TString open_mode = "UPDATE")
 {
     cout<<endl<<BYEL("                                  ")<<endl;
     cout<<FYEL("--- WILL EXTRACT SUBSET OF EVENTS SATISFYING '"<<selection<<"'")<<endl;
@@ -227,10 +308,43 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
 }
 
 
+//--------------------------------------------
+//  ######  ########  ##       #### ########    ########  ########  ######     ###    ##    ##
+// ##    ## ##     ## ##        ##     ##       ##     ## ##       ##    ##   ## ##    ##  ##
+// ##       ##     ## ##        ##     ##       ##     ## ##       ##        ##   ##    ####
+//  ######  ########  ##        ##     ##       ##     ## ######   ##       ##     ##    ##
+//       ## ##        ##        ##     ##       ##     ## ##       ##       #########    ##
+// ##    ## ##        ##        ##     ##       ##     ## ##       ##    ## ##     ##    ##
+//  ######  ##        ######## ####    ##       ########  ########  ######  ##     ##    ##
+//--------------------------------------------
 
+/**
+ * Special case: may want to split the full WZ sample according to the flavours of the additional jets
+ */
+void Split_WZ_sample_byJetFlavour(TString prefix, TString dir, TString filepath, TString selection, TString sample, vector<TString> v_TTrees, TString nominal_tree_name)
+{
+    if(sample != "WZ") {return;} //Only for WZ sample
 
+    TString outfile_path = "";
+    TString selection_tmp = "";
 
+    outfile_path = prefix + dir + "/WZ_b.root";
+    selection_tmp = "fragmentationInfo==2";
+	if(selection != "") {selection_tmp+= " && " + selection;}
+	Create_Subsample_fromSample(filepath, outfile_path, selection_tmp, sample, v_TTrees, nominal_tree_name);
 
+    outfile_path = prefix + dir + "/WZ_c.root";
+    selection_tmp = "fragmentationInfo==1";
+	if(selection != "") {selection_tmp+= " && " + selection;}
+	Create_Subsample_fromSample(filepath, outfile_path, selection_tmp, sample, v_TTrees, nominal_tree_name);
+
+    outfile_path = prefix + dir + "/WZ_l.root";
+    selection_tmp = "fragmentationInfo==0";
+	if(selection != "") {selection_tmp+= " && " + selection;}
+	Create_Subsample_fromSample(filepath, outfile_path, selection_tmp, sample, v_TTrees, nominal_tree_name);
+
+    return;
+}
 
 
 //--------------------------------------------
@@ -268,15 +382,6 @@ void Copy_SumWeight_Histogram_Into_SplitSample(TString filepath, TString outfile
 
     return;
 }
-
-
-
-
-
-
-
-
-
 
 
 //--------------------------------------------
@@ -489,15 +594,6 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, ve
 }
 
 
-
-
-
-
-
-
-
-
-
 //--------------------------------------------
 //  ######   ######## ##    ## ######## ########     ###    ##       #### ########    ###    ######## ####  #######  ##    ##
 // ##    ##  ##       ###   ## ##       ##     ##   ## ##   ##        ##       ##    ## ##      ##     ##  ##     ## ###   ##
@@ -511,7 +607,7 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, ve
 Automatically split all samples into different subsamples (based on categories) *
 * --> Call to Create_Subsample_fromSample() for all samples/selections
  */
-void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_sample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name)
+void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_sample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour)
 {
     cout<<endl<<endl<<FBLU("== START OF NTUPLES SPLITTING ==")<<endl;
     cout<<"This can be quite long. Make sure you have correctly selected in the code :"<<endl;
@@ -561,10 +657,11 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
                 TString open_mode = "RECREATE"; //1 file per promtp sample
                 if(v_sel[isel].Contains("Fake")) {open_mode = opening_mode_FakesMC;} //1 common file for all fake MC samples
 
-            	Create_Subsample_fromSample(filepath, outfile_path, v_sel[isel], v_samples[isample], open_mode, v_TTrees, nominal_tree_name);
+            	Create_Subsample_fromSample(filepath, outfile_path, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name, open_mode);
             	if(v_samples[isample].Contains("PrivMC")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample]);}
-
+                if(store_WCFit_forSMEFTsamples && outfile_path.Contains("PrivMC")) {Store_EFTparameterization(outfile_path, nominal_tree_name);}
                 if(v_sel[isel].Contains("Fake")) {opening_mode_FakesMC = "UPDATE";} //Will update the TFile with next samples
+                if(split_WZ_byJetFlavour) {Split_WZ_sample_byJetFlavour(prefix, dir, filepath, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name);}
             } //sample loop
     	} //selections loop
     } //year loop
@@ -578,6 +675,10 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
 
     return;
 }
+
+
+
+
 
 
 
@@ -603,10 +704,12 @@ int main(int argc, char **argv)
 //--- Options---------------------------------
 //--------------------------------------------
     bool make_nominal_samples = true; //true <-> create sub-samples satisfying given category flags
-    bool make_FakesMC_sample = true; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_FakesMC_sample = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
 
     TString nominal_tree_name = "result"; //Hard-coded nominal tree name (special case)
     TString NPL_flag = "isFake"; //Flag defining fake events
+    bool store_WCFit_forSMEFTsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
+    bool split_WZ_byJetFlavour = false; //true <-> also split WZ sample depending on flavour of additional jet
 //--------------------------------------------
 
 
@@ -624,6 +727,7 @@ int main(int argc, char **argv)
     // v_TTrees.push_back("JESDown"); v_TTrees.push_back("JESUp");
     // v_TTrees.push_back("JERDown"); v_TTrees.push_back("JERUp"); //not used by ttH
 
+
  //  ####    ##   #    # #####  #      ######  ####
  // #       #  #  ##  ## #    # #      #      #
  //  ####  #    # # ## # #    # #      #####   ####
@@ -633,37 +737,40 @@ int main(int argc, char **argv)
 
     //--- Sample list
     vector<TString> v_samples;
-	v_samples.push_back("DATA");
-    v_samples.push_back("ttH");
-    v_samples.push_back("PrivMC_tZq");
-    v_samples.push_back("PrivMC_ttZ");
-    v_samples.push_back("tZq");
-    v_samples.push_back("ttZ");
-    v_samples.push_back("ttZ_M1to10");
-    v_samples.push_back("tWZ");
-	v_samples.push_back("tHq");
-    v_samples.push_back("tHW");
-    v_samples.push_back("ttW");
-    v_samples.push_back("ttZZ");
-    v_samples.push_back("ttWW");
-    v_samples.push_back("ttWZ");
-    v_samples.push_back("ttZH");
-    v_samples.push_back("ttWH");
-    v_samples.push_back("tttt");
-    v_samples.push_back("ttHH");
-    v_samples.push_back("ZZ4l");
-    v_samples.push_back("ggToZZTo4l");
-    v_samples.push_back("ZZZ");
-    v_samples.push_back("WZZ");
-    v_samples.push_back("WWW");
-    v_samples.push_back("WWZ");
-    v_samples.push_back("WZ");
-	v_samples.push_back("TTGamma_Dilep");
-	v_samples.push_back("tGJets");
-	v_samples.push_back("WGToLNuG");
-	v_samples.push_back("ZGToLLG_01J");
-	v_samples.push_back("DY");
-    v_samples.push_back("TTbar_DiLep");
+	// v_samples.push_back("DATA");
+    // v_samples.push_back("ttH");
+    // v_samples.push_back("PrivMC_tZq");
+    // v_samples.push_back("PrivMC_ttZ");
+    // v_samples.push_back("tZq");
+    // v_samples.push_back("ttZ");
+    // v_samples.push_back("ttZ_M1to10");
+    // v_samples.push_back("tWZ");
+	// v_samples.push_back("tHq");
+    // v_samples.push_back("tHW");
+    // v_samples.push_back("ttW");
+    // v_samples.push_back("ttZZ");
+    // v_samples.push_back("ttWW");
+    // v_samples.push_back("ttWZ");
+    // v_samples.push_back("ttZH");
+    // v_samples.push_back("ttWH");
+    // v_samples.push_back("tttt");
+    // v_samples.push_back("ttHH");
+    // v_samples.push_back("ZZ4l");
+    // v_samples.push_back("ggToZZTo4l");
+    // v_samples.push_back("ZZZ");
+    // v_samples.push_back("WZZ");
+    // v_samples.push_back("WWW");
+    // v_samples.push_back("WWZ");
+    // v_samples.push_back("WZ");
+	// v_samples.push_back("TTGamma_Dilep");
+	// v_samples.push_back("tGJets");
+	// v_samples.push_back("WGToLNuG");
+	// v_samples.push_back("ZGToLLG_01J");
+	// v_samples.push_back("DY");
+    // v_samples.push_back("TTbar_DiLep");
+
+    // v_samples.push_back("PrivMC_tZq_TOP19001");
+    // v_samples.push_back("PrivMC_ttZ_TOP19001");
 
 
  //  ####  ###### #      ######  ####  ##### #  ####  #    #  ####
@@ -677,14 +784,6 @@ int main(int argc, char **argv)
     vector<TString> v_sel;
     v_sel.push_back("is_signal_SR");
     v_sel.push_back("is_signal_SRFake");
-
-    // int tmp = v_sel.size(); //Trick, otherwise vector expands infinitely as we add elements !
-    // v_sel.clear(); //Overwrite vector elements
-    // for(int isel=0; isel<tmp; isel++)
-    // {
-    //     if(make_nominal_samples) {v_sel.push_back(v_sel[isel] + " && !" + NPL_flag);} //Don't consider fake events in the category
-    //     if(make_FakesMC_sample) {v_sel.push_back(v_sel[isel] + " && " + NPL_flag);} //Only consider fake events in the category
-    // }
 
 
  // #   # ######   ##   #####   ####
@@ -709,7 +808,7 @@ int main(int argc, char **argv)
  // #       ####  #    #  ####      ####  #    # ###### ######
 
     //-- Make split ntuples per sub-category
-    Split_AllNtuples_ByCategory(v_samples, v_sel, v_years, make_nominal_samples, make_FakesMC_sample, v_TTrees, NPL_flag, nominal_tree_name);
+    Split_AllNtuples_ByCategory(v_samples, v_sel, v_years, make_nominal_samples, make_FakesMC_sample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour);
 
     return 0;
 }

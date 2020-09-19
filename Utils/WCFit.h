@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
-#include <tuple>    // for std::pair
+#include <tuple> //std::pair
 
 #include "WCPoint.h"
 #include "split_string.h"
@@ -26,10 +26,9 @@ private:
     std::vector<std::pair<int,int>> pairs;  // The pair doublets are the indices of the 'names' vector
     std::vector<double> coeffs; // The fit structure constants
 
-    std::vector<std::pair<int,int>> err_pairs;  // The pair dublets are the indicies of the 'pairs' vector
+    std::vector<std::pair<int,int>> err_pairs;  // The pair dublets are the indices of the 'pairs' vector
     std::vector<double> err_coeffs; // The error fit structure constants
 
-    // std::vector<WCPoint> points;    // The WCPoints used to generate the fit
     std::string tag;    // WCFit identifier
     WCPoint start_pt;   // The starting point used by MadGraph to generate the sample
 
@@ -41,7 +40,7 @@ public:
 
     WCFit() {this->tag = "";}
 
-    WCFit(std::vector<WCPoint> pts,std::string _tag)
+    WCFit(std::vector<WCPoint>& pts, std::string _tag)
     {
         this->fitPoints(pts);
         this->setTag(_tag);
@@ -49,9 +48,7 @@ public:
 
     WCFit(std::string _tag) {this->setTag(_tag);} //NT -- overloaded construction : assumes that WCPoints members will be read/stored directly when looping on events (not copied)
 
-    ~WCFit(){
-        this->clear();
-    }
+    ~WCFit() {this->clear();}
 
     std::string kSMstr = "SM"; //Arbitrary name
 
@@ -60,60 +57,34 @@ public:
     }
 
     // Specify the MadGraph starting point
-    void setStart(WCPoint pt) {
-        this->start_pt = pt;
-    }
+    void setStart(WCPoint pt) {this->start_pt = pt;}
 
-    void setStart(std::string id_tag, double wgt_val) {
-        this->start_pt = WCPoint(id_tag,wgt_val);
-    }
+    void setStart(std::string id_tag, double wgt_val) {this->start_pt = WCPoint(id_tag,wgt_val);}
 
     // The number of pairs in the fit, should be equal to 1 + 2N + N(N-1)/2
-    uint size() {
-        //Note: pairs.size() and coeffs.size() should always be in 1-to-1 correspondance!
-        return this->pairs.size();
-    }
+    uint size() {return this->pairs.size();} //Note: pairs.size() and coeffs.size() should always be in 1-to-1 correspondance!
 
     // The number of pairs in the error fit
-    uint errSize() {
-        //Note: err_pairs.size() and err_coeffs.size() should always be in 1-to-1 correspondance!
-        return this->err_pairs.size();
-    }
+    uint errSize() {return this->err_pairs.size();} //Note: err_pairs.size() and err_coeffs.size() should always be in 1-to-1 correspondance!
 
-    std::string getTag() {
-        return this->tag;
-    }
+    std::string getTag() {return this->tag;}
 
-    WCPoint getStart() {
-        return this->start_pt;
-    }
+    WCPoint getStart() {return this->start_pt;}
 
-    std::vector<WCPoint> getFitPoints() {
-        return this->points;
-    }
+    std::vector<WCPoint> getFitPoints() {return this->points;}
 
     // A vector of all non-zero WCs in the fit (includes 'sm')
-    std::vector<std::string> getNames() {
-        return this->names;
-    }
+    std::vector<std::string> getNames() {return this->names;}
 
     // A vector of (ordered) indicies, indicating the WC names of the pairs in the quadratic function
-    std::vector<std::pair<int,int>> getPairs() {
-        return this->pairs;
-    }
+    std::vector<std::pair<int,int>> getPairs() {return this->pairs;}
 
     // A vector of the coefficients for each term in the quadratic function
-    std::vector<double> getCoefficients() {
-        return this->coeffs;
-    }
+    std::vector<double> getCoefficients() {return this->coeffs;}
 
-    std::vector<std::pair<int,int>> getErrorPairs() {
-        return this->err_pairs;
-    }
+    std::vector<std::pair<int,int>> getErrorPairs() {return this->err_pairs;}
 
-    std::vector<double> getErrorCoefficients() {
-        return this->err_coeffs;
-    }
+    std::vector<double> getErrorCoefficients() {return this->err_coeffs;}
 
     // Returns a (ordered) pair of indicies corresponding to a particular quadratic term
     // Convention note: idx1 <= idx2 always!
@@ -394,6 +365,7 @@ public:
         this->err_pairs.clear();
         this->err_coeffs.clear();
         this->points.clear();
+        this->tag = "";
     }
 
     // Save the fit to a text file
@@ -461,7 +433,8 @@ public:
 
     // This is how we build up all the vectors which store the fit and err_fit info
     //--> Allocate space in vector members (new 'pair', new default coeff, and their errors)
-    void extend(std::string new_name) {
+    void extend(std::string new_name)
+    {
         //Quadratic Form Convention:
         //  Dim=0: (0,0)
         //  Dim=1: (0,0) (1,0) (1,1)
@@ -469,13 +442,13 @@ public:
         //  Dim=3: (0,0) (1,0) (1,1) (2,0) (2,1) (2,2) (3,0) (3,1) (3,2) (3,3)
         //  etc.
         //  Note: For ALL pairs --> p.first >= p.second
-        if (this->hasCoefficient(new_name)) {
+        if (this->hasCoefficient(new_name))
+        {
             std::cout << "[ERROR] Tried to extend WCFit with a name already present! (extend)" << std::endl;
             return;
         }
 
         int new_idx1,new_idx2,i,j;
-        //int new_idx1,i;
         std::pair<int,int> idx_pair1,idx_pair2;
 
         this->names.push_back(new_name);
@@ -486,32 +459,38 @@ public:
         {
             idx_pair1 = std::make_pair(new_idx1,i);
             this->pairs.push_back(idx_pair1);
-            this->coeffs.push_back(0.0);   // Extending makes no assumptions about the fit coefficients
+            this->coeffs.push_back(0.0); // Extending makes no assumptions about the fit coefficients
+
             // Extend the err_pairs and err_coeffs vectors
             new_idx2 = this->pairs.size() - 1;
-            for (j = 0; j <= new_idx2; j++) {
+            for (j = 0; j <= new_idx2; j++)
+            {
                 idx_pair2 = std::make_pair(new_idx2,j);
                 this->err_pairs.push_back(idx_pair2);
                 this->err_coeffs.push_back(0.0);
             }
         }
+
+        return;
     }
 
-    // Extract a n-Dim quadratic fit from a collection of WC phase space points
-    void fitPoints(std::vector<WCPoint> pts)
+    // Extract a n-Dim quadratic fit from a collection of WC phase space points //CHANGED
+    void fitPoints(std::vector<WCPoint>& pts)
     {
-        if(pts.size() == 0) {return;} // No points to fit!
+        if(pts.size() == 0) {cout<<"[WCFit] ERROR: no points to fit! "<<endl; return;} //No points to fit!
 
+        //CHANGED //Clear beforehand
         this->clear();
-        this->points = pts;
+        // this->points = pts; //No need to copy points (all relevant info copied through extend())
 
-        //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in extend())
-        this->extend(kSMstr);   // The SM term is always first
-        for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
+        //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in 3())
+        this->extend(kSMstr); // The SM term is always first
+        for(auto& kv: pts.at(0).inputs) {this->extend(kv.first);} // NB: assumes that all WCPoints have exact same list of WC names (consistent syntax) as first point (index 0) #CHANGED
+        // for (auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} // NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
 
         uint nCols,nRows,row_idx,col_idx;
 
-        nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
+        nCols = this->size(); // Should be equal to 1 + 2*N + N*(N - 1)/2
         nRows = pts.size();
 
         //Basic idea : solve x * y = z -- x are the fit coeffs to determine, y are the strengths of the coeff pairs (for all considered WCPoints, known), z are the values of the reweighted points (<-> weights of the WCPoints, known)
@@ -554,73 +533,8 @@ public:
         return;
     }
 
-    // Overloaded function
-    void fitPoints() {return this-> fitPoints(this->points);}
-
-    // Extract a n-Dim quadratic fit from a collection of WC phase space points //NT -- overloaded
-    /*
-    void fitPoints()
-    {
-        if(this->points.size() == 0) {return;} // No points to fit!
-
-        // this->clear();
-        // this->points = pts;
-
-        //Resize the vector members properly, and define all possible pairs b/w 2 WCs (see conventions in extend())
-        this->extend(kSMstr); // The SM term is always first
-        for(auto& kv: this->points.at(0).inputs) {this->extend(kv.first);} //NB : assumes that all WCPoints have exact same list of WC names (consistent syntax)
-
-        uint nCols,nRows,row_idx,col_idx;
-
-        nCols = this->size();   // Should be equal to 1 + 2*N + N*(N - 1)/2
-        nRows = this->points.size();
-
-        //Basic idea : solve x * y = z ; x are the fit coeffs to determine, y are the strengths of the coeff pairs (for all considered WCPoints, known), z are the values of the reweighted points (<-> weights of the WCPoints, known)
-        TMatrixD A(nRows,nCols); //Matrix encoding the strengths of the WC pairs, for all pairs of all WCPoints (correspond to the values which will get multiplied by the corresponding fit coeffs) -- rows = WCPoints ; cols = unique pairs of WCs
-        TVectorD b(nRows); //Vector of event weights -- 1 row per MG reweight
-
-        for(row_idx = 0; row_idx < nRows; row_idx++) //For each WCPoint
-        {
-            for(col_idx = 0; col_idx < nCols; col_idx++) //For each pair of WC coeffs
-            {
-                // idx_pair = this->pairs.at(col_idx);
-                std::string n1 = this->names.at(this->pairs.at(col_idx).first);
-                std::string n2 = this->names.at(this->pairs.at(col_idx).second);
-
-                //Get values of corresponding WCs
-                double x1 = ((n1 == kSMstr) ? 1.0 : this->points.at(row_idx).inputs[n1]);  // Hard set SM value to 1.0
-                double x2 = ((n2 == kSMstr) ? 1.0 : this->points.at(row_idx).inputs[n2]);  // Hard set SM value to 1.0
-
-                A(row_idx,col_idx) = x1*x2; //Store 'strength' of the considered coeff pair (that gets multiplied by corresponding fit coeff.)
-                b(row_idx) = this->points.at(row_idx).wgt; //Store reweight value, i.e. the result
-
-                //-- Debug
-                // std::cout<<"n1="<<n1<<", n2="<<n2<<", x1="<<x1<<", x2="<<x2<<", x1*x2="<<x1*x2<<" => "<<this->points.at(row_idx).wgt<<std::endl;
-            }
-        }
-
-        TDecompSVD svd(A); //'Single Value Decomposition'
-        bool ok;
-
-        // Solve Ax=b assuming the SVD form of A is stored
-        // Solution returned in b. If A is of size (m x n), input vector b should be of size (m), however, the solution, returned in b, will be in the first (n) elements .
-        // For m > n , x is the least-squares solution of min(A . x - b) <-> Quadratic polynomial regression with the Least Square method
-        const TVectorD c_x = svd.Solve(b, ok); //--> Solve for the fit parameters
-        for(uint i = 0; i < this->errSize(); i++)
-        {
-            if(i < this->size()) {this->coeffs.at(i) = c_x(i);}
-
-            // std::cout<<"c_x(i) "<<c_x(i)<<std::endl;
-
-            // idx_pair = this->err_pairs.at(i);
-            //this->err_coeffs.at(i) = (idx_pair.first == idx_pair.second) ? c_x(idx_pair.first)*c_x(idx_pair.second) : 2*c_x(idx_pair.first)*c_x(idx_pair.second);
-            this->err_coeffs.at(i) = c_x(this->err_pairs.at(i).first)*c_x(this->err_pairs.at(i).second);
-        }
-
-        return;
-    }
-    */
+    // Overloaded function //Use member vector of WCPoint objects directly (assume it was already filled) to avoid passing vector by copy
+    void fitPoints() {return this->fitPoints(this->points);}
 };
 
 #endif
-/* WCFIT */

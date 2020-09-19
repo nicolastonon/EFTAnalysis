@@ -85,13 +85,15 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
 
     if singleThetaName is not "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
 
+    #FIXME
+    # x[:,1][y==0]*=2 #Force dummy value for Zeta (debugging -- verify that additional info is used by NN)
+
     #-- No validation dataset required --> shuffle and split the data between training / testing datasets only
     if opts["splitTrainValTestData"][1] == 0. and opts["nEventsTot_val"] < 0:
         x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
     else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Split data into train / val / test datasets
 
-    #FIXME
     # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30)
     # x_train = x_train[mask_largeEFTweights]
     # y_train = y_train[mask_largeEFTweights]
@@ -249,13 +251,12 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
             exit(1)
 
         file = TFile.Open(filepath)
-        # tree = file.Get('result')
         tree = file.Get(opts["TTree"])
         # print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
 
-        #NB: don't want to store EFT reweights IDs for all events (always same names)
-        #NB : assume that EFT reweights IDs are exactly the same, in the same order, for all considered years !
-        #Only read a single event, store IDs once per private MC process (<-> single process class)
+        #-- NB: don't want to store EFT reweights IDs for all events (always same names)
+        #-- NB : assume that EFT reweights IDs are exactly the same, in the same order, for all considered years !
+        #-- Only read a single event, store IDs once per private MC process (<-> single process class)
         # if iyear==0:
         #     array_EFTweightIDs_proc = tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs", selection=cuts)
         #     array_EFTweightIDs_proc = array_EFTweightIDs_proc[0] #Reshape array
@@ -263,30 +264,31 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         #     print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
         #     exit(1)
 
-        #Array of reweights from MG
+        #-- Array of reweights from MG
         if iproc == 0: weightsProc = list_weights_proc[iyear] #If single process in current class (or first element) -> elements positions in list_weights_proc only depend on year
         else: weightsProc = list_weights_proc[iproc*len(list_lumiYears) + iyear] #Else, if multiple processes in current class, must also account for previous processes in list and update index position
 
-        #Get the EFT reweights IDs
-        # array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array
+        #-- Get the EFT reweights IDs
+        # array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array #Avoid reading events which are then discarded #Is this bias ? E.g. in merged samples, may the first events be from a single process... ?
         array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts)[:nevents]) #stack : array of arrays -> 2d array
 
-        #Get the EFT reweights, and normalization factor (because will multiply by baseline weight as a trick to apply the SFs to all weights ; must then divide by baseline weight 'weightMENominal')
+        #-- Get the EFT reweights, and normalization factor (because will multiply by baseline weight as a trick to apply the SFs to all weights ; must then divide by baseline weight 'weightMENominal')
         # array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array
         # normWeights_proc = tree2array(tree, branches="weightMENominal", selection=cuts, start=0,stop=nevents) #Normalization factors
         array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts)[:nevents]) #stack : array of arrays -> 2d array
         normWeights_proc = tree2array(tree, branches="weightMENominal", selection=cuts)[:nevents] #Normalization factors
 
-        #Get the sums of weights (before any preselection) corresponding to each EFT point
+        #-- Get the sums of weights (before any preselection) corresponding to each EFT point
         hist = file.Get("EFT_SumWeights") #Sums of weights for each EFT reweight is stored in histogram, read it
         array_EFT_SWE_proc = hist2array(hist) #Store into array
         array_EFT_SWE_proc = array_EFT_SWE_proc[0:array_EFTweights_proc.shape[1]] #Only need the SWE values for the considered reweight points
 
-        #Store the MG reweight value for the SM point
+        #-- Store the MG reweight value for the SM point #Find the index of SM point in first event
         idx_SM = -1
         if not isPureEFT:
             for i in range(len(array_EFTweightIDs_proc[0])):
-                if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
+                # if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
+                if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM" or "EFTrwgt183_" in array_EFTweightIDs_proc[0][i]: idx_SM = i; break #TOP19001
 
         array_SMweights_proc = np.array([])
         if idx_SM != -1: #Get weights at SM point (and normalize them, cf. below)
@@ -335,7 +337,6 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
     list_EFT_FitCoeffs_allClasses = []
     for iclass in range(len(list_processClasses)): #Loop on classes of physics processes
 
-        # if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass]: #Check whether EFT reweights should be looked for
         if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass] and "_c" not in list_processClasses[iclass][0]: #Check whether EFT reweights should be looked for
 
             operatorNames, operatorWCs, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0]) #Get the lists of operator names and WC values for this process #NB: assumes that they are identical for all events in this process

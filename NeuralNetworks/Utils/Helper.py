@@ -256,6 +256,14 @@ def trunc_np(values, decs=0):
 # //--------------------------------------------
 # //--------------------------------------------
 
+def lineno():
+    """Returns the current line number in our program."""
+    import inspect
+    return inspect.currentframe().f_back.f_lineno
+
+# //--------------------------------------------
+# //--------------------------------------------
+
 
 
 
@@ -647,6 +655,7 @@ def CheckName_EFTpoint_ID(old):
 
     new = re.sub('p(\d+)', r'.\1', old)
     new = re.sub('min(\d+)', r'-\1', new)
+    # new = new.lower()
 
     # print(old, ' --> ', new)
     return new
@@ -705,6 +714,9 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
 
     benchmarkIDs = np.atleast_1d(benchmarkIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
 
+    prefix = 'rwgt_c' #Naming convention, strip this substring
+    prefix_TOP19001 = 'EFTrwgt' #Naming convention of TOP19001
+
     idx_SM = -1 #Store SM index
     operatorNames = []
     operatorWCs = []
@@ -716,19 +728,18 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
         list_operatorWCs = []
         # ID = benchmarkIDs[idx]
 
-        if not ID.startswith("rwgt_c"): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
+        if not ID.startswith(prefix) and not ID.startswith(prefix_TOP19001): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse #FIXME tmp
             # list_operatorNames.append(ID) #Operator name
             # list_operatorWCs.append(float(0)) #Operator WC
-            if ID=="rwgt_sm" or ID=="rwgt_SM": idx_SM = idx #SM point found
+            # if ID=="rwgt_sm" or ID=="rwgt_SM": idx_SM = idx #SM point found
+            if ID=="rwgt_sm" or ID=="rwgt_SM" or ID.startswith("EFTrwgt183_"): idx_SM = idx #SM point found #Hard-coded naming conventions
             continue
 
         ID = CheckName_EFTpoint_ID(ID) #Enforce proper naming convention
 
-        prefix = 'rwgt_' #Naming convention, strip this substring
-        if ID.startswith(prefix): ID = ID[len(prefix):]
+        if ID.startswith(prefix) or ID.startswith(prefix_TOP19001): list_keys = ID.split('_')[1:]
         else: print('Error : naming convention in benchmark ID not recognized'); exit(1)
 
-        list_keys = ID.split('_') #Split string into list of substrings (pairs [name,WC])
         for ikey in range(0, len(list_keys)-1, 2):
             list_operatorNames.append(list_keys[ikey].lower()) #Operator name #Force lowercase for cross-samples compatibnility (using Madspin seems to make the reweight names lowercase)
             list_operatorWCs.append(float(list_keys[ikey+1])) #Operator WC

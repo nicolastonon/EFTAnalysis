@@ -282,12 +282,18 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
   // ####  # #    #  ####  ###### ######
 //--------------------------------------------
 
+    vector<TString> v_rateParam; //Store names of samples for which we want to use a rate parameter (specified at end of datacard)
+
     //--- lnN Systematics applied to only 1 process (e.g. background uncert.)
     outfile<<"---------------------------------------------------"<<endl;
     for(int isample=0; isample<v_samples.size(); isample++)
     {
-        // if(v_isSignal[isample] == 1) {continue;} //No norm. syst for signals
-		if(v_sampleUncert[isample] == -1) {continue;} //Don't apply lnN rate syst for some samples
+        if(v_isSignal[isample] == 1) {continue;} //No norm. syst for signals
+		else if(v_sampleUncert[isample] == -1) //Rate param
+        {
+            v_rateParam.push_back(v_samples[isample]);
+            continue;
+        } //Don't apply lnN rate syst for some samples
 
 		// cout<<"Sample "<<v_samples[isample]<<" / Uncert = "<<v_sampleUncert[isample]<<endl;
 
@@ -355,6 +361,13 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
 	// outfile<<"[ratePar]rate_modif"<<"\t"<<"rateParam"<<"\t"<<"[VAR]_[CHAN]_[YEAR]"<<"\t"<<"sigPar"<<"\t"<<"rateVal";
 
+    //-- May use rate parameters for some samples (specified at end of datacard)
+    for(int isample=0; isample<v_rateParam.size(); isample++)
+    {
+        outfile<<"rate_"+v_rateParam[isample]<<"\t"<<"rateParam"<<"\t"<<"*"<<"\t"<<v_rateParam[isample]<<"\t"<<"1.0 [0.0,3.0]"<<endl;
+    }
+
+
 
  //  ####  #####   ##   #####
  // #        #    #  #    #
@@ -378,7 +391,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
 //--------------------------------------------
 
-    cout<<endl<<endl<<"---> File ./Template_datacard.txt created..."<<endl<<endl<<endl;
+    cout<<endl<<endl<<"---> File ./Template_Datacard.txt created..."<<endl<<endl<<endl;
 
     return;
 }
@@ -545,3 +558,4 @@ int main()
 
     return 0;
 }
+

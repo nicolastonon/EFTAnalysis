@@ -1173,8 +1173,8 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
 # //--------------------------------------------
 
-    plot_importance_allFeatures = False #True <-> create importance plot for each single input feature (very slow !)
-    nmax=1000 #Max nof events *per process class*
+    plot_importance_allFeatures = True #True <-> create importance plot for each single input feature (very slow !)
+    nmax=1000 #Max nof events *per process class* #None <-> use all events #SLOW !
 
 # //--------------------------------------------
 
@@ -1258,7 +1258,6 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     #== Dependence of decision on single feature
     #-- See: https://github.com/slundberg/shap/blob/master/shap/plots/dependence.py#L15
-
     if plot_importance_allFeatures is True: #Make importance plots for all features (slow)
         for feature in list_features:
             fig = plt.figure('dependence_plot')
@@ -1267,7 +1266,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
             plt.close('dependence_plot')
             print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot"+feature+".png")
 
-    else: #Only plot 2 specific features (hard-coded names)
+    else: #Only plot few specific features (hard-coded names)
         feature1 = 'ctw'
         if feature1 in list_features:
             fig = plt.figure('dependence_plot')
@@ -1284,6 +1283,15 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
             plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot2')
             print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+
+        #Third dependence plot
+        feature3 = "recoZ_Eta"
+        if feature3 in list_features:
+            fig = plt.figure('dependence_plot3')
+            shap.dependence_plot(feature3, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False)
+            plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+            plt.close('dependence_plot3')
+            print(colors.fg.lightgrey, "Saved dependence_plot3 plot as :", colors.reset, weight_dir+"dependence_plot3.png")
 
     return
 

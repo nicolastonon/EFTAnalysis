@@ -66,6 +66,8 @@ def Find_Components(operatorNames):
     Returns:
     n_components (int) : number of components
     components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a component
+
+    NB: function not well-suited to high-dimensional parameterizations. E.g. in 16D, finding all the possible non-redundant power combinations takes forever... (should then hard-code them)
     """
 
     #Want to determine the components based on a single EFT point. If many points provided, assume they all follow the same convention, and only consider the first point
