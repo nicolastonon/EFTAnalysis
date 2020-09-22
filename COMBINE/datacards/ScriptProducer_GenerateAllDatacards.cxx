@@ -38,6 +38,7 @@
 #include "TString.h"
 #include "TFile.h"
 #include "TH1F.h"
+#include <sys/stat.h> // to be able to check file existence
 
 using namespace std;
 
@@ -62,6 +63,13 @@ bool Is_Template_Matching_Region(TString templatename, TString region)
     return false;
 }
 
+//Use stat function (from library sys/stat) to check if a file exists
+bool Check_File_Existence(const TString& name)
+{
+    struct stat buffer;
+    bool found = (stat (name.Data(), &buffer) == 0); //true if file exists
+    return found;
+}
 
 //--------------------------------------------
 //  ######  ########  ########    ###    ######## ########
@@ -92,7 +100,7 @@ bool Is_Template_Matching_Region(TString templatename, TString region)
 /**
  * Produce script containing the commands to produce the datacards (single and combination) automatically
  */
-void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded, char use_SM_setup)
+void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded, char use_SM_setup, TString selection, TString filename_template_suffix)
 {
 //  ####  ###### ##### #    # #####
 // #      #        #   #    # #    #
@@ -173,6 +181,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 	TString dir = "./datacards_TemplateFit/";
 
     int nbins = -1; //If 'mode_histoBins=1', will read histogram binning in rootfile and create 1 datacard per histo bin
+    vector<int> v_nbins; //Actually binnings can differ for each template, so keep track of all of them (need them twice: first to create individual cards, then to combine them)
 
 
 // # #    # #####  # #    # # #####  #    #   ##   #
@@ -208,7 +217,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
                     if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
-                    if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    // if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    if(v_regions[iregion] == "CR" && filename_template_suffix.Contains("EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
@@ -218,9 +228,19 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
         		    // TString file_histos = "../templates/Combine_Input.root";
-                    TString tmp = v_templates[itemplate];
-                    TString file_histos_pathFromHere = "./../templates/Templates_"+tmp+"_"+v_regions[iregion]+"_"+lumiName+".root"; //For use within this code
-                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT1param__2017.root";} //FIXME
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+v_templates[itemplate]+(filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"+lumiName+".root"; //For use within this code
+                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT1param__2017.root";}
+
+                    cout<<DIM("Trying to open input file "<<file_histos_pathFromHere<<" ... ");
+                    if(Check_File_Existence(file_histos_pathFromHere)) {cout<<DIM("FOUND !")<<endl;}
+            		else
+                    {
+                        file_histos_pathFromHere = "./../templates/Templates_"+v_templates[itemplate]+(filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_Run2.root"; //Try Run2 file
+
+                        cout<<endl<<DIM("Trying to open input file "<<file_histos_pathFromHere<<" ... ");
+                        if(Check_File_Existence(file_histos_pathFromHere)) {cout<<DIM("FOUND !")<<endl;}
+                        else {cout<<BOLD(FRED("ERROR: input template file not found ! Abort !"))<<endl; return;}
+                    }
 
                     TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
         			cout<<endl<<FMAG("---> Will use filepath : ")<<file_histos<<endl<<endl;
@@ -229,10 +249,14 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     {
                         TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
                         TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
+						// cout<<"Reading histogram: "<<hname_tmp<<endl;
+
                         if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
                         // cout<<"hname_tmp "<<hname_tmp<<endl;
                         TH1F* h_tmp = (TH1F*) f_tmp->Get(hname_tmp);
                         nbins = h_tmp->GetNbinsX();
+						// cout<<"--> nbins = "<<nbins<<endl;
+                        v_nbins.push_back(nbins); //Store the binning for this template, to be used again for combined card (--> will need to read vector in same order !)
                         delete h_tmp; h_tmp = NULL; f_tmp->Close();
                         if(nbins == -1) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
                     }
@@ -266,6 +290,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         } //year loop
     } //EFT loop
 
+    // for(int i=0; i<v_nbins.size(); i++) {cout<<"v_nbins[i] "<<v_nbins[i]<<endl;}
+
 
 //  ####   ####  #    # #####  # #    # ###### #####
 // #    # #    # ##  ## #    # # ##   # #      #    #
@@ -285,6 +311,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 //--- Second loop over years/regions/templates
 //===> Give all the single datacards as arguments to the script, for combination
 
+    int idx_v_nbins = 0; //Vector storing template binning info needs to be read in same order (same loops) as before; increment some index to keep track of the current element to read
     for(int ipt_EFT=0; ipt_EFT<v_WCs_operator_scan1.size(); ipt_EFT++)
     {
         //Command to execute the script which combines the datacards
@@ -299,7 +326,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     if(use_SM_setup == 'y' && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion])) {continue;}
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                    if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    // if(v_regions[iregion] == "CR" && v_templates[itemplate].Contains("NN_EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    if(v_regions[iregion] == "CR" && filename_template_suffix.Contains("EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
 
                     if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
 
@@ -308,12 +336,15 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
         			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
         			{
-                        for(int ibin=1; ibin<nbins+1; ibin++)
+                        int nbins_tmp = 1;
+                        if(mode_histoBins==1) {nbins_tmp = v_nbins[idx_v_nbins]; idx_v_nbins++;} //Read current binning; increment index to stay in sync
+                        cout<<"nbins_tmp "<<nbins_tmp<<endl;
+                        for(int ibin=1; ibin<nbins_tmp+1; ibin++)
                         {
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            if(mode_histoBins && nbins_tmp > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                             else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
 
             				file_out<<var_tmp;
@@ -402,21 +433,8 @@ for(int ichan=0; ichan<v_channel.size(); ichan++)
 //--------------------------------------------
 
 //Ask user to choose options at command line for script generation
-void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, int& mode_histoBins, char& use_SM_setup)
+void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_statistical, TString& template_name, TString& region, TString& lumiName, int& mode_histoBins, char& use_SM_setup, TString& selection, TString& filename_template_suffix)
 {
-    cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
-    cout<<ITAL(DIM(<<"['Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718'] ... "));
-    cin>>lumiName;
-    while(lumiName != "0" && lumiName != "Run2" && lumiName != "2016" && lumiName != "2017" && lumiName != "2018" && lumiName != "201617" && lumiName != "201618" && lumiName != "201718")
-    {
-    	cin.clear();
-    	cin.ignore(1000, '\n');
-
-    	cout<<" Wrong answer ! Retry :"<<endl;
-    	cin>>lumiName;
-    }
-    if(lumiName == "0") {lumiName = "Run2";}
-
 	//Choose whether to include shape syst or not
 	cout<<endl<<FYEL("=== Include "<<UNDL(<<"shape"))<<FYEL(" systematics in the datacards ? ===")<<endl;
     cout<<ITAL(DIM(<<"['y'/'n'] ... "));
@@ -455,7 +473,6 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     cout<<ITAL(DIM("1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations"))<<endl;
     cout<<ITAL(DIM("2 <-> entire histogram treated as single bin (counting experiment)"))<<endl;
     cout<<ITAL(DIM(<<"... "));
-
     cin>>mode_histoBins;
     while(mode_histoBins != 0 && mode_histoBins != 1 && mode_histoBins != 2)
     {
@@ -466,11 +483,43 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cin>>mode_histoBins;
     }
 
+	//Choose the luminosity
+    cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
+    cout<<ITAL(DIM(<<"['Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718'] ... "));
+    cin>>lumiName;
+    while(lumiName != "0" && lumiName != "Run2" && lumiName != "2016" && lumiName != "2017" && lumiName != "2018" && lumiName != "201617" && lumiName != "201618" && lumiName != "201718")
+    {
+        cin.clear();
+        cin.ignore(1000, '\n');
+
+        cout<<" Wrong answer ! Retry :"<<endl;
+        cin>>lumiName;
+    }
+    if(lumiName == "0") {lumiName = "Run2";}
+
     //Set the template name (e.g.'NN_EFT2') to be looked for in the rootfiles //If ignored, use the value set in the main
+    TString template_name_tmp;
     cout<<endl<<FYEL("=== Set the template name (to read corresponding histograms) ===")<<endl;
-    cout<<ITAL(DIM("'0' <-> use value set in main()"))<<endl;
+    cout<<ITAL(DIM("'0' <-> use value set in main() / 'Zpt' / 'NN' / 'BDT' / ..."))<<endl;
     cout<<ITAL(DIM(<<"..."));
-    cin>>template_name;
+    cin>>template_name_tmp;
+    if(template_name_tmp != "0") {template_name = template_name_tmp;}
+
+    //Set a 'selection flag' if necessary (if present in the histo/file names)
+    TString selection_tmp;
+    cout<<endl<<FYEL("=== Set the event selection flag ===")<<endl;
+    cout<<ITAL(DIM("'0' <-> use value set in main() / 'signal' / 'tZq' / 'ttZ' / ..."))<<endl;
+    cout<<ITAL(DIM(<<"..."));
+    cin>>selection_tmp;
+    if(selection_tmp != "0") {selection = selection_tmp;}
+
+    //Set a 'filename suffix' if needed (if present in the filename)
+    TString filename_template_suffix_tmp;
+    cout<<endl<<FYEL("=== Set the template name suffix for the filename ===")<<endl;
+    cout<<ITAL(DIM("'0' <-> use value set in main() / 'EFT1' / 'EFT2' / 'SM' / ..."))<<endl;
+    cout<<ITAL(DIM(<<"..."));
+    cin>>filename_template_suffix_tmp;
+    if(filename_template_suffix_tmp != "0") {filename_template_suffix = filename_template_suffix_tmp;}
 
     return;
 }
@@ -501,9 +550,10 @@ int main()
     vector<TString> v_templates; //'NN', 'BDT', ...
     // v_templates.push_back("NN_EFT");
     //v_templates.push_back("NN_EFT1");
-    v_templates.push_back("NN_EFT2");
+    // v_templates.push_back("NN_EFT2");
     // v_templates.push_back("NN_SM");
-    // v_templates.push_back("Zpt_EFT1");
+    v_templates.push_back("Zpt");
+    //v_templates.push_back("Zpt_EFT2");
     // v_templates.push_back("categ");
 
     vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
@@ -519,6 +569,8 @@ int main()
     v_regions.push_back("SRttZ");
     v_regions.push_back("CR");
 
+    TString selection = ""; //Main event selection, before sub-categorization
+    TString filename_template_suffix = ""; //Specify extension in histo filename
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
 // Modified at command-line
@@ -535,9 +587,9 @@ int main()
     int mode_histoBins = 0; //0 <-> use full MVA distribution (default); 1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations; 2 <-> entire histogram treated as single bin (counting experiment)
     char use_SM_setup = 'n'; //'y' <-> overrides some option to perform a fit following the setup of the main SM tZq differential analysis
     TString template_name = "0", region = "0";
-    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins, use_SM_setup);
+    Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins, use_SM_setup, selection, filename_template_suffix);
 
-	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup);
+	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup, selection, filename_template_suffix);
 
 	return 0;
 }

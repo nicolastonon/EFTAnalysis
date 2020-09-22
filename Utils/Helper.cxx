@@ -1411,6 +1411,39 @@ float Get_x_jetCategory(float njets, float nbjets, int nbjets_min, int nbjets_ma
     return bin + 0.5; //Assume bin width of 1. --> add event in center of bin
 }
 
+//Get x center position of bin corresponding to the Zpt and cosThetaStarPolZ values given in arg (following TOP-18-009 conventions)
+float Get_x_ZptCosCategory(float Zpt, float cosThetaStarPolZ)
+{
+    if(Zpt < 100)
+    {
+        if(cosThetaStarPolZ < -0.6) {return 1-0.5;} //Corresponds to SR1 --> Fill at 0.5 (first bin)
+        else if(cosThetaStarPolZ < 0.6) {return 2-0.5;}
+        else {return 3-0.5;}
+    }
+    else if(Zpt < 200)
+    {
+        if(cosThetaStarPolZ < -0.6) {return 4-0.5;} //Corresponds to SR1 --> Fill at 0.5 (first bin)
+        else if(cosThetaStarPolZ < 0.6) {return 5-0.5;}
+        else {return 6-0.5;}
+    }
+    else if(Zpt < 400)
+    {
+        if(cosThetaStarPolZ < -0.6) {return 7-0.5;} //Corresponds to SR1 --> Fill at 0.5 (first bin)
+        else if(cosThetaStarPolZ < 0.6) {return 8-0.5;}
+        else {return 9-0.5;}
+    }
+    else
+    {
+        if(cosThetaStarPolZ < -0.6) {return 10-0.5;} //Corresponds to SR1 --> Fill at 0.5 (first bin)
+        else if(cosThetaStarPolZ < 0.6) {return 11-0.5;}
+        else {return 12-0.5;}
+    }
+
+    cout<<FRED("ERROR: relevant bin not found in Get_x_ZptCosCategory() ! Zpt = "<<Zpt<<" / cosThetaStarPolZ = "<<cosThetaStarPolZ<<"")<<endl;
+
+    return -1;
+}
+
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
 TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy)
 {

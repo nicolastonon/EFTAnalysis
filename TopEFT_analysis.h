@@ -84,7 +84,7 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
-    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false);
+    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
 
 //--- MEMBERS
 	bool stop_program;

@@ -218,15 +218,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             //--- Cut on relevant event selection (e.g. 3l SR, ttZ CR, etc.) -- stored as Char_t
             Char_t is_goodCategory; //Categ. of event
-            TString category_tmp = category;
+            TString category_tmp = category; //NB: could use function 'Get_Category_Boolean_Name' as well... but expects different argument (not the flag name itself)
             if(v_samples[isample].Contains("NPL", TString::kIgnoreCase) || v_samples[isample].Contains("DY", TString::kIgnoreCase) || v_samples[isample].Contains("ttbar", TString::kIgnoreCase)) {category_tmp+= "Fake";} //Different flags for fakes
-
-            // if(category != "")
-            // {
-            //     TString cat_name = Get_Category_Boolean_Name(category);
-            //     t->SetBranchStatus(cat_name, 1);
-            //     t->SetBranchAddress(cat_name, &is_goodCategory);
-            // }
 
             if(category_tmp != "")
             {

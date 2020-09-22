@@ -124,6 +124,7 @@ TString Get_Modified_SystName(TString, TString, TString="");
 void Get_Pointer_GENHisto(TH1F*&, TString);
 vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
+float Get_x_ZptCosCategory(float, float);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool=false);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, TString* NN_strategy=NULL);

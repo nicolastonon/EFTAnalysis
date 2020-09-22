@@ -74,7 +74,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
     rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
-    if scan: rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+"_"+op+WC+".root"
+    if scan: rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+"_"+op+"_"+WC+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
     # Comparison with input feature: store in separate file
@@ -387,9 +387,8 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
     lw = 2 #linewidth
 
-    #FIXME
-    print('MEAN: ', np.mean(list_predictions_train_allNodes_allClasses[0][0]))
-    print('MEAN: ', np.mean(list_predictions_test_allNodes_allClasses[0][0]))
+    # print('MEAN: ', np.mean(list_predictions_train_allNodes_allClasses[0][0]))
+    # print('MEAN: ', np.mean(list_predictions_test_allNodes_allClasses[0][0]))
 
     for inode in range(nofOutputNodes):
 
@@ -1173,7 +1172,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
 # //--------------------------------------------
 
-    plot_importance_allFeatures = True #True <-> create importance plot for each single input feature (very slow !)
+    plot_importance_allFeatures = False #True <-> create importance plot for each single input feature (very slow !)
     nmax=1000 #Max nof events *per process class* #None <-> use all events #SLOW !
 
 # //--------------------------------------------
@@ -1262,7 +1261,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
         for feature in list_features:
             fig = plt.figure('dependence_plot')
             shap.dependence_plot(feature, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-            plt.savefig(weight_dir+"dependence_plot"+feature+".png", bbox_inches='tight', dpi=600)
+            plt.savefig(weight_dir+"dependence_plot_"+feature+".png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot')
             print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot"+feature+".png")
 

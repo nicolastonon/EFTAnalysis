@@ -602,16 +602,20 @@ def Get_ListPointsSampling_SingleOp(operator_scan, range_step):
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs):
+def Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs, ROC=False):
 
     delay = 90 #in 1/100th of a second
     outname = standaloneValDir+'Overtrain_paramNN.gif' #Output name
+    if ROC: outname = standaloneValDir+'ROCs_paramNN.gif'
 
     cmd = 'convert -delay ' + str(delay) + ' -loop 0 '
 
     for ipt in range(len(list_points_sampling)):
         if ipt==0: continue #Don't want SM point
-        plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[0] + '_' + operator_scan + str(WCs[ipt]) + '.png'
+        WC = str(WCs[ipt]).replace('.0','')
+        # WC = str(WCs[ipt])
+        plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[0] + '_' + operator_scan + '_' + WC + '.png'
+        if ROC: plotname = standaloneValDir + 'ROC' + '_' + operator_scan + '_' + WC + '.png'
         cmd+= plotname + ' '
 
     cmd+= outname
@@ -856,9 +860,10 @@ def r_from_s(s, epsilon=1.0e-6):
 # //--------------------------------------------
 
 #-- Remove events which have w_EFT/w_SM > x from input arrays
-def Remove_LargeEFTWeight_Events(w_EFT, threshold):
+def Remove_LargeEFTWeight_Events(w_EFT, threshold, remove_above_treshold):
 
-    mask = np.where(np.abs(w_EFT) < np.mean(np.abs(w_EFT)) * threshold)
+    if remove_above_treshold is True: mask = np.where(np.abs(w_EFT) < np.mean(np.abs(w_EFT)) * threshold)
+    else: mask = np.where(np.abs(w_EFT) > np.mean(np.abs(w_EFT)) * threshold)
 
     return mask
 

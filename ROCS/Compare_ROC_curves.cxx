@@ -468,7 +468,7 @@ bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg
 	// cout<<"Integral bkg = "<<integral_bkg<<endl;
 
     //For each bin, compute efficiency and store in TGraph
-	for (int ibin=1; ibin<nbins+1; ibin++)
+    for (int ibin=0; ibin<=nbins+1; ibin++) //CHANGED -- should actually include the
 	{
 		//Compute efficiency for sig and bkg, from current bin to xmax
 		double integral_sig_tmp = h_sig->Integral(ibin, nbins);
@@ -778,9 +778,25 @@ void Make_Plot(vector<TString> v_filepath, vector<TString> v_Filelabel, vector<T
 
 
 
+
+
+
+
+
+
+
 //--------------------------------------------
 //--------------------------------------------
 //--------------------------------------------
+
+
+
+
+
+
+
+
+
 
 
 
@@ -808,6 +824,7 @@ int main(int argc, char **argv)
     v_processes.push_back("SM");
 
     TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
+    // TString lumiYear = "Run2"; //'2016,'2017','2018','Run2'
 
     bool superimpose_allNodes_DNN = false; //true <-> will plot 1 ROC per process class (for DNN only)
 

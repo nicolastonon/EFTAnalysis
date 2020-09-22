@@ -1,6 +1,7 @@
-//IDEA -- very slow to merge/split histos for huge file... could merge directly when making templates directly (fill second vector in parallel for group); + boolean to decide whether to fill/store single-sample templates ? Must adapt draw func
+//IDEA -- very slow to merge/split histos for huge file... could merge directly when making templates directly (fill second vector in parallel for group); + boolean to decide whether to fill/store single-sample templates ? Must adapt draw func //Would make sense, since for drawing postfit we only consider sample groups
+//IDEA2: how to include also the mTW CR for param NN ?
 
-//by Nicolas Tonon (DESY)
+//-- by Nicolas Tonon (DESY) --//
 
 //--- LIST OF FUNCTIONS (for quick search) :
 //--------------------------------------------
@@ -431,7 +432,7 @@ void TopEFT_analysis::Train_BDT(TString channel)
 
 	//--- CHOOSE TRAINING EVENTS <--> cut on corresponding category
 	TString cat_tmp = "";
-	cat_tmp = Get_Category_Boolean_Name(region);
+	cat_tmp = Get_Category_Boolean_Name(region); //NB: does not work for NPL samples (different flag)... would need workaround
 
 	//Even if ask templates in the SR, need to use training (looser) category for training !
 	// if(cat_tmp.Contains("_SR") )
@@ -949,7 +950,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(!makeHisto_inputVars && !make_SMvsEFT_templates_plots && categorization_strategy==2 && plot_onlyMaxNodeEvents) {xmin = 0.3; nbins = 14;} //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
     }
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
-    else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1 bin per sub-category //Up to 500 GeV ?
+    else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
+    else if(template_name == "ZptCos") {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
 
 	//-- Vector of variables --> Loop
 	vector<TString> total_var_list;
@@ -1178,11 +1180,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 {
                     if(apply_MVASM_cut)
                     {
-                        if(cat_tmp == "signal" || cat_tmp == "tZq") {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_tZq, "tZq", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_tZq, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "tZq", also_applyCut_onMaxNodeValue);}
-                        if(cat_tmp == "signal" || cat_tmp == "ttZ") {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_ttZ, "ttZ", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_ttZ, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "ttZ", also_applyCut_onMaxNodeValue);}
+                        if(cat_tmp == "signal" || cat_tmp == "tZq") {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_tZq, "tZq", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_tZq, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "tZq", also_applyCut_onMaxNodeValue, isFake);}
+                        if(cat_tmp == "signal" || cat_tmp == "ttZ") {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_ttZ, "ttZ", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_ttZ, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "ttZ", also_applyCut_onMaxNodeValue, isFake);}
                     }
                 }
-                else if(categorization_strategy == 2 && use_maxNode_events) {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_multiclass, "Multiclass", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], -1., keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "signal", also_applyCut_onMaxNodeValue);}
+                else if(categorization_strategy == 2 && use_maxNode_events) {Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_multiclass, "Multiclass", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], -1., keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "signal", also_applyCut_onMaxNodeValue, isFake);}
             }
 
             //-- Apply ad-hoc scale factor to private ttZ sample so that SM yield matches that of central ttZ sample
@@ -1328,6 +1330,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         tree->SetBranchStatus("recoZ_Pt", 1);
                         tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
                     }
+                    else if(template_name=="ZptCos") //Need to read Zpt and cosThetaStarPolZ variables
+                    {
+                        tree->SetBranchStatus("recoZ_Pt", 1);
+                        tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                        tree->SetBranchStatus("cosThetaStarPolZ", 1);
+                        tree->SetBranchAddress("cosThetaStarPolZ", &total_var_floats[1]);
+                    }
 
                     //-- mTW address
                     tree->SetBranchStatus("mTW", 1);
@@ -1461,13 +1470,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             if(!makeHisto_inputVars) //Templates
                             {
                                 if(template_name.Contains("NN") || total_var_list[ivar].Contains("BDT")) {nbins_tmp = 10;}
-                                else if(template_name.Contains("mTW") || total_var_list[ivar].Contains("mTW"))
+                                if(template_name.Contains("mTW") || total_var_list[ivar].Contains("mTW"))
                                 {
-                                    nbins_tmp=15; xmin_tmp=0; xmax_tmp=200;
+                                    nbins_tmp=15; xmin_tmp=0; xmax_tmp=150;
                                     if(use_SManalysis_strategy) {nbins_tmp=10; xmax_tmp=150;} //Keep my binning for now
                                 }
-                                else if(template_name.Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
-                                else if(template_name.Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
+                                if(template_name.Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
+                                if(template_name.Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
                             }
 
                             // v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp); //Obsolete -- redundant for PrivMC
@@ -1624,6 +1633,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         {
                             total_var_floats[0] = (channel==1 || channel==3)? 0.5:1.5;
                         }
+                        else if(template_name == "ZptCos")
+                        {
+                            total_var_floats[0] = Get_x_ZptCosCategory(total_var_floats[0], total_var_floats[1]);
+                        }
                         //NB: no need to set anything more for Zpt template, its address is already set
                     } //Templates
 
@@ -1741,7 +1754,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     }
                                     else //E.g. Zpt template, ...
                                     {
-                                        if(idx_EFT_var==1) {total_var_floats[ivar] = total_var_floats[0];}
+                                        if(idx_EFT_var==1) {total_var_floats[ivar] = total_var_floats[0];} //Force use of first variable in both SRs
                                         else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;} //Force use of mTW in CR
                                     }
                                 } //predefined EFT strategy
@@ -2153,13 +2166,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         //-- Add suffix to variables (SM/EFT, category, ...)
         if(!drawInputVars && this->categorization_strategy > 0) //Hard-coded
         {
-            // TString MVA_type = "SM";
-            // if(make_SMvsEFT_templates_plots)
-            // {
-            //     MVA_type = "EFT" + Convert_Number_To_TString(categorization_strategy);
-            //     if(EFTpoint != "") {MVA_type+= "param";}
-            // }
-
             vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
             total_var_list.clear();
             for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
@@ -2556,10 +2562,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
             //-- Protection: if want to plot private SMEFT samples, make sure they are included in the main sample list
             bool PrivMC_sample_found = false;
-            for(int isample=0; isample<sample_list[isample]; isample++)
-            {
-                if(sample_list[isample].Contains("PrivMC")) {PrivMC_sample_found = true;}
-            }
+            for(int isample=0; isample<sample_list.size(); isample++) {if(sample_list[isample].Contains("PrivMC")) {PrivMC_sample_found = true;}}
             if(!PrivMC_sample_found) {superimpose_EFThist = false;}
 
             if(superimpose_EFThist)
@@ -4385,7 +4388,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
  * Read a MVA file, loop over the input file (path given in arg.), and stores in a vector (passed in arg.) either 1) if the event passes the required MVA cut, or 2) which of the multiclass MVA node has the max value
  * Intended use: call this function to fill a per-sample vector already containing the information on a MVA cut for all events
  */
-void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString signal, TString classifier_name, TString tree_name, TString input_file_path, TString year, float cut_value, bool keep_aboveCut, bool use_specificMVA_eachYear, int categorization_strategy, bool MVA_EFT, int nentries_max, TString event_cat, bool also_applyCut_onMaxNodeValue)
+void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString signal, TString classifier_name, TString tree_name, TString input_file_path, TString year, float cut_value, bool keep_aboveCut, bool use_specificMVA_eachYear, int categorization_strategy, bool MVA_EFT, int nentries_max, TString event_cat, bool also_applyCut_onMaxNodeValue, bool isFake)
 {
     cout<<endl<<FYEL("=== Filling vector with specific MVA information (pass/fail cut or max. node)... ")<<endl;
 
@@ -4443,7 +4446,7 @@ void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
 
     //-- May cut on an 'event category flag' whose name is given as argument (<-> no need to evaluate MVA for events which do not enter the region of interest)
     Char_t is_goodCategory = true;
-    TString cat_name = Get_Category_Boolean_Name(event_cat);
+    TString cat_name = Get_Category_Boolean_Name(event_cat, isFake);
     if(cat_name != "") {tree->SetBranchAddress(cat_name, &is_goodCategory);}
 
 	int nentries = tree->GetEntries();
@@ -4466,7 +4469,7 @@ void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
             for(int inode=0; inode<NN_nNodes; inode++)
             {
                 if(clfy_outputs[inode] > mva_output) {mva_output = clfy_outputs[inode]; NN_iMaxNode = inode;}
-                // cout<<"clfy_outputs[inode] "<<clfy_outputs[inode]<<" / mva_output "<<mva_output<<" / NN_iMaxNode "<<NN_iMaxNode<<endl; //FIXME
+                // cout<<"clfy_outputs[inode] "<<clfy_outputs[inode]<<" / mva_output "<<mva_output<<" / NN_iMaxNode "<<NN_iMaxNode<<endl;
             }
 
             //Multiclass --> Store max. node information

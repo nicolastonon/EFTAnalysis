@@ -33,41 +33,45 @@ from Utils.RegressorValidation import *
 
 nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 
-#== SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'. If evalPoint=='', the evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
+#== CHOOSE SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'
+#== NB: evalPoint=='' <-> evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
+#== NB: evalPoint=='' <-> ROC/... don't make sense (sig/bkg evaluated at different points)
 # evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-# evalPoint = "rwgt_ctz_6"
-evalPoint = "rwgt_ctw_1"
+# evalPoint = "rwgt_ctz_5"
+# evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
-# evalPoint = "rwgt_ctw_3"
+evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_ctw_5"
 # evalPoint = "rwgt_cpqm_5"
 # evalPoint = "rwgt_cpq3_5"
 # evalPoint = "rwgt_cpt_5"
-# evalPoint = "rwgt_ctZ_5"
+# evalPoint = "rwgt_ctz_5_ctw_5"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-# list_points_sampling.append("rwgt_ctz_6")
+# list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctw_0.5")
-list_points_sampling.append("rwgt_ctw_1")
+# list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-# list_points_sampling.append("rwgt_ctw_3")
+list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
 # list_points_sampling.append("rwgt_cpqm_5")
 # list_points_sampling.append("rwgt_cpq3_5")
 # list_points_sampling.append("rwgt_cpt_5")
+# list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
 #== SCAN OPTIONS ==#
-scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
-operator_scan = 'ctz' #Operator to scan
+scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
+operator_scan = 'ctw' #Operator to scan
 range_step = [-5, 5, 2] #(range,steps) with which to scan operator
-only_SM_events = True #True <-> sample same SM events for each input WC value to test
+# range_step = [-1, 1, 2] #(range,steps) with which to scan operator
+only_SM_events = False #True <-> sample same SM events for each input WC value to test
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -75,14 +79,12 @@ only_SM_events = True #True <-> sample same SM events for each input WC value to
 def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal):
 
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
-    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
     if optsTrain["parameterizedNN"] is False:
-        optsTrain["parameterizedNN"] = True; _list_processClasses = [["PrivMC_tZq_training"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+        optsTrain["parameterizedNN"] = True; _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+        print(colors.fg.orange, "Warning: code [StandaloneValidation] only works for parameterized SMEFT samples. Setting [_list_processClasses = PrivMC_tZq] by default !", colors.reset)
         # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
-
-    optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal # Add option to control nof events to sample per hypothesis
-    optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint)) # Add option to set point (WC values) at which DNN is to be evaluated
 
     if scan_singleOperator:
         evalPoint = '' #Evaluate each sample at corresponding point (<-> set input WCs accordingly)
@@ -96,6 +98,9 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     #-- If want to validate over a single operator ( e.g. 'rwgt_ctZ_3') but the DNN was trained over more operators (e.g. 'rwgt_ctZ_3_ctW_0_cpQM_0_cpQ3_0_cpt_0', etc.), need to include missing operators into points names
     AddMissingOperatorsToValPointsNames(optsTrain, list_points_sampling)
 
+    optsTrain["nEventsStandaloneVal"] = nEventsStandaloneVal # Add option to control nof events to sample per hypothesis
+    optsTrain["evalPoint"] = np.squeeze(AddMissingOperatorsToValPointsNames(optsTrain, evalPoint)) # Add option to set point (WC values) at which DNN is to be evaluated
+
     #-- Create output dir.
     standaloneValDir = _weightDir + 'StandaloneVal/'
     os.makedirs(standaloneValDir, exist_ok=True)
@@ -108,18 +113,24 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     x_all=[]; y_all=[]; y_process_all=[]; PhysicalWeights_all=[]; pred_all=[]
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
     for idx, point in enumerate(list_points_sampling):
-        print(colors.fg.lightblue, "=== POINT: ", point, " ===\n", colors.reset)
-        x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
-        # list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
-        y_process_tmp = np.squeeze(y_process_tmp)
-        pred_tmp = np.squeeze(model.predict(x_tmp))
+        print(colors.fg.lightblue, "\n=== POINT: ", point, " ===\n", colors.reset)
 
-        # (Need to keep that for multiclass ?)
-        y_process_tmp = np.zeros(len(y_process_tmp)) #1D
-        y_process_tmp[:] = idx #Set to arbitrary identifier
+        # if scan_singleOperator:
+        #     optsTrain["evalPoint"] = point
+        #     print('evalPoint = ', point)
 
-        x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp); pred_all.append(pred_tmp)
-        # print(x_tmp[:5]); print(y_tmp[:5]); print(y_process_tmp[:5]); print(model.predict(x_tmp[:5]))
+        if not scan_singleOperator or not only_SM_events or idx == 0: #-- Special case: may only need to reuse SM distribution at different EFT points (<-> only need to sample events at SM point)
+            x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+            # list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
+            y_process_tmp = np.squeeze(y_process_tmp)
+            pred_tmp = np.squeeze(model.predict(x_tmp))
+
+            # (Need to keep that for multiclass ?)
+            y_process_tmp = np.zeros(len(y_process_tmp)) #1D
+            y_process_tmp[:] = idx #Set to arbitrary identifier
+
+            x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp); pred_all.append(pred_tmp)
+            # print(x_tmp[:5]); print(y_tmp[:5]); print(y_process_tmp[:5]); print(model.predict(x_tmp[:5]))
 
         if scan_singleOperator:
             if point=='SM':
@@ -129,20 +140,22 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                     pred_SM = np.squeeze(model.predict(x_SM))
                 # print(x_SM[0,:])
             else:
-                if only_SM_events: #Always keep default SM distribution as reference; compare to SM events, but with input WC value corresponding to current step (--> same events, no stat. fluctuations)
-                    x_tmp=np.copy(x_SM)
-                    x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
-                    pred_tmp = np.squeeze(model.predict(x_tmp)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
-                else:
+                if only_SM_events: #Case 1: keep 'default' SM distribution as fix reference --> don't modify 'xxx_SM' arrays ; only modify the 'xxx_tmp' arrays (copy SM distribution, change the WC values according to current point, and re-evaluate NN prediction)
+                    x_tmp=np.copy(x_SM) #Start from SM events sampled previously
+                    x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx] #Update WC values according to current EFT point
+                    pred_tmp = np.squeeze(model.predict(x_tmp)) #Update NN predictions
+                else: #Case 2: change both the SM and EFT distributions according to current EFT point --> already obtained the EFt data above, now need to modify the SM events (adapt WC values) and re-evalaute the NN predictions
                     x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
-                x_tmp=np.concatenate((x_tmp,x_SM)); y_process_tmp=np.concatenate((y_process_tmp,y_process_SM)); pred_tmp=np.concatenate((pred_tmp,pred_SM)); PhysicalWeights_tmp=np.concatenate((PhysicalWeights_tmp,PhysicalWeights_SM))
-                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, pred_tmp, y_process_tmp, PhysicalWeights_tmp, [point,'SM'], True, operator_scan, WCs, idx, ymax)
+                # ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, np.concatenate((pred_tmp,pred_SM)), np.concatenate((y_process_tmp,y_process_SM)), np.concatenate((PhysicalWeights_tmp,PhysicalWeights_SM)), [point,'SM'], True, operator_scan, WCs, idx, ymax)
+                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), ['SM',point], True, operator_scan, WCs, idx, ymax)
+                Make_ROCs(optsTrain, standaloneValDir, list_labels, np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), list_points_sampling, True, operator_scan, str(WCs[idx]).replace('.0',''))
 
     if scan_singleOperator:
         Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs)
+        Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs, ROC=True)
         return
 
     x=np.concatenate(x_all)
@@ -164,7 +177,8 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions, list_points_sampling)
 
     #For classifiers
-    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, predictions, y_process, PhysicalWeights, list_points_sampling)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, feature_name="recoZ_Pt")
     Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling)
     Make_ROCs(optsTrain, standaloneValDir, list_labels, y, predictions, PhysicalWeights, list_points_sampling)
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, list_labels, [pred_all], PhysicalWeights_all, x_all)
@@ -284,7 +298,7 @@ def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, proc
     for i, feature in enumerate(list_features):
         if feature is var1: idx1=i
         elif feature is var2: idx2=i
-    if idx1 is -1 or idx2 is -1: print('ERROR : feature not found !'); return
+    if idx1 is -1 or idx2 is -1: print('ERROR : feature', var1, 'or ', var2, ' not found !'); return
 
 # //--------------------------------------------
 #DATA
@@ -360,8 +374,8 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
     Plot difference between prediction and truth (error).
     """
 
-    # if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
-    if opts["strategy"] is "CARL_multiclass": return
+    if opts["strategy"] not in ["regressor", "ROLR", "RASCAL"]: return #Only useful for regressors
+    # if opts["strategy"] is "CARL_multiclass": return
 
     #Transform classifier -> LR
     # if opts["strategy"] is "classifier" or opts["strategy"] is "CARL":
@@ -398,7 +412,7 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, predictions, y_process, PhysicalWeights, list_points_sampling, scan=False, operator_scan='', WCs=[], idx=-1, ymax=-1):
+def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, scan=False, operator_scan='', WCs=[], idx_WC=-1, ymax=-1, feature_name=""):
     '''
     Plot output distributions for points in 'list_points_sampling'.
 
@@ -407,6 +421,8 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
 
     nofOutputNodes = opts["nofOutputNodes"]
     # print(list_points_sampling)
+
+    if feature_name != "" and scan: return #Not compatible
 
     #-- Define colors for all validation points
     #See: https://matplotlib.org/3.2.1/gallery/color/colormap_reference.html
@@ -417,6 +433,10 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
 
     #-- Define legend names for all validation points
     legendNames = GetLegendNameEFTpoint(list_points_sampling)
+
+    #-- Option: instead of NN prediction, may represent the distribution of some input feature
+    for idx_feature, feature in enumerate(list_features):
+        if feature_name == feature: predictions = x[:,idx_feature]
 
     for inode in range(nofOutputNodes): #For each output node
 
@@ -429,7 +449,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
         timer.add_callback(close_event)
 
         ax = plt.axes()
-        ax.set_xlim([rmin,rmax])
+        if feature_name == "": ax.set_xlim([rmin,rmax])
 
         #--- COSMETICS
         ax.patch.set_edgecolor('black')
@@ -473,10 +493,8 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
                         tmp = predictions[y_process==ipt]
                         weights_tmp = PhysicalWeights[y_process==ipt]
 
-            if point is "SM": plt.hist(tmp, bins=nbins, weights=weights_tmp, range=(rmin,rmax), color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
-            else: plt.hist(tmp, bins=nbins, weights=weights_tmp, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
-
-            # plt.hist(tmp, bins=nbins, range=(rmin,rmax), color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
+            if point is "SM": plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True) #range=(rmin,rmax)
+            else: plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
         myxlabel = "Classifier output"
 
@@ -501,7 +519,8 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
             plt.show()
 
         plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[inode]
-        if scan: plotname+= '_' + operator_scan + str(WCs[idx])
+        if scan: plotname+= '_' + operator_scan + '_' + str(WCs[idx_WC]).replace('.0','')
+        elif feature_name != "": plotname+= "_" + feature_name
         plotname+= '.png'
         fig.savefig(plotname)
         print(colors.fg.lightgrey, "\nSaved Overtraining plot as :", colors.reset, plotname)
@@ -520,7 +539,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, pred
  #   #  #    # #    # #    #
  #    #  ####   ####   ####
 
-def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, PhysicalWeights, list_points_sampling):
+def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, PhysicalWeights, list_points_sampling, scan=False, op='', WC=''):
 
     if "CARL" not in opts["strategy"]: return
     if "sm" not in list_points_sampling and "SM" not in list_points_sampling: return #Compare EFT to SM
@@ -528,10 +547,14 @@ def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, PhysicalW
 
     fig = plt.figure('roc')
 
+    truth_tmp = truth[:]
+    truth_tmp[truth_tmp>0] = 1 #Positive integers --> Set to 0 or 1
+
     fpr, tpr, _ = roc_curve(truth, predictions)
     roc_auc = auc(fpr, tpr)
 
-    plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
+    plt.plot(1-fpr, tpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
+    # plt.plot(1-tpr, fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
 
     ax = fig.gca()
     ax.set_xticks(np.arange(0, 1, 0.1))
@@ -542,10 +565,16 @@ def Make_ROCs(opts, standaloneValDir, list_labels, truth, predictions, PhysicalW
     plt.ylim([0.0, 1.0])
     plt.xlabel('Signal efficiency')
     plt.ylabel('Background rejection')
-    plt.title('')
-    # plt.legend(loc='best')
+    if scan:
+        plt.title(op + ' ' + WC + ' vs SM')
+        plt.legend(loc='lower left')
+    else:
+        plt.title('')
+        plt.legend(loc='best')
 
-    plotname = standaloneValDir + 'ROC.png'
+    plotname = standaloneValDir + 'ROC'
+    if scan: plotname+= "_"+op+'_'+WC
+    plotname+= ".png"
     fig.savefig(plotname)
     print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
     fig.clear()

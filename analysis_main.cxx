@@ -27,21 +27,21 @@ int main(int argc, char **argv)
     TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
-    bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
+    bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
-    bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
-        TString operator1 = "ctz"; //First operator to scan (required)
+    bool scanOperators_paramNN = true; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+        TString operator1 = "ctw"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
         vector<float> v_WCs_operator_scan1 = {-4,-2,-1,0,1,2,4}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', ...
+    TString template_name = "NN"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -67,8 +67,8 @@ int main(int argc, char **argv)
 
 	vector<TString> set_lumi_years;
     set_lumi_years.push_back("2016");
-    // set_lumi_years.push_back("2017");
-    // set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2017");
+    set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -128,7 +128,6 @@ int main(int argc, char **argv)
 //-- List of sample names (as found in ./input_ntuples) //thesamplegroups <-> can merge multiple ntuples into same group (plotting)
     vector<TString> thesamplelist, thesamplegroups;
 
-    //FIXME
     // thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
     // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");

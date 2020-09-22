@@ -94,7 +94,8 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
     else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Split data into train / val / test datasets
 
-    # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30)
+    #-- NB: wrong -- biases performance on training dataset !
+    # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30, remove_above_treshold=True)
     # x_train = x_train[mask_largeEFTweights]
     # y_train = y_train[mask_largeEFTweights]
     # y_process_train = y_process_train[mask_largeEFTweights]
@@ -868,9 +869,10 @@ def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Lear
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = unison_shuffled_copies(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Shuffle all arrays
     total_nentries = len(x) #Determine total nof entries in arrays
 
-    if _trainsize <= 1: _trainsize = int(_trainsize*total_nentries) #If _trainsize is expressed as a fraction, translate it to a nof events
-    if _valsize <= 1: _valsize = int(_valsize*total_nentries) #If _valsize is expressed as a fraction, translate it to a nof events
-    if _testsize <= 1: _testsize = int(_testsize*total_nentries) #If _testsize is expressed as a fraction, translate it to a nof events
+    #--NB: If _trainsize is expressed as a fraction, translate it to a nof events #NB: substract 1 event to avoid going >= available events
+    if _trainsize <= 1: _trainsize = int(_trainsize*total_nentries -1)
+    if _valsize <= 1: _valsize = int(_valsize*total_nentries -1)
+    if _testsize <= 1: _testsize = int(_testsize*total_nentries -1)
 
     #Use train/val/test nof events to split the full arrays #NB: fill validation arrays last, because user may choose not to use validation data
     x_train = x[:_trainsize]; y_train = y[:_trainsize]; y_process_train = y_process[:_trainsize];  PhysicalWeights_train = PhysicalWeights_allClasses[:_trainsize]; LearningWeights_train = LearningWeights_allClasses[:_trainsize]
