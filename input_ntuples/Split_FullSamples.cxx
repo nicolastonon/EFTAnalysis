@@ -1,4 +1,4 @@
-//FIXME -- test WZ splitting (new WZ ntuple)
+//FIXME -- test WZ splitting (new WZ ntuple) -- but not needed yet
 
 /* BASH CUSTOM */
 #define RST   "\e[0m"
@@ -658,8 +658,8 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
                 if(v_sel[isel].Contains("Fake")) {open_mode = opening_mode_FakesMC;} //1 common file for all fake MC samples
 
             	Create_Subsample_fromSample(filepath, outfile_path, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name, open_mode);
-            	if(v_samples[isample].Contains("PrivMC")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample]);}
-                if(store_WCFit_forSMEFTsamples && outfile_path.Contains("PrivMC")) {Store_EFTparameterization(outfile_path, nominal_tree_name);}
+            	if(v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample]);} //'_c' <-> identifier for pure-EFT samples (no parameterization)
+                if(store_WCFit_forSMEFTsamples && outfile_path.Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(outfile_path, nominal_tree_name);}
                 if(v_sel[isel].Contains("Fake")) {opening_mode_FakesMC = "UPDATE";} //Will update the TFile with next samples
                 if(split_WZ_byJetFlavour) {Split_WZ_sample_byJetFlavour(prefix, dir, filepath, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name);}
             } //sample loop
@@ -771,6 +771,8 @@ int main(int argc, char **argv)
 
     // v_samples.push_back("PrivMC_tZq_TOP19001");
     // v_samples.push_back("PrivMC_ttZ_TOP19001");
+    // v_samples.push_back("PrivMC_tZq_ctz");
+    // v_samples.push_back("PrivMC_ttZ_ctz");
 
 
  //  ####  ###### #      ######  ####  ##### #  ####  #    #  ####
@@ -795,9 +797,9 @@ int main(int argc, char **argv)
 
     //--- Define the data-taking years
     vector<TString> v_years;
-    v_years.push_back("2016");
+    // v_years.push_back("2016");
     v_years.push_back("2017");
-    v_years.push_back("2018");
+    // v_years.push_back("2018");
 
 
  // ###### #    # #    #  ####      ####    ##   #      #

@@ -1,5 +1,6 @@
-//IDEA -- very slow to merge/split histos for huge file... could merge directly when making templates directly (fill second vector in parallel for group); + boolean to decide whether to fill/store single-sample templates ? Must adapt draw func //Would make sense, since for drawing postfit we only consider sample groups
+//IDEA1: very slow to merge/split histos for huge file... could merge directly when making templates directly (fill second vector in parallel for group); + boolean to decide whether to fill/store single-sample templates ? Must adapt draw func //Would make sense, since for drawing postfit we only consider sample groups
 //IDEA2: how to include also the mTW CR for param NN ?
+//IDEA3: call external function to define total_var_list ?
 
 //-- by Nicolas Tonon (DESY) --//
 
@@ -953,75 +954,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
     else if(template_name == "ZptCos") {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
 
-	//-- Vector of variables --> Loop
-	vector<TString> total_var_list;
-	if(makeHisto_inputVars) //Input variables
-	{
-		for(int i=0; i<var_list.size(); i++)
-		{
-			total_var_list.push_back(var_list[i]);
-		}
-		for(int i=0; i<v_add_var_names.size(); i++)
-		{
-			total_var_list.push_back(v_add_var_names[i]);
-		}
-	}
-	else //Templates
-	{
-        total_var_list.push_back(template_name);
-
-        //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
-        if(use_predefined_EFT_strategy)
-        {
-            vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-            total_var_list.clear();
-            for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
-            {
-                if(cat_tmp == "signal" || cat_tmp == "tZq") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRtZq"); //Replaced: total_var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
-                if(cat_tmp == "signal" || cat_tmp == "ttZ") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRttZ");
-                if(cat_tmp == "signal" && !this->scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
-                {
-                    if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
-                    else {total_var_list.push_back(total_var_list_tmp[ivar] + "_CR");}
-                }
-            }
-
-            //-- EFT scan: need to consider 1 set of variable *per EFT point*
-            if(this->scanOperators_paramNN)
-            {
-                vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-                total_var_list.clear(); //Reset the actual list
-                for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++) //For each variable initially found in the list, duplicate it once for each considered EFT point
-                {
-                    for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
-                    {
-                        TString opname1 = operator_scan1 + "_" + v_WCs_operator_scan1[iop1]; //Default: scan 1 operator
-                        TString opname2 = ""; //Optional: scan 2nd operator
-                        for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
-                        {
-                            if(operator_scan2=="" && iop2>0) {break;}
-                            else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + v_WCs_operator_scan2[iop2];}
-                            total_var_list.push_back(total_var_list_tmp[ivar] + "_" + opname1 + opname2);
-                            // cout<<"Added variable: "<<total_var_list[total_var_list.size()-1]<<endl;
-                        }
-                    }
-                }
-            } //MVA EFT scan
-        } //Predefined strategy
-
-        if(use_SManalysis_strategy) //Hard-coded, following SM analysis strategy
-        {
-            total_var_list.clear();
-            if(region == "tZq" || region == "ttZ") {total_var_list.push_back("NN");}
-            else if(region == "wz") {total_var_list.push_back("mTW");}
-            else if(region == "zz") {total_var_list.push_back("countExp");}
-            else if(region == "Vg") {total_var_list.push_back("channel");}
-            template_name = total_var_list[0];
-        }
-	} //Templates
-
-    vector<float> total_var_floats(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
-
     //-- Create output file
     TString output_file_name = "";
 	if(makeHisto_inputVars) {output_file_name = "outputs/ControlHistograms_" + region + "_" + lumiName + filename_suffix +".root";}
@@ -1064,6 +996,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     TString BDT_method_name = "BDT"; //Need to store BDT method name for evaluation
 
     //-- YEARS LOOP
+    vector<TString> total_var_list; vector<float> total_var_floats;
     for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
     {
         cout<<endl<<UNDL(FMAG("=== YEAR : "<<v_lumiYears[iyear]<<""))<<endl<<endl;
@@ -1153,6 +1086,87 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
             } //NN
         } //Read MVA
+
+
+ // #    #   ##   #####  #   ##   #####  #      ######  ####
+ // #    #  #  #  #    # #  #  #  #    # #      #      #
+ // #    # #    # #    # # #    # #####  #      #####   ####
+ // #    # ###### #####  # ###### #    # #      #           #
+ //  #  #  #    # #   #  # #    # #    # #      #      #    #
+ //   ##   #    # #    # # #    # #####  ###### ######  ####
+
+        //-- Define the list of variables there, because may need to first read a MVA info file (year-dependent) //Define list only for first year, assume it's identical for all years
+        //-- NB: for NN templates, list of variables may be hard-coded here based on the info found in the MVA file --> Make sure the correct MVA files are found
+        if(!iyear)
+        {
+        	//-- Vector of variables --> Loop
+        	if(makeHisto_inputVars) //Input variables
+        	{
+        		for(int i=0; i<var_list.size(); i++) {total_var_list.push_back(var_list[i]);}
+        		for(int i=0; i<v_add_var_names.size(); i++) {total_var_list.push_back(v_add_var_names[i]);}
+        	}
+        	else //Templates
+        	{
+                total_var_list.push_back(template_name);
+
+                //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
+                if(use_predefined_EFT_strategy)
+                {
+                    vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
+                    total_var_list.clear();
+                    for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
+                    {
+                        if(cat_tmp == "signal" || cat_tmp == "tZq") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRtZq"); //Replaced: total_var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
+                        if(cat_tmp == "signal" || cat_tmp == "ttZ") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRttZ");
+                        if(cat_tmp == "signal" && !this->scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
+                        {
+                            if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
+                            else {total_var_list.push_back(total_var_list_tmp[ivar] + "_CR");}
+                        }
+                    }
+
+                    //-- EFT scan: need to consider 1 set of variable *per EFT point*
+                    if(this->scanOperators_paramNN)
+                    {
+                        vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
+                        total_var_list.clear(); //Reset the actual list
+                        for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++) //For each variable initially found in the list, duplicate it once for each considered EFT point
+                        {
+                            for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                            {
+                                TString opname1 = operator_scan1 + "_" + v_WCs_operator_scan1[iop1]; //Default: scan 1 operator
+                                TString opname2 = ""; //Optional: scan 2nd operator
+                                for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                                {
+                                    if(operator_scan2=="" && iop2>0) {break;}
+                                    else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + v_WCs_operator_scan2[iop2];}
+                                    total_var_list.push_back(total_var_list_tmp[ivar] + "_" + opname1 + opname2);
+                                    // cout<<"Added variable: "<<total_var_list[total_var_list.size()-1]<<endl;
+                                }
+                            }
+                        }
+                    } //MVA EFT scan
+                } //Predefined strategy
+                else if(!use_predefined_EFT_strategy && template_name == "NN")
+                {
+                    total_var_list.clear();
+                    for(int inode=0; inode<NN_nNodes; inode++) {total_var_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
+                }
+
+                if(use_SManalysis_strategy) //Hard-coded, following SM analysis strategy
+                {
+                    total_var_list.clear();
+                    if(region == "tZq" || region == "ttZ") {total_var_list.push_back("NN");}
+                    else if(region == "wz") {total_var_list.push_back("mTW");}
+                    else if(region == "zz") {total_var_list.push_back("countExp");}
+                    else if(region == "Vg") {total_var_list.push_back("channel");}
+                    template_name = total_var_list[0];
+                }
+        	} //Templates
+
+            total_var_floats.resize(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
+        }
+        // for(int ivar=0; ivar<total_var_list.size(); ivar++) {cout<<"total_var_list[ivar] "<<total_var_list[ivar]<<endl;}
 
 
 //  ####    ##   #    # #####  #      ######    #       ####   ####  #####
@@ -2078,13 +2092,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison... //Experimental
 
     bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
-        bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
+        bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
         v_EFT_samples.push_back("PrivMC_tZq");
-        v_EFT_samples.push_back("PrivMC_ttZ");
+        // v_EFT_samples.push_back("PrivMC_ttZ");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
         v_EFT_points.push_back("rwgt_ctz_0");
-        v_EFT_points.push_back("rwgt_ctz_3");
+        v_EFT_points.push_back("rwgt_ctz_5");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
 
     // bool doNot_stack_signal = false; //Obsolete
@@ -2155,7 +2169,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	{
         if(template_name == "NN" && !this->categorization_strategy)
         {
-            //-- Read the relevant NN info file, just to know if wer are dealing with multiclass NN templates... !
+            //-- Read the relevant NN info file, just to know if we are dealing with multiclass NN templates... !
             TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[0], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, this->categorization_strategy);
             Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes);
 
@@ -2480,6 +2494,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		{
                 data_histo_name = total_var_list[ivar];
                 if(channel != "") {data_histo_name+= "_" + channel;}
+                if(region != "" && !drawInputVars && !categorization_strategy) {data_histo_name+= "_" + region;}
                 if(EFTpoint != "") {data_histo_name+= "_" + EFTpoint;}
     			data_histo_name+= "_" + v_lumiYears[iyear];
                 data_histo_name+= "__data_obs";
@@ -2593,7 +2608,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
 
                         // th1eft_tmp->SetLineColor(kRed);
-                        th1eft_tmp->SetLineColor(icolor);
+                        th1eft_tmp->SetLineColor(icolor+3);
                         icolor++;
                         th1eft_tmp->SetLineWidth(5);
                         th1eft_tmp->SetLineStyle(2);
@@ -2759,7 +2774,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             {
                 for(int isample=0; isample<v_EFT_samples.size(); isample++)
                 {
-                    if(normalize_EFThist) {v2_th1eft[ipoint][isample]->Scale(((TH1*) stack_MC->GetStack()->Last())->Integral()/(2*v2_th1eft[ipoint][isample]->Integral()));} //Normalize to half-integral of stack (arbitrary)  //NB: access stack integral via summed object '((TH1*) stack_MC->GetStack()->Last())'
+                    if(normalize_EFThist) {v2_th1eft[ipoint][isample]->Scale(((TH1*) stack_MC->GetStack()->Last())->Integral()/(2.*v2_th1eft[ipoint][isample]->Integral()));} //Normalize to half-integral of stack (arbitrary)  //NB: access stack integral via summed object '((TH1*) stack_MC->GetStack()->Last())'
                 }
             }
         }
@@ -4532,3 +4547,63 @@ void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
 //    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
 //    ##    ########  ######     ##    #### ##    ##  ######
 //--------------------------------------------
+
+//FIXME
+//Better to sum histos manually, and call func to get efficiency graph (Produce_Efficiency_TGraph), then plot ? => yes, smarter
+//if SM vs SM --> use signal_process ; else use 'privMC_' + signal_process
+void TopEFT_analysis::Make_ROC_fromTemplateFile(TString template_name)
+// void Make_ROC_fromTemplateFile(v_filepath, v_Filelabel, v_isTMVA_file, v_isTrainSample, region, v_processes, superimpose_allNodes_DNN, lumiYear, cuts)
+{
+    vector<TString> v_filepath; //Path of TFile containing TMVA TTree or histograms
+	vector<TString> v_Filelabel; //File label to be displayed on plot
+    vector<TString> v_isTMVA_file; //'TMVA' <-> looking for TMVA TTree ; 'Keras' <-> looking for histograms in file producing during Keras training ; 'Custom' <-> looking for my template histograms (or any hardcoded histo name...)
+    vector<bool> v_isTrainSample; //True <-> looking for ROC from train sample ; else test sample
+
+    //-- Read input file (may be year-dependent)
+    TString inputFile_path = Get_HistoFile_InputPath(true, template_name, region, this->lumiName, false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, false);
+    // if(inputFile_path == "") {cat_tmp = signal_process; inputFile_path = Get_HistoFile_InputPath(!drawInputVars, template_name, cat_tmp, lumiName, use_combine_file, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, (EFTpoint!=""));} //Retry with 'signal_process' as 'region' argument
+    // if(inputFile_path == "") {return;}
+    // TFile* file_input = TFile::Open(inputFile_path, "READ");
+    // cout<<"inputFile_path "<<inputFile_path<<endl;
+
+    v_filepath.push_back(inputFile_path);
+    v_Filelabel.push_back("");
+    v_isTMVA_file.push_back("Keras");
+    v_isTrainSample.push_back(false);
+
+    vector<TString> v_processes = sample_list;
+    for(int isample=0; isample<v_processes.size(); isample++)
+    {
+        if(v_processes[isample] == "DATA") {v_processes.erase(v_processes.begin() + isample);}
+        if(v_processes[isample] == "NPL_MC") {v_processes.erase(v_processes.begin() + isample);}
+        if(v_processes[isample].Contains("PrivMC") && v_processes[isample] != "PrivMC_tZq") {v_processes.erase(v_processes.begin() + isample);}
+    }
+
+    TString cuts = "1"; //No cut
+
+    if(template_name == "NN") //Read NN info and weights
+    {
+        //-- Get path of NN info text file --> Read list of input variables (and more)
+        var_list_NN.resize(0); NN_iMaxNode = -1; NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; NN_nNodes = -1;
+        TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, this->signal_process, this->v_lumiYears[0], this->use_specificMVA_eachYear, this->make_SMvsEFT_templates_plots, true, this->categorization_strategy);
+        if(NNinfo_input_path == "") {return;} //MVA file not found
+        if(!Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, &NN_strategy)) {cout<<"ERROR: MVA info not found ! Abort ! "<<endl; return;}
+    }
+
+    bool use_predefined_EFT_strategy = false;
+    if(this->categorization_strategy > 0 && !this->use_SManalysis_strategy) {use_predefined_EFT_strategy = true;}
+
+    vector<TString> variable_list;
+    Fill_Variables_List(variable_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, use_SManalysis_strategy);
+
+    // TString histo_name_prefix = "NN0_signal_2017__";
+
+    TString histo_name_prefix = variable_list[0];
+    if(region != "" && !categorization_strategy) {histo_name_prefix+= "_" + region;}
+    histo_name_prefix+= + "_" + v_lumiYears[0]; //FIXME
+    histo_name_prefix+= "__";
+
+    Make_Plot(v_filepath, v_Filelabel, v_isTMVA_file, v_isTrainSample, region, v_processes, false, this->lumiName, cuts, true, histo_name_prefix);
+
+    return;
+}

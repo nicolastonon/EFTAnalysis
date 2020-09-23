@@ -38,10 +38,9 @@ SPLIT = Split_FullSamples.exe
 # .PHONY : $(wildcard *.o)  #Force to always recompile object
 
 #Instructions
-all: $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
+all: $(DICT) $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
 
 $(DICT): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h
-	@rm myDict* myLib*
 	@echo "-- Creating dictionnary $(DICT) --"
 	@rootcling -f $(DICT) -rml $(LIB) -rmf myLib.rootmap -c -p Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
 
@@ -51,7 +50,7 @@ $(LIB): Utils/TH1EFT.cxx $(DICT)
 	@echo ""
 
 #Obtain executables from object files
-$(MY_ANALYSIS): Utils/TH1EFT.cxx Utils/CMSSW_TensorFlow.o Utils/TFModel.o Utils/Helper.o analysis_main.o TopEFT_analysis.o $(LIB)
+$(MY_ANALYSIS): Utils/TH1EFT.cxx Utils/CMSSW_TensorFlow.o Utils/TFModel.o Utils/Helper.o ROCS/ROC_Plotter.o analysis_main.o TopEFT_analysis.o $(LIB)
 	@echo "###################################"
 	@echo "-- Creating executable ./$(MY_ANALYSIS) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS) $(INCFLAGS) -L. $(LIB)
@@ -59,7 +58,7 @@ $(MY_ANALYSIS): Utils/TH1EFT.cxx Utils/CMSSW_TensorFlow.o Utils/TFModel.o Utils/
 	@echo "###################################""#"
 	@echo ""
 
-$(ROCS): ROCS/Compare_ROC_curves.o Utils/Helper.o $(LIB)
+$(ROCS): ROCS/ROC_Plotter.o ROCS/Compare_ROC_curves.o Utils/Helper.o $(LIB)
 	@echo "###################################"
 	@echo "-- Creating executable $(ROCS) --"
 	@$(CC) $^ -o $@ $(ROOTFLAGS) $(LFLAGS)

@@ -1,19 +1,19 @@
-Start of NN training :22-Sep-2020 (18:27:35)
+Start of NN training :23-Sep-2020 (13:54:42)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-strategy --> CARL
-nEpochs --> 100
+strategy --> classifier
+nEpochs --> 50
 splitTrainValTestData --> [0.7, 0.0, 0.3]
 nHiddenLayers --> 4
-nNeuronsAllHiddenLayers --> 100
-activInputLayer --> lrelu
-activHiddenLayers --> lrelu
+nNeuronsAllHiddenLayers --> 50
+activInputLayer --> relu
+activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.0
+dropoutRate --> 0.2
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
 learnRate --> 0.001
@@ -23,7 +23,7 @@ maxEventsPerClass --> -1
 nEventsTot_train --> -1
 nEventsTot_val --> -1
 nEventsTot_test --> -1
-batchSizeClass --> 1000
+batchSizeClass --> 256
 refPoint --> SM
 listOperatorsParam --> ['ctz', 'ctw']
 nPointsPerOperator --> 50
@@ -38,17 +38,18 @@ comparVarIdx --> -1
 cuts --> is_signal_SR
 useHardCodedListInputFeatures --> False
 useLowLevelFeatures --> False
-makeValPlotsOnly --> True
+makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> True
-parameterizedNN --> True
+parameterizedNN --> False
 regress --> False
-nofOutputNodes --> 1
-maxEvents --> 5000
-batchSize --> 1000
-samplesType --> onlySMEFT
-loss --> binary_crossentropy
-metrics --> binary_accuracy
-NN_strategy --> MVA_param
+nofOutputNodes --> 4
+maxEvents --> -1
+batchSize --> 256
+samplesType --> centralVSpureEFT
+loss --> categorical_crossentropy
+metrics --> categorical_accuracy
+NN_strategy --> MVA_EFT
 ----------------- 
 
+End of NN training and evaluation :23-sept.-2020 (14:01:01)

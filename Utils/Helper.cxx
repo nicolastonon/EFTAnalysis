@@ -1524,7 +1524,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	else //Reading my own file
 	{
         TString MVA_type = "";
-        TString region_tmp = "_" + region;
+        TString region_tmp = region;
         if(is_templateFile && categorization_strategy>0)
         {
             region_tmp = "";
@@ -1561,6 +1561,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         }
     }
 
+    // cout<<"fullpath "<<fullpath<<endl;
     return fullpath;
 }
 
@@ -1619,4 +1620,65 @@ TString Get_Region_Label(TString region, TString variable)
     else if(variable.Contains("_CR")) {label = "CR";}
 
     return label;
+}
+
+void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy)
+{
+    variable_list.push_back(template_name);
+
+    //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
+    if(use_predefined_EFT_strategy)
+    {
+        vector<TString> var_list_tmp(variable_list); //Tmp copy of variable list
+        variable_list.clear();
+        for(int ivar=0; ivar<var_list_tmp.size(); ivar++)
+        {
+            if(region == "signal" || region == "tZq") variable_list.push_back(var_list_tmp[ivar] + "_SRtZq"); //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
+            if(region == "signal" || region == "ttZ") variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");
+            if(region == "signal" && !scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
+            {
+                if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
+                else {variable_list.push_back(var_list_tmp[ivar] + "_CR");}
+            }
+        }
+
+        //-- EFT scan: need to consider 1 set of variable *per EFT point*
+        if(scanOperators_paramNN)
+        {
+            vector<TString> var_list_tmp(variable_list); //Tmp copy of variable list
+            variable_list.clear(); //Reset the actual list
+            for(int ivar=0; ivar<var_list_tmp.size(); ivar++) //For each variable initially found in the list, duplicate it once for each considered EFT point
+            {
+                for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                {
+                    TString opname1 = operator_scan1 + "_" + v_WCs_operator_scan1[iop1]; //Default: scan 1 operator
+                    TString opname2 = ""; //Optional: scan 2nd operator
+                    for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                    {
+                        if(operator_scan2=="" && iop2>0) {break;}
+                        else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + v_WCs_operator_scan2[iop2];}
+                        variable_list.push_back(var_list_tmp[ivar] + "_" + opname1 + opname2);
+                        // cout<<"Added variable: "<<variable_list[variable_list.size()-1]<<endl;
+                    }
+                }
+            }
+        } //MVA EFT scan
+    } //Predefined strategy
+    else if(!use_predefined_EFT_strategy && template_name == "NN")
+    {
+        variable_list.clear();
+        for(int inode=0; inode<NN_nNodes; inode++) {variable_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
+    }
+
+    if(use_SManalysis_strategy) //Hard-coded, following SM analysis strategy
+    {
+        variable_list.clear();
+        if(region == "tZq" || region == "ttZ") {variable_list.push_back("NN");}
+        else if(region == "wz") {variable_list.push_back("mTW");}
+        else if(region == "zz") {variable_list.push_back("countExp");}
+        else if(region == "Vg") {variable_list.push_back("channel");}
+        template_name = variable_list[0];
+    }
+
+    return;
 }

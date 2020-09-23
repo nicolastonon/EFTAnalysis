@@ -60,6 +60,8 @@
 #include "Utils/Helper.h" //Helper functions
 #include "Utils/TFModel.h" //Tensorflow functions
 
+#include "ROCS/ROC_Plotter.h" //ROC functions //FIXME
+
 //Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/maste)
 #include "TH1EFT.h"
 #include "WCPoint.h"
@@ -85,6 +87,8 @@ class TopEFT_analysis
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
     void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
+    void Make_ROC_fromTemplateFile(TString);
+
 
 //--- MEMBERS
 	bool stop_program;

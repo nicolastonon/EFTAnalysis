@@ -604,7 +604,7 @@ def Get_ListPointsSampling_SingleOp(operator_scan, range_step):
 
 def Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs, ROC=False):
 
-    delay = 90 #in 1/100th of a second
+    delay = 100 #in 1/100th of a second
     outname = standaloneValDir+'Overtrain_paramNN.gif' #Output name
     if ROC: outname = standaloneValDir+'ROCs_paramNN.gif'
 
