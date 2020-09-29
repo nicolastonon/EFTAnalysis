@@ -552,8 +552,6 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
                 if(!Get_Histogram_From_CustomFile(v_h_sig[0], v_filepath[ifile], hname_tmp)) {return;}
             }
 
-            cout<<__LINE__<<endl;
-
             int idx_bkg = 0; //Even if process is second in process list, if it is the first bkg we want its index in vector to be 0, etc.
 
             //Get bkg histos (all processes which are not signal)
@@ -582,8 +580,6 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
 
                 idx_bkg++; //Increment bkg vector index
             } //Bkg loop
-
-            cout<<__LINE__<<endl;
 
             //Sum histograms (many processes --> signal/bkg)
             TH1F* h_sig = 0;

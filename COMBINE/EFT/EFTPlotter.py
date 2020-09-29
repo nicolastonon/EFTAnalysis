@@ -16,6 +16,7 @@ import argparse
 import numpy as np
 from settings import opts #Custom dictionnary of settings
 
+
  #    # ###### #      #####  ###### #####
  #    # #      #      #    # #      #    #
  ###### #####  #      #    # #####  #    #
@@ -23,7 +24,7 @@ from settings import opts #Custom dictionnary of settings
  #    # #      #      #      #      #   #
  #    # ###### ###### #      ###### #    #
 
-# Get the X positions at which the log-likelihood function intersects a given y-line (only keep first and last intersections. There may be more if the function has several minima)
+#-- Get the X positions at which the log-likelihood function intersects a given y-line (only keep first and last intersections. There may be more if the function has several minima)
 def Get_Intersection_X(graph, y_line):
 
     xmin, xmax, y_tmp = ROOT.Double(0), ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
@@ -33,13 +34,29 @@ def Get_Intersection_X(graph, y_line):
 
     list_X_intersects = []
     step = 0.001 #Desired precision in X (if too coarse, intersection lines/fill areas are displaced)
+    y_previousPoint = 99999
+    searchingNewMinimum = True #Once an intersection has been found, must wait for the curve to 'invert' before we can find another one
+    for x in np.arange(xmin, xmax, step):
+        y_thisPoint = graph.Eval(x)
+        # print('x', x, 'y', y_thisPoint, 'diff', abs(y_thisPoint-y_line), 'comp', abs(y_previousPoint-y_line), 'searchingNewMinimum', searchingNewMinimum)
+        if searchingNewMinimum and abs(y_thisPoint-y_line) > abs(y_previousPoint-y_line): #Check if minimum was found at previous point
+            # print('!!! Found intersection', x-step)
+            list_X_intersects.append(x-step) #Store previous point
+            searchingNewMinimum = False
+        elif searchingNewMinimum is False and abs(y_thisPoint-y_line) < abs(y_previousPoint-y_line): searchingNewMinimum = True #Curve has inverted, can look for next intersection
+        else: #Check next points
+            y_previousPoint = y_thisPoint
+
+    '''
+    step = 0.001 #Desired precision in X (if too coarse, intersection lines/fill areas are displaced)
     for x in np.arange(xmin, xmax, step):
         # print('x', x)
         y_tmp = graph.Eval(x)
-        # print('x', x, 'y', y_tmp, 'diff', abs(y_tmp-y_line))
+        #print('x', x, 'y', y_tmp, 'diff', abs(y_tmp-y_line))
         if abs(y_tmp-y_line) < step*10: #Arbitrary threshold to define intersection
             if len(list_X_intersects)>0 and abs(x-list_X_intersects[len(list_X_intersects)-1])<0.1: continue #Avoid returning several contiguous x positions in a row
             list_X_intersects.append(x)
+    '''
 
     if(len(list_X_intersects)==0):
         print(colors.fg.orange + '[Get_Intersection_X] Warning: no intersection found with zz function. This indicates that the fit rootfile may be empty/incorrect, or simply that the precision is not sufficient to exclude any point at the given threshold ' + str(y_line) + ' (<-> no intersection)' + colors.reset)
@@ -49,6 +66,7 @@ def Get_Intersection_X(graph, y_line):
 
     #print(list_X_intersects)
     return list_X_intersects
+
 
 def Get_Parameter_LegName(name):
 
@@ -249,9 +267,11 @@ class EFTPlot(object):
             return
 
         logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
+        print('Reading file:', filepath)
 
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('','',1000,800)
+        #c = ROOT.TCanvas('','',2000,1600)
         c.SetGrid(1)
         c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
@@ -406,6 +426,7 @@ class EFTPlot(object):
         if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
         if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
         leg.Draw("same")
+        if len(list_X_intersects95)>1: print(colors.fg.orange + "95% interval: [" + str(list_X_intersects95[0]) + ", " + str(list_X_intersects95[1]) + "]" + colors.reset)
 
         #-- Labels
         graph.SetTitle("")

@@ -1,5 +1,3 @@
-//FIXME -- test WZ splitting (new WZ ntuple) -- but not needed yet
-
 /* BASH CUSTOM */
 #define RST   "\e[0m"
 #define KBLK  "\e[30m"
@@ -164,7 +162,7 @@ void Store_EFTparameterization(TString filepath, TString nominal_tree_name)
 
     TString newTree_name = "EFTparameterization";
 
-    cout<<FYEL("--- STORING PER-EVENT EFT PARAMETERIZATIONS IN TTREE '"<<newTree_name<<"', IN FILE: '"<<filepath<<"' ...")<<endl;
+    cout<<FBLU("--- STORING PER-EVENT EFT PARAMETERIZATIONS IN TTREE '"<<newTree_name<<"', IN FILE: '"<<filepath<<"' ...")<<endl;
     cout<<"("<<nentries<<" entries) "<<endl;
 
     // TH1EFT* th1eft = new TH1EFT("EFTparameterization", "EFTparameterization", 1, 0, 1);
@@ -278,14 +276,14 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
         cout<<"-- Tree : '"<<v_TTrees[itree]<<"'..."<<endl;
         if(v_TTrees[itree] != nominal_tree_name && (newsample_name.Contains("DATA") || newsample_name.Contains("NPL"))) {continue;}
 
-		TTree* t_data = 0; //input tree
-        t_data = (TTree*) f_data->Get(v_TTrees[itree]);
-        if(!t_data) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
-        Int_t nentries = t_data->GetEntries();
+		TTree* t_input = 0; //input tree
+        t_input = (TTree*) f_data->Get(v_TTrees[itree]);
+        if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
+        Int_t nentries = t_input->GetEntries();
 
     	f_new->cd();
         TTree *t_new = 0; //output tree
-        t_new = (TTree*) t_data->CopyTree(selection);
+        t_new = (TTree*) t_input->CopyTree(selection);
         if(!t_new) {cout<<FRED("t_new is NULL !")<<endl; return;}
 		// if(v_TTrees[itree] == "JESUp") {t_new->SetName("JESUp");}
 
@@ -296,7 +294,7 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
 
         cout<<"("<<t_new->GetEntries()<<" entries)"<<endl;
 
-        delete t_data; t_data = 0;
+        delete t_input; t_input = 0;
         delete t_new; t_new = 0;
     }
 
@@ -393,13 +391,13 @@ void Copy_SumWeight_Histogram_Into_SplitSample(TString filepath, TString outfile
 // ##     ## ##       ##    ##  ##    ##  ##
 // ##     ## ######## ##     ##  ######   ########
 
-// ########    ###    ##    ## ########  ######          ##     ##  ######
-// ##         ## ##   ##   ##  ##       ##    ##         ###   ### ##    ##
-// ##        ##   ##  ##  ##   ##       ##               #### #### ##
-// ######   ##     ## #####    ######    ######          ## ### ## ##
-// ##       ######### ##  ##   ##             ##         ##     ## ##
-// ##       ##     ## ##   ##  ##       ##    ##         ##     ## ##    ##
-// ##       ##     ## ##    ## ########  ######  ####### ##     ##  ######
+// ########    ###    ##    ## ########  ######
+// ##         ## ##   ##   ##  ##       ##    ##
+// ##        ##   ##  ##  ##   ##       ##
+// ######   ##     ## #####    ######    ######
+// ##       ######### ##  ##   ##             ##
+// ##       ##     ## ##   ##  ##       ##    ##
+// ##       ##     ## ##    ## ########  ######
 //--------------------------------------------
 
 
@@ -422,8 +420,7 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
             for(int isel=0; isel<v_sel.size(); isel++)
             {
                 if(v_TTrees[itree] != nominal_tree_name) {continue;} //Don't consider JES/JER variations for Fakes(MC) sample
-
-                if(!v_sel[isel].Contains("Fake")) {continue;}
+                if(!v_sel[isel].Contains("Fake")) {continue;} //Only care about fake events
 
                 TString dir = Get_Directory(v_sel[isel]);
                 if(dir == "") {continue;} //Sub-directories only
@@ -432,7 +429,7 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
                 TString f_MCPrompt_path = prefix + dir + v_years[iyear] + "/NPL_MC.root";
                 if(!Check_File_Existence(f_MCPrompt_path) ) {cout<<BOLD(FRED("Sample "<<f_MCPrompt_path<<" not found ! Can not merge multiple TTrees inside this file into a single one !") )<<endl; continue;}
                 TFile* f_MCPrompt = new TFile(f_MCPrompt_path, "UPDATE");
-                vector<TTree*> v_MC_trees(0);
+                vector<TTree*> v_new_trees(0);
 
                 //Get list of all TTrees
                 for(int isample=0; isample<v_samples.size(); isample++)
@@ -443,8 +440,8 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
 
                     TTree* t_tmp = (TTree*) f_MCPrompt->Get(v_TTrees[itree] + "_" + v_samples[isample]);
                     // cout<<"t_tmp->GetEntries() "<<t_tmp->GetEntries()<<endl;
-                    // if(t_tmp != 0 && t_tmp->GetEntries() > 0) {v_MC_trees.push_back(t_tmp);}
-                    if(t_tmp != 0) {v_MC_trees.push_back(t_tmp);}
+                    // if(t_tmp != 0 && t_tmp->GetEntries() > 0) {v_new_trees.push_back(t_tmp);}
+                    if(t_tmp != 0) {v_new_trees.push_back(t_tmp);}
                     else {cout<<DIM("Tree "<<v_TTrees[itree] + "_" + v_samples[isample]<<" not found in file "<<f_MCPrompt_path<<" !")<<endl;}
 
                     //DEBUG inf/isnan values
@@ -462,13 +459,13 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
                     // }
                 }
 
-                if(!v_MC_trees.size() ) {continue;}
+                if(!v_new_trees.size() ) {continue;}
 
                 TList *list = new TList;
-                for(int jtree=0; jtree<v_MC_trees.size(); jtree++)
+                for(int jtree=0; jtree<v_new_trees.size(); jtree++)
                 {
-                    // cout<<"v_MC_trees[jtree] "<<v_MC_trees[jtree]<<endl;
-                    list->Add(v_MC_trees[jtree]);
+                    // cout<<"v_new_trees[jtree] "<<v_new_trees[jtree]<<endl;
+                    list->Add(v_new_trees[jtree]);
                 }
 
                 //Merge TTrees in one //WARNING : all empty TTrees are skipped !
@@ -512,25 +509,25 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
 // #       ####  ###### ######
 
 /**
- * Make merged ntuples (NPL_MC, ...), but this time without any subcategorization
+ * Make merged ntuples (NPL_DATA, NPL_MC, ...), but this time *without* any subcategorization
  */
 void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, vector<TString> v_TTrees, vector<TString> v_samples, bool make_FakesMC_sample, TString prefix, TString NPL_flag, bool datadriven)
 {
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
         TString output_path = prefix + v_years[iyear] + "/NPL_MC.root";
-        if(datadriven) {output_path = prefix + v_years[iyear] + "/NPL.root";}
+        if(datadriven) {output_path = prefix + v_years[iyear] + "/NPL_DATA.root";}
 
         cout<<endl<<endl<<FYEL("-- Creating merged ntuple : "<<output_path<<"")<<endl<<endl;
 
-        //Output file
+        //-- Output file
         TFile* f_new = new TFile(output_path, "RECREATE"); //NB: will erase previous file even if it is not reproduced...
 
         for(int itree=0; itree<v_TTrees.size(); itree++)
         {
     		cout<<endl<<"* Tree : "<<v_TTrees[itree]<<endl;
 
-            vector<TTree*> v_MC_trees;
+            vector<TTree*> v_new_trees; //Vector containing new TTree(s) (--> merged if >=1)
 
             for(int isample=0; isample<v_samples.size(); isample++)
             {
@@ -544,51 +541,115 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, ve
                 if(!Check_File_Existence(input_filepath) ) {cout<<BOLD(FRED("Sample "<<input_filepath<<" not found !") )<<endl; continue;}
                 TFile* f_input = TFile::Open(input_filepath, "READ");
 
-                TTree* t_data = 0; //input tree
-                t_data = (TTree*) f_input->Get(v_TTrees[itree]);
-                if(!t_data) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
+                TTree* t_input = 0; //input tree
+                t_input = (TTree*) f_input->Get(v_TTrees[itree]);
+                if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
 
                 f_new->cd();
                 TTree *t_new = 0; //output tree
-                t_new = (TTree*) t_data->CopyTree(NPL_flag); //Copy subset of events satisfying Fakes flag
+                t_new = (TTree*) t_input->CopyTree(NPL_flag); //Copy subset of events satisfying Fakes flag
                 if(!t_new) {cout<<FRED("t_new is NULL !")<<endl; return;}
     			else {cout<<"("<<t_new->GetEntries()<<" entries)"<<endl;}
 
-                v_MC_trees.push_back((TTree*) t_new->Clone());
+                v_new_trees.push_back((TTree*) t_new->Clone());
 
-    			delete t_data;
-    			delete t_new;
+    			delete t_input; delete t_new;
 
                 f_input->Close();
-            } //sample loop
+            } //samples
 
-            if(!v_MC_trees.size()) {continue;}
+            if(!v_new_trees.size()) {continue;}
 
             TList *list = new TList;
-            for(int jtree=0; jtree<v_MC_trees.size(); jtree++)
+            for(int jtree=0; jtree<v_new_trees.size(); jtree++)
             {
-                // cout<<"v_MC_trees[jtree] "<<v_MC_trees[jtree]<<endl;
-                list->Add(v_MC_trees[jtree]);
+                // cout<<"v_new_trees[jtree] "<<v_new_trees[jtree]<<endl;
+                list->Add(v_new_trees[jtree]);
             }
 
-            //Merge TTrees in one //WARNING : all empty TTrees are skipped !
+            //-- Merge TTrees in one //WARNING : all empty TTrees are skipped !
             TTree *newtree = TTree::MergeTrees(list);
             // cout<<"newtree "<<newtree<<endl;
 
+            //-- Write merged TTree
             f_new->cd();
-
-            //Write merged TTree
             newtree->Write(v_TTrees[itree], TObject::kOverwrite);
             // cout<<"Write "<<v_TTrees[itree]<<endl;
 
             delete newtree;
             delete list;
-        } //tree loop
+        } //trees
 
         f_new->Close();
 
     	cout<<FYEL("-> Wrote file "<<output_path<<"")<<endl;
-    } //year loop
+    } //years
+
+    return;
+}
+
+
+//--------------------------------------------
+// ##     ## ######## ########   ######   ########     ######   ########   #######  ##     ## ########   ######
+// ###   ### ##       ##     ## ##    ##  ##          ##    ##  ##     ## ##     ## ##     ## ##     ## ##    ##
+// #### #### ##       ##     ## ##        ##          ##        ##     ## ##     ## ##     ## ##     ## ##
+// ## ### ## ######   ########  ##   #### ######      ##   #### ########  ##     ## ##     ## ########   ######
+// ##     ## ##       ##   ##   ##    ##  ##          ##    ##  ##   ##   ##     ## ##     ## ##              ##
+// ##     ## ##       ##    ##  ##    ##  ##          ##    ##  ##    ##  ##     ## ##     ## ##        ##    ##
+// ##     ## ######## ##     ##  ######   ########     ######   ##     ##  #######   #######  ##         ######
+//--------------------------------------------
+
+void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, TString prefix)
+{
+    cout<<endl<<endl<<"---------------------------"<<endl;
+    cout<<FBLU("== START MERGING SAMPLES BY GROUPS ==")<<endl;
+    cout<<"Make sure the sample groups defined in [Split_FullSamples] are the same as in main AN code [TopEFT_analysis] !"<<endl;
+    cout<<"---------------------------"<<endl<<endl<<endl;
+    usleep(5000000); //Pause in ms
+
+    //-- Trick: NPL_DATA & NPL_MC samples are not in the list (they are produced by this code from other samples). But once they have been produced, add them to the sample lists so that we merge NPL=(NPL_DATA+NPL_MC) //NB: NPL_MC events have negative weights, so can simply hadd to substract !
+    v_samples.push_back("NPL_DATA"); v_sampleGroups.push_back("NPL");
+    v_samples.push_back("NPL_MC"); v_sampleGroups.push_back("NPL");
+
+    for(int iyear=0; iyear<v_years.size(); iyear++)
+    {
+        for(int isel=0; isel<v_sel.size(); isel++)
+        {
+            if(!v_sel[isel].Contains("Fake")) {continue;} //Only consider the 'real' SR/CR regions, not the convenience 'Fake' flags
+
+            for(int igroup=0; igroup<v_samples.size(); igroup++) //Loop on sample groups
+            {
+                if(igroup > 0 && v_sampleGroups[igroup] == v_sampleGroups[igroup-1]) {continue;} //If this sample group was already processed, skip
+
+                TString dir = Get_Directory(v_sel[isel]);
+                TString full_dirname = prefix + dir + v_years[iyear] + "/";
+                TString outfile_path = full_dirname + v_sampleGroups[igroup] + ".root";
+                // cout<<"outfile_path = "<<outfile_path<<endl;
+
+                TString command_merge = "hadd -f " + outfile_path;
+                int nsamples_toMerge = 0; //Check how many samples belong to this sample group
+                for(int isample=0; isample<v_samples.size(); isample++)
+                {
+                    TString filepath = full_dirname + v_samples[isample] + ".root";
+
+                    if(v_samples[isample].Contains("PrivMC")) {continue;} //Private SMEFT samples should not be merged by group (for now)
+                    if(v_sampleGroups[isample] != v_sampleGroups[igroup]) {continue;} //Only consider samples which belong to the current sample group
+                    if(!Check_File_Existence(filepath)) {cout<<DIM("NB: can't merge file: "<<filepath<<" (not found) !")<<endl; continue;} //Can only hadd these TFile if they were already produced !
+
+                    nsamples_toMerge++;
+                    command_merge+= " " + filepath; //Merge this sample
+                }
+
+                if(nsamples_toMerge >= 2) // There are at least 2 samples to hadd
+                {
+                    cout<<endl<<FYEL("--- Merging sub-samples by group as such:")<<endl;
+                    cout<<"--> "<<DIM(<<command_merge<<"")<<endl<<endl;
+
+                    system(command_merge.Data());
+                }
+            } //groups
+        } //sels
+    } //years
 
     return;
 }
@@ -607,7 +668,7 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, ve
 Automatically split all samples into different subsamples (based on categories) *
 * --> Call to Create_Subsample_fromSample() for all samples/selections
  */
-void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_sample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour)
+void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_sample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour, bool hadd_subsamples_byGroup)
 {
     cout<<endl<<endl<<FBLU("== START OF NTUPLES SPLITTING ==")<<endl;
     cout<<"This can be quite long. Make sure you have correctly selected in the code :"<<endl;
@@ -618,6 +679,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
 
     TString prefix = "./input_ntuples/";
 
+//-- Split the full ntuples by sub-categories
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
         for(int isel=0; isel<v_sel.size(); isel++)
@@ -631,7 +693,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
                 // cout<<"v_samples[isample] "<<v_samples[isample]<<endl;
 
                 if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
-                else if(!make_FakesMC_sample && v_sel[isel].Contains("Fake")) {continue;} //No fake categories
+                else if(!make_FakesMC_sample && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
                 else if(v_sel[isel].Contains("Fake") && (v_samples[isample].Contains("PrivMC") || v_samples[isample].Contains("TTbar") || v_samples[isample].Contains("DY"))) {continue;} //Don't consider prompt fake contributions from: private samples / ttbar / DY / ...
 
                 TString dir = Get_Directory(v_sel[isel]);
@@ -649,7 +711,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
     			TString outfile_path = full_dirname + v_samples[isample] + ".root";
                 if(v_sel[isel].Contains("Fake"))
                 {
-                    if(v_samples[isample] == "DATA") {outfile_path = full_dirname + "NPL.root";}
+                    if(v_samples[isample] == "DATA") {outfile_path = full_dirname + "NPL_DATA.root";}
                     else {outfile_path = full_dirname + "NPL_MC.root";} //NPL MC prompt summed contribution
                 }
                 // cout<<"outfile_path = "<<outfile_path<<endl;
@@ -666,12 +728,26 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_se
     	} //selections loop
     } //year loop
 
+//-- Also create a 'full' NPL_DATA sample (no sub-cat.)
+    Make_Full_Merged_Ntuples(v_years, v_sel, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, true); //Data-driven
+
+//-- Make the NPL_MC samples (full & split by sub-categories), by merging the 'fake' contributions from multiple prompt MC samples
     if(make_FakesMC_sample)
     {
-        if(make_nominal_samples) {Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);} //Consider fake subcategories only if 'make_nominal_samples=true'
-        Make_Full_Merged_Ntuples(v_years, v_sel, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, true); //Data-driven
+        if(v_samples.size() < 20) //Protection
+        {
+            cout<<FRED("WARNING: v_samples.size()="<<v_samples.size()<<"... Are you sure you are considering the complete sample list ? (necessary to produce correct NPL_MC ntuples !)")<<endl;
+            cout<<endl<<"=== ENTER 'y' TO CONTINUE ==="<<endl<<endl;
+            TString answer = "n"; cin>>answer;
+            while(answer != 'y') {cout<<"Try again... "<<endl; cin>>answer;}
+        }
+
+        Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);
         Make_Full_Merged_Ntuples(v_years, v_sel, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, false); //MC
     }
+
+//-- Merge sub-ntuples (split by sub-categories) into ntuples grouped by 'sample groups'
+    if(hadd_subsamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix);} //Merge by sample group
 
     return;
 }
@@ -704,12 +780,13 @@ int main(int argc, char **argv)
 //--- Options---------------------------------
 //--------------------------------------------
     bool make_nominal_samples = true; //true <-> create sub-samples satisfying given category flags
-    bool make_FakesMC_sample = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_FakesMC_sample = true; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool hadd_subsamples_byGroup = true; //true <-> hadd the ntuples (split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
 
     TString nominal_tree_name = "result"; //Hard-coded nominal tree name (special case)
     TString NPL_flag = "isFake"; //Flag defining fake events
     bool store_WCFit_forSMEFTsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
-    bool split_WZ_byJetFlavour = false; //true <-> also split WZ sample depending on flavour of additional jet
+    bool split_WZ_byJetFlavour = false; //true <-> also split WZ sample depending on flavour of additional jet //FIXME -- test!
 //--------------------------------------------
 
 
@@ -736,43 +813,49 @@ int main(int argc, char **argv)
  //  ####  #    # #    # #      ###### ######  ####
 
     //--- Sample list
-    vector<TString> v_samples;
-	// v_samples.push_back("DATA");
-    // v_samples.push_back("ttH");
-    // v_samples.push_back("PrivMC_tZq");
-    // v_samples.push_back("PrivMC_ttZ");
-    // v_samples.push_back("tZq");
-    // v_samples.push_back("ttZ");
-    // v_samples.push_back("ttZ_M1to10");
-    // v_samples.push_back("tWZ");
-	// v_samples.push_back("tHq");
-    // v_samples.push_back("tHW");
-    // v_samples.push_back("ttW");
-    // v_samples.push_back("ttZZ");
-    // v_samples.push_back("ttWW");
-    // v_samples.push_back("ttWZ");
-    // v_samples.push_back("ttZH");
-    // v_samples.push_back("ttWH");
-    // v_samples.push_back("tttt");
-    // v_samples.push_back("ttHH");
-    // v_samples.push_back("ZZ4l");
-    // v_samples.push_back("ggToZZTo4l");
-    // v_samples.push_back("ZZZ");
-    // v_samples.push_back("WZZ");
-    // v_samples.push_back("WWW");
-    // v_samples.push_back("WWZ");
-    // v_samples.push_back("WZ");
-	// v_samples.push_back("TTGamma_Dilep");
-	// v_samples.push_back("tGJets");
-	// v_samples.push_back("WGToLNuG");
-	// v_samples.push_back("ZGToLLG_01J");
-	// v_samples.push_back("DY");
-    // v_samples.push_back("TTbar_DiLep");
+    vector<TString> v_samples; vector<TString> v_sample_groups;
 
-    // v_samples.push_back("PrivMC_tZq_TOP19001");
-    // v_samples.push_back("PrivMC_ttZ_TOP19001");
-    // v_samples.push_back("PrivMC_tZq_ctz");
-    // v_samples.push_back("PrivMC_ttZ_ctz");
+    //-- MAIN ANALYSIS SAMPLES
+	v_samples.push_back("DATA"); v_sample_groups.push_back("DATA");
+    v_samples.push_back("PrivMC_tZq"); v_sample_groups.push_back("PrivMC_tZq");
+    v_samples.push_back("PrivMC_ttZ"); v_sample_groups.push_back("PrivMC_ttZ");
+    v_samples.push_back("tZq"); v_sample_groups.push_back("tZq");
+    v_samples.push_back("ttZ"); v_sample_groups.push_back("ttZ");
+    v_samples.push_back("tWZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZ_M1to10"); v_sample_groups.push_back("tX");
+	v_samples.push_back("tHq"); v_sample_groups.push_back("tX");
+    v_samples.push_back("tHW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("tttt"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttHH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ZZ4l"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("ggToZZTo4l"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("ZZZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WZZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WWW"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WWZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WZ"); v_sample_groups.push_back("WZ");
+	v_samples.push_back("TTGamma_Dilep"); v_sample_groups.push_back("Vg");
+	v_samples.push_back("tGJets"); v_sample_groups.push_back("Vg");
+	v_samples.push_back("WGToLNuG"); v_sample_groups.push_back("Vg");
+	v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("Vg");
+
+    //-- OBSOLETE
+	// v_samples.push_back("DY"); v_sample_groups.push_back("DY");
+    // v_samples.push_back("TTbar_DiLep"); v_sample_groups.push_back("TTbar_DiLep");
+
+    //-- OTHER PRIVATE SAMPLES
+    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_sample_groups.push_back("xxx");
+    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_sample_groups.push_back("xxx");
+    // v_samples.push_back("PrivMC_tZq_ctz"); v_sample_groups.push_back("xxx");
+    // v_samples.push_back("PrivMC_ttZ_ctz"); v_sample_groups.push_back("xxx");
+    // v_samples.push_back("PrivMC_tZq_v3"); v_sample_groups.push_back("xxx");
 
 
  //  ####  ###### #      ######  ####  ##### #  ####  #    #  ####
@@ -783,6 +866,7 @@ int main(int argc, char **argv)
  //  ####  ###### ###### ######  ####    #   #  ####  #    #  ####
 
     //--- Will divide samples based on these subcategories
+    //-- NB: also include corresponding 'Fake' flags to produce NPL samples (NPL_DATA if ["DATA" is in v_samples], NPL_MC if [make_FakesMC_sample==true], and NPL both NPL_DATA & NPL_MC are produced)
     vector<TString> v_sel;
     v_sel.push_back("is_signal_SR");
     v_sel.push_back("is_signal_SRFake");
@@ -798,7 +882,7 @@ int main(int argc, char **argv)
     //--- Define the data-taking years
     vector<TString> v_years;
     // v_years.push_back("2016");
-    v_years.push_back("2017");
+    // v_years.push_back("2017");
     // v_years.push_back("2018");
 
 
@@ -810,7 +894,7 @@ int main(int argc, char **argv)
  // #       ####  #    #  ####      ####  #    # ###### ######
 
     //-- Make split ntuples per sub-category
-    Split_AllNtuples_ByCategory(v_samples, v_sel, v_years, make_nominal_samples, make_FakesMC_sample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour);
+    Split_AllNtuples_ByCategory(v_samples, v_sample_groups, v_sel, v_years, make_nominal_samples, make_FakesMC_sample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour, hadd_subsamples_byGroup);
 
     return 0;
 }

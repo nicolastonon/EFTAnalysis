@@ -60,7 +60,7 @@
 #include "Utils/Helper.h" //Helper functions
 #include "Utils/TFModel.h" //Tensorflow functions
 
-#include "ROCS/ROC_Plotter.h" //ROC functions //FIXME
+#include "ROCS/ROC_Plotter.h" //ROC functions
 
 //Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/maste)
 #include "TH1EFT.h"
@@ -87,7 +87,8 @@ class TopEFT_analysis
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
     void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
-    void Make_ROC_fromTemplateFile(TString);
+    // void Make_ROC_fromTemplateFile(TString);
+    // void Make_ROC_fromTemplateFile(TString, TString, TString="");
 
 
 //--- MEMBERS
@@ -152,7 +153,8 @@ class TopEFT_analysis
 	TString signal_process;
     TString dir_ntuples; //Path to base dir. containing Ntuples
     TString dir_ntuples_SR; //Path to dir. containing split Ntuples containing only SR events
-	TString plot_extension;
+    bool use_optimized_ntuples; //Set automatically in the constructor; true <-> special case: adapt code (+ class members) to deal with 'optimized' ntuples rather than the full list of ntuples (must have been produced beforehand with [Split_AllNtuples_ByCategory] code)
+    TString plot_extension;
     vector<TString> v_lumiYears;
     TString lumiName;
     double lumiValue;

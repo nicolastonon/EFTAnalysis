@@ -912,7 +912,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             // else if(v_groups[isample] == "VVV") {v_colors[isample] = kViolet+2;}
 
             //X+g
-            else if(v_groups[isample] == "Xg") {v_colors[isample] = kPink+2;}
+            else if(v_groups[isample] == "Vg" || v_groups[isample] == "Xg") {v_colors[isample] = kPink+2;}
 
             //NPL
             else if(v_groups[isample] == "NPL") {v_colors[isample] = kGray;}
@@ -1635,14 +1635,15 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         {
             if(region == "signal" || region == "tZq") variable_list.push_back(var_list_tmp[ivar] + "_SRtZq"); //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
             if(region == "signal" || region == "ttZ") variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");
-            if(region == "signal" && !scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
+            // if(region == "signal" && !scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
+            if(region == "signal")
             {
                 if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
                 else {variable_list.push_back(var_list_tmp[ivar] + "_CR");}
             }
         }
 
-        //-- EFT scan: need to consider 1 set of variable *per EFT point*
+        //-- EFT scan: for parameterized NN templates, need to consider 1 set of variable *per EFT point*
         if(scanOperators_paramNN)
         {
             vector<TString> var_list_tmp(variable_list); //Tmp copy of variable list

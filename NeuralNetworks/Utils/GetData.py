@@ -848,6 +848,8 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     else: #Specify train/test relative proportions
         _trainsize=opts["splitTrainValTestData"][0]; _testsize=1-_trainsize
 
+    _testsize-=0.001 #For safety, remove 0.1% from testing dataset, to ensure that (n_train+n_test)<n_available
+
     if opts["makeValPlotsOnly"] is True: _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
 
     return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=1-_trainsize, shuffle=True)

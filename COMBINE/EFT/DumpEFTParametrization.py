@@ -23,7 +23,7 @@ operators = [SM_name]+opts['wcs'] #List of operators for which to extract parame
 
 #Setup
 # //--------------------------------------------
-if len(sys.argv) != 2: hist_file = "../templates/Templates_NN_SR_2017.root" #Default rootfile path
+if len(sys.argv) != 2: hist_file = "../templates/xxx.root" #Default rootfile path
 else: hist_file = sys.argv[1] #Rootfile path given in arg
 
 fits = {} #Dict that will hold the parameterizations of the cross-sections
@@ -45,12 +45,12 @@ for key in readfile.GetListOfKeys():
     # if 'PrivMC' not in name or 'bin' in name or 'countExp' in name: continue #Extract parametrizations from 'full' TH1EFT histograms only (--> per bin !)
     if classname != "TH1EFT" or 'PrivMC' not in name : continue #Extract parametrizations from nominal TH1EFT histograms only (per-bin + total parametrizations)
 
-    if verbose: print('\nkey.GetName()', name)
+    # if verbose: print('\nkey.GetName()', name)
     hist = readfile.Get(name)
 
     #Get categorical information
     histname = name.split('__') #Naming convention: 'categ__proc__syst'
-    if verbose: print('histname', histname)
+    # if verbose: print('histname', histname)
     full_bin_name,process,systematic = '','',''
     if(len(histname)==3): [full_bin_name,process,systematic] = histname
     if(len(histname)==2): [full_bin_name,process] = histname
@@ -59,16 +59,16 @@ for key in readfile.GetListOfKeys():
     #Skip systematic histograms (only use nominal histograms for parametrization)
     if systematic != '': continue
 
-    if verbose:
-        print('full_bin_name', full_bin_name)
-        print('process', process)
-        # print('systematic', systematic)
+    # if verbose:
+    #     print('full_bin_name', full_bin_name)
+    #     print('process', process)
+    #     print('systematic', systematic)
 
     #-- Extract parameterization
     if 'PrivMC' in process and 'bin' not in full_bin_name: #Get parametrization from 'full' TH1EFT histograms only
 
         # full_bin_name = full_bin_name.split('_', 1)[1] #'TH1EFT_NN_SR_2017_xxx' --> 'NN_SR_2017' #split(separator, maxsplit)
-        # if verbose: print('full_bin_name', full_bin_name)
+        if verbose: print('full_bin_name', full_bin_name)
 
         #Loop through bins and extract parameterization -- arbitrary naming conventions are enforced and must be consistent with datacard/rootfile
         if verbose: print('hist.GetNbinsX()', hist.GetNbinsX())

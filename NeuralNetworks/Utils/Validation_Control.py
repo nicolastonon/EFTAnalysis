@@ -1181,6 +1181,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     shap.initjs() #Load Javascript library (not needed ?)
     shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
+    if opts['activInputLayer'] == 'lrelu' or opts['activHiddenLayers'] == 'lrelu': return #Not compatible
 
     #== Use 'Kernel SHAP' to explain test set predictions #Meant to approximate SHAP values for deep learning models.
     #-- model: The model to be explained. The output of the model can be a vector of size n_samples or a matrix of size [n_samples x n_output] (for a classification model).

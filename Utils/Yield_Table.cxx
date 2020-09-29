@@ -553,8 +553,24 @@ int main(int argc, char **argv)
 
     //TMP
     v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
-    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001"); //FIXME
+    v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
+    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
     v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
+
+
+//-- Read ntuples merged by sample groups (for cross checks)
+    /*
+    v_samples.push_back("DATA"); v_label.push_back("DATA");
+    v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
+    v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+    v_samples.push_back("tZq"); v_label.push_back("tZq");
+    v_samples.push_back("ttZ"); v_label.push_back("ttZ");
+    v_samples.push_back("WZ"); v_label.push_back("WZ");
+    v_samples.push_back("tX"); v_label.push_back("tX");
+    v_samples.push_back("VVV"); v_label.push_back("VVV");
+    v_samples.push_back("Vg"); v_label.push_back("Vg");
+    v_samples.push_back("NPL"); v_label.push_back("NPL");
+    */
 
 //--------------------------------------------
 

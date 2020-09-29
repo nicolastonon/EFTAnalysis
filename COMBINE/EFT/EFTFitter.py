@@ -27,6 +27,7 @@ import getopt # command line parser
 import argparse
 from settings import opts #Custom dictionnary of settings
 
+
 ######## ######## ######## ######## #### ########
 ##       ##          ##    ##        ##     ##
 ##       ##          ##    ##        ##     ##
@@ -69,6 +70,7 @@ class EFTFit(object):
         self.systematics = []
         # self.systematics = ['CERR1','CERR2']
 
+
  #       ####   ####   ####  ###### #####
  #      #    # #    # #    # #      #    #
  #      #    # #      #      #####  #    #
@@ -98,6 +100,7 @@ class EFTFit(object):
         console.setLevel(logging.INFO)
         console.setFormatter(frmt2)
         logging.getLogger('').addHandler(console)
+
 
  #    # ###### #      #####  ###### #####
  #    # #      #      #    # #      #    #
@@ -196,7 +199,7 @@ class EFTFit(object):
             args.extend(['-t', '-1'])
         if other:       args.extend(other)
 
-        if verbosity> 0: print('args --> ', args)
+        if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
@@ -206,31 +209,33 @@ class EFTFit(object):
         logging.info(colors.fg.lightblue + "Done with SM best fit !" + colors.reset)
         self.printBestFitsSM(name)
 
+
     def bestFitEFT(self, name='.EFT', params_POI=[], startValue='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2, fixedPointNLL=False):
         '''
-        Perform a MLF to find the best fit value of the POI(s).
+        Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
         NB: the error 'Looks like the last fit did not float this parameter' could arise e.g. if the bin names differ between file/datacard/EFT parametrization file.
         '''
 
-        ### Multidimensional fit ###
         logging.info(colors.fg.lightblue + "Enter function bestFitEFT()\n" + colors.reset)
 
         if params_POI == []: params_POI = self.wcs
         if name == '': name = '.EFT'
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
+        # args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
+        args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult']
 
-        if fixedPointNLL:
-            args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Access absolute NLL
-            args.extend(['--algo','fixed','--fixedPointPOIs','ctz={}'.format(startValue)]) #FIXME
         args.extend(['-n','{}'.format(name)])
-        if params_POI:          args.extend(['-P',' -P '.join(params_POI)]) # Preserves constraints
+        if fixedPointNLL:
+            args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Access absolute NLL #Necessary/useful ?
+            args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
+        if params_POI:
+            for wc in params_POI: args.extend(['-P','{}'.format(wc)])
         if not fixedPointNLL and startValue is not '': args.extend(['--setParameters',','.join('{}={}'.format(wc, startValue) for wc in params_POI)]) #Set POI default value for generating toys (otherwise, use B-only model)
-        else: args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 1
+        else: args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 0
         if not freeze:          args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if autoBounds:          args.extend(['--autoBoundsPOIs=*'])
+        if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
         if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
         if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
@@ -238,7 +243,7 @@ class EFTFit(object):
         if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
         args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in params_POI)])
 
-        if verbosity> 0: print('args --> ', args)
+        if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
@@ -247,7 +252,7 @@ class EFTFit(object):
         process.wait()
         logging.info(colors.fg.lightblue + "Done with bestFitEFT." + colors.reset)
 
-        if not fixedPointNLL: self.printBestFitsEFT(name)
+        if not fixedPointNLL: self.printBestFitsEFT(name, params_POI)
 
 
   ####  #####  # #####      ####   ####    ##   #    #
@@ -285,7 +290,7 @@ class EFTFit(object):
         if batch=='crab':      args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','2000'])
         if batch=='condor':    args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','2000'])
 
-        if verbosity> 0: print('args --> ', args)
+        if debug: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -327,7 +332,7 @@ class EFTFit(object):
         if batch=='crab':              args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','3000'])
         if batch=='condor':            args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','3000','--dry-run'])
 
-        if verbosity> 0: print('args --> ', args)
+        if debug: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
         # Run the combineTool.py command
@@ -647,7 +652,7 @@ class EFTFit(object):
  #   #  #      #    # #    # #    #   #   # #    # #   ##
  #    # ###### #####   ####   ####    #   #  ####  #    #
 
-    def reductionFitEFT(self, name='.EFT.Private.Unblinded.Nov16.28redo.Float.cptcpQM', wc='cpt', final=True, from_wcs=[], alreadyRun=True):
+    def reductionFitEFT(self, name='.EFT', wc='ctz', final=True, from_wcs=[], alreadyRun=True):
         ### Extract a 1D scan from a higher-dimension scan to avoid discontinuities ###
         if not wc:
             logging.error("No WC specified!")
@@ -812,7 +817,7 @@ class EFTFit(object):
  #      #   #  # #   ##   #
  #      #    # # #    #   #
 
-    def printBestFitsSM(self, name='.EFT.SM.Float'):
+    def printBestFitsSM(self, name='.SM'):
         ### Print a table of SM signal strengths, their best fits, and their uncertainties ###
         params = opts["SM_mus"]
 
@@ -839,13 +844,13 @@ class EFTFit(object):
             print row[0],row[1],"+/-",row[2]," ",row[3],"+{}".format(row[4])
             logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
 
+
     def printBestFitsEFT(self, basename='.EFT', wcs=[], simultaneous=True):
-        logging.info(colors.fg.lightblue + "Enter function printBestFitsEFT()\n" + colors.reset)
+        logging.info(colors.fg.lightblue + "\nEnter function printBestFitsEFT()" + colors.reset)
         ### Print a table of wcs, their best fits, and their uncertainties ###
         if not wcs: wcs = self.wcs
 
         fit_array = []
-
         if simultaneous: # <-> all WCs stored in same file... ?
             logging.info("Obtaining result of fit: multidimfit{}.root".format(basename))
             fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(basename))
@@ -889,32 +894,29 @@ class EFTFit(object):
 
         return
 
-    def printIntervalFitsEFT(self, basename='.EFT.SM.Float', wcs=[]):
+
+    def printIntervalFitsEFT(self, basename='.EFT', scan_params=[]):
         ### Print a table of wcs, their best fits, and their uncertainties ###
         ### Use 1D scans instead of regular MultiDimFit ###
-        if not wcs:
-            wcs = self.wcs
+        logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
 
+        if not scan_params: scan_params = self.wc
         ROOT.gROOT.SetBatch(True)
-
         fit_array = []
-
         canvas = ROOT.TCanvas()
-        for wc in wcs:
+        for wc in scan_params:
 
             canvas.Clear()
 
-            #logging.debug("Obtaining result of scan: higgsCombine{}.{}.MultiDimFit.root".format(basename,wc))
-            #fit_file = ROOT.TFile.Open('./higgsCombine{}.{}.MultiDimFit.root'.format(basename,wc))
             logging.debug("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root".format(basename))
             fit_file = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
             limit_tree = fit_file.Get('limit')
 
             limit_tree.Draw('2*deltaNLL:{}>>{}1DNLL(50,{},{})'.format(wc,wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]),'2*deltaNLL>-1','same')
             graph = canvas.GetPrimitive('Graph')
-            #graph.SetName("Graph")
+            # print(graph.GetN())
 
-            graph.Sort()
+            graph.Sort() #If error here, problem with limit tree
 
             lowedges=[]
             highedges=[]
@@ -922,7 +924,8 @@ class EFTFit(object):
             true_minimums=[]
             best = [-1000,1000]
             prev = 1000
-            for idx in range(graph.GetN()):
+            for idx in range(1, graph.GetN()):
+                # print('idx', idx)
                 y_val = graph.GetY()[idx]
                 if prev>4 and 4>y_val:
                     lowedges.append((graph.GetX()[idx-1]+graph.GetX()[idx+1])/2)
@@ -951,6 +954,13 @@ class EFTFit(object):
         for line in fit_array:
             print line
 
+
+
+
+
+
+
+
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -976,18 +986,24 @@ if __name__ == "__main__":
     name = '' #Suffix added to output filenames
     startValue = '' #Starting value for the POI
     fixedPointNLL = False #True <-> perform the NLL scan at a fixed point (different Combine options)
+    debug=False
+    freeze=False
+    POI=[]
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
     parser.add_argument("-d", metavar="datacard path", help="Path to the datacard")
-    parser.add_argument("-v", metavar="verbosity level", help="Set output verbosity")
+    parser.add_argument("-v", metavar="Combine verbosity level", help="Set combine output verbosity")
     parser.add_argument("-m", metavar="m", help="SM or EFT")
     parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
     parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
     parser.add_argument("--fixed", metavar="fixed", help="Get NLL for fixed point", nargs='?', const=1)
     parser.add_argument("-name", metavar="name", help="add suffix to output filename")
     parser.add_argument("-val", metavar="val", help="Starting value for the POI")
+    parser.add_argument("--debug", metavar="debug", help="Activate code debug printouts", nargs='?', const=1)
+    parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
+    parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
 
     args = parser.parse_args()
     if args.m: mode = args.m
@@ -998,6 +1014,9 @@ if __name__ == "__main__":
     if args.val: startValue = args.val
     if args.dim == '2D' or args.dim == '2D': scan_dim = '2D'
     if args.fixed: fixedPointNLL = True
+    if args.debug: debug = True
+    if args.freeze: freeze = True
+    if args.POI: POI = args.POI
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1013,17 +1032,26 @@ if __name__ == "__main__":
 # //--------------------------------------------
     elif mode == 'EFT':
         # POIs=[opts['wc']] #Single operator
-        POIs = opts['wcs'] #Multiple operators
 
+        #-- Create Combine Workspace
         fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
 
-        fitter.bestFitEFT(params_POI=POIs, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL)
+        #-- Maximum Likelihood Fit
+        fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
 
+        #-- Likelihood Scan
         if not fixedPointNLL:
-            if scan_dim=='1D': fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb)
-            elif scan_dim=='2D': fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb)
+            if scan_dim=='1D':
+                param_tmp = [opts['wc']]
+                if len(POI) == 1: param_tmp = POI #use command-line arg
+                fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb, freeze=freeze)
+                fitter.printIntervalFitsEFT(basename='.EFT', scan_params=[opts['wc']])
+            elif scan_dim=='2D':
+                param_tmp = [opts['wcs']]
+                if len(POI) == 2: param_tmp = POI #use command-line arg
+                fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb, freeze=freeze)
 
-        #fitter.printIntervalFitsEFT(basename='.EFT')
+        #-- OTHERS
         # fitter.batch1DScanEFT() # Freeze other WCs
         # fitter.batchRetrieve1DScansEFT()
         # fitter.getBestValues1DEFT()

@@ -13,8 +13,8 @@ int main(int argc, char **argv)
     v_processes.push_back("EFT");
     v_processes.push_back("SM");
 
-    TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
-    // TString lumiYear = "Run2"; //'2016,'2017','2018','Run2'
+    // TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
+    TString lumiYear = "Run2"; //'2016,'2017','2018','Run2'
 
     bool superimpose_allNodes_DNN = false; //true <-> will plot 1 ROC per process class (for DNN only)
 
@@ -47,20 +47,6 @@ int main(int argc, char **argv)
     v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt.root");
     v_Filelabel.push_back("Z_pt");
     v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_lep3_phi.root");
-    // v_Filelabel.push_back("lep3_phi");
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw1.root");
-    // v_Filelabel.push_back("NN 5");
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_ctw-5.root");
-    // v_Filelabel.push_back("NN -5");
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
-    // v_filepath.push_back("../outputs/NN_"+v_processes[0]+"_"+lumiYear+"_recoZ_Pt_ctw1.root");
-    // v_Filelabel.push_back("Zpt 5");
-    // v_isTMVA_file.push_back("Keras"); v_isTrainSample.push_back(false);
 
     // for(int i=-5; i<=5; i++)
     // {

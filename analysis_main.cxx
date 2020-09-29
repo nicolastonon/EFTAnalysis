@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq' or 'ttZ'
     TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
-    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = true; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
     bool use_SManalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
@@ -25,18 +25,18 @@ int main(int argc, char **argv)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
-    bool use_specificMVA_eachYear = true; //true <-> look for year-specific MVA weight files
+    bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
     bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
-        int categorization_strategy = 0; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers; 2 <-> apply multi-classifier in merged SR; 0 <-> testing: read tmp MVA, no categ.
+        int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers (events passing the cut fall into SRtZq/SRttZ, others into CR); 2 <-> apply multi-classifier in merged SR (events fall into SRtZq/SRttZ/CR based on max node); 0 <-> testing: read tmp MVA, no categ. (retain all events, can't use multiple nodes simultaneously)
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
     bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
-        TString operator1 = "ctw"; //First operator to scan (required)
+        TString operator1 = "ctz"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
-        vector<float> v_WCs_operator_scan1 = {-4,-2,-1,0,1,2,4}; //Grid points for first operator (required)
+        vector<float> v_WCs_operator_scan1 = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
@@ -66,9 +66,9 @@ int main(int argc, char **argv)
 //NB : years must be placed in the right order !
 
 	vector<TString> set_lumi_years;
-    // set_lumi_years.push_back("2016");
+    set_lumi_years.push_back("2016");
     set_lumi_years.push_back("2017");
-    // set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -131,17 +131,18 @@ int main(int argc, char **argv)
     // thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
     // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
     // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
+
     // thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
     // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+    // thesamplelist.push_back("PrivMC_tZq_v3"); thesamplegroups.push_back("PrivMC_tZq_v3");
     // thesamplelist.push_back("PrivMC_tZq_TOP19001"); thesamplegroups.push_back("PrivMC_tZq_TOP19001");
 
     //DATA (single sample, in first position)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
-    //Private MC production including EFT weights
+    //Private MC production including EFT weights //Should be stored as separate sample groups (don't merge)
     if(include_PrivMC_samples)
     {
-        // thesamplelist.push_back("PrivMC_tZq_v2"); thesamplegroups.push_back("PrivMC_tZq");
         thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
         thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
     }
@@ -177,15 +178,15 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
 
     //X+g
-    thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("Xg");
-    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("Xg");
-    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("Xg");
-    thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("Xg");
+    thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("Vg");
+    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("Vg");
+    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("Vg");
+    thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("Vg");
 
     //NPL (Fakes)
     if(use_DD_NPL) //Data-driven
     {
-        thesamplelist.push_back("NPL"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("NPL_DATA"); thesamplegroups.push_back("NPL");
         thesamplelist.push_back("NPL_MC"); thesamplegroups.push_back("NPL"); //Substract prompt MC contribution from AR
     }
     else //MC
@@ -326,7 +327,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -334,7 +335,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -342,8 +343,6 @@ int main(int argc, char **argv)
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;
-
-    bool make_ROC_plot = true; //FIXME
 
 //-----------------    OTHER
 
@@ -418,10 +417,17 @@ int main(int argc, char **argv)
         if(plot_EFTscan_eachPoint && scanOperators_paramNN)
         {
             float* ymax_fixed1 = new float; float* ymax_fixed2 = new float; bool store_ymax_fixed = true;
-            for(int ipt=0; ipt<v_WCs_operator_scan1.size(); ipt++)
+            for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
             {
-                theAnalysis->Draw_Templates(false, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, template_name, prefit, use_combine_file, operator1+"_"+v_WCs_operator_scan1[ipt],store_ymax_fixed, ymax_fixed1, ymax_fixed2); //chosen channel
-                store_ymax_fixed = false;
+                for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                {
+                    TString EFTpoint = operator1+"_"+Convert_Number_To_TString(v_WCs_operator_scan1[iop1]);
+                    if(operator2=="" && iop2>0) {break;} //Only loop on 1 operator
+                    else if(operator2!="") {EFTpoint+= "_" + operator2 + "_" + Convert_Number_To_TString(v_WCs_operator_scan2[iop2]);}
+
+                    theAnalysis->Draw_Templates(false, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, template_name, prefit, use_combine_file, EFTpoint, store_ymax_fixed, ymax_fixed1, ymax_fixed2); //chosen channel
+                    store_ymax_fixed = false;
+                }
             }
             delete ymax_fixed1; ymax_fixed1 = NULL; delete ymax_fixed2; ymax_fixed2 = NULL;
         }
@@ -457,8 +463,6 @@ int main(int argc, char **argv)
     //#############################################
 
     if(compare_template_shapes) {theAnalysis->Compare_TemplateShapes_Processes(template_name, plotChannel);}
-
-    if(make_ROC_plot) {theAnalysis->Make_ROC_fromTemplateFile(template_name);}
 
     //#############################################
     //  FINALIZE

@@ -41,30 +41,30 @@ nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 # evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-# evalPoint = "rwgt_ctz_5"
+evalPoint = "rwgt_ctz_5"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
-evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_ctw_5"
 # evalPoint = "rwgt_cpqm_5"
 # evalPoint = "rwgt_cpq3_5"
-# evalPoint = "rwgt_cpt_5"
+# evalPoint = "rwgt_cpt_15"
 # evalPoint = "rwgt_ctz_5_ctw_5"
 # evalPoint = "rwgt_ctZ_3_ctW_3_cpQM_3_cpQ3_3_cpt_3"
 
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-# list_points_sampling.append("rwgt_ctz_5")
+list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-list_points_sampling.append("rwgt_ctw_3")
+# list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
-# list_points_sampling.append("rwgt_cpqm_5")
-# list_points_sampling.append("rwgt_cpq3_5")
-# list_points_sampling.append("rwgt_cpt_5")
+# list_points_sampling.append("rwgt_cpqm_15")
+# list_points_sampling.append("rwgt_cpq3_15")
+# list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
@@ -519,9 +519,9 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
         if ymax != -1: plt.ylim([0.,ymax])
         elif scan: ymax = ax.get_ylim()[1] #Save ymax <-> keep same axis for all plots in scan
 
-        if inode == 0 and scan is False:
-            timer.start()
-            plt.show()
+        # if inode == 0 and scan is False:
+        #     timer.start()
+        #     plt.show()
 
         plotname = standaloneValDir + 'Overtraining_NN_' + list_labels[inode]
         if scan: plotname+= '_' + operator_scan + '_' + str(WCs[idx_WC]).replace('.0','')

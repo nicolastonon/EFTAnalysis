@@ -37,7 +37,6 @@ void TH1EFT::SetBins(Int_t nx, Double_t xmin, Double_t xmax)
 Bool_t TH1EFT::Add(const TH1 *h1, Double_t c1)
 {
     // check whether the object pointed to inherits from (or is a) TH1EFT:
-    // if (true) { //Obtain class with IsA(), check if inherits from TH1EFT
     if (h1->IsA()->InheritsFrom(TH1EFT::Class())) { //Obtain class with IsA(), check if inherits from TH1EFT //should not work without ClassDef/ClassImp... ?
         if (this->hist_fits.size() == ((TH1EFT*)h1)->hist_fits.size()) {
             for (unsigned int i = 0; i < this->hist_fits.size(); i++) {
