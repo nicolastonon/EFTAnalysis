@@ -4,7 +4,7 @@ using namespace std;
 
 //--------------------------------------------
 // ##    ## #### ######## ##       ########     ########    ###    ########  ##       ########
-//  ##  ##   ##  ##       ##       ##     ##       ##      ## ##   ##     ## ##       ##
+//  ##  ##   ##  ##       ##       ##     3##       ##      ## ##   ##     ## ##       ##
 //   ####    ##  ##       ##       ##     ##       ##     ##   ##  ##     ## ##       ##
 //    ##     ##  ######   ##       ##     ##       ##    ##     ## ########  ##       ######
 //    ##     ##  ##       ##       ##     ##       ##    ######### ##     ## ##       ##
@@ -536,11 +536,11 @@ int main(int argc, char **argv)
     v_samples.push_back("WWW"); v_label.push_back("VV");
     v_samples.push_back("WWZ"); v_label.push_back("VV");
 
-    v_samples.push_back("TTGamma_Dilep"); v_label.push_back("Xg");
-    v_samples.push_back("tGJets"); v_label.push_back("Xg");
-    v_samples.push_back("WGToLNuG"); v_label.push_back("Xg");
-    v_samples.push_back("ZGToLLG_01J"); v_label.push_back("Xg");
-    v_samples.push_back("ggToZZTo4l"); v_label.push_back("Xg");
+    v_samples.push_back("TTGamma_Dilep"); v_label.push_back("XG");
+    v_samples.push_back("tGJets"); v_label.push_back("XG");
+    v_samples.push_back("WGToLNuG"); v_label.push_back("XG");
+    v_samples.push_back("ZGToLLG_01J"); v_label.push_back("XG");
+    v_samples.push_back("ggToZZTo4l"); v_label.push_back("XG");
 
     //MC nonprompt fakes
     v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");
@@ -568,7 +568,7 @@ int main(int argc, char **argv)
     v_samples.push_back("WZ"); v_label.push_back("WZ");
     v_samples.push_back("tX"); v_label.push_back("tX");
     v_samples.push_back("VVV"); v_label.push_back("VVV");
-    v_samples.push_back("Vg"); v_label.push_back("Vg");
+    v_samples.push_back("Xg"); v_label.push_back("Xg");
     v_samples.push_back("NPL"); v_label.push_back("NPL");
     */
 

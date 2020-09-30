@@ -530,7 +530,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 
     Write_Timestamp_toLogfile(weightDir, 0)
-    Dump_NN_Options_toLogFile(opts, weightDir)
+    Dump_NN_Options_toLogFile(opts, weightDir) #Write user-options to dedicated logfile
 
     return lumiName, weightDir, h5modelName, ntuplesDir, opts["batchSize"], list_features
 

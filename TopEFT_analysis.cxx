@@ -1,6 +1,3 @@
-//IDEA1: very slow to merge/split histos for huge file... could merge directly when making templates directly (fill second vector in parallel for group); + boolean to decide whether to fill/store single-sample templates ? Must adapt draw func //Would make sense, since for drawing postfit we only consider sample groups
-//OR could merge samples directly by group in sub-ntuples... ? Then read sample groups directly
-
 //-- by Nicolas Tonon (DESY) --//
 
 //--- LIST OF FUNCTIONS (for quick search) :
@@ -134,7 +131,6 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     }
     // cout<<"dir_ntuples : "<<dir_ntuples<<endl;
 
-    //FIXME
     //-- To considerably speed-up the usual AN workflow, use [Split_AllNtuples_ByCategory] code to 1) split full ntuples by sub-categories, 2) merge all samples which belong to same sample groups
     //---> if found, will only use these 'optimized' ntuples <-> update the member lists accordingly
     this->use_optimized_ntuples = false;
@@ -148,7 +144,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         sample_list.clear();
         for(int igroup=0; igroup<sample_groups.size(); igroup++)
         {
-            if(igroup > 0 && sample_groups[igroup]==sample_groups[igroup-1]) //Group already considered --> Skip
+            if(igroup > 0 && sample_groups[igroup]==sample_groups[igroup-1]) {continue;} //Group already considered --> Skip
             sample_list.push_back(sample_groups[igroup]); //Add sample group
         }
         sample_groups = sample_list;
@@ -162,6 +158,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 	Get_Samples_Colors(color_list, v_custom_colors, sample_list, sample_groups, color_scheme); //Read hard-coded sample colors
 
 	this->classifier_name = classifier_name;
+    if(classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Warning : classifier_name value ["<<classifier_name<<"] not supported !"))<<endl;}
 
 	plot_extension = theplotextension;
 
@@ -844,7 +841,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 //--- OPTIONS --------------------------------
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU-time)
-    int nentries_max = -1; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
+    int nentries_max = 1000; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
     bool doNot_storeWCFit_PrivSamples = false; //true <-> for PrivMC samples, don't store WCFit objects (only e.g. the SM point) --> Much faster
 //--------------------------------------------
 //--------------------------------------------
@@ -959,10 +956,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	TFile* file_input = NULL;
 	TTree* tree = NULL;
 
-    //Define ranges of jet/bjets multiplciities -- for 'categ' templates only
+    //Define ranges of jet/bjets multiplciities -- for 'categ' templates only //FIXME
     int nbjets_min=1, nbjets_max=2, njets_min=2, njets_max=6;
 
-	//Template binning
+	//Template binning //FIXME
     nbins = 15;
 	double xmin = -1, xmax = 1; //BDT: [-1,1]
     if(template_name == "NN") //NN: [0,1]
@@ -1045,11 +1042,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             else if(template_name == "NN") //Read NN info and weights
             {
                 //-- Get path of NN info text file --> Read list of input variables (and more)
-                var_list_NN.resize(0); NN_iMaxNode = -1; NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; NN_nNodes = -1;
+                var_list_NN.resize(0); NN_iMaxNode = -1; NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; NN_nNodes = -1; minmax_bounds.clear();
                 TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[iyear], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, categorization_strategy);
                 if(NNinfo_input_path == "") {return;} //MVA file not found
 
-                if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, &NN_strategy)) {clfy1 = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
+                if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds, &NN_strategy)) {clfy1 = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
+                else {return;} //Error: missing NN infos
 
                 if(this->scanOperators_paramNN && NN_strategy != "MVA_param") {cout<<BOLD(FRED("ERROR ! You have set [scanOperators_paramNN=true] to scan over EFT operators, but you are reading a non-parametrized MVA ! Please fix this ! Aborting..."))<<endl; return;}
                 else if(this->scanOperators_paramNN && template_name != "NN") {cout<<BOLD(FRED("ERROR ! You have set [scanOperators_paramNN=true] to scan over EFT operators, but you have selected 'template_name != NN' (MVA scan only makes sense for parametrized NN) ! Please fix this ! Aborting..."))<<endl; return;}
@@ -1065,12 +1063,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         TString MVA_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, false, categorization_strategy);
                         if(MVA_input_path == "") {return;} //MVA file not found
 
-                        var_list_NN2.resize(0); NN2_iMaxNode = -1; NN2_strategy = ""; NN2_inputLayerName = ""; NN2_outputLayerName = ""; NN2_nNodes = -1;
                         TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, true, categorization_strategy);
                         if(NNinfo_input_path == "") {return;} //MVA file not found
 
                         //-- Read info file for second NN //NB: it is assumed that the NN strategy (e.g. parametrized NN) is the same as for the first NN !
-                        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN2, v_NN2_nodeLabels, NN2_inputLayerName, NN2_outputLayerName, NN2_iMaxNode, NN2_nNodes)) {clfy2 = new TFModel(MVA_input_path.Data(), var_list_NN2.size(), NN2_inputLayerName.Data(), NN2_nNodes, NN2_outputLayerName.Data());} //Load neural network model
+                        var_list_NN2.resize(0); NN2_iMaxNode = -1; NN2_strategy = ""; NN2_inputLayerName = ""; NN2_outputLayerName = ""; NN2_nNodes = -1;
+                        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN2, v_NN2_nodeLabels, NN2_inputLayerName, NN2_outputLayerName, NN2_iMaxNode, NN2_nNodes, minmax_bounds2)) {clfy2 = new TFModel(MVA_input_path.Data(), var_list_NN2.size(), NN2_inputLayerName.Data(), NN2_nNodes, NN2_outputLayerName.Data());} //Load neural network model
+                        else {return;} //Error: missing NN infos
 
                         var_list_floats_2.resize(var_list_NN2.size());
 
@@ -1239,7 +1238,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		}
 
     		file_input = TFile::Open(inputfile, "READ");
-            cout<<endl<<FBLU("Opened file "<<inputfile<<" ...")<<endl<<endl;
+            cout<<endl<<FBLU("Opened file "<<inputfile<<" ...")<<endl;
 
             bool isPrivMC = false;
             vector<float> v_SWE; //Store Sums of Weights (SWE) for all reweight points -- for private MC samples only
@@ -1492,7 +1491,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         v3_TH1EFT_chan_syst_var[ichan].resize(syst_list.size());
     				}
 
-    				//Init TH1Fs
+    				//Init TH1Fs/TH1EFTs
     				for(int isyst=0; isyst<v3_histo_chan_syst_var[ichan].size(); isyst++)
     				{
                         v3_histo_chan_syst_var[ichan][isyst].resize(total_var_list.size());
@@ -1502,8 +1501,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     					{
     						if(makeHisto_inputVars && !Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax)) {cout<<FRED("Unknown variable name : "<<total_var_list[ivar]<<"! (include it in function Get_Variable_Range() in Helper.cxx)")<<endl; continue;} //Get binning for this input variable
 
-                            //-- Hard-coded template binnings
-                            int nbins_tmp = nbins; double xmin_tmp = xmin, xmax_tmp = xmax;
+                            //-- Update case-specific template binnings
+                            int nbins_tmp = nbins; float xmin_tmp = xmin, xmax_tmp = xmax;
                             if(use_SManalysis_strategy) {xmin_tmp = 0;}
 
                             if(!makeHisto_inputVars) //Templates
@@ -1516,7 +1515,28 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 }
                                 if(template_name.Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
                                 if(template_name.Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
-                            }
+
+                                //FIXME
+                                Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents);
+
+                                //Set binning according to min/max bounds read from NN info file (avoid empty bins at boundaries)
+                                if(template_name.Contains("NN") && make_SMvsEFT_templates_plots)
+                                {
+                                    // if() {xmin_tmp = minmax_bounds.first; xmax_tmp = minmax_bounds.second;}
+
+                                    if(use_predefined_EFT_strategy) //Special case: if we consider SRtZq/SRttZ/CR, need to use first NN for SRtZq templates & second NN for SRttZ templates //Hard-coded
+                                    {
+                                        if(total_var_list[ivar].Contains("tZq")) {xmin_tmp = Round_Float_toDecimal(minmax_bounds[0], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds[1], 0.1, false);}
+                                        else if(total_var_list[ivar].Contains("ttZ")) {xmin_tmp = Round_Float_toDecimal(minmax_bounds2[0], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds2[1], 0.1, false);}
+                                    }
+                                    else //Else, consider that the different variables correspond to the different nodes (>=1 if multiclass NN) --> Read min/max boundaries of each node and adapt binning accordingly !
+                                    {
+                                        // cout<<"total_var_list[ivar] "<<total_var_list[ivar]<<endl;
+                                        // cout<<"minmax_bounds.size() "<<minmax_bounds.size()<<endl;
+                                        xmin_tmp = Round_Float_toDecimal(minmax_bounds[ivar*2], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds[ivar*2+1], 0.1, false); //Read floats 0,1, then 2,3, etc. (correspond to min/max values for each node)
+                                    }
+                                }
+                            } //templates
 
                             // v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp); //Obsolete -- redundant for PrivMC
 
@@ -1531,7 +1551,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp);
                                 v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = NULL;
                             }
-    					}
+    					} //var
     				} //syst
     			} //chan
 
@@ -1573,7 +1593,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 }
 
                 // if(!draw_progress_bar) {cout<<endl<< "--- "<<sample_list[isample]<<" : Processing: " << tree->GetEntries() << " events" << std::endl;}
-                cout<<endl<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
+                cout<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
                 cout<<DIM("(path: "<<inputfile<<")")<<endl;
 
     			for(int ientry=0; ientry<nentries; ientry++)
@@ -2161,7 +2181,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		use_combine_file = false;
 		if(drawInputVars && !prefit) {cout<<"Error ! Can not draw postfit input vars yet !"<<endl; return;}
 	}
-    if(EFTpoint) {cout<<DIM("EFTpoint =  "<<EFTpoint<<"...")<<endl;}
+    if(EFTpoint != "") {cout<<DIM("EFTpoint =  "<<EFTpoint<<"")<<endl;}
 
 
 //  ####  ###### ##### #    # #####
@@ -2171,7 +2191,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 // #    # #        #   #    # #
 //  ####  ######   #    ####  #
 
-	//Can use 2 different files :
+	//Can use 2 diffuse_combine_fileerent files :
 	//- the files containing the template histograms, produced with this code (-> only prefit plots)
 	//- or, better, the file produced by Combine from the templates : contains the prefit distributions with total errors, and the postfit distribution
 	//If want postfit plots, must use the Combine file. If want prefit plots, can use both of them (NB : errors will be different)
@@ -2179,13 +2199,16 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     // TString cat_tmp = (region=="") ? "SR" : region+"Cat";
     TString cat_tmp = region;
 
+    bool use_predefined_EFT_strategy = false;
+    if(!drawInputVars && this->categorization_strategy > 0 && !this->use_SManalysis_strategy) {use_predefined_EFT_strategy = true;}
+
 	if(!prefit) {use_combine_file = true;}
 	if(drawInputVars && use_combine_file)
 	{
 		cout<<"-- Setting 'use_combine_file = false' !"<<endl;
 		use_combine_file = false;
 	}
-    else if(make_SMvsEFT_templates_plots && categorization_strategy > 0 && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
+    else if(use_predefined_EFT_strategy && make_SMvsEFT_templates_plots && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
 
 	//-- Want to plot ALL selected variables
 	vector<TString> total_var_list;
@@ -2206,7 +2229,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         {
             //-- Read the relevant NN info file, just to know if we are dealing with multiclass NN templates... !
             TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[0], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, this->categorization_strategy);
-            Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes);
+            if(!Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds)) {return;} //Error: missing NN infos
 
             for(int inode=0; inode<NN_nNodes; inode++) {total_var_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
         }
@@ -2253,6 +2276,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		TH1F* h_ttz = NULL; //Store ttZ shape
 		TH1F* h_sum_data = NULL; //Will store data histogram
 		vector<TH1F*> v_MC_histo; //Will store all MC histograms (1 TH1F* per MC sample)
+        TString data_histo_name = "";
 
 		TGraphAsymmErrors* g_data = NULL; //If using Combine file, data are stored in TGAE
 		TGraphAsymmErrors* g_tmp = NULL; //Tmp storing graph
@@ -2265,12 +2289,39 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		vector<double> v_eyl, v_eyh, v_exl, v_exh, v_x, v_y; //Contain the systematic errors (used to create the TGraphError)
 		int nofbins=-1;
 
-		vector<float> v_yield_sig, v_yield_bkg;
-
-        TString data_histo_name = "";
-
         vector<vector<TH1EFT*>> v2_th1eft(v_EFT_points.size()); //Store TH1EFT objects (inner: samples, outer: EFT points)
         vector<vector<TString>> v2_th1eft_labels(v_EFT_points.size()); //Corresponding names for legend (inner: samples, outer: EFT points)
+
+        //-- Combine file: histos stored in subdirs -- define dir name
+        TString dir_hist_prefix = "";
+        if(prefit) {dir_hist_prefix = "shapes_prefit/";}
+        else {dir_hist_prefix = "shapes_fit_s/";}
+
+        //-- Combine file: if divided full histos into individual bins for fit, will now need to re-combine all the bins into full templates
+        //-- First: check contents of the file to see whether templates were split or not
+        bool combineIndividualBins=false;
+        int nIndivBins = 2; //If templates are split per bins, there must be at least 2 bins --> will count how many exactly
+        if(use_combine_file)
+        {
+            TString var_tmp = total_var_list[ivar]; //Dummy variable following expected naming convention --> check if exists
+            if(channel_list[0] != "") {var_tmp+= "_" + channel_list[0];}
+            if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {var_tmp+= "_" + region;}
+            var_tmp+= "_" + v_lumiYears[0]; //Dummy year
+
+            // cout<<dir_hist_prefix<<"bin"+Convert_Number_To_TString(nIndivBins)+"_"<<var_tmp<<endl;
+            if(file_input->GetDirectory(dir_hist_prefix + "bin1_" + var_tmp)) {combineIndividualBins = true;} //Seems like we have fitted individual bins, so in this chode we'll need to combine them all together again //Look for dummy bin (must be present if templates are split per bins)
+            if(combineIndividualBins) //Now, need to infer from the file how many individual bins will need to be combined
+            {
+                while(file_input->GetDirectory(dir_hist_prefix + "bin"+Convert_Number_To_TString(nIndivBins)+"_" + var_tmp))
+                {
+                    nIndivBins++;
+                }
+                nIndivBins--; //Last bin was not found --> update total nof bins
+                // cout<<"nIndivBins "<<nIndivBins<<endl;
+            }
+        }
+
+        float bin_width = -1; //Get bin width of histograms for current variable
 
         //-- All histos are for given lumiYears and sub-channels --> Need to sum them all for plots
         for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
@@ -2296,16 +2347,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				else {continue;}
     			}
 
-    			//Combine file : histos stored in subdirs -- define dir name
-    			TString dir_hist = "";
-    			if(prefit) {dir_hist = "shapes_prefit/";}
-    			else {dir_hist = "shapes_fit_s/";}
-                dir_hist+= template_name;
-                // dir_hist+= classifier_name + template_name;
-                if(cat_tmp != "") {dir_hist+= "_" + cat_tmp;}
-    			if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan];} //for combine file
+    			//Combine file : histos stored in subdirs -- define dir name //Only used if dealing with 'full' templates
+    			TString dir_hist = dir_hist_prefix + total_var_list[ivar];
+                if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan];}
+                if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {dir_hist+= "_" + region;}
                 dir_hist+= "_" + v_lumiYears[iyear] + "/";
-    			if(use_combine_file && !file_input->GetDirectory(dir_hist)) {cout<<FRED("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
+                if(use_combine_file && !combineIndividualBins && !file_input->GetDirectory(dir_hist) ) {cout<<ITAL(DIM("ERROR: directory '"<<dir_hist<<"' : not found ! Abort !"))<<endl; return;}
 
 
 // #    #  ####
@@ -2324,21 +2371,23 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     			{
     				int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
 
-    				//In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
-    				//If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
+    				//-- In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
+    				//-- If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
     				TString samplename = sample_list[isample];
     				if(use_combine_file)
     				{
     					if(isample > 0 && sample_groups[isample] == sample_groups[isample-1]) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //if same group as previous sample, skip it
-    					else {samplename = sample_groups[isample];}
+                        else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
+                        else {samplename = sample_groups[isample];}
     				}
 
-    				//Protections, special cases
+    				//-- Protections, special cases
     				if(sample_list[isample].Contains("DATA") ) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
-                    if(sample_list[isample].Contains("PrivMC"))  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //Only central samples get stacked, not private samples
+                    if(sample_list[isample].Contains("PrivMC") && (!use_combine_file || !make_SMvsEFT_templates_plots))  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //Only central samples get stacked, not private samples
                     if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element
 
-                    if(iyear==0 && !samplename.Contains("DATA")) //Add sample name to list (used for legend)
+                    //-- Add sample name to list (used for legend) //NB: add even if histo was not found and skipped, because expect that it will be found for some other year/channel/... But if not found at all, legend will be wrong
+                    if(iyear==0 && !samplename.Contains("DATA"))
                     {
                         if(v_MC_histo.size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
                         // cout<<"v_MC_histo.size() "<<v_MC_histo.size()<<" / index_MC_sample "<<index_MC_sample<<" / MC_samples_legend.size() "<<MC_samples_legend.size()<<endl;
@@ -2348,26 +2397,53 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
 
     				h_tmp = 0;
-
     				TString histo_name = "";
-    				if(use_combine_file) {histo_name = dir_hist + samplename;}
-    				else
-    				{
-    					histo_name = total_var_list[ivar];
-	                    if(channel != "") {histo_name+= "_" + channel;}
-                        if(region != "" && !drawInputVars && !categorization_strategy) {histo_name+= "_" + region;}
-                        if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
-    					histo_name+= + "_" + v_lumiYears[iyear];
-                        histo_name+= + "__" + samplename;
+                    if(use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
+                    {
+                        int nbins_tmp; float xmin_tmp, xmax_tmp;
+                        Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents);
+
+                        if(!drawInputVars && template_name.Contains("NN") && make_SMvsEFT_templates_plots) {xmin_tmp = 0; xmax_tmp = nIndivBins;} //NN template range may have been auto-adapted based on the NN info (to avoid empty bins at boundaries), or it may have been 'discarded' voluntarily if we split the template into individual bins; since this info can't be propagated through Combine fit, we can't infer the initial range here --> Need to hardcode it case-by-case !
+
+                        h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+                        for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                        {
+                            // cout<<"ibin "<<ibin<<endl;
+                            TString dir_hist_tmp = dir_hist_prefix + "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar];
+                            if(channel_list[ichan] != "") {dir_hist_tmp+= "_" + channel_list[ichan];}
+                            if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {dir_hist_tmp+= "_" + region;}
+                            dir_hist_tmp+= "_" + v_lumiYears[iyear] + "/";
+
+                            // cout<<"dir_hist_tmp/samplename "<<dir_hist_tmp<<samplename<<endl;
+                            if(!file_input->GetDirectory(dir_hist_tmp) || !file_input->GetDirectory(dir_hist_tmp)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist_tmp<<"' or histogram '"<<dir_hist_tmp<<samplename<<"' not found ! Skip...")<<endl; continue;}
+                            h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist_tmp+samplename))->GetBinContent(1)); //Get content/error from individual bin
+                            h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist_tmp+samplename))->GetBinError(1));
+                            // cout<<"h_tmp->GetBinContent(1) "<<h_tmp->GetBinContent(1)<<endl;
+                            // cout<<"h_tmp->GetBinError(1) "<<h_tmp->GetBinError(1)<<endl;
+                        }
+                    }
+                    else //Get 'full' templates directly
+                    {
+                        if(use_combine_file) {histo_name = dir_hist + samplename;}
+                        else
+                        {
+                            histo_name = total_var_list[ivar];
+                            if(channel != "") {histo_name+= "_" + channel;}
+                            if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {histo_name+= "_" + region;}
+                            if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
+                            histo_name+= "_" + v_lumiYears[iyear];
+                            histo_name+= "__" + samplename;
+                        }
+
+                        if(use_combine_file && !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                        else if(!use_combine_file && !file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+
+                        h_tmp = (TH1F*) file_input->Get(histo_name);
+                        // cout<<"histo_name "<<histo_name<<endl;
+                        // cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
     				}
 
-    				if(use_combine_file && !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
-    				else if(!use_combine_file && !file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
-
-    				h_tmp = (TH1F*) file_input->Get(histo_name);
-    				// cout<<"histo_name "<<histo_name<<endl;
-    	            // cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
-
+                    if(bin_width < 0) {bin_width = h_tmp->GetXaxis()->GetBinWidth(1);}
     				if(draw_errors)
     				{
     					//Initialize error vectors (only once at start)
@@ -2377,7 +2453,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     						for(int ibin=0; ibin<nofbins; ibin++)
     						{
     							v_eyl.push_back(0); v_eyh.push_back(0);
-    							v_exl.push_back(h_tmp->GetXaxis()->GetBinWidth(ibin+1) / 2); v_exh.push_back(h_tmp->GetXaxis()->GetBinWidth(ibin+1) / 2);
+                                v_exl.push_back(bin_width / 2); v_exh.push_back(h_tmp->GetXaxis()->GetBinWidth(ibin+1) / 2);
+                                // v_exl.push_back(h_tmp->GetXaxis()->GetBinWidth(ibin+1) / 2); v_exh.push_back(h_tmp->GetXaxis()->GetBinWidth(ibin+1) / 2);
     							v_x.push_back( (h_tmp->GetXaxis()->GetBinLowEdge(nofbins+1) - h_tmp->GetXaxis()->GetBinLowEdge(1) ) * ((ibin+1 - 0.5)/nofbins) + h_tmp->GetXaxis()->GetBinLowEdge(1));
     							v_y.push_back(0);
     						}
@@ -2450,21 +2527,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     					} //use combine file?
     				} //draw errors?
 
-                    //-- obsolete ?
-    				// if(!samplename.Contains("DATA") )
-    				// {
-    				// 	if(v_MC_histo.size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
-    				// }
-
-
- //  ####   ####  #       ####  #####   ####
- // #    # #    # #      #    # #    # #
- // #      #    # #      #    # #    #  ####
- // #      #    # #      #    # #####       #
- // #    # #    # #      #    # #   #  #    #
- //  ####   ####  ######  ####  #    #  ####
-
-    				//Use color vector filled in main()
+    				//-- Set histo style (use color vector filled in main) //NB: run for all sub-histos... for simplicity
+                    //---------------------------------------------------
     				h_tmp->SetFillStyle(1001);
     				if(samplename == "Fakes") {h_tmp->SetFillStyle(3005);}
     		        else if(samplename == "QFlip" ) {h_tmp->SetFillStyle(3006);}
@@ -2485,26 +2549,14 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     					}
     					else {break;}
     				}
-
                     if(region == "tWZ" && samplename == "tWZ") {h_tmp->SetFillColor(kBlue);} //Different color
+                    //---------------------------------------------------
 
-    				// v_MC_histo.push_back((TH1F*) h_tmp->Clone());
-    				if(v_MC_histo.size() <=  index_MC_sample) {v_MC_histo.push_back((TH1F*) h_tmp->Clone());}
-    				else if(!v_MC_histo[index_MC_sample]) {v_MC_histo[index_MC_sample] = (TH1F*) h_tmp->Clone();} //For FakeEle and FakeMu
-    				else {v_MC_histo[index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
-
+                    //-- Fill vector of MC histograms
+                    if(v_MC_histo.size() <=  index_MC_sample) {v_MC_histo.push_back((TH1F*) h_tmp->Clone());}
+                    else if(!v_MC_histo[index_MC_sample]) {v_MC_histo[index_MC_sample] = (TH1F*) h_tmp->Clone();} //For FakeEle and FakeMu
+                    else {v_MC_histo[index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
                     v_MC_histo[index_MC_sample]->SetDirectory(0); //Dis-associate histo from TFile
-
-    				if(channel_list[ichan] == "")
-    				{
-    					if(v_yield_sig.size() == 0) {v_yield_sig.resize(h_tmp->GetNbinsX()); v_yield_bkg.resize(h_tmp->GetNbinsX());}
-
-    					for(int ibin=0; ibin<h_tmp->GetNbinsX(); ibin++)
-    					{
-    						if(sample_list[isample].Contains(signal_process) ) {v_yield_sig[ibin]+= h_tmp->GetBinContent(ibin+1);}
-    						else {v_yield_bkg[ibin]+= h_tmp->GetBinContent(ibin+1);}
-    					}
-    				}
 
     				// cout<<"sample : "<<sample_list[isample]<<" / color = "<<color_list[isample]<<" fillstyle = "<<h_tmp->GetFillStyle()<<endl;
     				// cout<<"index_MC_sample "<<index_MC_sample<<endl;
@@ -2513,8 +2565,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
     				delete h_tmp; h_tmp = NULL;
     			} //end sample loop
-    		} //channel loop
-        // } //years loop
 
 
 // #####    ##   #####   ##
@@ -2524,37 +2574,42 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 // #    # #    #   #   #    #
 // #####  #    #   #   #    #
 
-    		if(use_combine_file) {data_histo_name = "data";}
-    		else
-    		{
-                data_histo_name = total_var_list[ivar];
-                if(channel != "") {data_histo_name+= "_" + channel;}
-                if(region != "" && !drawInputVars && !categorization_strategy) {data_histo_name+= "_" + region;}
-                if(EFTpoint != "") {data_histo_name+= "_" + EFTpoint;}
-    			data_histo_name+= "_" + v_lumiYears[iyear];
-                data_histo_name+= "__data_obs";
-    		}
+                if(use_combine_file)
+                {
+                    if(combineIndividualBins) //Build 'full' template from individual bins
+                    {
+                        double theErrorX_h[nIndivBins];
+            			double theErrorY_h[nIndivBins];
+            			double theErrorX_l[nIndivBins];
+            			double theErrorY_l[nIndivBins];
+            			double theY[nIndivBins];
+            			double theX[nIndivBins];
 
-    		if(use_combine_file)
-    		{
-    			for(int ichan=0; ichan<channel_list.size(); ichan++) //With combine file, to get inclusive plot, must sum all sub-categories
-    			{
-    				if(channel != "" && channel_list[ichan] != channel) {continue;}
+                        for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                        {
+                            // cout<<"ibin "<<ibin<<endl;
+                            TString dir_hist_tmp = dir_hist_prefix + "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar];
+                            if(channel_list[ichan] != "") {dir_hist_tmp+= "_" + channel_list[ichan];}
+                            if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {dir_hist_tmp+= "_" + region;}
+                            dir_hist_tmp+= "_" + v_lumiYears[iyear] + "/";
 
-    				//Combine file : histos stored in subdirs -- define dir name
-    				TString dir_hist = "";
-    				if(prefit) {dir_hist = "shapes_prefit/";}
-    				else {dir_hist = "shapes_fit_s/";}
-                    if(cat_tmp != "") {dir_hist+= "_" + cat_tmp;}
-    				if(channel_list[ichan] != "") {dir_hist+= "_" + channel_list[ichan] + "/";} //for combine file
-                    dir_hist+= v_lumiYears[iyear] + "/";
-    				if(!file_input->GetDirectory(dir_hist)) {cout<<ITAL("Directory "<<dir_hist<<" not found ! Skip !")<<endl; continue;}
+                            // cout<<"dir_hist_tmp+samplename "<<dir_hist_tmp<<samplename<<endl;
+                            if(!file_input->GetDirectory(dir_hist_tmp) || !file_input->GetDirectory(dir_hist_tmp)->GetListOfKeys()->Contains("data") ) {cout<<FRED("Directory '"<<dir_hist_tmp<<"' or histogram '"<<dir_hist_tmp<<"data' not found ! Skip...")<<endl; continue;}
+                            TGraphAsymmErrors* g_tmp2 = (TGraphAsymmErrors*) file_input->Get(dir_hist_tmp+"data");
+                            Double_t x, y; g_tmp2->GetPoint(0, x, y); //Read y coordinate (x is irrelevant)
 
-    				if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("data")) {cout<<FRED(""<<dir_hist<<"data : not found ! Skip...")<<endl; continue;}
-
-    				data_histo_name = dir_hist + "data";
-    				// cout<<"data_histo_name "<<data_histo_name<<endl;
-    				g_tmp = (TGraphAsymmErrors*) file_input->Get(data_histo_name); //stored as TGraph
+                            theX[ibin-1] = ibin - bin_width/2.; theY[ibin-1] = y; //Set x/y coordinates for this point
+                            theErrorY_h[ibin-1] = g_tmp2->GetErrorYhigh(0); theErrorY_l[ibin-1] = g_tmp2->GetErrorYlow(0); //Set y-errors
+                            theErrorX_h[ibin-1] = 0; theErrorX_l[ibin-1] = 0; //Irrelevant
+                        }
+                        g_tmp = new TGraphAsymmErrors(nofbins,theX,theY,theErrorX_l,theErrorX_h,theErrorY_l,theErrorY_h); //Build full TGraph
+                    }
+                    else //Get 'full' templates directly
+                    {
+                        data_histo_name = dir_hist + "data";
+        				// cout<<"data_histo_name "<<data_histo_name<<endl;
+        				g_tmp = (TGraphAsymmErrors*) file_input->Get(data_histo_name); //stored as TGraph
+                    }
 
     				//Remove X-axis error bars, not needed for plot
     				for(int ipt=0; ipt<g_tmp->GetN(); ipt++)
@@ -2564,7 +2619,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				}
 
     				if(!g_data) {g_data = (TGraphAsymmErrors*) g_tmp->Clone();}
-    				else //Need to sum TGraphs content by hand //not anymore, 1 channel only !
+    				else //Need to sum TGraphs content by hand
     				{
     					double x_tmp,y_tmp,errory_low_tmp,errory_high_tmp;
     					for(int ipt=0; ipt<g_data->GetN(); ipt++)
@@ -2586,21 +2641,21 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     						// cout<<"ipt "<<ipt<<" / x2 "<<x_tmp<<" / y2 "<<y_tmp<<" / error2 "<<errory_low_tmp<<", "<<errory_high_tmp<<endl;
     						// cout<<"=> y1+y2 = "<<y+y_tmp<<" / error = "<<new_error_low<<", "<<new_error_high<<endl;
     					}
-    				}
-    			} //chan loop
-    		}
-    		else //If using template file made from this code
-    		{
-    			if(!file_input->GetListOfKeys()->Contains(data_histo_name)) {cout<<data_histo_name<<" : not found"<<endl;}
-    			else
-    			{
-    				h_tmp = (TH1F*) file_input->Get(data_histo_name);
-    				if(h_sum_data == NULL) {h_sum_data = (TH1F*) h_tmp->Clone();}
-    				else {h_sum_data->Add((TH1F*) h_tmp->Clone());} //not needed anymore (1 channel only)
-                    h_sum_data->SetDirectory(0); //Dis-associate from TFile
-    				delete h_tmp; h_tmp = NULL;
-    			}
-    		}
+                    }
+                    if(g_tmp) {delete g_tmp; g_tmp = NULL;}
+        		}
+        		else //If using template file made from this code
+        		{
+        			if(!file_input->GetListOfKeys()->Contains(data_histo_name)) {cout<<data_histo_name<<" : not found"<<endl;}
+        			else
+        			{
+        				h_tmp = (TH1F*) file_input->Get(data_histo_name);
+        				if(h_sum_data == NULL) {h_sum_data = (TH1F*) h_tmp->Clone();}
+        				else {h_sum_data->Add((TH1F*) h_tmp->Clone());} //not needed anymore (1 channel only)
+                        h_sum_data->SetDirectory(0); //Dis-associate from TFile
+        				delete h_tmp; h_tmp = NULL;
+        			}
+        		}
 
 
 // #####  #####  # #    #         ####    ##   #    # #####  #      ######
@@ -2610,74 +2665,101 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 // #      #   #  #  #  #  ###    #    # #    # #    # #      #      #
 // #      #    # #   ##   ###     ####  #    # #    # #      ###### ######
 
-            //-- Protection: if want to plot private SMEFT samples, make sure they are included in the main sample list
-            bool PrivMC_sample_found = false;
-            for(int isample=0; isample<sample_list.size(); isample++) {if(sample_list[isample].Contains("PrivMC")) {PrivMC_sample_found = true;}}
-            if(!PrivMC_sample_found) {superimpose_EFThist = false;}
+                //-- Protection: if want to plot private SMEFT samples, make sure they are included in the main sample list
+                //-- NB: if using Combine file, treat private SMEFT samples like central samples (included in stack); can't rescale & superimpose on plot, because Combine does not store TH1EFT objects !
+                bool PrivMC_sample_found = false;
+                for(int isample=0; isample<sample_list.size(); isample++) {if(sample_list[isample].Contains("PrivMC")) {PrivMC_sample_found = true;}}
+                if(!PrivMC_sample_found || use_combine_file) {superimpose_EFThist = false;} //Special case: if considering combine file for SM vs SM, private signals are not considered
 
-            if(superimpose_EFThist)
-            {
-                int icolor = 4; //Use different colors for each histo //Start from blue
-                for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
+                if(superimpose_EFThist)
                 {
-                    for(int isample=0; isample<v_EFT_samples.size(); isample++)
+                    int icolor = 4; //Use different colors for each histo //Start from blue
+                    for(int ipoint=0; ipoint<v_EFT_points.size(); ipoint++)
                     {
-                        // cout<<"isample "<<isample<<" / ipoint "<<ipoint<<endl;
-
-                        TH1EFT* th1eft_tmp = 0;
-
-                        TString histo_name = total_var_list[ivar];
-	                    if(channel != "") {histo_name+= "_" + channel;}
-                        if(region != "" && !drawInputVars && !categorization_strategy) {histo_name+= "_" + region;}
-                        if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
-    					histo_name+= "_" + v_lumiYears[iyear] + "__" + v_EFT_samples[isample];
-                        // cout<<"histo_name "<<histo_name<<endl;
-
-                        if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("TH1EFT object '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
-                        th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
-                        // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
-
-                        //Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
-                        WCPoint wcp = WCPoint((string) v_EFT_points[ipoint], 1.);
-                        th1eft_tmp->Scale(wcp);
-                        // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
-
-                        // th1eft_tmp->SetLineColor(kRed);
-                        th1eft_tmp->SetLineColor(icolor);
-                        icolor++; if(icolor==5) {icolor++;} //Update color and skip yellow
-                        th1eft_tmp->SetLineWidth(5);
-                        // th1eft_tmp->SetLineStyle(2); //Dashed
-
-                        if(iyear == 0 || v2_th1eft[ipoint].size() <= isample || v2_th1eft[ipoint][isample] == 0) //New point or sample --> Add new elements
+                        for(int isample=0; isample<v_EFT_samples.size(); isample++)
                         {
-                            v2_th1eft[ipoint].push_back(th1eft_tmp);
+                            // cout<<"isample "<<isample<<" / ipoint "<<ipoint<<endl;
 
-                            //-- Get/save corresponding label
-                            vector<pair<TString,float>> v = Parse_EFTreweight_ID(v_EFT_points[ipoint]);
-                            TString EFTpointlabel = "";
-                            for(int i=0; i<v.size(); i++)
+                            TH1EFT* th1eft_tmp = NULL;
+
+                            /* -- Irrelevant, but save for now
+                            if(use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
                             {
-                                if(v[i].second != 0)
+                                   th1eft_tmp = new TH1EFT("", "", nIndivBins, -9, -8);
+                                   for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                                   {
+                                       // cout<<"ibin "<<ibin<<endl;
+                                       TString dir_hist_tmp = dir_hist_prefix + "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar];
+                                       if(channel_list[ichan] != "") {dir_hist_tmp+= "_" + channel_list[ichan];}
+                                       if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {dir_hist_tmp+= "_" + region;}
+                                       dir_hist_tmp+= "_" + v_lumiYears[iyear] + "/";
+
+                                       // cout<<"dir_hist_tmp/samplename "<<dir_hist_tmp<<v_EFT_samples[isample]<<endl;
+                                       if(!file_input->GetDirectory(dir_hist_tmp) || !file_input->GetDirectory(dir_hist_tmp)->GetListOfKeys()->Contains(v_EFT_samples[isample]) ) {cout<<FRED("Directory '"<<dir_hist_tmp<<"' or histogram '"<<dir_hist_tmp<<v_EFT_samples[isample]<<"' not found ! Skip...")<<endl; continue;}
+                                       th1eft_tmp->SetBinContent(ibin, ((TH1EFT*) file_input->Get(dir_hist_tmp+v_EFT_samples[isample]))->GetBinContent(ibin));
+                                       th1eft_tmp->SetBinError(ibin, ((TH1EFT*) file_input->Get(dir_hist_tmp+v_EFT_samples[isample]))->GetBinError(ibin));
+                                       // th1eft_tmp->Set_WCFit_Bin(ibin, ((TH1EFT*) file_input->Get(dir_hist_tmp+v_EFT_samples[isample]))->GetBinFit(ibin));
+
+                                       // cout<<"th1eft_tmp->GetBinContent(1) "<<th1eft_tmp->GetBinContent(1)<<endl;
+                                       // cout<<"th1eft_tmp->GetBinError(1) "<<th1eft_tmp->GetBinError(1)<<endl;
+                                   }
+                            }*/
+
+                            TString histo_name = total_var_list[ivar];
+                            if(channel != "") {histo_name+= "_" + channel;}
+                            if(region != "" && !drawInputVars && !use_predefined_EFT_strategy) {histo_name+= "_" + region;}
+                            if(EFTpoint != "") {histo_name+= "_" + EFTpoint;}
+                            histo_name+= "_" + v_lumiYears[iyear];
+                            histo_name+= "__" + v_EFT_samples[isample];
+                            if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+
+                            th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
+                            // cout<<"histo_name "<<histo_name<<endl;
+                            // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
+
+                            //Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
+                            WCPoint wcp = WCPoint((string) v_EFT_points[ipoint], 1.);
+                            th1eft_tmp->Scale(wcp);
+                            // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
+
+                            // th1eft_tmp->SetLineColor(kRed);
+                            th1eft_tmp->SetLineColor(icolor);
+                            icolor++; if(icolor==5) {icolor++;} //Update color and skip yellow
+                            th1eft_tmp->SetLineWidth(5);
+                            // th1eft_tmp->SetLineStyle(2); //Dashed
+
+                            if(iyear == 0 || v2_th1eft[ipoint].size() <= isample || v2_th1eft[ipoint][isample] == 0) //New point or sample --> Add new elements
+                            {
+                                v2_th1eft[ipoint].push_back(th1eft_tmp);
+
+                                //-- Get/save corresponding label
+                                vector<pair<TString,float>> v = Parse_EFTreweight_ID(v_EFT_points[ipoint]);
+                                TString EFTpointlabel = "";
+                                for(int i=0; i<v.size(); i++)
                                 {
-                                    if(EFTpointlabel != "") {EFTpointlabel+= ",";}
-                                    EFTpointlabel+= v[i].first + "=" + v[i].second;
+                                    if(v[i].second != 0)
+                                    {
+                                        if(EFTpointlabel != "") {EFTpointlabel+= ",";}
+                                        EFTpointlabel+= v[i].first + "=" + v[i].second;
+                                    }
                                 }
+                                if(EFTpointlabel == "") {EFTpointlabel = "SM";}
+                                // cout<<"EFTpointlabel "<<EFTpointlabel<<endl;
+
+                                std::vector<std::string> words;
+                                split_string((string) v_EFT_samples[isample], words, "_");
+                                TString leg_name = words.at(1) + " ("+EFTpointlabel+")";
+                                // TString leg_name = "#splitline{"+words.at(1)+"}{("+EFTpointlabel+")}"; //Process name + EFT point //Split over 2 lines
+                                v2_th1eft_labels[ipoint].push_back(leg_name);
                             }
-                            if(EFTpointlabel == "") {EFTpointlabel = "SM";}
-                            // cout<<"EFTpointlabel "<<EFTpointlabel<<endl;
+                            else {v2_th1eft[ipoint][isample]->Add(th1eft_tmp);} //Sum different years together
 
-                            std::vector<std::string> words;
-                            split_string((string) v_EFT_samples[isample], words, "_");
-                            TString leg_name = words.at(1) + " ("+EFTpointlabel+")";
-                            // TString leg_name = "#splitline{"+words.at(1)+"}{("+EFTpointlabel+")}"; //Process name + EFT point //Split over 2 lines
-                            v2_th1eft_labels[ipoint].push_back(leg_name);
-                        }
-                        else {v2_th1eft[ipoint][isample]->Add(th1eft_tmp);} //Sum different years together
+                            v2_th1eft[ipoint][isample]->SetDirectory(0); //Dis-associate from TFile
+                        } //sample loop
+                    } //EFT points loop
+                } //Superimpose private SMEFT histograms
 
-                        v2_th1eft[ipoint][isample]->SetDirectory(0); //Dis-associate from TFile
-                    } //sample loop
-                } //EFT points loop
-            } //Superimpose private SMEFT histograms
+            } //channels loop
         } //years loop
 
 //--------------------------------------------
@@ -2853,25 +2935,17 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
 		for(int i=0; i<v_MC_histo.size(); i++)
 		{
-            // cout<<"MC_samples_legend[i] "<<MC_samples_legend[i]<<endl;
+            // cout<<"MC_samples_legend["<<i<<"] "<<MC_samples_legend[i]<<endl;
 			if(!v_MC_histo[i]) {continue;} //Fakes templates can be null
 
-            //Decide here which sample are mentioned in the legend
             if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_MC_histo[i], "tZq", "f");}
             else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_MC_histo[i], "t#bar{t}Z", "f");}
             else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
-            else if(MC_samples_legend[i] == "ttW") {qw->AddEntry(v_MC_histo[i], "t(#bar{t})X", "f");}
+            else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_MC_histo[i], "t(#bar{t})X", "f");}
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
-            else if(MC_samples_legend[i] == "WWZ") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
-            else if(MC_samples_legend[i] == "TTGamma_Dilep") {qw->AddEntry(v_MC_histo[i], "X+#gamma", "f");}
+            else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
+            else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_MC_histo[i], "X+#gamma", "f");}
             else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
-            // else if(MC_samples_legend[i] == "ZZ4l") {qw->AddEntry(v_MC_histo[i], "ZZ", "f");}
-            // else if(MC_samples_legend[i] == "tHq") {qw->AddEntry(v_MC_histo[i], "tX", "f");}
-            // else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
-            // else if(MC_samples_legend[i] == "ttW") {qw->AddEntry(v_MC_histo[i], "t#bar{t}X", "f");}
-            // else if(MC_samples_legend[i] == "GammaConv") {qw->AddEntry(v_MC_histo[i], "#gamma-conv.", "f");}
-            // else if(MC_samples_legend[i] == "DY" ) {qw->AddEntry(v_MC_histo[i], "V+jets", "f");}
-            // else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "TTbar") {qw->AddEntry(v_MC_histo[i], "t#bar{t}", "f");}
 		}
 
         if(superimpose_EFThist)
@@ -2981,7 +3055,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             if(data_notEmpty) {ymax = g_data->GetY()[locmax];} //Data ymax
             if(ymax < stack_MC->GetMaximum()) {ymax = stack_MC->GetMaximum();} //MC ymax
 		}
-		else if(!use_combine_file)
+		else
 		{
             if(data_notEmpty) {ymax = h_sum_data->GetMaximum();} //Data ymax
             if(ymax < stack_MC->GetMaximum()) {ymax = stack_MC->GetMaximum();} //MC ymax
@@ -3679,7 +3753,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                     histo_name+= "_" + theyear;
                     histo_name+= "__" + samplename;
 
-        			if(!f->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
+        			if(!f->GetListOfKeys()->Contains(histo_name)) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
 
         			h_tmp = (TH1F*) f->Get(histo_name);
     				h_tmp->SetDirectory(0); //Dis-associate from TFile
@@ -4439,6 +4513,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
 void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString signal, TString classifier_name, TString tree_name, TString input_file_path, TString year, float cut_value, bool keep_aboveCut, bool use_specificMVA_eachYear, int categorization_strategy, bool MVA_EFT, int nentries_max, TString event_cat, bool also_applyCut_onMaxNodeValue, bool isFake)
 {
     cout<<endl<<FYEL("=== Filling vector with specific MVA information (pass/fail cut or max. node)... ")<<endl;
+    cout<<DIM("(File : "<<input_file_path<<")")<<endl;
 
     if(classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("ERROR: wrong [classifier_name] option !"))<<endl; return;}
 
@@ -4473,7 +4548,8 @@ void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         TString NNinfo_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, true, categorization_strategy);
         if(NNinfo_input_path == "") {return;} //MVA file not found
 
-        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes)) {clfy_tmp = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
+        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds)) {clfy_tmp = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
+        else {return;} //Error: missing NN infos
 
         var_list_tmp = var_list_NN;
         var_floats_tmp.resize(var_list_tmp.size());
@@ -4619,7 +4695,7 @@ void TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         var_list_NN.resize(0); NN_iMaxNode = -1; NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; NN_nNodes = -1;
         TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, this->signal_process, this->v_lumiYears[0], this->use_specificMVA_eachYear, this->make_SMvsEFT_templates_plots, true, this->categorization_strategy);
         if(NNinfo_input_path == "") {return;} //MVA file not found
-        if(!Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, &NN_strategy)) {cout<<"ERROR: MVA info not found ! Abort ! "<<endl; return;}
+        if(!Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds, &NN_strategy)) {cout<<"ERROR: MVA info not found ! Abort ! "<<endl; return;}
     }
 
     bool use_predefined_EFT_strategy = false;

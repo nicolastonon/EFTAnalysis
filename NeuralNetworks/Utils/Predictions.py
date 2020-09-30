@@ -30,7 +30,7 @@ from tensorflow.keras.models import load_model
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName):
+def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, savedModelName):
 
     # print('x_test:\n', x_test[:10]); print('y_test:\n', y_test[:10]); print('x_train:\n', x_train[:10]); print('y_train:\n', y_train[:10])
 
@@ -101,6 +101,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
 
     # print(list_xTest_allClasses[0][:15])
 
+
  #####  #####  ###### #####  #  ####  ##### #  ####  #    #  ####
  #    # #    # #      #    # # #    #   #   # #    # ##   # #
  #    # #    # #####  #    # # #        #   # #    # # #  #  ####
@@ -132,8 +133,8 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
     # print(model.predict(list_xTest_allClasses[0][:15]))
 
     #-- Get model predictions for all events, as found in lists created above #Other available functions are: predict_classes, predict_proba, ...
-    #Store predictions in 2D lists; 1st element = node ; 2nd element = class (e.g. 'tZq'/'ttZ', or 'SM'/'EFT')
-    #NB: from there, all automated validation plots should use these lists ! (<-> consistent event ordering in all lists, by construction)
+    #-- Store predictions in 2D lists; 1st element = node ; 2nd element = class (e.g. 'tZq'/'ttZ', or 'SM'/'EFT')
+    #-- NB: from there, all automated validation plots should use these lists ! (<-> consistent event ordering in all lists, by construction)
     list_predictions_train_allNodes_allClasses = []; list_predictions_test_allNodes_allClasses = []
     for inode in range(opts["nofOutputNodes"]):
         list_predictions_train_class = []; list_predictions_test_class = []
@@ -162,11 +163,7 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
         list_predictions_train_allNodes_allClasses.append(list_predictions_train_class)
         list_predictions_test_allNodes_allClasses.append(list_predictions_test_class)
 
-
-    # predictions_train = model.predict(x_train) #Too slow, not needed
-    # predictions_test = model.predict(x_test)
-
-    #- Modify all list elements at once
+    #-- Modify all list elements at once
     # list_yTest_allClasses[:] = [[0.5] * len(inner) for inner in list_yTest_allClasses[:]]
 
     # -- Printout of some predictions
@@ -187,5 +184,15 @@ def Apply_Model_toTrainTestData(opts, list_processClasses, list_labels, x_train,
     #                 true_label = list_labels[j]
     #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
     # print("--------------\n")
+
+    #-- NEW: also append to NN info file the min/max output values of the NN based on the train+test evaluation datasets (--> Can later adapt accordingly the template histogram boundaries to avoid empty bins)
+    text_file = open(weightDir + "NN_info.txt", "a+") #Append mode
+    for inode in range(opts["nofOutputNodes"]):
+        min_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
+        max_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
+        # print('min_prediction =', min_prediction)
+        # print('max_prediction =', max_prediction)
+        text_file.write('bounds'); text_file.write(' ' + str(min_prediction)); text_file.write(' ' + str(max_prediction)+'\n');
+    text_file.close()
 
     return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses

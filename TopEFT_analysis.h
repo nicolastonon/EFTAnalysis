@@ -140,6 +140,8 @@ class TopEFT_analysis
     std::vector<TString> var_list_NN; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     // std::vector<pair<float,float>> v_inputs_rescaling; //For now, can read rescaling params from NN info file to rescale input features on the fly
     int NN_iMaxNode; //Index of the multiclass DNN node for which a given event has its max value
+    std::vector<float> minmax_bounds; //Read the min/max prediction values evaluted by the NN (to adapt the template binning and avoid empty bins at boundaries)
+    // std::vector<pair<float,float>> minmax_bounds; //Read the min/max prediction values evaluted by the NN (to adapt the template binning and avoid empty bins at boundaries) for all nodes
 
     //-- Additional NN -- in case we need to read 2 NNs in the same function (e.g. to classify both SM vs SM and SM vs EFT)
     TString NN2_inputLayerName, NN2_outputLayerName, NN2_strategy; int NN2_nNodes = 1; //NN model params
@@ -147,6 +149,7 @@ class TopEFT_analysis
     std::vector<TString> var_list_NN2; //Input features of NN training may differ from those declared in 'analysis_main.cxx'
     int NN2_iMaxNode; //Index of the multiclass DNN node for which a given event has its max value
     std::vector<int> v_varIndices_inMVA1; //If we read 2 MVAs at once, store indices of MVA1 variables which are also used by MVA2 --> Get values from MVA1 floats (can set address only once, not twice)
+    std::vector<float> minmax_bounds2; //Read the min/max prediction values evaluted by the NN (to adapt the template binning and avoid empty bins at boundaries) for all nodes
 
     TString region; //Event category : "" / "tZq" / "ttZ" / "tWZ"
 	TString categ_bool_name; //Name of boolean associated to category

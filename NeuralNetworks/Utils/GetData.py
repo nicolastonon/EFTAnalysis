@@ -852,7 +852,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
 
     if opts["makeValPlotsOnly"] is True: _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
 
-    return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=1-_trainsize, shuffle=True)
+    return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
 #Split into train/val/test datasets
 #NB: don't simply call sklearn.train_test_split twice, because this makes the fractions complicated (x% of y%...)

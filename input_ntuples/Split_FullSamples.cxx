@@ -841,10 +841,10 @@ int main(int argc, char **argv)
     v_samples.push_back("WWW"); v_sample_groups.push_back("VVV");
     v_samples.push_back("WWZ"); v_sample_groups.push_back("VVV");
     v_samples.push_back("WZ"); v_sample_groups.push_back("WZ");
-	v_samples.push_back("TTGamma_Dilep"); v_sample_groups.push_back("Vg");
-	v_samples.push_back("tGJets"); v_sample_groups.push_back("Vg");
-	v_samples.push_back("WGToLNuG"); v_sample_groups.push_back("Vg");
-	v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("Vg");
+	v_samples.push_back("TTGamma_Dilep"); v_sample_groups.push_back("XG");
+	v_samples.push_back("tGJets"); v_sample_groups.push_back("XG");
+	v_samples.push_back("WGToLNuG"); v_sample_groups.push_back("XG");
+	v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("XG");
 
     //-- OBSOLETE
 	// v_samples.push_back("DY"); v_sample_groups.push_back("DY");

@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "NN"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
+    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -178,10 +178,10 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
 
     //X+g
-    thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("Vg");
-    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("Vg");
-    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("Vg");
-    thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("Vg");
+    thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("XG");
+    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("XG");
+    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("XG");
+    thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("XG");
 
     //NPL (Fakes)
     if(use_DD_NPL) //Data-driven
@@ -327,7 +327,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
 
     bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
-        bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
+        bool use_combine_file = true; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel

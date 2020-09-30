@@ -314,6 +314,16 @@ int Count_nofHistos_inTFile(TString fname)
     return total; //Return count
 }
 
+/**
+ * Round float to bottom/upper value, with precision determined by 'roundLevel' (e.g. 0.1)
+ */
+float Round_Float_toDecimal(float x, float roundLevel, bool roundDown)
+{
+    if(roundDown) {return int(x/roundLevel)*roundLevel;}
+    return int(x/roundLevel + 1)*roundLevel;; //Round up
+}
+
+
 
 
 
@@ -912,7 +922,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             // else if(v_groups[isample] == "VVV") {v_colors[isample] = kViolet+2;}
 
             //X+g
-            else if(v_groups[isample] == "Vg" || v_groups[isample] == "Xg") {v_colors[isample] = kPink+2;}
+            else if(v_groups[isample] == "Vg" || v_groups[isample] == "Xg" || v_groups[isample] == "VG" || v_groups[isample] == "XG") {v_colors[isample] = kPink+2;}
 
             //NPL
             else if(v_groups[isample] == "NPL") {v_colors[isample] = kGray;}
@@ -1124,6 +1134,36 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     // else {return false;}
 
 	return true;
+}
+
+//Return the binning of the variable passed in arg
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, TString variable, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents)
+{
+    int nbjets_min=1, nbjets_max=2, njets_min=2, njets_max=6;
+
+    nbins = 15;
+    xmin = -1; xmax = 1; //BDT: [-1,1]
+    if(template_name == "NN") //NN: [0,1]
+    {
+        xmin = 0;
+        if(!make_SMvsEFT_templates_plots && categorization_strategy==2 && plot_onlyMaxNodeEvents) {xmin = 0.3; nbins = 14;} //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
+    }
+    else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
+    else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
+    else if(template_name == "ZptCos") {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
+
+    if(use_SManalysis_strategy) {xmin = 0;}
+
+    if(template_name.Contains("NN") || variable.Contains("BDT")) {nbins = 10;}
+    if(template_name.Contains("mTW") || variable.Contains("mTW"))
+    {
+        nbins=15; xmin=0; xmax=150;
+        if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning for now
+    }
+    if(template_name.Contains("countExp")) {nbins=1; xmax=1;}
+    if(template_name.Contains("channel")) {nbins=2; xmax=2;}
+
+    return;
 }
 
 //Return beautified variable name
@@ -1566,7 +1606,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 }
 
 //Read a NN info file and fill values via argument
-bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes, TString* NN_strategy)
+bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes, vector<float>& minmax_bounds, TString* NN_strategy)
 {
     cout<<DIM("Retrieving MVA information from : "<<NNinfo_input_path<<"")<<endl;
     ifstream file_in(NNinfo_input_path);
@@ -1578,6 +1618,7 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
         stringstream ss(line);
         TString varname; float tmp1, tmp2; //Values tmp1 and tmp2 could be the mean and variance, or min and max, etc. depending on the rescaling
         ss >> varname >> tmp1 >> tmp2;
+        // cout<<" varname "<<varname<<" tmp1 "<<tmp1<<" tmp2 "<<tmp2<<endl;
         if(varname != "") //Last line may be empty
         {
             if(tmp1 == -1 && tmp2 == -1) {NN_inputLayerName = varname;} //Name of input layer
@@ -1585,17 +1626,23 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
             else if(tmp1 == -3 && tmp2 == -3) {NN_nNodes = Convert_TString_To_Number(varname);} //Number of output nodes
             else if(tmp1 == -4 && tmp2 == -4) {v_NN_nodeLabels.push_back(varname);} //Label(s) of the node(s), e.g. 'tZq'/'ttZ'/'Backgrounds'
             else if(NN_strategy && tmp1 == -5 && tmp2 == -5) {*NN_strategy = varname;} //NB: pass this argument as a pointer instead of reference so it can have a default value --> Must deference first
+            else if(varname=="bounds")
+            {
+                minmax_bounds.push_back(tmp1); minmax_bounds.push_back(tmp2);
+            }
+            // else if(varname=="bounds") {minmax_bounds = std::make_pair(tmp1, tmp2);}
             else if(tmp1 != -5 && tmp2 != -5) //Input variables
             {
                 var_list_NN.push_back(varname);
-                std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
+                // std::pair <float,float> pair_tmp = std::make_pair(tmp1, tmp2);
             }
         }
     }
     // cout<<DIM("-->  "<<NN_inputLayerName<<"")<<endl;
     // cout<<DIM("-->  "<<NN_outputLayerName<<"")<<endl;
     // cout<<DIM("-->  "<<NN_nNodes<<" nodes")<<endl;
-    if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl; return false;} //Need this info for NN
+
+    if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1 || !minmax_bounds.size()) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl; return false;} //Need this info for NN
 
     return true;
 }
@@ -1622,6 +1669,7 @@ TString Get_Region_Label(TString region, TString variable)
     return label;
 }
 
+//Set the list of variables based on arguments
 void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy)
 {
     variable_list.push_back(template_name);

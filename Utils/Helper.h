@@ -96,6 +96,7 @@ bool Get_Dir_Content(std::string, std::vector<TString>&);
 TString Split_TString_Into_Keys(TString, TString);
 int Count_nofHistos_inTFile(TString);
 int Count_nofHistos_inTFile(TFile*);
+float Round_Float_toDecimal(float, float, bool);
 
 //-- Basic analysis helper functions
 void Fill_Last_Bin_TH1F(TH1F*, double); //Increment last bin of histo by specified weight
@@ -113,10 +114,11 @@ void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
 void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 
 //-- Analysis-specific helper functions
-bool Apply_CommandArgs_Choices(int, char **, std::vector<TString>&, TString&);
+bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, double&, double&);
+void Get_Template_Range(int&, float&, float&, TString, TString, bool, bool, int, bool);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
 float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
@@ -127,7 +129,7 @@ float Get_x_jetCategory(float, float, int, int, int, int);
 float Get_x_ZptCosCategory(float, float);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool=false);
-bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, TString* NN_strategy=NULL);
+bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool);
 //--------------------------------------------

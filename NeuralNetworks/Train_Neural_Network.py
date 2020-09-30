@@ -25,16 +25,16 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized]
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training/architecture settings ===#
-"nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 3, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.00, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
@@ -67,7 +67,7 @@ optsTrain = {
 "listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 50, "minWC": -6, "maxWC": 6, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
-"nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 500, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
@@ -99,21 +99,21 @@ optsTrain = {
 
 # -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
-# _list_lumiYears.append("2016")
+_list_lumiYears.append("2016")
 _list_lumiYears.append("2017")
-# _list_lumiYears.append("2018")
+_list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
 # _list_processClasses.append(["tZq"])
-_list_processClasses.append(["ttZ"])
+# _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
 # _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_v2"])
 # _list_processClasses.append(["PrivMC_tZq_TOP19001"])
-# _list_processClasses.append(["PrivMC_ttZ"])
+_list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
-_list_processClasses.append(["PrivMC_ttZ_ctz"])
+# _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
@@ -129,11 +129,11 @@ _list_processClasses.append(["PrivMC_ttZ_ctz"])
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
 # _list_labels.append("tZq")
-_list_labels.append("ttZ")
+# _list_labels.append("ttZ")
 # _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_ttZ")
+_list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_tZq_ctz")
-_list_labels.append("PrivMC_ttZ_ctz")
+# _list_labels.append("PrivMC_ttZ_ctz")
 # _list_labels.append("SM")
 # _list_labels.append("Backgrounds")
 # _list_labels.append("Backgrounds2")
@@ -302,6 +302,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print('\t', colors.fg.orange, colors.bold, "NN Training", colors.reset)
     print(colors.bg.orange, colors.bold, "=====================================", colors.reset, '\n\n')
 
+
  # #    # # #####
  # ##   # #   #
  # # #  # #   #
@@ -397,6 +398,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         model = Load_PreExisting_Model(_h5modelName)
         score = None; history = None
 
+
  #    #   ##   #      # #####    ##   ##### #  ####  #    #
  #    #  #  #  #      # #    #  #  #    #   # #    # ##   #
  #    # #    # #      # #    # #    #   #   # #    # # #  #
@@ -412,7 +414,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     print(colors.fg.lightgrey, "\nTo open Tensorboard dir:",colors.reset,colors.ital,'tensorboard --logdir='+_weightDir+'logs'+' --port 0\n', colors.reset)
 
     #-- Get control results (printouts, plots, histos)
-    list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _list_processClasses, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName)
+    list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses = Apply_Model_toTrainTestData(optsTrain, _weightDir, _list_processClasses, _list_labels, x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, _h5modelName)
 
     #-- Store NN predictions for train/test datasets, for later use
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, _list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_xTrain_allClasses)
