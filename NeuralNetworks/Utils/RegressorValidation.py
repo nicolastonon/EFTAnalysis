@@ -9,6 +9,7 @@ from scipy.stats import gaussian_kde
 from Utils.ColoredPrintout import colors
 from Utils.Helper import *
 
+
                                     #     #  #####
  #####  #####  ###### #####         #     # #     #    ##### #####  #    # ##### #    #
  #    # #    # #      #    #        #     # #            #   #    # #    #   #   #    #
@@ -188,7 +189,7 @@ def Plot_LR_Pred_vs_Truth(opts, list_features, list_labels, list_yTrain_allClass
 # //--------------------------------------------
 #Scatterplot
 
-    if opts["parameterizedNN"] == True:
+    if opts["trainAtManyEFTpoints"] == True:
         fig = plt.figure('splot3', figsize=(10, 10))
         # plt.title('Predicted VS True '+nodename)
         plt.xlabel(r'$\theta$', fontsize=15) # add 'r' in front <-> interpreted as raw string

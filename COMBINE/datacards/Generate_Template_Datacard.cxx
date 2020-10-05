@@ -489,7 +489,7 @@ int main()
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
     v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
     v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
-    v_samples.push_back("Xg"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
+    v_samples.push_back("XG"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
     v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(30);
 
 

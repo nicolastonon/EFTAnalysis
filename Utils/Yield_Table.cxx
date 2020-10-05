@@ -302,9 +302,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                     if(remove_totalSF) {weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];}  //no SF, basic formula
 
-                    //Tmp fix: wrong eventMCFactor and wrong SWEs
-                    if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;}
+                    //-- Tmp fixes to xsec
+                    if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;} //wrong eventMCFactor and wrong SWEs
                     else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
+                    // else if(v_samples[isample] == "PrivMC_ttZ") {weight*= 0.86;} //Obsolete -- tmp xsec fix
+                    else if(v_samples[isample] == "PrivMC_tWZ") {weight*= 1.201;} //FIXME
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -464,8 +466,8 @@ int main(int argc, char **argv)
     //-- Default args (can be over-riden via command line args)
     TString signal = "signal"; //tZq/ttZ/signal (both)
 
-    TString category = "is_signal_SR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
-    // TString category = "is_Vg_CR"; //'' <-> all events ; 'xxx' <-> only include events satisfying condition xxx
+    //-- Category: '' <-> all events ; 'xxx' <-> only include events satisfying condition xxx //E.g.: 'is_signal_SR'
+    TString category = "is_signal_SR";
 
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
@@ -510,6 +512,7 @@ int main(int argc, char **argv)
 
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
     v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+    v_samples.push_back("PrivMC_tWZ"); v_label.push_back("PrivMC_tWZ");
 
     v_samples.push_back("ttZ_M1to10"); v_label.push_back("ttZ_M1to10");
 
@@ -546,16 +549,16 @@ int main(int argc, char **argv)
     v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");
     v_samples.push_back("TTbar_SemiLep"); v_label.push_back("TTbar_SemiLep");
     v_samples.push_back("DY"); v_label.push_back("DY");
-    v_samples.push_back("NPL_MC"); v_label.push_back("NPL_MC");
 
-    //DD nonprompt fakes
-    v_samples.push_back("NPL"); v_label.push_back("NPL");
+    //DD NPL (substract MC prompt contribution)
+    v_samples.push_back("NPL_DATA"); v_label.push_back("NPL");
+    v_samples.push_back("NPL_MC"); v_label.push_back("NPL");
 
     //TMP
-    v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
-    v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
-    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
-    v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
+    // v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
+    // v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
+    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
+    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
 
 
 //-- Read ntuples merged by sample groups (for cross checks)

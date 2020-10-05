@@ -123,7 +123,7 @@ class EFTFit(object):
  ##  ## #    # #   #  #   #  #    # #      #    # #    # #
  #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-    def makeWorkspaceSM(self, datacard='datacard.txt', verbosity=2):
+    def makeWorkspaceSM(self, datacard='datacard.txt', verbosity=0):
         ### Generates a workspace from a datacard ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
@@ -148,7 +148,7 @@ class EFTFit(object):
         process.wait()
 
 
-    def makeWorkspaceEFT(self, datacard='datacard.txt', verbosity=2):
+    def makeWorkspaceEFT(self, datacard='datacard.txt', verbosity=0):
         ### Generates a workspace from a datacard and fit parameterization file ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
@@ -157,8 +157,7 @@ class EFTFit(object):
         CMSSW_BASE = os.getenv('CMSSW_BASE')
         args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
 
-        if verbosity>0:
-            args.extend(['-v', str(verbosity)])
+        if verbosity>0: args.extend(['-v', str(verbosity)])
 
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -175,7 +174,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=2):
+    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=0):
         '''
         Perform a MLF to find the best fit value of the POI(s).
         '''
@@ -210,7 +209,7 @@ class EFTFit(object):
         self.printBestFitsSM(name)
 
 
-    def bestFitEFT(self, name='.EFT', params_POI=[], startValue='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=2, fixedPointNLL=False):
+    def bestFitEFT(self, name='.EFT', params_POI=[], startValue='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -262,7 +261,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False, verbosity=2):
+    def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False, verbosity=0):
 
         ### Runs deltaNLL Scan in a parameter using CRAB ###
         ### Can be used to do 2D scans as well ###
@@ -306,7 +305,7 @@ class EFTFit(object):
         return
 
 
-    def gridScanEFT(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=2):
+    def gridScanEFT(self, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info(colors.fg.lightblue + "Enter function gridScanEFT()\n" + colors.reset)
@@ -360,6 +359,8 @@ class EFTFit(object):
 
         if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
         else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
+
+        fitter.printIntervalFitsEFT(basename='.EFT', scan_params=param_tmp) #Print exclusion range
 
         return
 
@@ -900,6 +901,8 @@ class EFTFit(object):
         ### Use 1D scans instead of regular MultiDimFit ###
         logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
 
+        NLL_threshold = 3.84 #Define NN threshold to determine exclusion boundaries #3.84 <-> 95%
+
         if not scan_params: scan_params = self.wc
         ROOT.gROOT.SetBatch(True)
         fit_array = []
@@ -927,9 +930,9 @@ class EFTFit(object):
             for idx in range(1, graph.GetN()):
                 # print('idx', idx)
                 y_val = graph.GetY()[idx]
-                if prev>4 and 4>y_val:
+                if prev>NLL_threshold and NLL_threshold>y_val:
                     lowedges.append((graph.GetX()[idx-1]+graph.GetX()[idx+1])/2)
-                if prev<4 and 4<y_val:
+                if prev<NLL_threshold and NLL_threshold<y_val:
                     highedges.append((graph.GetX()[idx-1]+graph.GetX()[idx+1])/2)
                 if y_val < best[1]:
                     best = [graph.GetX()[idx],y_val]
@@ -988,6 +991,7 @@ if __name__ == "__main__":
     fixedPointNLL = False #True <-> perform the NLL scan at a fixed point (different Combine options)
     debug=False
     freeze=False
+    createWS = True #True <-> will first create a workspace from a datacard
     POI=[]
 
 # Set up the command line arguments
@@ -1004,6 +1008,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", metavar="debug", help="Activate code debug printouts", nargs='?', const=1)
     parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
+    parser.add_argument("--noworkspace", metavar="noworkspace", help="Don't recreate workspace", nargs='?', const=1)
 
     args = parser.parse_args()
     if args.m: mode = args.m
@@ -1017,13 +1022,14 @@ if __name__ == "__main__":
     if args.debug: debug = True
     if args.freeze: freeze = True
     if args.POI: POI = args.POI
+    if args.noworkspace: createWS = False
 
     fitter = EFTFit(opts) #Create EFTFit object
 
 # SM fit
 # //--------------------------------------------
     if mode == 'SM':
-        fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
+        if createWS: fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
         fitter.bestFitSM(exp=exp, verbosity=verb)
         if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb) #1D
         elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb) #2D
@@ -1034,7 +1040,7 @@ if __name__ == "__main__":
         # POIs=[opts['wc']] #Single operator
 
         #-- Create Combine Workspace
-        fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
+        if createWS: fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
 
         #-- Maximum Likelihood Fit
         fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
@@ -1042,14 +1048,11 @@ if __name__ == "__main__":
         #-- Likelihood Scan
         if not fixedPointNLL:
             if scan_dim=='1D':
-                param_tmp = [opts['wc']]
-                if len(POI) == 1: param_tmp = POI #use command-line arg
-                fitter.gridScanEFT(scan_params=[opts['wc']], exp=exp, points=100, verbosity=verb, freeze=freeze)
-                fitter.printIntervalFitsEFT(basename='.EFT', scan_params=[opts['wc']])
+                param_tmp = POI[0] if len(POI) == 1 else [opts['wc']]
+                fitter.gridScanEFT(scan_params=param_tmp, exp=exp, points=100, verbosity=verb, freeze=freeze)
             elif scan_dim=='2D':
-                param_tmp = [opts['wcs']]
-                if len(POI) == 2: param_tmp = POI #use command-line arg
-                fitter.gridScanEFT(scan_params=opts['wcs_pairs'], exp=exp, points=1000, verbosity=verb, freeze=freeze)
+                param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
+                fitter.gridScanEFT(scan_params=param_tmp, exp=exp, points=1000, verbosity=verb, freeze=freeze)
 
         #-- OTHERS
         # fitter.batch1DScanEFT() # Freeze other WCs

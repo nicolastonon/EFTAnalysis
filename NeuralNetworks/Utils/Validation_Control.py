@@ -406,7 +406,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 
         elif opts["nofOutputNodes"] == 1:
 
-            if opts["parameterizedNN"] is False:
+            if opts["trainAtManyEFTpoints"] is False:
                 fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
             else:
@@ -419,7 +419,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         elif opts["nofOutputNodes"] > 1: #Multiclass: 1 ROC (signal vs All) per node
 
             fpr = dict(); tpr = dict(); roc_auc = dict(); fpr_train = dict(); tpr_train = dict(); roc_auc_train = dict()
-            if opts["parameterizedNN"] is False:
+            if opts["trainAtManyEFTpoints"] is False:
                 fpr[inode], tpr[inode], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                 fpr_train[inode], tpr_train[inode], _ = roc_curve(np.concatenate(list_truth_Train_allClasses)[:,inode], np.concatenate(list_predictions_train_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTrain_allClasses_abs) )
             else:
@@ -490,7 +490,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             for iclass in range(len(list_labels)): #iclass <-> iterate over all classes (may be signal or bkg); inode <-> current 'signal'
 
                 if iclass == inode: #current 'signal' (<-> node) vs all
-                    if opts["parameterizedNN"] is False: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
+                    if opts["trainAtManyEFTpoints"] is False: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
                     elif opts["strategy"] is "CARL_multiclass": continue #For this strategy, 'SM vs all' makes no sense (will never evaluate it on mixture of several operators, only single operators at a time)
                     else: fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate(list_truth_Test_allClasses)[:,inode], np.concatenate(list_predictions_test_allNodes_allClasses[inode]))
 
@@ -498,7 +498,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
                     mylabel = 'vs All (AUC = {1:0.2f})' ''.format(0, roc_auc[iclass])
 
                 else: #current 'signal' (<-> node) vs specific process
-                    if opts["parameterizedNN"] is False:
+                    if opts["trainAtManyEFTpoints"] is False:
                         fpr[iclass], tpr[iclass], _ = roc_curve(np.concatenate((list_truth_Test_allClasses[inode],list_truth_Test_allClasses[iclass]))[:,inode], np.concatenate((list_predictions_test_allNodes_allClasses[inode][inode],list_predictions_test_allNodes_allClasses[inode][iclass])), sample_weight=np.concatenate((list_PhysicalWeightsTest_allClasses_abs[inode],list_PhysicalWeightsTest_allClasses_abs[iclass])) )
                     elif opts["strategy"] is "CARL_multiclass": #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
                         indices_SMevents_test = np.where(list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0); indices_SMevents_test = np.squeeze(indices_SMevents_test) #2D (current_node,indices) --> 1D (indices)
@@ -605,8 +605,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
 
                 #Class labels (for legend)
                 label_class0 = "Signal"; label_class1 = "Backgrounds"
-                if opts["parameterizedNN"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
-                # if opts["parameterizedNN"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+                if opts["trainAtManyEFTpoints"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
+                # if opts["trainAtManyEFTpoints"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
 
                 #-- Plot TRAIN sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
                 suffix = " (Train)"
@@ -909,7 +909,7 @@ def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
         Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
         Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
 
-    elif opts["parameterizedNN"] is True: #Separate between 'SM' and 'EFT'
+    elif opts["trainAtManyEFTpoints"] is True: #Separate between 'SM' and 'EFT'
         x_SM = x[y_process==0]; x_EFT = x[y_process>0]
         Make_Correlation_Plot(opts, x_SM, list_features, weight_dir + 'CorrelMatrix_SM.png')
         Make_Correlation_Plot(opts, x_EFT, list_features, weight_dir + 'CorrelMatrix_EFT.png')

@@ -436,7 +436,7 @@ def Get_ThetaParameters(opts, operatorNames):
                 # print(operatorNames[i_opInSample])
                 # print(listOperatorsParam[i_op_Toparameterize].lower())
 
-                if listOperatorsParam[i_op_Toparameterize] == operatorNames[i_opInSample] or listOperatorsParam[i_op_Toparameterize].lower() == operatorNames[i_opInSample]:
+                if listOperatorsParam[i_op_Toparameterize].lower() == operatorNames[i_opInSample].lower():
 
                     iter = 0
                     for x in np.linspace(minWC, maxWC, num=nPointsPerOperator):
@@ -659,7 +659,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     Extended/augmented lists
     """
 
-    parameterizedNN = opts["parameterizedNN"]
+    trainAtManyEFTpoints = opts["trainAtManyEFTpoints"]
 
     need_jlr = (opts["strategy"] in ["ROLR", "RASCAL"])
     need_score = (opts["strategy"] is "RASCAL")
@@ -667,7 +667,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Sanity checks
 
-    if parameterizedNN is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
+    if trainAtManyEFTpoints is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
         return list_x_allClasses, list_weights_allClasses, [], [], [], []
 
     if DEBUG_>1: #Debug printout
@@ -726,8 +726,8 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        #-- For non-parameterized NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
-        if parameterizedNN == False:
+        #-- For non-mixed-EFT NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
+        if trainAtManyEFTpoints == False:
 
             weights_thetas = list_SMweights_allClasses[iclass] #Will compare SM to EFT ref point
             weights_allThetas_class = np.concatenate((weights_thetas, weights_refPoint))
@@ -807,7 +807,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         extendedList_x_allClasses.append(x_allThetas_class)
         extendedList_weights_allClasses.append(weights_allThetas_class)
         extendedList_targetClass_allClasses.append(targetClasses_allThetas_class)
-        if parameterizedNN == True:
+        if trainAtManyEFTpoints == True:
             extendedList_WCs_allClasses.append(WCs_allThetas_class)
             if need_jlr:
                 extendedList_jointLR_allClasses.append(jointLR_allThetas_class)
@@ -860,7 +860,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
         #     if jointLR_class[i,itheta] > np.mean(jointLR_class[:,itheta]) * 5: probas_thetas[i] = 0; probas_refPoint[i] = 0;
         # probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1
 
-        max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing... #FIXME
+        max_jlr = -1 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing...
         if need_jlr and max_jlr>0:
             probas_thetas[jointLR[:,itheta] > max_jlr] = 0; probas_refPoint[jointLR[:,itheta] > max_jlr] = 0 #Ignore events with extreme JLR values
             probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1 (again)
@@ -1005,7 +1005,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     #-- Get event indices
     probas_theta = np.squeeze(np.copy(weights_theta))
     probas_theta[probas_theta < 0] = 0
-    max_jlr = 30 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing... #FIXME
+    max_jlr = -1 #If > 0, will remove events with jlr>max_jlr for training #NB: correct? also remove from testing...
     if need_jlr and max_jlr>0: probas_theta[jointLR[:,0] > max_jlr] = 0 #Ignore events with extreme JLR values
     probas_theta /= probas_theta.sum(axis=0,keepdims=1) #Normalize to 1
     if unweight_events: indices_theta = rng.choice(len(x), size=nEvents, p=probas_theta)

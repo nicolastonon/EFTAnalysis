@@ -86,7 +86,7 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
-    void Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
+    bool Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
     // void Make_ROC_fromTemplateFile(TString);
     // void Make_ROC_fromTemplateFile(TString, TString, TString="");
 

@@ -173,9 +173,8 @@ template <class T> void Set_Histogram_FlatZero(T*& h, TString name="", bool prin
 
     for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
-    	h->SetBinContent(ibin, pow(10, -9));
-
-    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, 0.1);}
+    	h->SetBinContent(ibin, pow(10, -3));
+    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, pow(10, -3));}
     }
 
     return;

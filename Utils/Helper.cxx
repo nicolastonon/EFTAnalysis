@@ -819,6 +819,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
         else if(arg1 == "tzq") {region_choice = "tZq";}
         else if(arg1 == "ttz") {region_choice = "ttZ";}
+        else if(arg1 == "ttz4l") {region_choice = "ttZ4l";}
         else if(arg1 == "twz") {region_choice = "tWZ";}
         else if(arg1 == "signal") {region_choice = "signal";}
         else if(arg1 == "vg") {region_choice = "Vg";}
@@ -854,6 +855,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 
             else if(arg2 == "tzq") {region_choice = "tZq";}
             else if(arg2 == "ttz") {region_choice = "ttZ";}
+            else if(arg2 == "ttz4l") {region_choice = "ttZ4l";}
             else if(arg2 == "twz") {region_choice = "tWZ";}
             else if(arg2 == "signal") {region_choice = "signal";}
             else if(arg2 == "vg") {region_choice = "Vg";}
@@ -1234,6 +1236,7 @@ TString Get_Category_Boolean_Name(TString region, bool isFake)
     if(region=="signal") {name = "is_signal_SR";}
     else if(region=="tZq") {name = "is_tzq_SR";}
     else if(region=="ttZ") {name = "is_ttz_SR";}
+    else if(region=="ttZ4l") {name = "is_ttz4l_SR";}
 
     else if(region=="Vg") {name = "is_Vg_CR";}
     else if(region=="zz") {name = "is_zz_CR";}

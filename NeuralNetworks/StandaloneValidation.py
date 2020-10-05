@@ -31,7 +31,7 @@ from Utils.RegressorValidation import *
 # //--------------------------------------------
 # //--------------------------------------------
 
-use_xkcd_style = True #True <-> use pyplot's xkcd style for plotting
+use_xkcd_style = False #True <-> use pyplot's xkcd style for plotting
 
 nEventsStandaloneVal = 10000 #Nof events to sample/display per point
 
@@ -69,7 +69,7 @@ list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
 #== SCAN OPTIONS ==#
-scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
+scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
 operator_scan = 'ctw' #Operator to scan
 range_step = [-6, 6, 2] #(range,steps) with which to scan operator
 # range_step = [-1, 1, 2] #(range,steps) with which to scan operator
@@ -84,8 +84,8 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
     _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
-    if optsTrain["parameterizedNN"] is False:
-        optsTrain["parameterizedNN"] = True; _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"] #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+    if optsTrain["trainAtManyEFTpoints"] is False: #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
+        optsTrain["trainAtManyEFTpoints"] = True; _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"]
         print(colors.fg.orange, "Warning: code [StandaloneValidation] only works for parameterized SMEFT samples. Setting [_list_processClasses = PrivMC_tZq] by default !", colors.reset)
         # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
 
@@ -139,16 +139,16 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
             if point=='SM':
                 x_SM=np.copy(x_tmp); y_process_SM=np.copy(y_process_tmp); PhysicalWeights_SM=np.copy(PhysicalWeights_tmp)
                 if only_SM_events:
-                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Keep default SM distribution as reference
+                    if optsTrain["trainAtManyEFTpoints"]: x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = 0 #Keep default SM distribution as reference
                     pred_SM = np.squeeze(model.predict(x_SM))
                 # print(x_SM[0,:])
             else:
                 if only_SM_events: #Case 1: keep 'default' SM distribution as fix reference --> don't modify 'xxx_SM' arrays ; only modify the 'xxx_tmp' arrays (copy SM distribution, change the WC values according to current point, and re-evaluate NN prediction)
                     x_tmp=np.copy(x_SM) #Start from SM events sampled previously
-                    x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx] #Update WC values according to current EFT point
+                    if optsTrain["trainAtManyEFTpoints"]: x_tmp[:,x_tmp.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx] #Update WC values according to current EFT point
                     pred_tmp = np.squeeze(model.predict(x_tmp)) #Update NN predictions
                 else: #Case 2: change both the SM and EFT distributions according to current EFT point --> already obtained the EFt data above, now need to modify the SM events (adapt WC values) and re-evalaute the NN predictions
-                    x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
+                    if optsTrain["trainAtManyEFTpoints"]: x_SM[:,x_SM.shape[1]-len(optsTrain["listOperatorsParam"])+idx_opScan] = WCs[idx]
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))

@@ -311,10 +311,16 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 #-- Initialization
 
-    opts["parameterizedNN"] = False
+    opts["trainAtManyEFTpoints"] = False
     opts["regress"] = False
-    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["parameterizedNN"] = True
-    if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: opts["regress"] = True
+    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["trainAtManyEFTpoints"] = True #By construction these methods require to train the NN on a range of different hypotheses
+    if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: opts["regress"] = True #Regressor strategies
+
+    #-- NB: introduced difference between 'mixed-EFT' strategy (<-> requires training over many SMEFT hypotheses, e.g. CARL) and 'parameterized' strategies (for which we choose to add EFT WCs as additional inputs) #NB: parameterized NNs must be 'mixed-EFT', but mixed-EFT NNs don't need to be parameterized
+    if opts["trainAtManyEFTpoints"] is False:
+        if opts["parameterizedNN"] is True:
+            opts["parameterizedNN"] = False
+            print(colors.fg.orange, colors.bold, "Warning: you are not training on a mixture of many EFT points, hence option 'parameterizedNN' must be set to False ! \n", colors.reset)
 
     #Year selection
     lumiName = Get_LumiName(lumi_years)
@@ -343,10 +349,11 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif opts["strategy"] is "CARL_multiclass":
         if len(opts["listOperatorsParam"]) == 1: opts["nofOutputNodes"] = 1 #Binary classification
         else: opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
+        if opts["parameterizedNN"] is False: print(colors.fg.red, 'ERROR : strategy', opts["CARL_multiclass"],' requires option [parameterizedNN==True] (else need to rethink how to avoid cutting on input WCs to determine correct class, ...)', colors.reset); exit(1)
     elif opts["strategy"] is "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
     elif opts["strategy"] is "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
 
-    if opts["parameterizedNN"] == True:
+    if opts["trainAtManyEFTpoints"] == True: #Use different data sampling options depending on case
         opts["maxEvents"] = opts["nEventsPerPoint"]
         opts["batchSize"] = opts["batchSizeEFT"]
     else:
@@ -419,7 +426,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     elif centralVSpureEFT: opts["samplesType"] = "centralVSpureEFT"
     elif onlySMEFT: opts["samplesType"] = "onlySMEFT"
 
-    if (opts["parameterizedNN"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1)
+    if (opts["trainAtManyEFTpoints"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1) #Can only train on different EFT hypotheses if using SMEFT samples
     # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
@@ -439,7 +446,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     #-- NN strategy (for easier interfacing with my analysis code)
     opts["NN_strategy"] = "MVA_SM" #Default, can use full MVA distribution directly in Combine
-    if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint": opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
+    if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint" or (opts["trainAtManyEFTpoints"] is True and opts["parameterizedNN"] is False): opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
     elif opts["parameterizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
 
     if len(opts["splitTrainValTestData"]) is not 3 or (opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2]) != 1.:
@@ -528,6 +535,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 
 # //--------------------------------------------
+
+    #-- Overwrite previously existing file if any (then, other codes will open it in 'append' mode)
+    text_file = open(weightDir + "NN_info.txt", "w") #'w' to overwrite
+    text_file.close()
 
     Write_Timestamp_toLogfile(weightDir, 0)
     Dump_NN_Options_toLogFile(opts, weightDir) #Write user-options to dedicated logfile
@@ -719,7 +730,7 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
     benchmarkIDs = np.atleast_1d(benchmarkIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
 
     prefix = 'rwgt_c' #Naming convention, strip this substring
-    prefix_TOP19001 = 'EFTrwgt' #Naming convention of TOP19001
+    # prefix_TOP19001 = 'EFTrwgt' #Naming convention of TOP19001
 
     idx_SM = -1 #Store SM index
     operatorNames = []
@@ -732,16 +743,15 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
         list_operatorWCs = []
         # ID = benchmarkIDs[idx]
 
-        if not ID.startswith(prefix) and not ID.startswith(prefix_TOP19001): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse #FIXME tmp
-            # list_operatorNames.append(ID) #Operator name
-            # list_operatorWCs.append(float(0)) #Operator WC
-            # if ID=="rwgt_sm" or ID=="rwgt_SM": idx_SM = idx #SM point found
+        if not ID.startswith(prefix): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
+        # if not ID.startswith(prefix) and not ID.startswith(prefix_TOP19001):
             if ID=="rwgt_sm" or ID=="rwgt_SM" or ID.startswith("EFTrwgt183_"): idx_SM = idx #SM point found #Hard-coded naming conventions
             continue
 
         ID = CheckName_EFTpoint_ID(ID) #Enforce proper naming convention
 
-        if ID.startswith(prefix) or ID.startswith(prefix_TOP19001): list_keys = ID.split('_')[1:]
+        if ID.startswith(prefix): list_keys = ID.split('_')[1:]
+        # if ID.startswith(prefix) or ID.startswith(prefix_TOP19001): list_keys = ID.split('_')[1:]
         else: print('Error : naming convention in benchmark ID not recognized'); exit(1)
 
         for ikey in range(0, len(list_keys)-1, 2):

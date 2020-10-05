@@ -130,16 +130,16 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     TString operator_scan1 = "";
     if(scan_operator_hardcoded)
     {
-        mode_histoBins = 1; //Scan on parametrized NN --> consider each histogram bin separately
+        mode_histoBins = 1; //Scan on parametrized NN --> must treat each histogram bin separately
 
-        operator_scan1 = "ctz";
+        operator_scan1 = "ctw";
         v_WCs_operator_scan1 = {"-4","-2","-1","0","1","2","4"};
 
         v_regions.resize(0);
         v_regions.push_back("SRtZq");
         v_regions.push_back("SRttZ");
 
-        v_templates[0]+= "param";
+        //v_templates[0]+= "param";
 
         // v_templates.resize(0);
         // v_templates.push_back("NN_EFT1_ctz_-4");
@@ -229,7 +229,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
         		    // TString file_histos = "../templates/Combine_Input.root";
                     TString file_histos_pathFromHere = "./../templates/Templates_"+v_templates[itemplate]+(filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"+lumiName+".root"; //For use within this code
-                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT1param__2017.root";}
+                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
 
                     cout<<DIM("Trying to open input file "<<file_histos_pathFromHere<<" ... ");
                     if(Check_File_Existence(file_histos_pathFromHere)) {cout<<DIM("FOUND !")<<endl;}
@@ -338,7 +338,6 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         			{
                         int nbins_tmp = 1;
                         if(mode_histoBins==1) {nbins_tmp = v_nbins[idx_v_nbins]; idx_v_nbins++;} //Read current binning; increment index to stay in sync
-                        cout<<"nbins_tmp "<<nbins_tmp<<endl;
                         for(int ibin=1; ibin<nbins_tmp+1; ibin++)
                         {
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
@@ -365,7 +364,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         if(systChoice == "noShape") output_name+= "_noShape";
         if(statChoice == "noStat") output_name+= "_noStat";
         if(scan_operator_hardcoded) {output_name+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
-    	output_name+= ".txt";
+    	output_name+= "_" + lumiName + ".txt";
 
     	file_out<<"> "<<output_name<<endl<<endl;
     } //EFT loop
@@ -548,11 +547,12 @@ int main()
 // Can set options here
 //--------------------------------------------
     vector<TString> v_templates; //'NN', 'BDT', ...
-    // v_templates.push_back("NN_EFT");
+	v_templates.push_back("NN");
+	// v_templates.push_back("NN_EFT");
     //v_templates.push_back("NN_EFT1");
     // v_templates.push_back("NN_EFT2");
     // v_templates.push_back("NN_SM");
-    v_templates.push_back("Zpt");
+    //v_templates.push_back("Zpt");
     //v_templates.push_back("Zpt_EFT2");
     // v_templates.push_back("categ");
 
@@ -570,7 +570,7 @@ int main()
     v_regions.push_back("CR");
 
     TString selection = ""; //Main event selection, before sub-categorization
-    TString filename_template_suffix = ""; //Specify extension in histo filename
+    TString filename_template_suffix = "EFT2"; //Specify extension in histo filename
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
 // Modified at command-line
