@@ -132,8 +132,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     {
         mode_histoBins = 1; //Scan on parametrized NN --> must treat each histogram bin separately
 
-        operator_scan1 = "ctw";
-        v_WCs_operator_scan1 = {"-4","-2","-1","0","1","2","4"};
+        operator_scan1 = "ctz";
+        //v_WCs_operator_scan1 = {"-4","-2","-1","0","1","2","4"};
+        v_WCs_operator_scan1 = {"-3", "-2", "-1.5", "-1", "-0.8", "-0.6", "-0.4", "-0.2", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.5", "2", "3"}; 
 
         v_regions.resize(0);
         v_regions.push_back("SRtZq");

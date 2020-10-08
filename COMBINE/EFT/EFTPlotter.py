@@ -487,7 +487,8 @@ class EFTPlot(object):
         l = c.GetLeftMargin()
 
         #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4] 
-        WC_values = [-4, -2, -1, 0, 1, 2, 4]
+        #WC_values = [-4, -2, -1, 0, 1, 2, 4]
+        WC_values = [-2, -1.5, -1, 0, 1, 2]
 
         list_filepaths = []
         for val in WC_values:
@@ -1799,8 +1800,7 @@ if __name__ == "__main__":
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False)
         elif scan_type	=='manual': 
-            param_tmp = POI[0] if len(POI) == 1 else [opts['wc']]
-            print(param_tmp)
-            plotter.Plot1DManualNLLScan(param=param_tmp)
+            param_tmp = POI if len(POI) == 1 else [opts['wc']]
+            plotter.Plot1DManualNLLScan(param=param_tmp[0])
 
     #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctz', '.EFT.SM.Freeze.ctz', 'ctz')

@@ -27,13 +27,13 @@ int main(int argc, char **argv)
     TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
-    bool make_SMvsEFT_templates_plots = false; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
+    bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers (events passing the cut fall into SRtZq/SRttZ, others into CR); 2 <-> apply multi-classifier in merged SR (events fall into SRtZq/SRttZ/CR based on max node); 0 <-> testing: read tmp MVA, no categ. (retain all events, can't use multiple nodes simultaneously)
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
-    bool scanOperators_paramNN = false; //v <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+    bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctz"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
         vector<float> v_WCs_operator_scan1 = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "NN"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
+    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -67,8 +67,8 @@ int main(int argc, char **argv)
 
 	vector<TString> set_lumi_years;
     set_lumi_years.push_back("2016");
-    set_lumi_years.push_back("2017");
-    set_lumi_years.push_back("2018");
+    // set_lumi_years.push_back("2017");
+    // set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -151,6 +151,7 @@ int main(int argc, char **argv)
     {
         thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
         thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+        // thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ"); //FIXME
     }
 
     //Signals (central samples)
@@ -287,14 +288,15 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        //-- Implemented as separate TTrees //MISSING
-        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp"); //FIXME - different conventions
+        //-- Implemented as separate TTrees //FIXME
+        theSystTree.push_back("TotalDown"); theSystTree.push_back("TotalUp");
+        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
         // theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         // theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
-        theSystWeights.push_back("prefiringWeightDown"); theSystWeights.push_back("prefiringWeightUp");
+        theSystWeights.push_back("prefireDown"); theSystWeights.push_back("prefireUp");
         theSystWeights.push_back("BtagHFDown"); theSystWeights.push_back("BtagHFUp");
         theSystWeights.push_back("BtagLFDown"); theSystWeights.push_back("BtagLFUp");
         theSystWeights.push_back("BtagHFstats1Down"); theSystWeights.push_back("BtagHFstats1Up");
@@ -334,19 +336,19 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;

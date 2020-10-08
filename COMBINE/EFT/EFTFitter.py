@@ -239,7 +239,7 @@ class EFTFit(object):
         if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
-        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
+        if check: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
         args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in params_POI)])
 
         if debug: print('args --> ', args)

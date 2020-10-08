@@ -1139,12 +1139,12 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
 }
 
 //Return the binning of the variable passed in arg
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, TString variable, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, TString variable, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max)
 {
-    int nbjets_min=1, nbjets_max=2, njets_min=2, njets_max=6;
+    nbins = 15; //Default
 
-    nbins = 15;
     xmin = -1; xmax = 1; //BDT: [-1,1]
+
     if(template_name == "NN") //NN: [0,1]
     {
         xmin = 0;
@@ -1255,7 +1255,7 @@ TString Get_Category_Boolean_Name(TString region, bool isFake)
 //Computes total nof entries which will be processed by the Produce_Templates() function, so that the Timebar is correct
 //NB1 : don't account for nof syst weights, since they are computed all at once when reading an event
 //Obsolete -- NB2 : this returns the nof entries which will get read, not processed (else, should take cuts into account, etc.)
-float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TString> v_samples, vector<TString> v_systTrees, vector<TString> v_cut_name, vector<TString> v_cut_def, vector<TString> v_lumiYears, bool makeHisto_inputVars, bool noSysts_inputVars)
+float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name_nominal, vector<TString> v_samples, vector<TString> v_systTrees, vector<TString> v_cut_name, vector<TString> v_cut_def, vector<TString> v_lumiYears, bool makeHisto_inputVars, bool noSysts_inputVars)
 {
     float total_nentries = 0;
 
@@ -1310,9 +1310,9 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name, vector<TStrin
 
             for(int itree=0; itree<v_systTrees.size(); itree++)
     		{
-    			TTree* tree = 0;
+                TTree* tree = 0;
                 TString tmp = v_systTrees[itree];
-    			if(tmp == "") {tmp = t_name;}
+    			if(tmp == "") {tmp = t_name_nominal;}
                 tree = (TTree*) file_input->Get(tmp);
     			if(!tree)
     			{

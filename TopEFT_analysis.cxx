@@ -841,7 +841,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 //--- OPTIONS --------------------------------
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU-time)
-    int nentries_max = -1; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
+    int nentries_max = 1000; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
     bool doNot_storeWCFit_PrivSamples = false; //true <-> for PrivMC samples, don't store WCFit objects (only e.g. the SM point) --> Much faster
 //--------------------------------------------
 //--------------------------------------------
@@ -956,12 +956,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	TFile* file_input = NULL;
 	TTree* tree = NULL;
 
-    //Define ranges of jet/bjets multiplcities -- for 'categ' templates only //FIXME
-    int nbjets_min=1, nbjets_max=2, njets_min=2, njets_max=6;
-
-	//Template binning //FIXME
+    //-- Default template binning (modified in 'Get_Template_Range')
     nbins = 15;
-	double xmin = -1, xmax = 1; //BDT: [-1,1]
+    double xmin = -1, xmax = 1; //BDT: [-1,1]
+
+    //-- Define ranges of jet/bjets multiplicities -- for 'categ' templates only (modified in 'Get_Template_Range')
+    int nbjets_min = 1, nbjets_max=2, njets_min=2, njets_max=6;
+
+    /* -- Obsolete : template binnings set in 'Get_Template_Range'
     if(template_name == "NN") //NN: [0,1]
     {
         xmin = 0;
@@ -970,6 +972,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
     else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
     else if(template_name == "ZptCos") {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
+    */
 
     //-- Create output file
     TString output_file_name = "";
@@ -1212,24 +1215,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		//Open input TFile
     		TString inputfile = dir_ntuples + v_lumiYears[iyear] + "/" + sample_list[isample] + ".root";
 
-            v_isEventPassMVACut_tZq.clear(); v_isEventPassMVACut_ttZ.clear(); v_isEventPassMVACut_multiclass.clear();
-            if(!makeHisto_inputVars && use_predefined_EFT_strategy)
-            {
-                if(categorization_strategy == 1)
-                {
-                    if(apply_MVASM_cut)
-                    {
-                        if(cat_tmp == "signal" || cat_tmp == "tZq") {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_tZq, "tZq", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_tZq, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "tZq", also_applyCut_onMaxNodeValue, isFake)) {return;}}
-                        if(cat_tmp == "signal" || cat_tmp == "ttZ") {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_ttZ, "ttZ", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], cut_value_ttZ, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "ttZ", also_applyCut_onMaxNodeValue, isFake)) {return;}}
-                    }
-                }
-                else if(categorization_strategy == 2 && use_maxNode_events) {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_multiclass, "Multiclass", classifier_name, nominal_tree_name, inputfile, v_lumiYears[iyear], -1., keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "signal", also_applyCut_onMaxNodeValue, isFake)) {return;}}
-            }
-
             //-- Apply ad-hoc scale factor to private ttZ sample so that SM yield matches that of central ttZ sample
             //-- NB: should correct the xsec at potato level instead !
             // float SF_SMEFT_ttZ = 0.86;
-            float SF_SMEFT_tWZ = 1.201; //FIXME
+            float SF_SMEFT_tWZ = 1.201; //FIXME -- 1 per year ?
 
     		// cout<<"inputfile "<<inputfile<<endl;
     		if(!Check_File_Existence(inputfile))
@@ -1263,15 +1252,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		//NB : only nominal TTree contains systematic weights ; others only contain the nominal weight (but variables have different values)
     		for(int itree=0; itree<systTree_list.size(); itree++)
     		{
-                if(sample_list[isample] == "DATA" && systTree_list[itree] != "") {continue;}
-                if(sample_list[isample].Contains("NPL") && systTree_list[itree] != "") {continue;}
-                if(systTree_list[itree] != "" && sample_list[isample] != "tZq") {continue;}
+                if(systTree_list[itree] != "" && (sample_list[isample] == "DATA" || sample_list[isample] == "DY" || sample_list[isample].Contains("NPL") || sample_list[isample].Contains("TTbar")) ) {continue;}
 
-    			tree = 0;
-                TString tmp = systTree_list[itree];
-    			if(tmp == "") {tmp = nominal_tree_name;}
-
-                tree = (TTree*) file_input->Get(tmp);
+    			tree = NULL;
+                TString treename_tmp = systTree_list[itree];
+    			if(treename_tmp == "") {treename_tmp = nominal_tree_name;}
+                cout<<DIM("-- Tree "<<treename_tmp<<" --")<<endl;
+                tree = (TTree*) file_input->Get(treename_tmp);
 
                 bool EFTparameterization_alreadyStored = false; //Check whether the SMEFT parameterization was already stored previously (--> only need to read it)
                 TTree* tree_EFTparameterization = NULL; //The per-event SMEFT parameterization may have been stored already (using [Split_FullSamples] code) --> If this is the case, can simply read it (much faster)
@@ -1282,8 +1269,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                     //-- Check whether the SMEFT parameterization was already stored previously (--> only need to read it)
                     TString tree_EFTparameterization_name = "EFTparameterization";
+                    if(systTree_list[itree] == "TotalDown") {tree_EFTparameterization_name+= "_JESDown";} //FIXME -- tmp naming
+                    else if(systTree_list[itree] == "TotalUp") {tree_EFTparameterization_name+= "_JESUp";}
+                    else if(systTree_list[itree] != "") {tree_EFTparameterization_name+= "_" + systTree_list[itree];}
+                    // cout<<"tree_EFTparameterization_name "<<tree_EFTparameterization_name<<endl;
 
-                    if(systTree_list[itree] == "" && file_input->GetListOfKeys()->Contains(tree_EFTparameterization_name))
+                    if(file_input->GetListOfKeys()->Contains(tree_EFTparameterization_name))
+                    // if(systTree_list[itree] == "" && file_input->GetListOfKeys()->Contains(tree_EFTparameterization_name))
                     {
                         EFTparameterization_alreadyStored = true;
                         tree_EFTparameterization = (TTree*) file_input->Get(tree_EFTparameterization_name);
@@ -1295,9 +1287,23 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     			if(!tree)
     			{
-    				cout<<BOLD(FRED("ERROR : tree '"<<tmp<<"' not found in file : "<<inputfile<<" ! Skip !"))<<endl;
+    				cout<<BOLD(FRED("ERROR : tree '"<<treename_tmp<<"' not found in file : "<<inputfile<<" ! Skip !"))<<endl;
     				continue; //Skip sample
     			}
+
+                v_isEventPassMVACut_tZq.clear(); v_isEventPassMVACut_ttZ.clear(); v_isEventPassMVACut_multiclass.clear();
+                if(!makeHisto_inputVars && use_predefined_EFT_strategy)
+                {
+                    if(categorization_strategy == 1)
+                    {
+                        if(apply_MVASM_cut)
+                        {
+                            if(cat_tmp == "signal" || cat_tmp == "tZq") {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_tZq, "tZq", classifier_name, treename_tmp, inputfile, v_lumiYears[iyear], cut_value_tZq, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "tZq", also_applyCut_onMaxNodeValue, isFake)) {return;}}
+                            if(cat_tmp == "signal" || cat_tmp == "ttZ") {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_ttZ, "ttZ", classifier_name, treename_tmp, inputfile, v_lumiYears[iyear], cut_value_ttZ, keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "ttZ", also_applyCut_onMaxNodeValue, isFake)) {return;}}
+                        }
+                    }
+                    else if(categorization_strategy == 2 && use_maxNode_events) {if(!Get_VectorAllEvents_passMVACut(v_isEventPassMVACut_multiclass, "Multiclass", classifier_name, treename_tmp, inputfile, v_lumiYears[iyear], -1., keep_aboveCut, use_specificMVA_eachYear, categorization_strategy, false, nentries_max, "signal", also_applyCut_onMaxNodeValue, isFake)) {return;}}
+                }
 
 
 //   ##   #####  #####  #####  ######  ####   ####  ######  ####
@@ -1508,6 +1514,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             if(!makeHisto_inputVars) //Templates
                             {
+                                Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max);
+
+                                /* -- Obsolete: now define all templates binnings in 'Get_Template_Range'
                                 if(template_name.Contains("NN") || total_var_list[ivar].Contains("BDT")) {nbins_tmp = 10;}
                                 if(template_name.Contains("mTW") || total_var_list[ivar].Contains("mTW"))
                                 {
@@ -1516,9 +1525,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 }
                                 if(template_name.Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
                                 if(template_name.Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
-
-                                //FIXME
-                                Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents);
+                                */
 
                                 //Set binning according to min/max bounds read from NN info file (avoid empty bins at boundaries)
                                 if(template_name.Contains("NN") && make_SMvsEFT_templates_plots)
@@ -1595,7 +1602,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 }
 
                 // if(!draw_progress_bar) {cout<<endl<< "--- "<<sample_list[isample]<<" : Processing: " << tree->GetEntries() << " events" << std::endl;}
-                cout<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
+                cout<<"--- Processing " << nentries << " events" <<endl;
+                // cout<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
                 cout<<DIM("(path: "<<inputfile<<")")<<endl;
 
     			for(int ientry=0; ientry<nentries; ientry++)
@@ -1613,7 +1621,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     					cout<<BOLD(FRED("* Found event with eventWeight*eventMCFactor = "<<eventWeight*eventMCFactor<<" ; remove it..."))<<endl; continue;
     				}
 
-//---- APPLY CUTS HERE -------------------------
+//---- APPLY EVENT CUTS HERE -------------------------
 
                     //--- Cut on category value
                     if(cat_tmp != "" && !is_goodCategory) {continue;}
@@ -1702,11 +1710,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     } //Templates
 
                     double weight_tmp = eventWeight * eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
+                    // cout<<"eventWeight "<<eventWeight<<" / eventMCFactor "<<eventMCFactor<<" / weight_tmp "<<weight_tmp<<endl;
 
                     float w_SMpoint = 0;
                     if(isPrivMC)
                     {
                         w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+
+                        // cout<<"v_wgts->at(idx_sm) "<<v_wgts->at(idx_sm)<<" / weightMENominal "<<weightMENominal<<" / v_SWE[idx_sm] "<<v_SWE[idx_sm]<<endl;
 
                         //== Remove
                         // if(sample_list[isample] == "PrivMC_tZq_v3")
@@ -1779,6 +1790,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                     {
                                         // cout<<"ivar "<<ivar<<" / v_isEventPassMVACut_multiclass[ientry] "<<v_isEventPassMVACut_multiclass[ientry]<<endl;
                                         // if(total_var_floats[0] < 0.40) {cout<<"total_var_floats[0] "<<total_var_floats[0]<<endl;}
+
                                         if(use_maxNode_events && v_isEventPassMVACut_multiclass[ientry] != idx_EFT_var) {continue;} //Current node is not max node
                                     }
 
@@ -1853,20 +1865,22 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         					{
                                 //-- Protections : not all syst weights apply to all samples, etc.
                                 if((sample_list[isample] == "DATA") && syst_list[isyst] != "") {break;}
-                                else if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
+                                else if(systTree_list[itree] != "" && syst_list[isyst] != "") {break;} //Syst event weights only stored in nominal TTree
                                 else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
 
         						// cout<<"-- sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
 
-        						weight_tmp = eventWeight*eventMCFactor; //Nominal weight (no syst) //Re-initialize for each syst
+        						weight_tmp = eventWeight*eventMCFactor; //Start from nominal weight (no syst) //Re-initialize for each syst
 
                                 //No prefiring uncertainty for 2018 samples ; still write the histo (=nominal) to avoid troubles down the way... ?
                                 // if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring")) {*(v_double_systWeights[isyst]) = 1;}
 
-                                // cout<<"nominal : "<<weight_tmp<<endl;
+                                //FIXME
+                                if(isyst>0) cout<<"syst_list[isyst] "<<syst_list[isyst]<<" : "<<*(v_double_systWeights[isyst])<<endl;
+                                cout<<"nominal : "<<weight_tmp<<endl;
                                 if(syst_list[isyst] != "") {weight_tmp*= *(v_double_systWeights[isyst]);} //Syst weights were already divided by nominal weight
-                                // cout<<"syst : "<<weight_tmp<<endl;
+                                cout<<"syst : "<<weight_tmp<<endl;
 
         						if(isnan(weight_tmp) || isinf(weight_tmp))
         						{
@@ -1910,11 +1924,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				{
                         //-- Protections : not all syst weights apply to all samples, etc.
                         if(sample_list[isample] == "DATA" && syst_list[isyst] != "") {break;}
-                        else if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
+                        else if(systTree_list[itree] != "" && syst_list[isyst] != "") {break;} //Syst event weights only stored in nominal TTree
                         else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefiring") ) {continue;} //no prefire in 2018
                         else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
-
-    					// cout<<"isyst "<<isyst<<endl;
 
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
     					{
@@ -1934,7 +1946,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             if(isPrivMC) //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc.
                             {
-                                if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, true);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //FIXME
+                                if(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero((TH1F*&) v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, true);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //FIXME -- ok with Combine ?
 
                                 if(!makeHisto_inputVars && this->scanOperators_paramNN) //Parameterized NN: rescale TH1EFT according to current WC value
                                 {
@@ -1999,8 +2011,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 if(v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0 && sample_list[isample] != "NPL_MC") {Set_Histogram_FlatZero(v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC sample has negative integral by construction !
 
                                 v3_histo_chan_syst_var[ichan][isyst][ivar]->Write(output_histo_name);
-                                // cout<<"Wrote histo : "<<output_histo_name<<" (Integral: "<<v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral()<<")"<<endl;
                                 nhistos++; //Count nof histos written to output file
+
+                                // cout<<"Wrote histo : "<<output_histo_name<<" (Integral: "<<v3_histo_chan_syst_var[ichan][isyst][ivar]->Integral()<<")"<<endl; //FIXME
 
                                 //-- MVA-EFT: need to store each histogram bin separately so that they can be scaled independently in Combine
                                 if(!makeHisto_inputVars && make_SMvsEFT_templates_plots) {StoreEachHistoBinIndividually(file_output, v3_histo_chan_syst_var[ichan][isyst][ivar], output_histo_name);}
@@ -2165,15 +2178,19 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison... //Experimental
 
     bool superimpose_EFThist = false; //true <-> superimpose shape of EFT hists
-        bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
+        bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
-        v_EFT_samples.push_back("PrivMC_tZq");
-        // v_EFT_samples.push_back("PrivMC_ttZ");
+        // v_EFT_samples.push_back("PrivMC_tZq");
+        v_EFT_samples.push_back("PrivMC_ttZ");
+        // v_EFT_samples.push_back("PrivMC_tWZ");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
         // v_EFT_points.push_back("rwgt_ctz_0");
         // v_EFT_points.push_back("rwgt_ctz_5");
         v_EFT_points.push_back("rwgt_ctw_0");
         v_EFT_points.push_back("rwgt_ctw_5");
+        v_EFT_points.push_back("rwgt_ctz_5");
+        // v_EFT_points.push_back("rwgt_cpqm_5");
+        // v_EFT_points.push_back("rwgt_cpt_5");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
 
     // bool doNot_stack_signal = false; //Obsolete
@@ -2280,6 +2297,9 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     if(inputFile_path == "") {cat_tmp = signal_process; inputFile_path = Get_HistoFile_InputPath(!drawInputVars, template_name, cat_tmp, lumiName, use_combine_file, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, (EFTpoint!=""));} //Retry with 'signal_process' as 'region' argument
     if(inputFile_path == "") {return;}
     TFile* file_input = TFile::Open(inputFile_path, "READ");
+
+    //-- Define ranges of jet/bjets multiplicities -- for 'categ' templates only (modified in 'Get_Template_Range')
+    int nbjets_min = 1, nbjets_max=2, njets_min=2, njets_max=6;
 
 
 // #       ####   ####  #####   ####
@@ -2425,7 +2445,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                     if(!drawInputVars && use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
                     {
                         int nbins_tmp; float xmin_tmp, xmax_tmp;
-                        Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents);
+                        Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, template_name, total_var_list[ivar], this->use_SManalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max);
 
                         if(template_name.Contains("NN") && make_SMvsEFT_templates_plots) {xmin_tmp = 0; xmax_tmp = nIndivBins;} //NN template range may have been auto-adapted based on the NN info (to avoid empty bins at boundaries), or it may have been 'discarded' voluntarily if we split the template into individual bins; since this info can't be propagated through Combine fit, we can't infer the initial range here --> Need to hardcode it case-by-case !
 
@@ -2504,8 +2524,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     					{
     						for(int itree=0; itree<systTree_list.size(); itree++)
     						{
-                                if((sample_list[isample] == "DATA" || sample_list[isample].Contains("NPL")) && systTree_list[itree] != "") {continue;}
-                                if(systTree_list[itree] != "" && sample_list[isample] != "tZq") {continue;}
+                                if(systTree_list[itree] != "" && (sample_list[isample] == "DATA" || sample_list[isample] == "DY" || sample_list[isample].Contains("NPL") || sample_list[isample].Contains("TTbar")) ) {continue;}
 
     							for(int isyst=0; isyst<syst_list.size(); isyst++)
     							{
@@ -4180,7 +4199,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         if(systname.EndsWith("Down")) {index = 0;}
         else if(systname.EndsWith("Up")) {index = 1;}
     }
-    else if(systname.BeginsWith("prefiringWeight"))
+    else if(systname.BeginsWith("prefire"))
     {
         address_memberArray = array_prefiringWeight;
         array_name = "varWeightPrefire";
@@ -4295,7 +4314,8 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         else if(systname.EndsWith("TightUp")) {index = 3;}
     }
     */
-    else{cout<<FRED("ERROR ! Systematic '"<<systname<<"' not included in function SetBranchAddress_SystVariation() from Helper.cxx ! Can *not* compute it !")<<endl; return;}
+
+    else {cout<<FRED("ERROR ! Systematic '"<<systname<<"' not included in function SetBranchAddress_SystVariation() from Helper.cxx ! Can *not* compute it !")<<endl; return;}
 
     t->SetBranchStatus(array_name, 1);
     t->SetBranchAddress(array_name, address_memberArray);
@@ -4389,7 +4409,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
                                 if(sample_list[isample] == "DATA" && (systTree_list[itree] != "" || syst_list[isyst] != "")) {continue;} //nominal data only
                                 else if(makeHisto_inputVars && sample_groups[isample] != "NPL") {continue;} //For control plots, only need to substract prompt NPL from data-driven NPL
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].Contains("Fake")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].Contains("Fake"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
-                                else if(systTree_list[itree] != "" && sample_list[isample] != "tZq") {continue;}
+                                else if(systTree_list[itree] != "" && (sample_list[isample] == "DY" || sample_list[isample].Contains("TTbar") || sample_list[isample].Contains("NPL")) ) {continue;}
 
             					// cout<<endl<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl;
 

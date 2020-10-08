@@ -531,14 +531,14 @@ int main()
     vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
     v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("prefiringWeight"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(false); //FIXME
+    //v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
