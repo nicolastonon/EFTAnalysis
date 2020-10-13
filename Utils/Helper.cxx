@@ -776,6 +776,7 @@ void Inflate_Syst_inShapeTemplate(TH1F*& h_toInflate, TH1F* h_nominal, float inf
 	return;
 }
 
+
 //--------------------------------------------
 //    ###    ##    ##    ###    ##       ##    ##  ######  ####  ######
 //   ## ##   ###   ##   ## ##   ##        ##  ##  ##    ##  ##  ##    ##
@@ -1139,7 +1140,7 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
 }
 
 //Return the binning of the variable passed in arg
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, TString variable, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max)
 {
     nbins = 15; //Default
 
@@ -1156,8 +1157,8 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
 
     if(use_SManalysis_strategy) {xmin = 0;}
 
-    if(template_name.Contains("NN") || variable.Contains("BDT")) {nbins = 10;}
-    if(template_name.Contains("mTW") || variable.Contains("mTW"))
+    if(template_name.Contains("NN") || template_name.Contains("BDT")) {nbins = 10;}
+    if(template_name.Contains("mTW"))
     {
         nbins=15; xmin=0; xmax=150;
         if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning for now
@@ -1673,7 +1674,7 @@ TString Get_Region_Label(TString region, TString variable)
 }
 
 //Set the list of variables based on arguments
-void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy)
+void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy, bool make_fixedRegions_templates)
 {
     variable_list.push_back(template_name);
 
@@ -1730,6 +1731,14 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         else if(region == "zz") {variable_list.push_back("countExp");}
         else if(region == "Vg") {variable_list.push_back("channel");}
         template_name = variable_list[0];
+    }
+    else if(make_fixedRegions_templates) //NB: order is important !
+    {
+        variable_list.clear();
+        variable_list.push_back("countExp_SRttZ4l");
+        variable_list.push_back("mTW_CRWZ");
+        variable_list.push_back("countExp_CRZZ");
+        template_name = "";
     }
 
     return;

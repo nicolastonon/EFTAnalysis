@@ -16,11 +16,12 @@ int main(int argc, char **argv)
 
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
-    TString region = "signal"; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
-    bool use_systematics = true; //true <-> will compute/store systematics selected below
+    TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
+    bool use_systematics = false; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
-    bool use_SManalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
+    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
+    bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
     bool include_PrivMC_samples = true; //true <-> also process private SMEFT samples (necessary e.g. for limit-setting, but much slower)
 
     //-- M V A    S T R A T E G Y --
@@ -67,8 +68,8 @@ int main(int argc, char **argv)
 
 	vector<TString> set_lumi_years;
     set_lumi_years.push_back("2016");
-    // set_lumi_years.push_back("2017");
-    // set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2017");
+    set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -344,7 +345,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -394,7 +395,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SManalysis_strategy);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates);
     if(theAnalysis->stop_program) {return 1;}
 
     //#############################################

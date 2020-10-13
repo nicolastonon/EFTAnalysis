@@ -182,15 +182,17 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
     return
 
 
-def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''): #FIXME
+def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
     '''
     xxx
     #FlotOtherPOIs when freeze?
 
     '''
 
-    #-- xxx
-    args = ['combineTool.py','-d',workspace,'-M','MultiDimFit','--algo','grid','--points',str(npoints),'-n',('_paramFit_'+nuisance),'P',nuisance,'--saveInactivePOI','1','--robustFit','1']
+    print(colors.fg.lightblue + "Enter function Make_NLL_Scan_NuisancePar()\n" + colors.reset)
+
+    #-- Perform grid scan for single nuisance
+    args = ['combineTool.py','-d',workspace,'-M','MultiDimFit','--algo','grid','--points',str(npoints),'-n',('_paramFit_'+nuisance),'-P',nuisance,'--saveInactivePOI','1','--robustFit','1']
     args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in [nuisance]+opts['wcs'])]) #Set default values to 0 for all WCs and nuisance
     if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
     else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
@@ -208,7 +210,66 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
         log_subprocess_output(process.stderr,'err')
     process.wait()
 
+    #-- Plot NLL scan
+    args = ['plot1DScan.py','higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH120.root','--POI', nuisance] #Minimal args
+    args.extend(['--y-cut','7','--y-max','8','--main-color','1','--logo','CMS','--logo-sub','Internal']) #Optional args
+    if exp: args.extend(['--main-label','Expected']) 
+    else: args.extend(['--main-label','Observed']) 
+    args.extend(['--output','scan_'+nuisance]) #Output filename
+    args.extend(['--translate','../Plotting/rename.json']) #Translate names using JSON file
+    #args.extend(['--breakdown','1']) #'do quadratic error subtraction using --others'
+
+    logging.info(colors.fg.purple + " ".join(args) + colors.reset)
+    process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+    with process.stdout,process.stderr:
+        log_subprocess_output(process.stdout,'info')
+        log_subprocess_output(process.stderr,'err')
+    process.wait()
+
     return
+
+
+def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
+    '''
+    xxx
+    #use batch mode to submit ?
+
+    '''
+    
+    print(colors.fg.lightblue + "Enter function Make_NLL_Scan_AllNuisancePars()\n" + colors.reset)
+
+    nuisances = []
+
+    logging.info("Retrieving complete list of nuisances from workspace {}".format(workspace))
+
+    rootFile = ROOT.TFile.Open(workspace);
+    w = rootFile.Get("w") #Retrieve WS object
+    #w.Print()
+    mc = w.genobj("ModelConfig") #Get ModelConfig object
+    #mc.GetParametersOfInterest().Print("V") #Print POIs
+    #mc.GetNuisanceParameters().Print("V") #Print nuisances
+    set_nuisances = mc.GetNuisanceParameters() #Get list of nuisances
+    
+    iter = set_nuisances.createIterator()
+    var = iter.Next()
+    while var :
+        #print var.GetName()
+        nuisances.append(var.GetName())
+        var = iter.Next()
+    #print(nuisances)
+    print(colors.fg.lightblue + '-- Found' + len(nuisances) + ' nuisances parameters...\n' +  colors.reset)
+
+    if len(nuisances)==0: 
+        logging.info(colors.fg.red + "ERROR: empty list of nuisances from file " + workspace + colors.reset)
+        exit(1)
+
+    #-- Do grid scan and plot for each individual nuisance
+    for nuisance in nuisances:
+        print(colors.fg.lightblue + "-- Nuisance " + nuisance + "\n" + colors.reset)
+        Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints, range, freeze, verbosity, exp, other)
+
+    return
+
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -239,6 +300,7 @@ if __name__ == "__main__":
     POIs=[]
     mode = 'impacts' #'impacts' (make impact plot) / 'scan_nuisance' (scan 1 specific nuisance) / 'scan_all' (scan all nuisances)
     nuisance = '' #Name of single nuisance parameter to scan
+    npoints = 50 #Number of points to scan nuisance(s)
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -251,6 +313,7 @@ if __name__ == "__main__":
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
     parser.add_argument("-m", metavar="m", help="SM or EFT")
     parser.add_argument("--nuisance", metavar="nuisance name", help="Name of single nuisance to scan")
+    parser.add_argument("--npoints", metavar="npoints", help="Number of points to scan nuisance(s)")
 
     args = parser.parse_args()
     if args.d: datacard_path = args.d
@@ -259,12 +322,20 @@ if __name__ == "__main__":
     if args.name: name = args.name
     if args.freeze: freeze = True
     if args.POI: POIs = args.POI
+    else: 
+        print('ERROR: missing arg --POI !')
+        exit(1)
     if args.m: mode = args.m
     if args.nuisance: nuisance = args.nuisance
+    if args.npoints: npoints = args.npoints
+
+    if mode != 'impacts' and mode != 'scan_nuisance' and mode != 'scan_all':
+        logging.info(colors.fg.lightblue + "ERROR: wrong option mode" + colors.reset)
+        exit(1)
 
     if mode == 'impacts': Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp)
 
-    elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=100, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='') #FIXME
+    elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
 
-    #elif mode == 'scan_all': Make_NLL_Scan_AllNuisancePar() #FIXME
+    elif mode == 'scan_all': Make_NLL_Scan_AllNuisancePars(datacard_path, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
 

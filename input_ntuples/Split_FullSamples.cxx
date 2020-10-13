@@ -530,20 +530,21 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
 
 /**
  * Make merged ntuples (NPL_DATA, NPL_MC, ...), but this time *without* any subcategorization
+ * Arg 'datadriven' determines whether we are creating the 'NPL_DATA' or 'NPL_MC' sample; in both cases, store all events satisfying the 'NPL_flag' option (i.e. we don't care about any sub-selection)
  */
-void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_sel, vector<TString> v_TTrees, vector<TString> v_samples, bool make_FakesMC_sample, TString prefix, TString NPL_flag, bool datadriven)
+void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_TTrees, vector<TString> v_samples, bool make_FakesMC_sample, TString prefix, TString NPL_flag, bool datadriven)
 {
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
         TString output_path = prefix + v_years[iyear] + "/NPL_MC.root";
         if(datadriven)
         {
-            bool dataSAmpleFound = false;
+            bool dataSampleFound = false;
             for(int isample=0; isample<v_samples.size(); isample++)
             {
-                if(v_samples[isample] == "DATA") {dataSAmpleFound = true;}
+                if(v_samples[isample] == "DATA") {dataSampleFound = true;}
             }
-            if(!dataSAmpleFound) {continue;}
+            if(!dataSampleFound) {continue;}
             output_path = prefix + v_years[iyear] + "/NPL_DATA.root";
         }
 
@@ -717,7 +718,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
 
     TString prefix = "./input_ntuples/";
 
-//-- Split the full ntuples by sub-categories
+    //-- Split the full ntuples by sub-categories
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
         for(int isel=0; isel<v_sel.size(); isel++)
@@ -767,10 +768,10 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
     	} //selections loop
     } //year loop
 
-//-- Also create a 'full' NPL_DATA sample (no sub-cat.)
-    Make_Full_Merged_Ntuples(v_years, v_sel, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, true); //Data-driven NPL
+    //-- Also create a 'full' NPL_DATA sample (no sub-cat.)
+    Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, true); //Data-driven NPL
 
-//-- Make the NPL_MC samples (full & split by sub-categories), by merging the 'fake' contributions from multiple prompt MC samples
+    //-- Make the NPL_MC samples (full & split by sub-categories), by merging the 'fake' contributions from multiple prompt MC samples
     if(make_FakesMC_sample)
     {
         if(v_samples.size() < 20) //Protection
@@ -782,13 +783,12 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
         }
 
         Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);
-        Make_Full_Merged_Ntuples(v_years, v_sel, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, false); //NPL MC
+        Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, false); //NPL MC
     }
 
-//-- Merge sub-ntuples (split by sub-categories) into ntuples grouped by 'sample groups'
+    //-- Merge sub-ntuples (split by sub-categories) into ntuples grouped by 'sample groups'
     if(hadd_subsamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix);} //Merge by sample group
-
-    return;
+;
 }
 
 
@@ -923,9 +923,9 @@ int main(int argc, char **argv)
 
     //--- Define the data-taking years
     vector<TString> v_years;
-    // v_years.push_back("2016");
+    v_years.push_back("2016");
     v_years.push_back("2017");
-    // v_years.push_back("2018");
+    v_years.push_back("2018");
 
 
  // ###### #    # #    #  ####      ####    ##   #      #

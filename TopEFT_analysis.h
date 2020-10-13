@@ -74,7 +74,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -167,7 +167,8 @@ class TopEFT_analysis
     bool is_blind;
     int nSampleGroups; //Nof sample groups (e.g. 'Rares',  ...)
     bool use_DD_NPL;
-    bool use_SManalysis_strategy;
+    bool use_SMdiffAnalysis_strategy;
+    bool make_fixedRegions_templates;
 
     //Systematics variations arrays //More details in comments of func Handle_SystVariationArray()
     double* array_PU;

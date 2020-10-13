@@ -57,6 +57,7 @@
 #include <vector>
 #include <sys/stat.h> // to be able to check file existence
 #include <dirent.h> //list dir content
+#include <numeric> //std::accumulate
 
 #include "TROOT.h"
 #include "TStyle.h"
@@ -108,7 +109,6 @@ void Get_Ranking_Vectors(TString, std::vector<TString>&, std::vector<double>&);
 void Compare_Histograms(TString, TString, TString, TString);
 float Rescale_Input_Variable(float, float, float);
 void Get_WCFit(WCFit*&, vector<string>*, vector<float>*, const vector<float>&, float, float, float, int, int=25);
-// void Set_Histogram_FlatZero(TH1F*&, TString="", bool=false);
 void Get_Mirror_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
 void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
 void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
@@ -118,7 +118,7 @@ bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, double&, double&);
-void Get_Template_Range(int&, float&, float&, TString, TString, bool, bool, int, bool, int&, int&, int&, int&);
+void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
 float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
@@ -131,7 +131,7 @@ TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=f
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool=false);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
-void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool);
+void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool);
 //--------------------------------------------
 
 //--------------------------------------------
@@ -163,27 +163,38 @@ inline void Fill_TH1F_NoUnderOverflow(TH1F* h, double value, double weight)
     return;
 };
 
-
+//NB: got Combine error when setting yield/error way too small
 template <class T> void Set_Histogram_FlatZero(T*& h, TString name="", bool printout=false)
 {
-    if(printout)
-    {
-    	cout<<endl<<FRED("Histo "<<name<<" has integral = "<<h->Integral()<<" <= 0 ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;
-    }
+    if(printout) {cout<<endl<<FRED("Histo "<<name<<" has integral = "<<h->Integral()<<" <= 0 ! Distribution set to ~>0 (flat), to avoid crashes in COMBINE !")<<endl;}
 
     for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
-    	h->SetBinContent(ibin, pow(10, -3));
-    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, pow(10, -3));}
+    	h->SetBinContent(ibin, pow(10, -5));
+    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, pow(10, -5));}
     }
 
     return;
 };
 
-template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString outname)
+//-- Set empty or negative bins to 0, to avoid crashes in Combine (can't deal with <=0 PDFs)
+template <class T> void Avoid_Histogram_EmptyOrNegativeBins(T*& h)
+{
+    for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
+    {
+    	if(h->GetBinContent(ibin) <= 0) {h->SetBinContent(ibin, pow(10, -5)); h->SetBinError(ibin, pow(10, -5));}
+    }
+
+    return;
+};
+
+template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString outname, bool store_countExp=false)
 {
     f->cd();
-    for(int ibin=0; ibin<h->GetNbinsX()+1; ibin++)
+    if(h->GetNbinsX() == 1) {return;} //Dont need to split/merge anything if there's only 1 bin
+
+    int firstBin = store_countExp? 0:1; //If want to also store histo as single bin (counting exp.), add corresponding 'bin 0' by convention
+    for(int ibin=firstBin; ibin<h->GetNbinsX()+1; ibin++)
     {
         T* h_tmp = new T("", "", 1, 0, 1);
         // TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
@@ -204,7 +215,7 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
             outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
         }
 
-        if(h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
+        if(!outname.Contains("NPL_MC") && h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC is negative by design
 
         h_tmp->Write(outname_tmp);
         // cout<<"Wrote histo : "<<outname_tmp<<endl;

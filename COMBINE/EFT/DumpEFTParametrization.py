@@ -1,4 +1,3 @@
-
 #-- Extract EFT parameterization from TH1EFT objects
 # Adapted from: https://github.com/cms-govner/EFTFit
 # NB: EFT parametrizations are extracted from all TH1EFT objects (<-> bins) found in file. However, if e.g. only tZq is treated as signal in the datacard, the parametrizations for ttZ will be ignored (since we then use the central SM ttZ sample) !
@@ -75,7 +74,11 @@ for key in readfile.GetListOfKeys():
         for ibin in range(0, hist.GetNbinsX()+1):
             if verbose: print('ibin', ibin)
 
-            if ibin==0: #Convention: always extract the total parametrization (for simple counting experiment)
+            if 'countExp' in full_bin_name:
+                if ibin > 0: break #Don't look for 'countExp' merged histo if the default template is already a counting exp. (redundant)
+                fit = hist.GetSumFit()
+                bin_name = full_bin_name
+            elif ibin==0: #Convention: always extract the total parameterization (for simple counting experiment)
                 fit = hist.GetSumFit()
                 bin_name = 'countExp_' + full_bin_name #Full histo
             else: #Extract the per-bin parametrization

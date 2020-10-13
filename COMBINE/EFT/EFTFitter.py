@@ -2,6 +2,10 @@
 # Adapted from: https://github.com/cms-govner/EFTFit
 # Batch modes supported are: CRAB3 ('crab') and Condor ('condor')
 
+#FIXME
+# '--do95 1' <-> compute 95%CL limits
+# '--fastScan' <-> avoid nuisance profiling
+
 '''
 #'text2workspace will convert the datacard into a pdf which summaries the analysis'
 - '--just-check-physics-model'
@@ -239,7 +243,7 @@ class EFTFit(object):
         if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
-        if check: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI])]) #Save values of additional parameters (e.g. profiled nuisances)
+        if check: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
         args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in params_POI)])
 
         if debug: print('args --> ', args)
@@ -991,7 +995,7 @@ if __name__ == "__main__":
     fixedPointNLL = False #True <-> perform the NLL scan at a fixed point (different Combine options)
     debug=False
     freeze=False
-    createWS = True #True <-> will first create a workspace from a datacard
+    createWS = 0 #0 <-> create WS and proceed ; 1 <-> create WS and exit ; 2 <-> don't create WS and proceed
     POI=[]
 
 # Set up the command line arguments
@@ -1009,6 +1013,7 @@ if __name__ == "__main__":
     parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
     parser.add_argument("--noworkspace", metavar="noworkspace", help="Don't recreate workspace", nargs='?', const=1)
+    parser.add_argument("--onlyworkspace", metavar="onlyworkspace", help="Only create workspace", nargs='?', const=1)
 
     args = parser.parse_args()
     if args.m: mode = args.m
@@ -1022,14 +1027,16 @@ if __name__ == "__main__":
     if args.debug: debug = True
     if args.freeze: freeze = True
     if args.POI: POI = args.POI
-    if args.noworkspace: createWS = False
+    if args.noworkspace: createWS = 2
+    if args.onlyworkspace: createWS = 1
 
     fitter = EFTFit(opts) #Create EFTFit object
 
 # SM fit
 # //--------------------------------------------
     if mode == 'SM':
-        if createWS: fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
+        if createWS<2: fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
+        if createWS==1: exit(1)
         fitter.bestFitSM(exp=exp, verbosity=verb)
         if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb) #1D
         elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb) #2D
@@ -1040,7 +1047,8 @@ if __name__ == "__main__":
         # POIs=[opts['wc']] #Single operator
 
         #-- Create Combine Workspace
-        if createWS: fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
+        if createWS<2: fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
+        if createWS==1: exit(1)
 
         #-- Maximum Likelihood Fit
         fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
