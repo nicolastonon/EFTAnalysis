@@ -17,10 +17,10 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
-    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
-    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
+    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
     bool include_PrivMC_samples = true; //true <-> also process private SMEFT samples (necessary e.g. for limit-setting, but much slower)
 
@@ -289,11 +289,12 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        //-- Implemented as separate TTrees //FIXME
-        theSystTree.push_back("TotalDown"); theSystTree.push_back("TotalUp");
-        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
-        // theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
-        // theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
+        //-- Implemented as separate TTrees
+        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp"); //FIXME -- next prod
+        theSystTree.push_back("TotalDown"); theSystTree.push_back("TotalUp"); //Not available for PrivMC_tWZ yet
+        theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
+        // theSystTree.push_back("METDown"); theSystTree.push_back("METUp"); //FIXME -- next prod
+        theSystTree.push_back("UnclEnDown"); theSystTree.push_back("UnclEnUp");
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
@@ -310,13 +311,12 @@ int main(int argc, char **argv)
         theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
         theSystWeights.push_back("FakeFactorDown"); theSystWeights.push_back("FakeFactorUp");
 
-        //-- MISSING
-        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp");
-        // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup");
-        // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp");
-        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp");
-        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp");
-        // theSystWeights.push_back("TriggerDown"); theSystWeights.push_back("TriggerUp");
+        //-- MISSING //FIXME
+        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only //MISSING for PrivMC
+        // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup"); //Signals only //MISSING for PrivMC
+        // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only //MISSING for PrivMC  //Cross check e.g. ttZ all years...
+        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only
+        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only
         // theSystWeights.push_back("LeptonIDDown"); theSystWeights.push_back("LeptonIDUp");
     }
 

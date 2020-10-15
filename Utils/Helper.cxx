@@ -1140,20 +1140,21 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
 }
 
 //Return the binning of the variable passed in arg
+//NB: use Contains() function because I am passing full variable names as arguments (e.g. 'NN_SRtZq')
 void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max)
 {
     nbins = 15; //Default
 
     xmin = -1; xmax = 1; //BDT: [-1,1]
 
-    if(template_name == "NN") //NN: [0,1]
+    if(template_name.Contains("NN")) //NN: [0,1]
     {
         xmin = 0;
         if(!make_SMvsEFT_templates_plots && categorization_strategy==2 && plot_onlyMaxNodeEvents) {xmin = 0.3; nbins = 14;} //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
     }
-    else if(template_name == "categ") {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
-    else if(template_name == "Zpt") {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
-    else if(template_name == "ZptCos") {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
+    else if(template_name.Contains("categ")) {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
+    else if(template_name.Contains("ZptCos")) {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
+    else if(template_name.Contains("Zpt")) {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
 
     if(use_SManalysis_strategy) {xmin = 0;}
 
@@ -1336,13 +1337,18 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name_nominal, vecto
     return total_nentries;
 }
 
-//For systs uncorrelated between years, need to add the year in the systName (to make it unique)
+//-- For systs uncorrelated between years, need to add the year in the systName (to make it unique)
+//NB: for first arg. can pass the concatenation of 'syst_list[isyst]+systTree_list[itree]' because only 1 can be non-empty at a time !
 TString Get_Modified_SystName(TString systname, TString lumiYear, TString samplename)
 {
-    //Only list the systematics which are *not* to be correlated in-between years //Need to add year as suffix (<-> unique)
+    //-- Only list the systematics which are *not* to be correlated in-between years
+    //Need to add year as suffix (<-> unique)
     if(systname.BeginsWith("BtagHFstats")
     || systname.BeginsWith("BtagLFstats")
     || systname.BeginsWith("BtagCF")
+    || systname.BeginsWith("JER")
+    || systname.BeginsWith("UnclEn")
+    || systname.BeginsWith("MET") //New name
     )
     {
         if(systname.EndsWith("Up"))
@@ -1358,9 +1364,10 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
             systname+= lumiYear+"Down"; //Add year + suffix
         }
     }
-    else if(systname.BeginsWith("ISR") //ME / ISR / FSR / ... are signal-dependent //Need to add sample name as suffix (<-> unique)
-        || systname.BeginsWith("FSR")
-        || systname.BeginsWith("ME"))
+    //-- Only list the systematics which are *not* to be correlated in-between samples
+    //Add sample name as suffix <-> unique
+    else if(systname.BeginsWith("ISR")
+    || systname.BeginsWith("ME"))
     {
         if(systname.EndsWith("Up"))
         {
@@ -1543,7 +1550,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool parametrized)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized)
 {
     TString fullpath = ""; //Full input path
     if(region != "") {region = "_" + region;}
@@ -1569,7 +1576,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	{
         TString MVA_type = "";
         TString region_tmp = region;
-        if(is_templateFile && categorization_strategy>0)
+        if(is_templateFile && categorization_strategy>0 && !make_fixedRegions_templates)
         {
             region_tmp = "";
             if(MVA_EFT)
@@ -1738,6 +1745,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         variable_list.push_back("countExp_SRttZ4l");
         variable_list.push_back("mTW_CRWZ");
         variable_list.push_back("countExp_CRZZ");
+        variable_list.push_back("countExp_CRDY");
         template_name = "";
     }
 

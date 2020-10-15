@@ -1,4 +1,6 @@
-After getting new NTuples, always run the [Split_FullSamples.cxx] code in order to:
-1) Split full samples into sub-samples per sub-regions (so that then you only process the relevant subsets of events)
-2) Create the [NPL.root] sample from the [DATA.root] sample (events satisfying isFake==1)
-3) Create the [NPL_MC.root] sample from all MC samples (events satisfying (isPromptMC==1 && isFake==1))
+After getting new NTuples, run the [Split_FullSamples.cxx] code in order to:
+1) Create 'NPL_DATA' (from data) and 'NPL_MC' (from MC) ntuples
+2) Store the EFT parameterizations in the private SMEFT samples if desired (faster reading)
+3) ...
+
+*Obsolete* Ideally, would also split full ntuples by sub-categories to then speed up the reading. But this consumes too much disk space, can't be done locally.

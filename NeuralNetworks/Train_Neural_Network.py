@@ -54,7 +54,7 @@ optsTrain = {
 "earlyStopping": False, #True <-> use Keras' early stopping
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": -1, #max nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events
+"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
 "batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
@@ -93,7 +93,8 @@ optsTrain = {
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
-"storeInTestDirectory": False, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"useFakeableNPL": False, #FIXME ok ? #True <-> if running on MC NPL samples (hardcoded names), will consider events from the sideband of the main selection (with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, keep that of ==3 tight lepton events
 }
 
 # Analysis options

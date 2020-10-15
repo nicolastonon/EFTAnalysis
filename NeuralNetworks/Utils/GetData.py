@@ -151,11 +151,12 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
         list_SMweights_proc = [] #Store SM weights for easy access (for private samples only)
         for iproc, process in enumerate(procClass): #Loop on physics processes (samples)
 
-            cuts_tmp = cuts
             isNPLsample = False
+            cuts_tmp = cuts
+            norm_NPL_3tights = 0 #Store the total normalization of NPL events with ==3 tight (use this normalization even if using sideband events)
             if "npl" in process.lower() or "dy" in process.lower() or "ttbar" in process.lower():
                 isNPLsample = True
-                cuts_tmp = cuts.replace("_SR", "_SRFake"); cuts_tmp = cuts.replace("_SR", "_CRFake") #NPL sample <-> different category flags
+                if opts["useFakeableNPL"] is True: cuts_tmp = cuts.replace("_SR", "_SRFake"); cuts_tmp = cuts.replace("_SR", "_CRFake") #NPL sample <-> different category flags
 
             isPrivMCsample = False
             if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process):
@@ -207,7 +208,12 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp, start=0,stop=nevents))
                 if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_tmp)[:nevents])
                 elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_tmp)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
-                else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents])
+                else:
+                    if isNPLsample and opts["useFakeableNPL"] is True: #If using sideband region for NPL events, use normalization corresponding to SR events only (otherwise, should apply fake factors to sideband events)
+                        norm_NPL_3tights = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts)[:nevents].sum() #Compute yield from SR events
+                        weights_NPL_tmp = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents] / norm_NPL_3tights #Use it to renormalize sideband+SR events
+                        list_weights_proc.append(weights_NPL_tmp) #Store corrected event weights
+                    else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents])
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
                 EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts_tmp, isPureEFT, iproc, nevents)

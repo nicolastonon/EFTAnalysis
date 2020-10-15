@@ -49,6 +49,7 @@ std::vector<float> TFModel::evaluate(float inputs[])
     return out;
 }
 
+//Overload
 std::vector<float> TFModel::evaluate(std::vector<float> v_inputs)
 {
     tensorflow::Tensor input(tensorflow::DT_FLOAT, {1, n_inputs} );
@@ -63,6 +64,23 @@ std::vector<float> TFModel::evaluate(std::vector<float> v_inputs)
     for(unsigned i=0; i < n_outputs; i++) {out.push_back(outputs[0].matrix<float>()(0,i));}
 
     return out;
+}
+
+//Overload //Avoid un-necessary copies, pass all by reference (not much faster...)
+void TFModel::evaluate_fast(tensorflow::Tensor input, std::vector<tensorflow::Tensor>& outputs)
+// void TFModel::evaluate_fast(tensorflow::Tensor input, std::vector<float>& out)
+{
+    // tensorflow::Tensor input(tensorflow::DT_FLOAT, {1, n_inputs} );
+    // float* d = input.flat<float>().data();
+    // for(unsigned i=0; i < n_inputs; i++) {*d++ = (float) v_inputs[i];}
+
+    // std::vector<tensorflow::Tensor> outputs;
+    tensorflow::run((tensorflow::Session*)session, { {input_name, input} }, {output_name}, &outputs);
+
+    // std::vector<float> out;
+    // for(unsigned i=0; i < n_outputs; i++) {out.push_back(outputs[0].matrix<float>()(0,i));}
+
+    return;
 }
 
 TFModel::~TFModel()

@@ -1,3 +1,8 @@
+//Could merge full ntuples per groups, then delete individual ntuples locally ?
+//Could run this code on NAF ? And only DL final ntuples ? must activate corresponding bool in AN code (run on groups, ...)
+
+//-- by Nicolas Tonon (DESY) --//
+
 /* BASH CUSTOM */
 #define RST   "\e[0m"
 #define KBLK  "\e[30m"
@@ -154,19 +159,22 @@ TString Get_Directory(TString cat)
 //For private SMEFT samples, can compute and store the per-event EFT parameterizations directly (then will only need to read it when processing the samples)
 void Store_EFTparameterization(TString filepath, vector<TString> v_TTrees, TString nominal_tree_name)
 {
-    if(!filepath.Contains("PrivMC")) {return;} //For private SMEFT samples only
+    if(!filepath.Contains("PrivMC") || filepath.Contains("_c")) {return;} //For private SMEFT samples only
 
     TFile* f = new TFile(filepath, "UPDATE");
 
     for(int itree=0; itree<v_TTrees.size(); itree++)
     {
         TTree* t = (TTree*) f->Get(v_TTrees[itree]);
+        if(!t) {cout<<BOLD(FRED("ERROR: tree "<<v_TTrees[itree]<<" not found (filepath: "<<filepath<<") ! Skip !"))<<endl; continue;}
         int nentries = t->GetEntries();
 
-        //-- Enforce naming convention
+        //-- Enforce naming convention //Obsolete in next ntuple prod
         TString systTree_name = v_TTrees[itree];
         if(v_TTrees[itree] == "TotalDown") {systTree_name = "JESDown";}
         else if(v_TTrees[itree] == "TotalUp") {systTree_name = "JESUp";}
+        else if(v_TTrees[itree] == "UnclEnDown") {systTree_name = "METDown";}
+        else if(v_TTrees[itree] == "UnclEnUp") {systTree_name = "METUp";}
 
         TString newTree_name = "EFTparameterization";
         if(v_TTrees[itree] != nominal_tree_name) {newTree_name+= "_" +systTree_name;}
@@ -233,7 +241,7 @@ void Store_EFTparameterization(TString filepath, vector<TString> v_TTrees, TStri
             new_tree->Fill();
         }
 
-        new_tree->Write(newTree_name);
+        new_tree->Write(newTree_name, TObject::kOverwrite);
 
         delete eft_fit; eft_fit = NULL;
         delete new_tree; new_tree = NULL;
@@ -532,7 +540,7 @@ void Merge_Many_TTrees_Into_One(vector<TString> v_years, vector<TString> v_sel, 
  * Make merged ntuples (NPL_DATA, NPL_MC, ...), but this time *without* any subcategorization
  * Arg 'datadriven' determines whether we are creating the 'NPL_DATA' or 'NPL_MC' sample; in both cases, store all events satisfying the 'NPL_flag' option (i.e. we don't care about any sub-selection)
  */
-void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_TTrees, vector<TString> v_samples, bool make_FakesMC_sample, TString prefix, TString NPL_flag, bool datadriven)
+void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_TTrees, vector<TString> v_samples, bool make_FakesMC_samples, TString prefix, TString NPL_flag, bool datadriven)
 {
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
@@ -638,7 +646,7 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_TTrees,
 // ##     ## ######## ##     ##  ######   ########     ######   ##     ##  #######   #######  ##         ######
 //--------------------------------------------
 
-void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, TString prefix)
+void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, TString prefix, bool merge_full_samples)
 {
     cout<<endl<<endl<<"---------------------------"<<endl;
     cout<<FBLU("== START MERGING SAMPLES BY GROUPS ==")<<endl;
@@ -661,6 +669,7 @@ void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleG
                 if(igroup > 0 && v_sampleGroups[igroup] == v_sampleGroups[igroup-1]) {continue;} //If this sample group was already processed, skip
 
                 TString dir = Get_Directory(v_sel[isel]);
+                if(merge_full_samples) {dir = "";} //Merging 'full' samples by groups <-> perform merging in main per-year ntuple repos, not in sub-category repos !
                 TString full_dirname = prefix + dir + v_years[iyear] + "/";
                 TString outfile_path = full_dirname + v_sampleGroups[igroup] + ".root";
                 // cout<<"outfile_path = "<<outfile_path<<endl;
@@ -707,7 +716,7 @@ void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleG
 Automatically split all samples into different subsamples (based on categories) *
 * --> Call to Create_Subsample_fromSample() for all samples/selections
  */
-void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_sample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour, bool hadd_subsamples_byGroup)
+void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_samples, bool make_FakesDATA_fullSample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour, bool hadd_subsamples_byGroup, bool hadd_fullSamples_byGroup, bool update_fullSMEFTSamples_withWCFit)
 {
     cout<<endl<<endl<<FBLU("== START OF NTUPLES SPLITTING ==")<<endl;
     cout<<"This can be quite long. Make sure you have correctly selected in the code :"<<endl;
@@ -731,22 +740,26 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
             {
                 // cout<<"v_samples[isample] "<<v_samples[isample]<<endl;
 
-                if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
-                else if(!make_FakesMC_sample && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
-                else if(v_sel[isel].Contains("Fake") && (v_samples[isample].Contains("PrivMC") || v_samples[isample].Contains("TTbar") || v_samples[isample].Contains("DY"))) {continue;} //Don't consider prompt fake contributions from: private samples / ttbar / DY / ...
-
+                //-- Dir. path
                 TString dir = Get_Directory(v_sel[isel]);
                 if(dir == "") {continue;} //Sub-directories only
-
                 TString full_dirname = prefix + dir;
                 mkdir(full_dirname.Data(), 0777);
                 full_dirname+= v_years[iyear] + "/";
                 mkdir(full_dirname.Data(), 0777);
-
-    			// cout<<"prefix = "<<prefix<<endl;
                 TString filepath = prefix + v_years[iyear] + "/" + v_samples[isample] + ".root";
-    			if(!Check_File_Existence(filepath)) {cout<<BOLD(FRED("Sample "<<filepath<<" not found !") )<<endl; continue;}
+                // cout<<"prefix = "<<prefix<<endl;
 
+                //-- Store EFT param. in 'full' ntuples
+                if((update_fullSMEFTSamples_withWCFit && isel==0) && v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(filepath, v_TTrees, nominal_tree_name);}
+
+                //-- Skip unwanted selection/sample combinations
+                if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
+                else if(!make_FakesMC_samples && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
+                else if(v_sel[isel].Contains("Fake") && (v_samples[isample].Contains("PrivMC") || v_samples[isample].Contains("TTbar") || v_samples[isample].Contains("DY"))) {continue;} //Don't consider prompt fake contributions from: private samples / ttbar / DY / ...
+                else if(!make_nominal_samples && v_sel[isel].Contains("Fake") && v_samples[isample] == "DATA") {continue;} //If 'make_nominal_samples=False', dont make NPL_DATA sub-ntuples neither !
+
+    			if(!Check_File_Existence(filepath)) {cout<<BOLD(FRED("Sample "<<filepath<<" not found !") )<<endl; continue;}
     			TString outfile_path = full_dirname + v_samples[isample] + ".root";
                 if(v_sel[isel].Contains("Fake"))
                 {
@@ -761,7 +774,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
             	Create_Subsample_fromSample(filepath, outfile_path, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name, open_mode);
 
                 if(v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample]);} //'_c' <-> identifier for pure-EFT samples (no parameterization)
-                if(store_WCFit_forSMEFTsamples && outfile_path.Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(outfile_path, v_TTrees, nominal_tree_name);}
+                if(store_WCFit_forSMEFTsamples && v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(outfile_path, v_TTrees, nominal_tree_name);}
                 if(v_sel[isel].Contains("Fake")) {opening_mode_FakesMC = "UPDATE";} //Will update the TFile with next samples
                 if(split_WZ_byJetFlavour) {Split_WZ_sample_byJetFlavour(prefix, dir, filepath, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name);}
             } //sample loop
@@ -769,10 +782,10 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
     } //year loop
 
     //-- Also create a 'full' NPL_DATA sample (no sub-cat.)
-    Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, true); //Data-driven NPL
+    if(make_FakesDATA_fullSample) {Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_samples, prefix, NPL_flag, true);} //Data-driven NPL
 
     //-- Make the NPL_MC samples (full & split by sub-categories), by merging the 'fake' contributions from multiple prompt MC samples
-    if(make_FakesMC_sample)
+    if(make_FakesMC_samples)
     {
         if(v_samples.size() < 20) //Protection
         {
@@ -783,12 +796,14 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
         }
 
         Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);
-        Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_sample, prefix, NPL_flag, false); //NPL MC
+        Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_samples, prefix, NPL_flag, false); //NPL MC
     }
 
     //-- Merge sub-ntuples (split by sub-categories) into ntuples grouped by 'sample groups'
-    if(hadd_subsamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix);} //Merge by sample group
-;
+    if(hadd_subsamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix, false);} //Merge by sample group
+
+    //-- Merge 'full' ntuples (*not* split by sub-categories) into ntuples grouped by 'sample groups'
+    if(hadd_fullSamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix, true);} //Merge by sample group
 }
 
 
@@ -818,9 +833,12 @@ int main(int argc, char **argv)
 {
 //--- Options---------------------------------
 //--------------------------------------------
-    bool make_nominal_samples = true; //true <-> create sub-samples satisfying given category flags
-    bool make_FakesMC_sample = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_nominal_samples = false; //true <-> create sub-samples satisfying given category flags
+    bool make_FakesMC_samples = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_FakesDATA_fullSample = false; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
     bool hadd_subsamples_byGroup = false; //true <-> hadd the ntuples (split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
+    bool hadd_fullSamples_byGroup = false; //true <-> hadd the 'full' ntuples (*not* split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
+    bool update_fullSMEFTSamples_withWCFit = false; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
 
     TString nominal_tree_name = "result"; //Hard-coded nominal tree name (special case)
     TString NPL_flag = "isFake"; //Flag defining fake events
@@ -841,9 +859,9 @@ int main(int argc, char **argv)
     vector<TString> v_TTrees;
     v_TTrees.push_back("result"); //FIXME
     // v_TTrees.push_back("JESDown"); v_TTrees.push_back("JESUp");
-    // v_TTrees.push_back("TotalDown"); v_TTrees.push_back("TotalUp");
-    // v_TTrees.push_back("JERDown"); v_TTrees.push_back("JERUp");
-    // v_TTrees.push_back("UnclEnDown"); v_TTrees.push_back("UnclEnUp");
+    v_TTrees.push_back("TotalDown"); v_TTrees.push_back("TotalUp");
+    v_TTrees.push_back("JERDown"); v_TTrees.push_back("JERUp");
+    v_TTrees.push_back("UnclEnDown"); v_TTrees.push_back("UnclEnUp");
 
 
  //  ####    ##   #    # #####  #      ######  ####
@@ -908,7 +926,7 @@ int main(int argc, char **argv)
  //  ####  ###### ###### ######  ####    #   #  ####  #    #  ####
 
     //--- Will divide samples based on these subcategories
-    //-- NB: also include corresponding 'Fake' flags to produce NPL samples (NPL_DATA if ["DATA" is in v_samples], NPL_MC if [make_FakesMC_sample==true], and NPL both NPL_DATA & NPL_MC are produced)
+    //-- NB: also include corresponding 'Fake' flags to produce NPL samples (NPL_DATA if ["DATA" is in v_samples], NPL_MC if [make_FakesMC_samples==true], and NPL both NPL_DATA & NPL_MC are produced)
     vector<TString> v_sel;
     v_sel.push_back("is_signal_SR");
     v_sel.push_back("is_signal_SRFake");
@@ -923,9 +941,9 @@ int main(int argc, char **argv)
 
     //--- Define the data-taking years
     vector<TString> v_years;
-    v_years.push_back("2016");
-    v_years.push_back("2017");
-    v_years.push_back("2018");
+    // v_years.push_back("2016");
+    // v_years.push_back("2017");
+    // v_years.push_back("2018");
 
 
  // ###### #    # #    #  ####      ####    ##   #      #
@@ -936,7 +954,7 @@ int main(int argc, char **argv)
  // #       ####  #    #  ####      ####  #    # ###### ######
 
     //-- Make split ntuples per sub-category
-    Split_AllNtuples_ByCategory(v_samples, v_sample_groups, v_sel, v_years, make_nominal_samples, make_FakesMC_sample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour, hadd_subsamples_byGroup);
+    Split_AllNtuples_ByCategory(v_samples, v_sample_groups, v_sel, v_years, make_nominal_samples, make_FakesMC_samples, make_FakesDATA_fullSample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour, hadd_subsamples_byGroup, hadd_fullSamples_byGroup, update_fullSMEFTSamples_withWCFit);
 
     return 0;
 }
