@@ -868,7 +868,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     if(template_name == "" && classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value ["<<classifier_name<<"] not supported !"))<<endl; return;}
     if(template_name=="") {template_name = classifier_name;}
     if(!makeHisto_inputVars && !make_SMvsEFT_templates_plots && categorization_strategy>0 && template_name!="BDT") {template_name = "NN";} //Special case: if want to produce SM vs SM classifier plots, make sure we consider NN templates (for BDT, must specify in main)
-    if(this->make_fixedRegions_templates && makeHisto_inputVars) {cout<<FRED("ERROR: option [make_fixedRegions_templates] is incompatible with control plots for input variables...")<<endl; return;}
+    if(this->make_fixedRegions_templates && makeHisto_inputVars) {cout<<FRED("Warning: option [make_fixedRegions_templates] is incompatible with control plots for input variables... Setting it to false !")<<endl; this->make_fixedRegions_templates = false;}
     if(this->make_fixedRegions_templates || this->use_SMdiffAnalysis_strategy) {template_name = "";} //Irrelevant
 
     cout<<endl<<BYEL("                          ")<<endl<<endl;
@@ -997,7 +997,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     //-- Create output file //NB: the same conventions must be enforced in function 'Get_HistoFile_InputPath' (to automatically find/read this output file later)
     TString output_file_name = "";
-    if(makeHisto_inputVars) {output_file_name = (TString) "outputs/ControlHistograms_" + (region == ""? "":"_"+region) + lumiName + filename_suffix +".root";}
+    if(makeHisto_inputVars) {output_file_name = (TString) "outputs/ControlHistograms" + (region == ""? "":"_"+region) + "_" + lumiName + filename_suffix +".root";}
     else {output_file_name = (TString) "outputs/Templates" + (this->make_fixedRegions_templates? "_otherRegions":"") + (template_name == ""? "":"_"+template_name) + (MVA_type == ""? "":"_"+MVA_type) + ((use_predefined_EFT_strategy || region == "")? "":"_"+region) + "_" + lumiName + filename_suffix + ".root";}
 	TFile* file_output = TFile::Open(output_file_name, "RECREATE");
 
@@ -1257,7 +1257,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             //-- Apply ad-hoc scale factor to private ttZ sample so that SM yield matches that of central ttZ sample
             //-- NB: should correct the xsec at potato level instead !
             // float SF_SMEFT_ttZ = 0.86;
-            float SF_SMEFT_tWZ = 1.201; //FIXME -- 1 per year ?
+            float SF_SMEFT_tWZ = 1.20; //FIXME -- 1 per year ?
 
     		// cout<<"inputfile "<<inputfile<<endl;
     		if(!Check_File_Existence(inputfile))
@@ -1448,10 +1448,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			//--- Cut on relevant event selection stored as flag (Char_t)
                 //NB: don't 'call' the flag directly, use function Get_Category_Boolean_Name() instead (need different flags for NPL samples)
     			Char_t is_goodCategory = true; //Cut on event category flag
-                vector<Char_t> v_is_goodCategory(3, 1); //Needed for 'make_fixedRegions_templates' scenario (multiple regions)
+                vector<Char_t> v_is_goodCategory(4, 1); //Needed for 'make_fixedRegions_templates' scenario (multiple regions)
                 if(this->make_fixedRegions_templates)
                 {
-                    //-- For now: consider 3 regions (ttZ 4l, CR WZ, CR ZZ)
+                    //-- For now: consider 3 regions (ttZ 4l, CR WZ, CR ZZ, CR DY)
                     TString cat_name = Get_Category_Boolean_Name("ttZ4l", isFake);
                     tree->SetBranchStatus(cat_name, 1);
                     tree->SetBranchAddress(cat_name, &v_is_goodCategory[0]);
@@ -1461,6 +1461,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     cat_name = Get_Category_Boolean_Name("zz", isFake);
                     tree->SetBranchStatus(cat_name, 1);
                     tree->SetBranchAddress(cat_name, &v_is_goodCategory[2]);
+                    cat_name = Get_Category_Boolean_Name("dy", isFake);
+                    tree->SetBranchStatus(cat_name, 1);
+                    tree->SetBranchAddress(cat_name, &v_is_goodCategory[3]);
                 }
                 else if(cat_tmp != "" && !this->use_optimized_ntuples)
                 {
@@ -2259,7 +2262,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 {
 //--- OPTIONS --------------------------------
 //--------------------------------------------
-    bool draw_errors = false; //true <-> superimpose error bands on plot/ratio plot
+    bool draw_errors = true; //true <-> superimpose error bands on plot/ratio plot
 
 	bool draw_logarithm = false; //true <-> plot y-axis in log scale
 
@@ -2508,9 +2511,10 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
     			for(int isample = 0; isample < sample_list.size(); isample++)
     			{
-                    // cout<<"sample_list[isample] "<<sample_list[isample]<<endl;
+                    int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
 
-    				int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
+                    // cout<<"sample_list[isample] "<<sample_list[isample]<<endl;
+                    // cout<<"index_MC_sample "<<index_MC_sample<<endl;
 
     				//-- In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
     				//-- If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
@@ -2537,7 +2541,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
     				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
 
-    				h_tmp = 0;
+    				h_tmp = NULL;
     				TString histo_name = "";
                     if(!drawInputVars && use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
                     {
@@ -2557,6 +2561,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
                             // cout<<"dir_hist_tmp/samplename "<<dir_hist_tmp<<samplename<<endl;
                             if(!file_input->GetDirectory(dir_hist_tmp) || !file_input->GetDirectory(dir_hist_tmp)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist_tmp<<"' or histogram '"<<dir_hist_tmp<<samplename<<"' not found ! Skip...")<<endl; continue;}
+
                             h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist_tmp+samplename))->GetBinContent(1)); //Get content/error from individual bin
                             h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist_tmp+samplename))->GetBinError(1));
                             // cout<<"h_tmp->GetBinContent(1) "<<h_tmp->GetBinContent(1)<<endl;
@@ -2576,8 +2581,15 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                             histo_name+= "__" + samplename;
                         }
 
-                        if(use_combine_file && !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
-                        else if(!use_combine_file && !file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                        // Changed -- even if histo not found, still fill dummy vector element (may be just 1 year missing, still need to account for this sample in indices, etc.)
+                        if((use_combine_file && !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename)) || (!use_combine_file && !file_input->GetListOfKeys()->Contains(histo_name)) )
+                        {
+                            if(v_MC_histo.size() <=  index_MC_sample) {v_MC_histo.push_back(NULL);}
+                            cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; continue;
+                        }
+                        //-- Obsolete
+                        // if(use_combine_file && !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                        // else if(!use_combine_file && !file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
 
                         h_tmp = (TH1F*) file_input->Get(histo_name);
                         // cout<<"histo_name "<<histo_name<<endl;
@@ -2659,7 +2671,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
                                         //-- Debug printouts
     									// cout<<"//--------------------------------------------"<<endl;
-    									// cout<<"Sample "<<sample_list[isample]<<" / Syst "<<syst_list[isyst]<< " / chan "<<channel_list[ichan]<< " / year "<<v_years[iyear]<<endl;
+    									// cout<<"Sample "<<sample_list[isample]<<" / Syst "<<syst_list[isyst]<< " / chan "<<channel_list[ichan]<< " / year "<<v_lumiYears[iyear]<<endl;
     									// cout<<"x = "<<v_x[ibin]<<endl;    cout<<", y = "<<v_y[ibin]<<endl;    cout<<", eyl = "<<v_eyl[ibin]<<endl;    cout<<", eyh = "<<v_eyh[ibin]<<endl; //cout<<", exl = "<<v_exl[ibin]<<endl;    cout<<", exh = "<<v_exh[ibin]<<endl;
     									// cout<<"(nominal value = "<<h_tmp->GetBinContent(ibin+1)<<" - shifted value = "<<histo_syst->GetBinContent(ibin+1)<<") = "<<h_tmp->GetBinContent(ibin+1)-histo_syst->GetBinContent(ibin+1)<<endl;
     								}
@@ -2697,9 +2709,9 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
                     //-- Fill vector of MC histograms
                     if(v_MC_histo.size() <=  index_MC_sample) {v_MC_histo.push_back((TH1F*) h_tmp->Clone());}
-                    else if(!v_MC_histo[index_MC_sample]) {v_MC_histo[index_MC_sample] = (TH1F*) h_tmp->Clone();} //For FakeEle and FakeMu
+                    else if(!v_MC_histo[index_MC_sample] && h_tmp) {v_MC_histo[index_MC_sample] = (TH1F*) h_tmp->Clone();}
                     else {v_MC_histo[index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
-                    v_MC_histo[index_MC_sample]->SetDirectory(0); //Dis-associate histo from TFile
+                    if(v_MC_histo[index_MC_sample]) {v_MC_histo[index_MC_sample]->SetDirectory(0);} //Dis-associate histo from TFile
 
                     //-- Debug printouts
     				// cout<<"sample : "<<sample_list[isample]<<" / color = "<<color_list[isample]<<" fillstyle = "<<h_tmp->GetFillStyle()<<endl;
@@ -2830,14 +2842,16 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                             if(is_blind) {h_sum_data->SetBinContent(ibin, 0);}
                         }
         			}
-        			for(int k=0; k<v_MC_histo.size(); k++)
-        			{
-        				if(!v_MC_histo[k]) {continue;} //Fakes templates can be null
-        				for(int ibin=0; ibin<v_MC_histo[k]->GetNbinsX(); ibin++)
-        				{
-        					if(v_MC_histo[k]->GetBinContent(ibin) < 0) {v_MC_histo[k]->SetBinContent(ibin, 0);}
-        				}
-        			}
+
+                    //-- Obsolete for MC (or at least should skip NPL_MC, expected to be negative !)
+        			// for(int k=0; k<v_MC_histo.size(); k++)
+        			// {
+        			// 	if(!v_MC_histo[k]) {continue;} //Fakes templates can be null
+        			// 	for(int ibin=0; ibin<v_MC_histo[k]->GetNbinsX(); ibin++)
+        			// 	{
+        			// 		if(v_MC_histo[k]->GetBinContent(ibin) < 0) {v_MC_histo[k]->SetBinContent(ibin, 0);}
+        			// 	}
+        			// }
         		}
 
 
@@ -2968,7 +2982,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     	//Merge all the MC nominal histograms (contained in v_MC_histo)
     	for(int i=0; i<v_MC_histo.size(); i++)
     	{
-    		if(!v_MC_histo[i]) {continue;} //Fakes templates may be null
+    		if(!v_MC_histo[i]) {continue;} //Some templates may be null
 
     		// cout<<"MC_samples_legend[i] "<<MC_samples_legend[i]<<endl;
 
@@ -3020,9 +3034,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
 
 			stack_MC->Add(v_MC_histo[i]);
-			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
+			cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
+            cout<<"stack bin 1 content = "<<((TH1*) stack_MC->GetStack()->Last())->GetBinContent(1)<<endl;
 		}
         if(region=="tWZ") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
+
+        //-- Debug printout (THStack bins contents)
+        // for(int ibin=1; ibin<last->GetNbinsX()+1; ibin++) {cout<<"stack bin "<<ibin<<" content = "<<((TH1*) stack_MC->GetStack()->Last())->GetBinContent(ibin)<<endl;}
 
 
  // #####  #####  # #    #         ####    ##   #    # #####  #      ######
@@ -3750,7 +3768,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
 	bool normalize = false;
 
-    TString type = "tWZ"; //'' / 'tZq' / 'ttZ' / 'tWZ' --> Compare corresponding private/central samples
+    TString type = "ttZ"; //'' / 'tZq' / 'ttZ' / 'tWZ' --> Compare corresponding private/central samples
 
     vector<TString> total_var_list;
     // total_var_list.push_back("mTW");
@@ -4217,9 +4235,16 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         TString outdir = "plots/templates_shapes/";
         mkdir(outdir.Data(), 0777);
         if(type != "") {outdir+=  type + "/"; mkdir(outdir.Data(), 0777);}
+        outdir+= lumiName + "/";
+        mkdir(outdir.Data(), 0777);
+        if(region != "")
+        {
+            outdir+= region + "/";
+            mkdir(outdir.Data(), 0777);
+        }
 
     	//Output
-    	TString output_plot_name = outdir + total_var_list[ivar] + "_" + region +"_templatesShapes";
+    	TString output_plot_name = outdir + total_var_list[ivar] +"_templatesShapes";
     	if(channel != "") {output_plot_name+= "_" + channel;}
     	output_plot_name+= this->filename_suffix + this->plot_extension;
 

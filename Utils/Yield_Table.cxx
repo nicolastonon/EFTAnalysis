@@ -306,7 +306,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;} //wrong eventMCFactor and wrong SWEs
                     else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
                     // else if(v_samples[isample] == "PrivMC_ttZ") {weight*= 0.86;} //Obsolete -- tmp xsec fix
-                    else if(v_samples[isample] == "PrivMC_tWZ") {weight*= 1.201;} //FIXME
+                    // else if(v_samples[isample] == "PrivMC_tWZ") {weight*= 1.20;} //FIXME
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -458,7 +458,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
 int main(int argc, char **argv)
 {
-    cout<<FYEL("USAGE : ./Make_Yield_Table.exe [SR] [2016,2017,2018,all,Run2] [uuu,eeu,uue,eee]")<<endl<<endl;
+    cout<<FYEL("USAGE : ./Yield_Table.exe [region] [2016,2017,2018,Run2]")<<endl<<endl;
 
 //== OPTIONS ==
 //--------------------------------------------
@@ -468,6 +468,7 @@ int main(int argc, char **argv)
 
     //-- Category: '' <-> all events ; 'xxx' <-> only include events satisfying condition xxx //E.g.: 'is_signal_SR'
     TString category = "is_signal_SR";
+    // TString category = "is_dy_CR";
 
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
@@ -476,29 +477,11 @@ int main(int argc, char **argv)
 
 //--------------------------------------------
 
-    if(argc > 1)
-	{
-        if(!strcmp(argv[1],"2016") || !strcmp(argv[1],"2017") || !strcmp(argv[1],"2018") || !strcmp(argv[1],"Run2")) {lumi = argv[1];}
-        // else if(!strcmp(argv[1],"tZq") || !strcmp(argv[1],"ttZ") || !strcmp(argv[1],"tWZ") ) {category = argv[1];}
-        else if(!strcmp(argv[1],"uuu") || !strcmp(argv[1],"uue") || !strcmp(argv[1],"eeu") || !strcmp(argv[1],"eee")) {channel = argv[1];}
-		else {cout<<"Wrong first arg !"<<endl; return 0;}
-
-        if(argc > 2)
-    	{
-            if(!strcmp(argv[2],"2016") || !strcmp(argv[2],"2017") || !strcmp(argv[2],"2018") || !strcmp(argv[2],"Run2")) {lumi = argv[2];}
-            // else if(!strcmp(argv[2],"tZq") || !strcmp(argv[2],"ttZ") || !strcmp(argv[2],"tWZ") ) {category = argv[2];}
-            else if(!strcmp(argv[2],"") || !strcmp(argv[2],"uuu") || !strcmp(argv[2],"uue") || !strcmp(argv[2],"eeu") || !strcmp(argv[2],"eee")) {channel = argv[2];}
-    		else {cout<<"Wrong second arg !"<<endl; return 0;}
-
-            if(argc > 3)
-        	{
-                if(!strcmp(argv[3],"2016") || !strcmp(argv[3],"2017") || !strcmp(argv[3],"2018") || !strcmp(argv[3],"Run2")) {lumi = argv[3];}
-                // else if(!strcmp(argv[3],"tZq") || !strcmp(argv[3],"ttZ") || !strcmp(argv[3],"tWZ") ) {category = argv[3];}
-                else if(!strcmp(argv[3],"") || !strcmp(argv[3],"uuu") || !strcmp(argv[3],"uue") || !strcmp(argv[3],"eeu") || !strcmp(argv[3],"eee")) {channel = argv[3];}
-        		else {cout<<"Wrong second arg !"<<endl; return 0;}
-            }
-    	}
-	}
+    TString region = ""; vector<TString> v_lumis(1);
+    Apply_CommandArgs_Choices(argc, argv, v_lumis, region); //Get lumi/region via command line
+    if(region != "") {category = Get_Category_Boolean_Name(region);}
+    if(v_lumis.size() == 3) {lumi = "Run2";}
+    else if(v_lumis[0] != "") {lumi = v_lumis[0];}
 
 //--------------------------------------------
 

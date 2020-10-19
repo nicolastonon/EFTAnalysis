@@ -129,19 +129,19 @@ int main(int argc, char **argv)
 //-- List of sample names (as found in ./input_ntuples) //thesamplegroups <-> can merge multiple ntuples into same group (plotting)
     vector<TString> thesamplelist, thesamplegroups;
 
-// /*
-    // thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
-    // thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+/*
+    thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
+    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
     // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
 
-    // thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
-    // thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
+    thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
+    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
     // thesamplelist.push_back("PrivMC_tZq_v3"); thesamplegroups.push_back("PrivMC_tZq_v3");
     // thesamplelist.push_back("PrivMC_tZq_TOP19001"); thesamplegroups.push_back("PrivMC_tZq_TOP19001");
 
-    // thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tWZ");
-    // thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ");
-// */
+    thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tWZ");
+    thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ");
+*/
 
 // /*
     //DATA (single sample, in first position)
@@ -337,7 +337,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -345,7 +345,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -386,7 +386,7 @@ int main(int argc, char **argv)
 // ##     ##  #######     ##     #######  ##     ## ##     ##    ##    ####  ######
 //--------------------------------------------
 
-//Apply choices given via command line, if any
+//-- Apply choices given via command line, if any
 	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region);
 
     // int nthreads = 4; ROOT::EnableImplicitMT(nthreads); //Enable multi-threading (I have 8 available threads)

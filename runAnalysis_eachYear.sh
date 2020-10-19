@@ -16,11 +16,11 @@ make
 # ./analysis_main.exe 2016 Vg
 # ./analysis_main.exe 2016 zz
 # ./analysis_main.exe 2016 wz
-./analysis_main.exe Run2 tZq
-./analysis_main.exe Run2 ttZ
-./analysis_main.exe Run2 Vg
-./analysis_main.exe Run2 zz
-./analysis_main.exe Run2 wz
+# ./analysis_main.exe Run2 tZq
+# ./analysis_main.exe Run2 ttZ
+# ./analysis_main.exe Run2 Vg
+# ./analysis_main.exe Run2 zz
+# ./analysis_main.exe Run2 wz
 
 #---------------------------------------
 
@@ -45,5 +45,16 @@ make
 # ./analysis_main.exe Run2 tt
 # ./analysis_main.exe Run2 wz
 # ./analysis_main.exe Run2 dy
+
+#---------------------------------------
+# Make yield tables
+
+# ./Yield_Table.exe Run2 signal
+# ./Yield_Table.exe Run2 ttZ4l
+# ./Yield_Table.exe Run2 Vg
+# ./Yield_Table.exe Run2 zz
+# ./Yield_Table.exe Run2 tt
+# ./Yield_Table.exe Run2 wz
+# ./Yield_Table.exe Run2 dy
 
 #---------------------------------------
