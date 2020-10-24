@@ -170,6 +170,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         v_regions.push_back("SRttZ4l"); v_templates.push_back("countExp");
         v_regions.push_back("CRWZ"); v_templates.push_back("mTW");
         v_regions.push_back("CRZZ"); v_templates.push_back("countExp");
+        v_regions.push_back("CRDY"); v_templates.push_back("countExp");
     }
     //Overrides some option to perform a fit following the setup of the main SM tZq differential analysis
     //NB: just add all region and template names together here; then call dedicated hard-coded function to sort out relevant combinations
@@ -535,14 +536,6 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     cin>>template_name_tmp;
     if(template_name_tmp != "0") {template_name = template_name_tmp;}
 
-    //Set a 'selection flag' if necessary (if present in the histo/file names)
-    TString selection_tmp;
-    cout<<endl<<FYEL("=== Set the event selection flag ===")<<endl;
-    cout<<ITAL(DIM("'0' <-> use value set in main() / 'signal' / 'tZq' / 'ttZ' / ..."))<<endl;
-    cout<<ITAL(DIM(<<"..."));
-    cin>>selection_tmp;
-    if(selection_tmp != "0") {selection = selection_tmp;}
-
     //Set a 'filename suffix' if needed (if present in the filename)
     TString filename_template_suffix_tmp;
     cout<<endl<<FYEL("=== Set the template name suffix for the filename ===")<<endl;
@@ -550,6 +543,14 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     cout<<ITAL(DIM(<<"..."));
     cin>>filename_template_suffix_tmp;
     if(filename_template_suffix_tmp != "0") {filename_template_suffix = filename_template_suffix_tmp;}
+
+    //Set a 'selection flag' if necessary (if present in the histo/file names)
+    TString selection_tmp;
+    cout<<endl<<FYEL("=== Set the event selection flag ===")<<endl;
+    cout<<ITAL(DIM("'0' <-> use value set in main() / 'signal' / 'tZq' / 'ttZ' / ..."))<<endl;
+    cout<<ITAL(DIM(<<"..."));
+    cin>>selection_tmp;
+    if(selection_tmp != "0") {selection = selection_tmp;}
 
     return;
 }

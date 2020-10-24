@@ -14,7 +14,9 @@ from Utils.ColoredPrintout import colors
 import getopt # command line parser
 import argparse
 import numpy as np
+from functools import partial
 from settings import opts #Custom dictionnary of settings
+import CombineHarvester.CombineTools.plotting as plot #Combine plotting utils
 
 
  #    # ###### #      #####  ###### #####
@@ -98,7 +100,7 @@ def Get_nSigmaBand_Graphs(graph):
         for i,x in enumerate(list_X_intersects95):
             lines_X_intersects95.append(ROOT.TLine(x,0,x,yval_95))
             # lines_X_intersects95[i].Draw('same') #Draw last
-            lines_X_intersects95[i].SetLineColor(ROOT.kRed+1)
+            lines_X_intersects95[i].SetLineColor(ROOT.kAzure-1) #ROOT.kRed+1
             lines_X_intersects95[i].SetLineWidth(3)
             lines_X_intersects95[i].SetLineStyle(7)
 
@@ -173,6 +175,123 @@ def Get_nSigmaBand_Graphs(graph):
             fgraph68.SetFillStyle(3001)
 
     return yval_68, list_X_intersects68, fgraph68, lines_X_intersects68, yval_95, list_X_intersects95, fgraph95, lines_X_intersects95
+
+
+#See: https://github.com/cms-analysis/CombineHarvester/blob/ada429b880fd475d5faf3f4e0780957f8d08df66/CombineTools/python/plotting.py#L1032
+def FindCrossingsWithSpline(graph, func, yval):
+    crossings = []
+    intervals = []
+    current = None
+    for i in xrange(graph.GetN() - 1):
+        if (graph.GetY()[i] - yval) * (graph.GetY()[i + 1] - yval) < 0.:
+            cross = func.GetX(yval, graph.GetX()[i], graph.GetX()[i + 1])
+            if (graph.GetY()[i] - yval) > 0. and current is None:
+                current = {
+                    'lo': cross,
+                    'hi': graph.GetX()[graph.GetN() - 1],
+                    'valid_lo': True,
+                    'valid_hi': False
+                }
+            if (graph.GetY()[i] - yval) < 0. and current is None:
+                current = {
+                    'lo': graph.GetX()[0],
+                    'hi': cross,
+                    'valid_lo': False,
+                    'valid_hi': True
+                }
+                intervals.append(current)
+                current = None
+            if (graph.GetY()[i] - yval) < 0. and current is not None:
+                current['hi'] = cross
+                current['valid_hi'] = True
+                intervals.append(current)
+                current = None
+            # print 'Crossing between: (%f, %f) -> (%f, %f) at %f' %
+            # (graph.GetX()[i], graph.GetY()[i], graph.GetX()[i+1],
+            # graph.GetY()[i+1], cross)
+            crossings.append(cross)
+    if current is not None:
+        intervals.append(current)
+    if len(intervals) == 0:
+        current = {
+            'lo': graph.GetX()[0],
+            'hi': graph.GetX()[graph.GetN() - 1],
+            'valid_lo': False,
+            'valid_hi': False
+        }
+        intervals.append(current)
+    print 'intervals', intervals
+    return intervals
+    # return crossings
+
+
+#See: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/scripts/plot1DScan.py#L35
+def BuildScan(graph, color, yvals):
+    bestfit = None
+    for i in xrange(graph.GetN()):
+        #print('graph.GetY()[i]', graph.GetY()[i])
+        if graph.GetY()[i] == 0.:
+            bestfit = graph.GetX()[i]
+    graph.SetMarkerColor(color)
+    spline = ROOT.TSpline3("spline3", graph)
+    NAMECOUNTER = 0
+    func = ROOT.TF1('splinefn'+str(NAMECOUNTER), partial(Eval, spline), graph.GetX()[0], graph.GetX()[graph.GetN() - 1], 1)
+    NAMECOUNTER += 1
+    func.SetLineColor(color)
+    func.SetLineWidth(3)
+    assert(bestfit is not None)
+    crossings = {}
+    cross_1sig = None
+    cross_2sig = None
+    other_1sig = []
+    other_2sig = []
+    val = None
+    val_2sig = None
+    for yval in yvals:
+        crossings[yval] = plot.FindCrossingsWithSpline(graph, func, yval)
+        for cr in crossings[yval]:
+            cr["contains_bf"] = cr["lo"] <= bestfit and cr["hi"] >= bestfit
+    for cr in crossings[yvals[0]]:
+        if cr['contains_bf']:
+            val = (bestfit, cr['hi'] - bestfit, cr['lo'] - bestfit)
+            cross_1sig = cr
+        else:
+            other_1sig.append(cr)
+    if len(yvals) > 1:
+        for cr in crossings[yvals[1]]:
+            if cr['contains_bf']:
+                val_2sig = (bestfit, cr['hi'] - bestfit, cr['lo'] - bestfit)
+                cross_2sig = cr
+            else:
+                other_2sig.append(cr)
+    else:
+        val_2sig = (0., 0., 0.)
+        cross_2sig = cross_1sig
+
+    #print('crossings', crossings)
+    #print('val', val)
+    #print('val_2sig', val_2sig)
+    #print('cross_1sig', cross_1sig)
+    #print('cross_2sig', cross_2sig)
+    #print('other_1sig', other_1sig)
+    #print('other_2sig', other_2sig)
+
+    #return func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig
+    return {
+            "graph"     : graph,
+            "spline"    : spline,
+            "func"      : func,
+            "crossings" : crossings,
+            "val"       : val,
+            "val_2sig": val_2sig,
+            "cross_1sig" : cross_1sig,
+            "cross_2sig" : cross_2sig,
+            "other_1sig" : other_1sig,
+            "other_2sig" : other_2sig
+        }
+
+def Eval(obj, x, params):
+    return obj.Eval(x[0])
 
 
   ####  ##### #   # #      # #    #  ####
@@ -339,15 +458,204 @@ class EFTPlot(object):
  #    ## #       #          #       #      #    #   #        #   #     #
  #     # ####### #######    #       ######  ####    #      ##### ######
 
+
     def Plot_NLLscan_1D(self, mode='SM', param='', log=False):
         '''
         Plot the NLL function versus a single POI (1D scan).
+        NB: this is the prefered function, which uses CombineTool helper functions for convenience.
 
         wc: parameter to plot
         mode: 'SM' or 'EFT'
 
         NB: 'NLL' = negative profiled log-likelihood function, as read in TFile.
         '''
+
+        filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+        if not param:
+            logging.error("No param specified!")
+            return
+        if not os.path.exists(filepath):
+            logging.error("File " + filepath + " does not exist!".format(mode))
+            return
+
+        logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
+        print('Reading file:', filepath)
+        print('Param:', param)
+
+        ROOT.gROOT.SetBatch(True)
+        c = ROOT.TCanvas('','',1000,800)
+        #pads = plot.OnePad() #Helper func
+        c.SetGrid(1)
+        c.SetTopMargin(0.1)
+        l = c.GetLeftMargin()
+
+        #-- Get scan TTree
+        rootFile = ROOT.TFile.Open(filepath)
+        limitTree = rootFile.Get('limit')
+
+        #-- Get x-y coordinates for TGraph representing NLL function
+
+        #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
+        graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5')
+        #print(graph.GetN())
+        graph.Sort()
+        plot.RemoveGraphXDuplicates(graph)
+        plot.RemoveGraphYAbove(graph, 8.)
+
+        graph.SetLineColor(ROOT.kBlack)
+        graph.SetLineWidth(3)
+        graph.Draw("AL") #A:axes, P: markers, L:line
+
+        yvals = [1., 3.84] #1sigma, 95%CL intervals
+        #func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig = BuildScan(graph, ROOT.kBlack, yvals)
+        main_scan = BuildScan(graph, ROOT.kBlack, yvals)
+
+        #main_scan['func'].Draw("same") #Can also draw the corresponding smooth function
+
+        line = ROOT.TLine()
+        line.SetLineColor(16) #12 Grey, kRed+1, ...
+        line.SetLineStyle(7)
+        line.SetLineWidth(3)
+        for yval in yvals:
+            if yval == 1: line.SetLineColor(12)
+            elif yval == 3.84: line.SetLineColor(ROOT.kAzure-7) #kRed+1
+            #plot.DrawHorizontalLine(pads[0], line, yval) #Helper func
+            line.DrawLine(graph.GetXaxis().GetXmin(), yval, graph.GetXaxis().GetXmax(), yval)
+
+            for cr in main_scan['crossings'][yval]:
+                if yval == 1: line.SetLineColor(12)
+                elif yval == 3.84: line.SetLineColor(ROOT.kAzure-7)
+
+                if cr['valid_lo']: line.DrawLine(cr['lo'], 0, cr['lo'], yval)
+                if cr['valid_hi']: line.DrawLine(cr['hi'], 0, cr['hi'], yval)
+
+        #-- Create and draw filled TGraph (shaded area below NLL function representing 2sigmas area)
+        crossings = main_scan['crossings'][yvals[0]][0]
+        fgraph68 = None
+        if crossings['valid_lo'] and crossings['valid_hi']:
+            fgraph68 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph68.GetN():
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph68.GetPoint(ipt, x, y)
+                if x < crossings['lo'] or x > crossings['hi']:
+                    # print(ipt, x, y)
+                    fgraph68.RemovePoint(ipt)
+                else: ipt+= 1
+        # Trick: manually set first and last points to get the filled area properly defined
+        if fgraph68 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+            fgraph68.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
+            fgraph68.InsertPointBefore(1, crossings['lo'], yvals[0]) #Add second point at y=Y
+            fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], yvals[0]) #Add first-to-last point at y=Y
+            fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], 0) #Add last point at y=0
+            fgraph68.SetFillColorAlpha(12, 0.50)
+            fgraph68.SetFillStyle(3001)
+            fgraph68.SetLineColor(ROOT.kBlack); fgraph68.SetLineWidth(0)
+            fgraph68.Draw("F same")
+
+        #-- Idem for 95%CL graph
+        crossings = main_scan['crossings'][yvals[1]][0]
+        fgraph95 = None
+        if crossings['valid_lo'] and crossings['valid_hi']:
+            fgraph95 = graph.Clone()
+            ipt = 0
+            while ipt<fgraph95.GetN():
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph95.GetPoint(ipt, x, y)
+                if x < crossings['lo'] or x > crossings['hi']:
+                    # print(ipt, x, y)
+                    fgraph95.RemovePoint(ipt)
+                else: ipt+= 1
+        # Trick: manually set first and last points to get the filled area properly defined
+        if fgraph95 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+            fgraph95.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
+            fgraph95.InsertPointBefore(1, crossings['lo'], yvals[1]) #Add second point at y=Y
+            fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], yvals[1]) #Add first-to-last point at y=Y
+            fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], 0) #Add last point at y=0
+            fgraph95.SetFillColorAlpha(ROOT.kAzure-7, 0.30)
+            fgraph95.SetFillStyle(3001)
+            fgraph95.SetLineColor(ROOT.kBlack); fgraph95.SetLineWidth(0)
+            fgraph95.Draw("F same")
+
+            #-- Printouts
+            #print(fgraph95.GetN())
+            #for ipt in range(0, fgraph95.GetN()):
+            #    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            #    fgraph95.GetPoint(ipt, x, y)
+            #    print(ipt, x, y)
+
+        #-- Axis ranges
+        xmin = graph.GetXaxis().GetXmin()
+        xmax = graph.GetXaxis().GetXmax()
+        graph.SetMinimum(0.001) #Don't display 0 label
+        graph.SetMaximum(10.) #Arbitrary
+        xmin = self.wc_ranges[param][0]
+        xmax = self.wc_ranges[param][1]
+        graph.GetXaxis().SetRangeUser(xmin,xmax)
+
+        #-- Legend
+
+        #val_nom = main_scan['val']
+        #val_2sig = main_scan['val_2sig']
+        #textfit = '%s = %.3f{}^{#plus %.3f}_{#minus %.3f}' % (fixed_name, val_nom[0], val_nom[1], abs(val_nom[2]))
+        #pt = ROOT.TPaveText(0.59, 0.82 - len(other_scans)*0.08, 0.95, 0.91, 'NDCNB')
+        #pt.AddText(textfit)
+
+        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
+        leg.AddEntry(graph, "Profiled log-likelihood", "L")
+        crossings = main_scan['crossings'][yvals[0]][0]
+        #print('crossings', crossings)
+        if crossings['valid_lo'] and crossings['valid_hi'] and fgraph68 is not None:
+            leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
+        crossings = main_scan['crossings'][yvals[1]][0]
+        if crossings['valid_lo'] and crossings['valid_hi'] and fgraph95 is not None:
+            leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
+            print(colors.fg.orange + "95% interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
+        leg.Draw("same")
+
+        #-- Labels
+        graph.SetTitle("")
+        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
+        graph.SetMarkerStyle(8)
+        graph.SetMarkerSize(1)
+        # graph.GetXaxis().SetTitle(param)
+        graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
+        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
+
+        cmsText = "CMS";
+        latex = ROOT.TLatex()
+        latex.SetNDC();
+        latex.SetTextColor(ROOT.kBlack);
+        latex.SetTextFont(61);
+        latex.SetTextAlign(11);
+        latex.SetTextSize(0.06);
+        latex.DrawLatex(l+0.01, 0.92, cmsText)
+
+        extraText = "Preliminary simulation";
+        latex.SetTextFont(52);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(l+0.12, 0.92, extraText)
+
+        latex.SetTextFont(42);
+        latex.SetTextAlign(31);
+        latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
+
+        #-- Save
+        if log:
+            graph.SetMinimum(0.1)
+            graph.SetLogz()
+            c.Print('scan1D_{}_log.png'.format(param))
+        else: c.Print('scan1D_{}.png'.format(param))
+
+        return
+
+
+    '''
+    def Plot_NLLscan_1D(self, mode='SM', param='', log=False):
+        #NB: this is a secondary function using my own custom functions (to build TGraph, get crossings, ...) #DEPRECATED
+
 
         filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
         if not param:
@@ -373,25 +681,26 @@ class EFTPlot(object):
         limitTree = rootFile.Get('limit')
 
         #-- Get x-y coordinates for TGraph representing NLL function
+
         WC_values = []; NLL_values = []
         for entry in range(limitTree.GetEntries()):
             limitTree.GetEntry(entry)
             WC_values.append(limitTree.GetLeaf(param).GetValue(0))
             NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
         NLL_values = [val-min(NLL_values) for val in NLL_values]
-	if WC_values[0] > WC_values[1]: #Trick: got cases were first point is ~0, and only second point is correct (negative bound)
+	    if WC_values[0] > WC_values[1]: #Trick: got cases were first point is ~0, and only second point is correct (negative bound)
 	    WC_values.pop(0); NLL_values.pop(0)
-	#print(WC_values)
         graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
         graph.Draw("AL") #A:axes, P: markers, L:line
         del NLL_values, WC_values
 
-        #-- Small fix needed to plot line instead of markers: remove un-necessary point at origin (0 or 1 depending on parameter)
-        for ipt in range(graph.GetN()):
+        for ipt in range(graph.GetN()): #Small fix needed to plot line instead of markers: remove un-necessary point at origin (0 or 1 depending on parameter)
             x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
             graph.GetPoint(ipt, x, y)
             #print(ipt, x, y)
             if (ipt==0 or ipt==graph.GetN()) and ((x==0. or x==1.)): graph.RemovePoint(ipt)
+
+        yval_68, list_X_intersects68, fgraph68, lines_X_intersects68, yval_95, list_X_intersects95, fgraph95, lines_X_intersects95 = Get_nSigmaBand_Graphs(graph)
 
         #-- Axis ranges
         xmin = graph.GetXaxis().GetXmin()
@@ -467,6 +776,9 @@ class EFTPlot(object):
             c.Print('scan1D_{}_log.png'.format(param))
         else: c.Print('scan1D_{}.png'.format(param))
 
+    return
+    '''
+
 
     def Plot1DManualNLLScan(self, param):
         '''
@@ -475,7 +787,7 @@ class EFTPlot(object):
 
         if not param:
             logging.error("No param specified!")
-            return        
+            return
 
         logging.info(colors.fg.lightblue + "\nEnter function Plot1DManualNLLScan" + colors.reset)
 
@@ -486,7 +798,7 @@ class EFTPlot(object):
         c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
-        #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4] 
+        #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4]
         #WC_values = [-4, -2, -1, 0, 1, 2, 4]
         WC_values = [-2, -1.5, -1, 0, 1, 2]
 
@@ -508,7 +820,7 @@ class EFTPlot(object):
             rootFile = ROOT.TFile.Open(filepath)
 
             limitTree = rootFile.Get('limit')
-            nentries = limitTree.GetEntries()    
+            nentries = limitTree.GetEntries()
             limitTree.GetEntry(nentries-1) #This is where we read the relevant entry #Not sure why, there is sometimes 1 or 2 entries
 
             print('deltaNLL', limitTree.GetLeaf('deltaNLL').GetValue(0)) #For non-arrays, always read leaf element 0
@@ -529,8 +841,8 @@ class EFTPlot(object):
         f = ROOT.TF1("f", "[2] * x * x + [1] * x + [0]") #Quadratic polynomial
         # f = ROOT.TF1("f", "[4] * x * x * x * x + [3] * x * x * x + [2] * x * x + [1] * x + [0]")
 
-        min = TMath.MinElement(graph.GetN(),graph.GetY());     
-        #print(min) 
+        min = TMath.MinElement(graph.GetN(),graph.GetY());
+        #print(min)
 
         NLL_values = [val-min for val in NLL_values] #Substract ymin
         #print(NLL_values)
@@ -658,7 +970,7 @@ class EFTPlot(object):
 
         hist = c.GetPrimitive(hname)
 
-        # Draw best fit point from grid scan #FIXME
+        # Draw best fit point from grid scan
         limitTree.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
         best_fit = c.FindObject('Graph')
         best_fit.SetMarkerSize(2)
@@ -1431,7 +1743,7 @@ class EFTPlot(object):
             wc_values = numpy.asarray(wc_values)
             nll_values = numpy.asarray(nll_values)
 
-            # Prep a spline to get the exact crossings of the 1,2 sigma levels
+            # Prep a `spline to get the exact crossings of the 1,2 sigma levels
             graph = ROOT.TGraph()
             graph = ROOT.TGraph(len(coords), wc_values, nll_values)
             spline = ROOT.TSpline3("spline3", graph)
@@ -1525,216 +1837,6 @@ class EFTPlot(object):
    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
    ##    ########  ######     ##    #### ##    ##  ######
 
-    def TEST_NLL_1D(self, mode='SM', param='', log=False):
-        '''
-        xxx
-        '''
-
-        list_filepaths = []
-        list_filepaths.append('./higgsCombine_ctz_-4.MultiDimFit.mH120.root')
-        list_filepaths.append('./higgsCombine_ctz_-2.MultiDimFit.mH120.root')
-        list_filepaths.append('./higgsCombine_ctz_0.MultiDimFit.mH120.root')
-        list_filepaths.append('./higgsCombine_ctz_2.MultiDimFit.mH120.root')
-        list_filepaths.append('./higgsCombine_ctz_4.MultiDimFit.mH120.root')
-
-        if not param:
-            logging.error("No param specified!")
-            return
-        if not os.path.exists(filepath):
-            logging.error("File " + filepath + " does not exist!".format(mode))
-            return
-
-        logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
-
-        ROOT.gROOT.SetBatch(True)
-        c = ROOT.TCanvas('','',1000,800)
-        c.SetGrid(1)
-        c.SetTopMargin(0.1)
-        l = c.GetLeftMargin()
-
-        #-- Get scan TTree
-        rootFile = ROOT.TFile.Open(filepath)
-        limitTree = rootFile.Get('limit')
-
-        #-- Get x-y coordinates for TGraph representing NLL function
-        WC_values = []; NLL_values = []
-        for entry in range(limitTree.GetEntries()):
-            limitTree.GetEntry(entry)
-            WC_values.append(limitTree.GetLeaf(param).GetValue(0))
-            NLL_values.append(2*limitTree.GetLeaf('deltaNLL').GetValue(0))
-        NLL_values = [val-min(NLL_values) for val in NLL_values]
-        graph = ROOT.TGraph(len(WC_values),numpy.asarray(WC_values),numpy.asarray(NLL_values))
-        graph.Draw("AL") #A:axes, P: markers, L:line
-        del NLL_values, WC_values
-
-        #-- Small fix needed to plot line instead of markers: remove un-necessary point at origin (0 or 1 depending on parameter)
-        for ipt in range(graph.GetN()):
-            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-            # print(ipt, x, y)
-            graph.GetPoint(ipt, x, y)
-            if (ipt==0 or ipt==graph.GetN()) and (x==0. or x==1.): graph.RemovePoint(ipt)
-            # else: print(x, y)
-
-        #-- Axis ranges
-        xmin = graph.GetXaxis().GetXmin()
-        xmax = graph.GetXaxis().GetXmax()
-        graph.SetMinimum(0.001) #Don't display 0 label
-        graph.SetMaximum(10.) #Arbitrary
-        xmin = self.wc_ranges[param][0]
-        xmax = self.wc_ranges[param][1]
-        graph.GetXaxis().SetRangeUser(xmin,xmax)
-
-        #-- y coordinates corresponding to relevant NLL thresholds
-        yval_68 = 1 #68% CL <-> 1 sigma <-> nll=1
-        yval_95 = 3.84 #95% CL <-> ~2 sigma <-> nll=3.84
-        # yval_2sigmas = 4 #~95.45% CL <-> 2 sigma <-> nll=4
-
-        #-- Display vertical lines at each intersection of the NLL function with the 95% CL threshold
-        list_X_intersects95 = Get_Intersection_X(graph, yval_95)
-        lines_X_intersects95 = []
-        if len(list_X_intersects95) > 0:
-            for i,x in enumerate(list_X_intersects95):
-                lines_X_intersects95.append(ROOT.TLine(x,0,x,yval_95))
-                # lines_X_intersects95[i].Draw('same') #Draw last
-                lines_X_intersects95[i].SetLineColor(ROOT.kRed+1)
-                lines_X_intersects95[i].SetLineWidth(3)
-                lines_X_intersects95[i].SetLineStyle(7)
-
-            # Create and draw filled TGraph (shaded area below NLL function representing 2sigmas area)
-            # fgraph95 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
-            fgraph95 = graph.Clone()
-            ipt = 0
-            while ipt<fgraph95.GetN():
-            # for ipt in range(fgraph95.GetN()):
-                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                fgraph95.GetPoint(ipt, x, y)
-                # print(x, y)
-                if len(list_X_intersects95)>=2 and (x<=list_X_intersects95[0] or x>=list_X_intersects95[1]):
-                    # print(ipt, x, y)
-                    fgraph95.RemovePoint(ipt)
-                else: ipt+= 1
-
-            # Trick: manually set first and last points to get the filled area properly defined
-            if len(list_X_intersects95)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-                fgraph95.SetPoint(0, list_X_intersects95[0], 0) #Add first point at y=0
-                fgraph95.InsertPointBefore(1, list_X_intersects95[0], yval_95) #Add second point at y=Y
-                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], yval_95) #Add first-to-last point at y=Y
-                fgraph95.SetPoint(fgraph95.GetN(), list_X_intersects95[1], 0) #Add last point at y=0
-
-                #-- Printouts
-                # print(fgraph95.GetN())
-                # for ipt in range(0, fgraph95.GetN()):
-                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                #     fgraph95.GetPoint(ipt, x, y)
-                #     print(ipt, x, y)
-
-                fgraph95.SetFillColorAlpha(ROOT.kRed+1, 0.55)
-                fgraph95.SetFillStyle(3001)
-                # fgraph95.SetFillColor(18)
-                # fgraph95.SetFillStyle(3004)
-                fgraph95.Draw("F same")
-
-        #-- Idem for 68% CL -- not drawn for now
-        list_X_intersects68 = Get_Intersection_X(graph, yval_68)
-        lines_X_intersects68 = []
-        if len(list_X_intersects68) > 0:
-            for i,x in enumerate(list_X_intersects68):
-                lines_X_intersects68.append(ROOT.TLine(x,0,x,yval_68))
-                lines_X_intersects68[i].SetLineColor(ROOT.kRed+1)
-                lines_X_intersects68[i].SetLineWidth(3)
-                lines_X_intersects68[i].SetLineStyle(7)
-
-            fgraph68 = ROOT.TGraph(graph.GetN(),graph.GetX(),graph.GetY())
-            # fgraph68 = graph.Clone()
-            ipt = 0
-            while ipt<fgraph68.GetN():
-                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                fgraph68.GetPoint(ipt, x, y)
-                # print(x, y)
-                if x<=list_X_intersects68[0] or x>=list_X_intersects68[1] or (x==0 and y==0):
-                    # print('ipt', ipt)
-                    fgraph68.RemovePoint(ipt)
-                else: ipt+= 1
-
-            if len(list_X_intersects68)>=2: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-                fgraph68.SetPoint(0, list_X_intersects68[0], 0) #Add first point at y=0
-                fgraph68.InsertPointBefore(1, list_X_intersects68[0], yval_68) #Add second point at y=Y
-                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], yval_68) #Add first-to-last point at y=Y
-                fgraph68.SetPoint(fgraph68.GetN(), list_X_intersects68[1], 0) #Add last point at y=0
-
-                #-- Printouts
-                # print(fgraph68.GetN())
-                # for ipt in range(0, fgraph68.GetN()):
-                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                #     fgraph68.GetPoint(ipt, x, y)
-                #     print(ipt, x, y)
-
-                fgraph68.SetFillColor(12)
-                fgraph68.SetFillStyle(3001)
-                fgraph68.Draw("F same")
-
-        # Draw vertical lines
-        for iline in range(len(lines_X_intersects95)):
-            lines_X_intersects95[iline].Draw('same')
-
-        # 1 sigma horizontal line
-        line_Y_1sigma = ROOT.TLine(xmin,yval_68,xmax,yval_68)
-        line_Y_1sigma.Draw('same')
-        line_Y_1sigma.SetLineColor(12) #Grey
-        # line_Y_1sigma.SetLineColor(ROOT.kRed+1)
-        line_Y_1sigma.SetLineWidth(3)
-        line_Y_1sigma.SetLineStyle(7)
-
-        # 2 sigma horizontal line #NB: for 95% CL (exclusion limits), use 3.84 instead of 4
-        line_Y_2sigmas = ROOT.TLine(xmin,yval_95,xmax,yval_95)
-        line_Y_2sigmas.Draw('same')
-        line_Y_2sigmas.SetLineColor(ROOT.kRed+1)
-        line_Y_2sigmas.SetLineWidth(3)
-        line_Y_2sigmas.SetLineStyle(7)
-
-        #-- Legend
-        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
-        leg.AddEntry(graph, "Profiled log-likelihood", "L")
-        if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
-        if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
-        leg.Draw("same")
-
-        #-- Labels
-        graph.SetTitle("")
-        # graph.SetMarkerStyle(26) #Change markers from invisible dots to nice triangles
-        graph.SetMarkerStyle(8)
-        graph.SetMarkerSize(1)
-        # graph.GetXaxis().SetTitle(param)
-        graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
-        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
-        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
-
-        cmsText = "CMS";
-        latex = ROOT.TLatex()
-        latex.SetNDC();
-        latex.SetTextColor(ROOT.kBlack);
-        latex.SetTextFont(61);
-        latex.SetTextAlign(11);
-        latex.SetTextSize(0.06);
-        latex.DrawLatex(l+0.01, 0.92, cmsText)
-
-        extraText = "Preliminary simulation";
-        latex.SetTextFont(52);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(l+0.12, 0.92, extraText)
-
-        latex.SetTextFont(42);
-        latex.SetTextAlign(31);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
-
-        #-- Save
-        if log:
-            graph.SetMinimum(0.1)
-            graph.SetLogz()
-            c.Print('scan1D_{}_log.png'.format(param))
-        else: c.Print('scan1D_{}.png'.format(param))
-
 
 
 
@@ -1762,44 +1864,45 @@ if __name__ == "__main__":
 
 # User options
 # //--------------------------------------------
-    mode = 'EFT' #'SM', 'EFT'
+    SM = False #True <-> consider SM scenario (rather than SMEFT)
     scan_type = '1D'
     POI = []
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
-    parser.add_argument("-m", metavar="m", help="SM or EFT")
+    # parser.add_argument("-m", metavar="m", help="SM or EFT")
     parser.add_argument("-scan", metavar="scan", help="Scan type (1D, 2D, manual, ...)")
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
+    parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)")
 
     args = parser.parse_args()
-    if args.m: mode = args.m
     if args.scan == '1D': scan_type = '1D'
     elif args.scan == '2D': scan_type = '2D'
     elif args.scan == 'manual': scan_type = 'manual'
     elif args.scan: print('ERROR ! Wrong [type] arg !')
     if args.POI: POI = args.POI
+    if args.sm: SM = True
 
     plotter = EFTPlot(opts)
     Load_Canvas_Style()
 
-# SM fit
+# SM
 # //--------------------------------------------
-    if mode == 'SM':
+    if SM:
         if scan_type=='1D': plotter.Plot_NLLscan_1D(mode='SM', param=opts['SM_mu'], log=False)
         elif scan_type=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False)
 
-# EFT fit
+# SMEFT
 # //--------------------------------------------
-    elif mode == 'EFT':
-        if scan_type=='1D': 
+    else:
+        if scan_type=='1D':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
             plotter.Plot_NLLscan_1D(mode='EFT', param=param_tmp[0], log=False)
-        elif scan_type=='2D': 
+        elif scan_type=='2D':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False)
-        elif scan_type	=='manual': 
+        elif scan_type	=='manual':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
             plotter.Plot1DManualNLLScan(param=param_tmp[0])
 

@@ -93,6 +93,7 @@ class EFTModel(PhysicsModel):
         fits = np.load(self.fits)[()]
         for procbin in self.procbins:
             name = 'r_{0}_{1}'.format(procbin[0],procbin[1])
+            # name = 'r_{0}_{1}_{2}'.format(procbin[0],procbin[1],procbin[2]) #If also considering systematic name in EFT parameterization
             procbin_name = '_'.join(procbin)
             if verbose:
                 print('name', name)
@@ -111,14 +112,14 @@ class EFTModel(PhysicsModel):
 
                 # Fill function pieces
                 for idx,wc1 in enumerate(self.wcs):
-                    if abs(fits[procbin][(SM_name,wc1)]) >= 0.001:
+                    if abs(fits[procbin][(SM_name,wc1)]) >= 0.0001: #CHANGED
                         lin_term.append('{0}*{1}'.format(round(fits[procbin][(SM_name,wc1)],4),wc1))
                         lin_args.append(wc1)
                     for idy,wc2 in enumerate(self.wcs):
                         # print('wc1', wc1, 'wc2', wc2)
                         if (wc1,wc2) not in fits[procbin]:
                             print(colors.fg.red + "ERROR: WCs " + str((wc1,wc2)) + " not found in EFT parameterization... Did you run [DumpEFTParametrization.py] on the proper template file ?" + colors.reset); exit(1)
-                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.001):
+                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.0001): #CHANGED
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
 
@@ -181,11 +182,14 @@ class EFTModel(PhysicsModel):
         "Return the name of a RooAbsReal to scale this yield by or the two special values 1 and 0 (don't scale, and set to zero)"
 
         if (process,bin) not in self.procbins:
-            if verbose: print(colors.fg.orange + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
+            print(colors.fg.orange + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
+            # print(colors.fg.orange + '* ({0},{1},{2}) not in self.procbins ! => Do not scale'.format(process, bin, systematic) + colors.reset)
             return 1
         else:
-            if verbose: print(colors.fg.orange + '* Scaling ({0},{1}) by r_{0}_{1}'.format(process, bin) + colors.reset)
+            print(colors.fg.orange + '* Scaling ({0},{1}) by r_{0}_{1}'.format(process, bin) + colors.reset)
             return 'r_{0}_{1}'.format(process,bin)
+            # print(colors.fg.orange + '* Scaling ({0},{1},{2}) by r_{0}_{1}_{2}'.format(process, bin, systematic) + colors.reset)
+            # return 'r_{0}_{1}_{2}'.format(process,bin,systematic)
 
 # //--------------------------------------------
 # //--------------------------------------------

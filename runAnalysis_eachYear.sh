@@ -24,7 +24,8 @@ make
 
 #---------------------------------------
 
-#All CRs
+#-- All regions
+
 # ./analysis_main.exe 2016 Vg
 # ./analysis_main.exe 2016 zz
 # ./analysis_main.exe 2016 tt
@@ -40,6 +41,8 @@ make
 # ./analysis_main.exe 2018 tt
 # ./analysis_main.exe 2018 wz
 # ./analysis_main.exe 2018 dy
+
+# ./analysis_main.exe Run2 ttZ4l
 # ./analysis_main.exe Run2 Vg
 # ./analysis_main.exe Run2 zz
 # ./analysis_main.exe Run2 tt

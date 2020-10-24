@@ -13,6 +13,7 @@ import argparse
 import numpy as np
 import subprocess
 from settings import opts #Custom dictionnary of settings
+import shutil
 
 
 #    # ###### #      #####  ###### #####
@@ -70,11 +71,29 @@ def log_subprocess_output(pipe,level):
             if level=='info': logging.info(line.rstrip('\n'))
             if level=='err': logging.error(line.rstrip('\n'))
 
+def makeWorkspaceEFT(datacard='datacard.txt', verbosity=0):
+        ### Generates a workspace from a datacard and fit parameterization file ###
+        print(colors.fg.lightblue + "Creating workspace" + colors.reset)
+        if not os.path.isfile(datacard):
+            print("Datacard does not exist!")
+            sys.exit()
+        CMSSW_BASE = os.getenv('CMSSW_BASE')
+        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
+
+        if verbosity>0: args.extend(['-v', str(verbosity)])
+
+        print(colors.fg.purple + ' '.join(args) + colors.reset)
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            log_subprocess_output(process.stdout,'info')
+            log_subprocess_output(process.stderr,'err')
+        process.wait()
+
 #=====================================
 
-def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False):
+def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False, only_collect_outputs=False, name=''):
     '''
-    Generate impact plots.
+    Generate impact plots. Can choose to run the per-nuisance fits on the grid.
 
     #See: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/scripts/plotImpacts.py
     #Available options:
@@ -98,68 +117,101 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
 
     print(colors.fg.lightblue + "Enter function Make_Impact_Plots()\n" + colors.reset)
 
-    if len(POIs) == 0: 
+    if len(POIs) == 0:
         print(colors.fg.red + "ERROR: empty list POIs\n" + colors.reset)
         exit(1)
 
-    #-- Do the initial fits
-    args = ['combineTool.py','-M','Impacts','-d',workspace,'--doInitialFit','--robustFit','1','-m','125','--cminPoiOnlyFit']
+    if only_collect_outputs == False:
+        #-- Do the initial fits
+        args = ['combineTool.py','-M','Impacts','-d',workspace,'--doInitialFit','--robustFit','1','-m','125','--cminPoiOnlyFit']
 
-    # Options
-    args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
-    args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
-    frozen_pois = [] #By default, no WC is frozen 
-    if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-    else: 
-        args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
-        frozen_pois = [wc for wc in opts['wcs'] if wc not in POIs] #Define which WCs are frozen
-    if exp: args.extend(['-t','-1']) #Assume MC expected
-    if verbosity>0: args.extend(['-v', str(verbosity)])
-    if other:               args.extend(other)
-    args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
-    args.extend(['--autoBoundsPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
-    args.extend(['--autoMaxPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
-    #args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
-    #args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])    
-    
-    #print(colors.fg.purple + ' '.join(args) + colors.reset)
-    #run_command(args)
+        # Options
+        args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
 
-    logging.info(colors.fg.purple + " ".join(args) + colors.reset)
-    process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-    with process.stdout,process.stderr:
-        log_subprocess_output(process.stdout,'info')
-        log_subprocess_output(process.stderr,'err')
-    process.wait()
+        #FIXME #FIXME #FIXME
+        args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
 
-    #-- Do a fit for each nuisance parameter in the datacard
-    args = ['combineTool.py','-M','Impacts','--doFits','--allPars','--robustFit','1','-d',workspace,'-m','125','--cminPoiOnlyFit']
-    args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
-    args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
-    if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-    else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
-    if exp: args.extend(['-t','-1']) #Assume MC expected
-    if verbosity>0: args.extend(['-v', str(verbosity)])
-    if other:               args.extend(other)
-    args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
-    args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
-    args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])
-  
-    logging.info(colors.fg.purple + " ".join(args) + colors.reset)
-    process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-    with process.stdout,process.stderr:
-        log_subprocess_output(process.stdout,'info')
-        log_subprocess_output(process.stderr,'err')
-    process.wait()
-    
+        frozen_pois = [] #By default, no WC is frozen
+        if name == '': name = 'EFT'
+        args.extend(['-n','{}'.format(name)])
+        if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        else:
+            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
+            frozen_pois = [wc for wc in opts['wcs'] if wc not in POIs] #Define which WCs are frozen
+        if exp: args.extend(['-t','-1']) #Assume MC expected
+        if verbosity>0: args.extend(['-v', str(verbosity)])
+        if other: args.extend(other)
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
+        args.extend(['--autoBoundsPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
+        args.extend(['--autoMaxPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
+        #args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
+        #args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])
+
+        #print(colors.fg.purple + ' '.join(args) + colors.reset)
+        #run_command(args)
+
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            log_subprocess_output(process.stdout,'info')
+            log_subprocess_output(process.stderr,'err')
+        process.wait()
+
+        #-- Do a fit for each nuisance parameter in the datacard
+        args = ['combineTool.py','-M','Impacts','--doFits','--robustFit','1','-d',workspace,'-m','125','--cminPoiOnlyFit']
+        args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
+        args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
+        if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
+        if exp: args.extend(['-t','-1']) #Assume MC expected
+        if verbosity>0: args.extend(['-v', str(verbosity)])
+        if other:               args.extend(other)
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
+        args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
+        args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])
+        if name != '': args.extend(['-n','{}'.format(name)])
+
+        if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py'])
+        if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--dry-run'])
+
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            log_subprocess_output(process.stdout,'info')
+            log_subprocess_output(process.stderr,'err')
+        process.wait()
+
+        # Condor needs execution permissions on the .sh file, so we used --dry-run
+        # Add the permission and complete the submission #Also this stores all out/err files in a dedicated directory
+        if batch=='condor':
+            if os.path.exists('condor{}'.format(name)):
+                logging.error("Directory condor{} already exists!".format(name))
+                logging.error("OVERWRITING !")
+                shutil.rmtree('condor{}'.format(name), ignore_errors=True)
+                #return
+
+            sp.call(['mkdir','condor{}'.format(name)])
+            sp.call(['chmod','a+x','condor_{}.sh'.format(name.replace('.',''))])
+            logging.info('Now submitting condor jobs.')
+            condorsub = sp.Popen(['condor_submit','-append','initialdir=condor{}'.format(name),'condor_{}.sub'.format(name.replace('.',''))], stdout=sp.PIPE, stderr=sp.PIPE)
+            with condorsub.stdout,condorsub.stderr:
+                log_subprocess_output(condorsub.stdout,'info')
+                log_subprocess_output(condorsub.stderr,'err')
+            condorsub.wait()
+
+        if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
+        else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
+
+        if batch != '': return #If we just submitted jobs, need to wait that they finish before we collect outputs
 
     #-- Create a json file using as input the files generated in the previous two steps
-    args = ['combineTool.py','-M','Impacts','-o','impacts.json','--allPars','-d',workspace,'-m','125']
+    args = ['combineTool.py','-M','Impacts','-o','impacts.json','-d',workspace,'-m','125']
     args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
     if exp: args.extend(['-t','-1']) #Assume MC expected
     if verbosity>0: args.extend(['-v', str(verbosity)])
     if other:               args.extend(other)
-  
+    if name != '': args.extend(['-n','{}'.format(name)])
+
     logging.info(colors.fg.purple + " ".join(args) + colors.reset)
     process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
     with process.stdout,process.stderr:
@@ -168,10 +220,12 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
     process.wait()
 
     #-- Create the impact plot pdf file
+    outfilename = 'impacts'
+    if name != '': outfilename+= '_'+name
     for poi in POIs:
-        outf = 'impacts_%s' % (poi)
-        args = ['plotImpacts.py','-i','impacts.json','--POI','%s' % (poi),'-o',outf,'--per-page','20','--translate','../Plotting/rename.json','--cms-label','Internal']
-        
+        if outfilename=='impacts' or len(POIs)>1: outfilename+= '_'+str(poi)
+        args = ['plotImpacts.py','-i','impacts.json','--POI','%s' % (poi),'-o',outfilename,'--per-page','20','--translate','../Plotting/rename.json','--cms-label','Internal']
+
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
         with process.stdout,process.stderr:
@@ -184,9 +238,7 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
 
 def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
     '''
-    xxx
-    #FlotOtherPOIs when freeze?
-
+    Perform a NLL grid scan for a given nuisance parameter.
     '''
 
     print(colors.fg.lightblue + "Enter function Make_NLL_Scan_NuisancePar()\n" + colors.reset)
@@ -202,7 +254,7 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     args.extend(['--setParameterRanges',nuisance+'='+str(range[0])+','+str(range[1])])
     args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
     args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])
-  
+
     logging.info(colors.fg.purple + " ".join(args) + colors.reset)
     process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
     with process.stdout,process.stderr:
@@ -213,8 +265,8 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     #-- Plot NLL scan
     args = ['plot1DScan.py','higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH120.root','--POI', nuisance] #Minimal args
     args.extend(['--y-cut','7','--y-max','8','--main-color','1','--logo','CMS','--logo-sub','Internal']) #Optional args
-    if exp: args.extend(['--main-label','Expected']) 
-    else: args.extend(['--main-label','Observed']) 
+    if exp: args.extend(['--main-label','Expected'])
+    else: args.extend(['--main-label','Observed'])
     args.extend(['--output','scan_'+nuisance]) #Output filename
     args.extend(['--translate','../Plotting/rename.json']) #Translate names using JSON file
     #args.extend(['--breakdown','1']) #'do quadratic error subtraction using --others'
@@ -231,11 +283,11 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
 
 def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
     '''
-    xxx
-    #use batch mode to submit ?
+    Run NLL grid scans for all nuisance parameters found in the input RooWorkspace.
 
+    NB: how to run this on the grid ?
     '''
-    
+
     print(colors.fg.lightblue + "Enter function Make_NLL_Scan_AllNuisancePars()\n" + colors.reset)
 
     nuisances = []
@@ -249,7 +301,7 @@ def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], fr
     #mc.GetParametersOfInterest().Print("V") #Print POIs
     #mc.GetNuisanceParameters().Print("V") #Print nuisances
     set_nuisances = mc.GetNuisanceParameters() #Get list of nuisances
-    
+
     iter = set_nuisances.createIterator()
     var = iter.Next()
     while var :
@@ -259,7 +311,7 @@ def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], fr
     #print(nuisances)
     print(colors.fg.lightblue + '-- Found' + len(nuisances) + ' nuisances parameters...\n' +  colors.reset)
 
-    if len(nuisances)==0: 
+    if len(nuisances)==0:
         logging.info(colors.fg.red + "ERROR: empty list of nuisances from file " + workspace + colors.reset)
         exit(1)
 
@@ -288,6 +340,7 @@ def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], fr
 if __name__ == "__main__":
 
     init()
+    print('Example usage: [python Plot_Syst_Impacts_EFT.py -m impacts -d ../datacards/workspace.root --POI ctz --freeze --exp]')
 
 # User options -- Default values
 # //--------------------------------------------
@@ -301,41 +354,55 @@ if __name__ == "__main__":
     mode = 'impacts' #'impacts' (make impact plot) / 'scan_nuisance' (scan 1 specific nuisance) / 'scan_all' (scan all nuisances)
     nuisance = '' #Name of single nuisance parameter to scan
     npoints = 50 #Number of points to scan nuisance(s)
+    only_collect_outputs = False #True <-> for impact plot, only collect output files previously produced e.g. on the grid
+    batch = '' #Can choose to run jobs on 'crab' or 'condor'
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
+    parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
+    parser.add_argument("--collect", metavar="collect", help="Impact plot: only collect output files previously produced e.g. on the grid", nargs='?', const=1)
+    parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument("-d", metavar="workspace/datacard path", help="Path to the datacard")
     parser.add_argument("-v", metavar="Combine verbosity level", help="Set combine output verbosity")
-    parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
-    parser.add_argument("-name", metavar="name", help="add suffix to output filename")
-    parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
-    parser.add_argument("-m", metavar="m", help="SM or EFT")
-    parser.add_argument("--nuisance", metavar="nuisance name", help="Name of single nuisance to scan")
+    parser.add_argument("-m", metavar="m", help="[impacts] or [scan_nuisance] or [scan_all]")
+    parser.add_argument("-n", metavar="name", help="add suffix to output filename")
+    parser.add_argument("--nuisance", metavar="nuisance", help="Name of single nuisance to scan")
     parser.add_argument("--npoints", metavar="npoints", help="Number of points to scan nuisance(s)")
+    parser.add_argument("--batch", metavar="batchmode", help="crab or condor")
 
     args = parser.parse_args()
     if args.d: datacard_path = args.d
     if args.v: verb = int(args.v)
     if args.exp: exp = True
-    if args.name: name = args.name
+    if args.n: name = args.n
     if args.freeze: freeze = True
     if args.POI: POIs = args.POI
-    else: 
+    else:
         print('ERROR: missing arg --POI !')
         exit(1)
     if args.m: mode = args.m
     if args.nuisance: nuisance = args.nuisance
     if args.npoints: npoints = args.npoints
+    if args.collect: only_collect_outputs = True
+    if args.batch: batch = args.batch
 
-    if mode != 'impacts' and mode != 'scan_nuisance' and mode != 'scan_all':
+    if mode not in ['impact','impacts','scan_nuisance','scan_all']:
         logging.info(colors.fg.lightblue + "ERROR: wrong option mode" + colors.reset)
         exit(1)
+    if batch=='crab':
+        print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
+        exit(1)
 
-    if mode == 'impacts': Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp)
+# //--------------------------------------------
+
+    if 'txt' in datacard_path:
+        makeWorkspaceEFT(datacard=datacard_path) #Create RooWorkspace from txt datacard
+        datacard_path = 'EFTWorkspace.root' #Use created workspace
+
+    if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name)
 
     elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
 
     elif mode == 'scan_all': Make_NLL_Scan_AllNuisancePars(datacard_path, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
-

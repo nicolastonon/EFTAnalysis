@@ -2,10 +2,6 @@
 # Adapted from: https://github.com/cms-govner/EFTFit
 # Batch modes supported are: CRAB3 ('crab') and Condor ('condor')
 
-#FIXME
-# '--do95 1' <-> compute 95%CL limits
-# '--fastScan' <-> avoid nuisance profiling
-
 '''
 #'text2workspace will convert the datacard into a pdf which summaries the analysis'
 - '--just-check-physics-model'
@@ -30,6 +26,7 @@ from collections import defaultdict
 import getopt # command line parser
 import argparse
 from settings import opts #Custom dictionnary of settings
+import shutil
 
 
 ######## ######## ######## ######## #### ########
@@ -56,6 +53,7 @@ class EFTFit(object):
         self.scan_wcs = opts['scan_wcs']
         self.wcs_tracked = opts['wcs_tracked']
         self.wc_ranges = opts['wc_ranges']
+        self.wcs_pairs = opts['wcs_pairs']
 
         '''
         # WCs lists for easy use
@@ -186,7 +184,7 @@ class EFTFit(object):
         ### Multidimensional fit ###
         logging.info(colors.fg.lightblue + "Enter function bestFitSM()\n" + colors.reset)
 
-        args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit']
+        args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit','--do95','1','--robustFit','1']
 
         for mu in opts["SM_mus"]: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
         args.extend(['--setParameters',','.join('{}=1'.format(xx) for xx in opts["SM_mus"])]) #Set default values to 1
@@ -227,7 +225,7 @@ class EFTFit(object):
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
         # args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
-        args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult']
+        args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','--do95','1','--robustFit','1']
 
         args.extend(['-n','{}'.format(name)])
         if fixedPointNLL:
@@ -236,8 +234,9 @@ class EFTFit(object):
         if params_POI:
             for wc in params_POI: args.extend(['-P','{}'.format(wc)])
         if not fixedPointNLL and startValue is not '': args.extend(['--setParameters',','.join('{}={}'.format(wc, startValue) for wc in params_POI)]) #Set POI default value for generating toys (otherwise, use B-only model)
-        else: args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in params_POI)]) #Set default values to 0
-        if not freeze:          args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        else: args.extend(['--setParameters',','.format(poi) for poi in opts['wcs']]) #Set default values to 0
+        if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI)]) #Freeze other parameters
+        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
         if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
         if verbosity>0:           args.extend(['-v', str(verbosity)])
@@ -265,6 +264,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
+    #FIXME -- could merge with EFT func ? (also harmonize batch mode, ...)
     def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False, verbosity=0):
 
         ### Runs deltaNLL Scan in a parameter using CRAB ###
@@ -291,7 +291,7 @@ class EFTFit(object):
         if other:             args.extend(other)
 
         if batch=='crab':      args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','2000'])
-        if batch=='condor':    args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','2000'])
+        if batch=='condor':    args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','2000','--sub-opts=','\'getenv = true\''])
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
@@ -315,6 +315,7 @@ class EFTFit(object):
         logging.info(colors.fg.lightblue + "Enter function gridScanEFT()\n" + colors.reset)
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
+        # Other options: '--cminFallbackAlgo Minuit2,Combined,2:0.3'
         args = ['combineTool.py','-d','./EFTWorkspace.root','-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
 
         for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
@@ -322,18 +323,19 @@ class EFTFit(object):
         args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in opts["wcs"])])
 
         args.extend(['--points','{}'.format(points)])
-        if name:              args.extend(['-n','{}'.format(name)])
+        if name: args.extend(['-n','{}'.format(name)])
         check = True in (wc not in self.wcs for wc in self.wcs_tracked)
         if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in self.wcs])]) #Save values of additional parameters (e.g. profiled nuisances)
         # if startValuesString:   args.extend(['--setParameters',startValuesString])
-        if not freeze:        args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in scan_params)]) #Freeze other parameters
+        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if exp:               args.extend(['-t -1'])
         if verbosity>0:           args.extend(['-v', str(verbosity)])
         if other:             args.extend(other)
         # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
 
-        if batch=='crab':              args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','3000'])
-        if batch=='condor':            args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','3000','--dry-run'])
+        if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','100'])
+        if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','100','--dry-run'])
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
@@ -345,13 +347,15 @@ class EFTFit(object):
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
 
-        # Condor needs executable permissions on the .sh file, so we used --dry-run
+        # Condor needs executab permissions on the .sh file, so we used --dry-run
         # Add the permission and complete the submission.
         if batch=='condor':
             if os.path.exists('condor{}'.format(name)):
                 logging.error("Directory condor{} already exists!".format(name))
-                logging.error("Aborting submission.")
+                logging.error("OVERWRITING !")
+                shutil.rmtree('condor{}'.format(name), ignore_errors=True)
                 #return
+
             sp.call(['mkdir','condor{}'.format(name)])
             sp.call(['chmod','a+x','condor_{}.sh'.format(name.replace('.',''))])
             logging.info('Now submitting condor jobs.')
@@ -364,7 +368,7 @@ class EFTFit(object):
         if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
         else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-        fitter.printIntervalFitsEFT(basename='.EFT', scan_params=param_tmp) #Print exclusion range
+        if batch=='': fitter.printIntervalFitsEFT(basename='.EFT', scan_params=param_tmp) #Print exclusion range
 
         return
 
@@ -569,14 +573,15 @@ class EFTFit(object):
  #    # ######   #   #    # # ######   ##   ######     ####  #    # # #####
 
     def retrieveGridScan(self, name='.test', batch='crab', user='ntonon'):#getpass.getuser()):
-        ### Retrieves finished grid jobs, extracts, and hadd's into a single file ###
+
+        ### Retrieve grid jobs outputs, extracts/hadd them into a single file ###
         taskname = name.replace('.','')
         logging.info("Retrieving gridScan files. Task name: "+taskname)
 
         if batch=='crab':
-            # Find crab output files (defaults to user's hadoop directory)
-            hadooppath = '/hadoop/store/user/{}/EFT/Combine/{}'.format(user, taskname)
-            (tarpath,tardirs,tarfiles) = os.walk(hadooppath)
+            # Find crab output files (defaults to user directory)
+            outputspath = '/store/user/{}/EFT/Combine/{}'.format(user, taskname)
+            (tarpath,tardirs,tarfiles) = os.walk(outputspath)
             if not tarfiles[2]:
                 logging.error("No files found in store!")
                 sys.exit()
@@ -604,11 +609,11 @@ class EFTFit(object):
             sp.call(['rm','-r',taskname+'tmp'])
 
         elif batch=='condor':
-            if not glob.glob('higgsCombine{}.POINTS*.root'.format(name)):
-                logging.info("No files to hadd. Returning.")
+            if not glob.glob('higgsCombine{}.POINTS*.root'.format(name)): #glob: find matching patterns
+                logging.info("No files with names higgsCombine{}.POINTS*.root to hadd. Returning.".format(name))
                 return
             #haddargs = ['hadd','-f','higgsCombine'+name+'.MultiDimFit.root']+sorted(glob.glob('higgsCombine{}.POINTS*.root'.format(name)))
-            haddargs = ['hadd','-f','./higgsCombine'+name+'.MultiDimFit.root']+sorted(glob.glob('higgsCombine{}.POINTS*.root'.format(name)))
+            haddargs = ['hadd','-f','./higgsCombine'+name+'.MultiDimFit.mH120.root']+sorted(glob.glob('higgsCombine{}.POINTS*.root'.format(name)))
             process = sp.Popen(haddargs, stdout=sp.PIPE, stderr=sp.PIPE)
             with process.stdout,process.stderr:
                 self.log_subprocess_output(process.stdout,'info')
@@ -629,25 +634,21 @@ class EFTFit(object):
         for wc in scan_wcs:
             self.retrieveGridScan('{}.{}'.format(basename,wc),batch)
 
-    def batchRetrieve2DScansEFT(self, basename='.EFT.gridScan', batch='crab', allPairs=False):
+    def batchRetrieve2DScansEFT(self, wc_pair=[], basename='.EFT', batch='crab', allPairs=False):
         ### For pairs of wcs, retrieves finished grid jobs, extracts, and hadd's into a single file ###
 
         # Use EVERY combination of wcs
         if allPairs:
-            scan_wcs = self.wcs
-            for wcs in itertools.combinations(scan_wcs,2):
-                self.retrieveGridScan('{}.{}{}'.format(basename,wcs[0],wcs[1]),batch)
+            wc_pair = self.wcs
+            for wcs in itertools.combinations(wc_pair,2):
+                self.retrieveGridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch)
 
-        # Use each wc only once
-        if not allPairs:
-            scan_wcs = [('ctz','ctw'),('ctp','cpt'),('ctlSi','ctli'),('cptb','cQl3i'),('ctG','cpQM'),('ctei','ctlTi'),('cQlMi','cQei'),('cpQ3','cbW')]
-            scan_wcs = [('ctw','ctG'),('ctz','ctG'),('ctp','ctG'),('cpQM','ctG'),('cbW','ctG'),('cpQ3','ctG'),('cptb','ctG'),('cpt','ctG'),('cQl3i','ctG'),('cQlMi','ctG'),('cQei','ctG'),('ctli','ctG'),('ctei','ctG'),('ctlSi','ctG'),('ctlTi','ctG')]
-            #pairs from AN
-            scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctz','ctw'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
-            for wcs in scan_wcs:
-                print wcs
-                print '{}.{}{}'.format(basename,wcs[0],wcs[1]), batch
-                self.retrieveGridScan('{}.{}{}'.format(basename,wcs[0],wcs[1]),batch)
+        # Consider a single pair of WCs
+        else:
+            if wc_pair == []: wc_pair = self.wcs_pairs
+            print wc_pair
+            print '{}.{}'.format(batch, basename)
+            self.retrieveGridScan(name=basename, batch=batch)
 
 
  #####  ###### #####  #    #  ####  ##### #  ####  #    #
@@ -823,7 +824,15 @@ class EFTFit(object):
  #      #    # # #    #   #
 
     def printBestFitsSM(self, name='.SM'):
-        ### Print a table of SM signal strengths, their best fits, and their uncertainties ###
+        '''
+        Print a table of SM signal strengths, their best fits, and their uncertainties ###
+
+        Example to inspect file via command line:
+        root multidimfit.EFT.root
+        a = fit_mdf->floatParsFinal().find("ctz")
+        a->Print()
+        '''
+
         params = opts["SM_mus"]
 
         fit_array = []
@@ -915,7 +924,7 @@ class EFTFit(object):
 
             canvas.Clear()
 
-            logging.debug("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root".format(basename))
+            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root".format(basename))
             fit_file = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
             limit_tree = fit_file.Get('limit')
 
@@ -985,7 +994,7 @@ if __name__ == "__main__":
 
 # User options -- Default values
 # //--------------------------------------------
-    mode = 'EFT' #'SM', 'EFT'
+    SM = False #True <-> consider SM scenario (rather than SMEFT)
     datacard_path = './datacard.txt'
     exp = False #True <-> Asimov a-priori expected; False <-> observed
     scan_dim = '1D' #'1d' <-> 1D scan (default); '2d' <-> 2D scan
@@ -997,26 +1006,34 @@ if __name__ == "__main__":
     freeze=False
     createWS = 0 #0 <-> create WS and proceed ; 1 <-> create WS and exit ; 2 <-> don't create WS and proceed
     POI=[]
+    mode = '' #Can choose to run only specific functions (not all) #'','grid','bestfit'
+    batch = '' #Can choose to run jobs on 'crab' or 'condor'
+    dryrun = '' #Perform dry run (don't submit jobs)
+    points = -1 #Choose npoints for grid scans #-1 <-> use default values set below (different for 1D/2D)
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
-    parser.add_argument("-d", metavar="datacard path", help="Path to the datacard")
+    parser.add_argument("-d", metavar="datacard path", help="Path to the txt datacard (to create RooWorkspace)")
     parser.add_argument("-v", metavar="Combine verbosity level", help="Set combine output verbosity")
-    parser.add_argument("-m", metavar="m", help="SM or EFT")
+    parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)")
     parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
     parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
     parser.add_argument("--fixed", metavar="fixed", help="Get NLL for fixed point", nargs='?', const=1)
     parser.add_argument("-name", metavar="name", help="add suffix to output filename")
+    parser.add_argument("-m", metavar="mode", help="Can choose to run only specific functions (grid, bestfit, etc.)")
+    parser.add_argument("-batch", metavar="batchmode", help="crab or condor")
     parser.add_argument("-val", metavar="val", help="Starting value for the POI")
     parser.add_argument("--debug", metavar="debug", help="Activate code debug printouts", nargs='?', const=1)
     parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
     parser.add_argument("--noworkspace", metavar="noworkspace", help="Don't recreate workspace", nargs='?', const=1)
     parser.add_argument("--onlyworkspace", metavar="onlyworkspace", help="Only create workspace", nargs='?', const=1)
+    parser.add_argument("--dryrun", metavar="dryrun", help="Perform dry run (don't submit jobs)", nargs='?', const=1)
+    parser.add_argument("-points", metavar="points", help="Number of points for grid scans")
 
     args = parser.parse_args()
-    if args.m: mode = args.m
+    if args.sm: sm = True
     if args.d: datacard_path = args.d
     if args.v: verb = int(args.v)
     if args.exp: exp = True
@@ -1029,38 +1046,52 @@ if __name__ == "__main__":
     if args.POI: POI = args.POI
     if args.noworkspace: createWS = 2
     if args.onlyworkspace: createWS = 1
+    if args.m: mode = args.m
+    if args.batch: batch = args.batch
+    if args.dryrun: dryrun = '--dry-run'
+    if args.points: points = args.points
 
     fitter = EFTFit(opts) #Create EFTFit object
 
+    if batch=='crab':
+        print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
+        exit(1)
+
 # SM fit
 # //--------------------------------------------
-    if mode == 'SM':
-        if createWS<2: fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
+    if SM:
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
         if createWS==1: exit(1)
-        fitter.bestFitSM(exp=exp, verbosity=verb)
-        if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb) #1D
-        elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb) #2D
 
-# EFT fit
+        if mode in ['','bestfit']: fitter.bestFitSM(exp=exp, verbosity=verb)
+
+        if mode in ['','grid']:
+            if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb, batch=batch) #1D
+            elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb, batch=batch) #2D
+
+# SMEFT fit
 # //--------------------------------------------
-    elif mode == 'EFT':
-        # POIs=[opts['wc']] #Single operator
-
+    else:
         #-- Create Combine Workspace
-        if createWS<2: fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
-        if createWS==1: exit(1)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
+        elif createWS==1: exit(1)
+        if name == '': name = '.EFT' #Default
 
         #-- Maximum Likelihood Fit
-        fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
+        if mode in ['','bestfit']: fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
 
-        #-- Likelihood Scan
-        if not fixedPointNLL:
+        #-- Grid Scan
+        if not fixedPointNLL and mode in ['','grid']:
             if scan_dim=='1D':
-                param_tmp = POI[0] if len(POI) == 1 else [opts['wc']]
-                fitter.gridScanEFT(scan_params=param_tmp, exp=exp, points=100, verbosity=verb, freeze=freeze)
+                param_tmp = POI if len(POI) == 1 else [opts['wc']]
+                points = points if points != -1 else 50
+                fitter.gridScanEFT(name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,])
+                # fitter.batchRetrieve1DScansEFT(basename=name, batch=batch, scan_wcs=param_tmp)
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-                fitter.gridScanEFT(scan_params=param_tmp, exp=exp, points=1000, verbosity=verb, freeze=freeze)
+                points = points if points != -1 else 500
+                fitter.gridScanEFT(scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, name=name, other=[dryrun,])
+                # fitter.batchRetrieve2DScansEFT(basename=name, batch=batch, wc_pair=param_tmp, allPairs=False)
 
         #-- OTHERS
         # fitter.batch1DScanEFT() # Freeze other WCs

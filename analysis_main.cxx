@@ -20,7 +20,7 @@ int main(int argc, char **argv)
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
-    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
+    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
     bool include_PrivMC_samples = true; //true <-> also process private SMEFT samples (necessary e.g. for limit-setting, but much slower)
 
@@ -130,14 +130,14 @@ int main(int argc, char **argv)
     vector<TString> thesamplelist, thesamplegroups;
 
 /*
-    thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
-    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
-    // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
-
     thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
     thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
     // thesamplelist.push_back("PrivMC_tZq_v3"); thesamplegroups.push_back("PrivMC_tZq_v3");
     // thesamplelist.push_back("PrivMC_tZq_TOP19001"); thesamplegroups.push_back("PrivMC_tZq_TOP19001");
+
+    thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
+    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
+    // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
 
     thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tWZ");
     thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ");
@@ -289,12 +289,14 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
+        /* FIXME
         //-- Implemented as separate TTrees
         // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp"); //FIXME -- next prod
         theSystTree.push_back("TotalDown"); theSystTree.push_back("TotalUp"); //Not available for PrivMC_tWZ yet
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         // theSystTree.push_back("METDown"); theSystTree.push_back("METUp"); //FIXME -- next prod
         theSystTree.push_back("UnclEnDown"); theSystTree.push_back("UnclEnUp");
+        */
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
@@ -309,7 +311,18 @@ int main(int argc, char **argv)
         theSystWeights.push_back("BtagCFerr2Down"); theSystWeights.push_back("BtagCFerr2Up");
         theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp");
         theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
-        theSystWeights.push_back("FakeFactorDown"); theSystWeights.push_back("FakeFactorUp");
+
+        //FIXME
+        // theSystWeights.push_back("FRDown"); theSystWeights.push_back("FRUp"); //FR from David: 1 set of variations
+        // theSystWeights.push_back("FRm_normDown"); theSystWeights.push_back("FRm_normUp"); //FR from ttH: 3*2 sets of variations
+        // theSystWeights.push_back("FRm_ptDown"); theSystWeights.push_back("FRm_ptUp");
+        // theSystWeights.push_back("FRm_beDown"); theSystWeights.push_back("FRm_beUp");
+        // theSystWeights.push_back("FRe_normDown"); theSystWeights.push_back("FRe_normUp");
+        // theSystWeights.push_back("FRe_ptDown"); theSystWeights.push_back("FRe_ptUp");
+        // theSystWeights.push_back("FRe_beDown"); theSystWeights.push_back("FRe_beUp");
+        // theSystWeights.push_back("FR_normDown"); theSystWeights.push_back("FR_normUp"); //FR from ttH: 3 sets of variations
+        // theSystWeights.push_back("FR_ptDown"); theSystWeights.push_back("FR_ptUp");
+        // theSystWeights.push_back("FR_beDown"); theSystWeights.push_back("FR_beUp");
 
         //-- MISSING //FIXME
         // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only //MISSING for PrivMC
@@ -345,14 +358,14 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
-    bool compare_template_shapes = false;
+    bool compare_template_shapes = true;
 
 //-----------------    OTHER
 

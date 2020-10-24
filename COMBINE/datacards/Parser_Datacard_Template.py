@@ -86,6 +86,12 @@ elif year=="2018":
     Lumi1718 = "1.003"
     LumiXY = "1.02"
 
+#Region-specific flags
+isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#' #Disactive these systematics by default
+if 'CRWZ' in theVar: isCRWZ = ''
+elif 'CRZZ' in theVar: isCRZZ = ''
+elif 'CRDY' in theVar: isCRDY = ''
+
 #--------------------------------------------
 # ele_sys = "" #Ele systematics only in ele channels
 
@@ -112,20 +118,16 @@ s = s.replace("[201718]", is201718)
 s = s.replace("[Lumi1617]", Lumi1617)
 s = s.replace("[Lumi1718]", Lumi1718)
 s = s.replace("[LumiXY]", LumiXY)
-
 s = s.replace("[SHAPE]", shape)
 s = s.replace("[STAT]", stat)
 s = s.replace("filetoread", theFiletoRead)
 s = s.replace("[VAR]",theVar)
 s = s.replace("_[CHAN]", channel)
 
-# s = s.replace("[ele_sys]",ele_sys)
-# s = s.replace("sigPar", sigPar)
-# s = s.replace("[ratePar]", ratePar)
-# s = s.replace("rateVal", rateVal)
-
-
-
+#For region-specific uncertainties (e.g. CR extrapolation uncertainties)
+s = s.replace("[CRWZ]", isCRWZ)
+s = s.replace("[CRZZ]", isCRZZ)
+s = s.replace("[CRDY]", isCRDY)
 
 # //--------------------------------------------
 #Replace some predefined markers with relevant values
@@ -135,6 +137,11 @@ s = s.replace("_[CHAN]", channel)
 #     s = re.sub(r'\[qflip\].*?\[qflip\]', r'', s) #Erase stuff signaled by markers => Remove QFlip
     # print(s)
 # s = s.replace("[qflip]", "") #Remove the remaining markers
+
+# s = s.replace("[ele_sys]",ele_sys)
+# s = s.replace("sigPar", sigPar)
+# s = s.replace("[ratePar]", ratePar)
+# s = s.replace("rateVal", rateVal)
 
 #--------------------------------------------
 print('==> Datacard created...')
