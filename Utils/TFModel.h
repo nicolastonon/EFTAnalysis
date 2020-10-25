@@ -4,13 +4,14 @@
 #include <string>
 #include <vector>
 
-#include "tensorflow/core/public/session.h"
-#include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/cc/saved_model/loader.h"
-#include "tensorflow/cc/saved_model/tag_constants.h"
-#include "tensorflow/cc/saved_model/constants.h"
-#include "tensorflow/core/lib/io/path.h"
-#include "tensorflow/core/util/tensor_bundle/naming.h"
+//FIXME (sourced in CMSSW_TensorFlow ?)
+// #include "tensorflow/core/public/session.h"
+// #include "tensorflow/core/framework/tensor.h"
+// #include "tensorflow/cc/saved_model/loader.h"
+// #include "tensorflow/cc/saved_model/tag_constants.h"
+// #include "tensorflow/cc/saved_model/constants.h"
+// #include "tensorflow/core/lib/io/path.h"
+// #include "tensorflow/core/util/tensor_bundle/naming.h"
 
 #include "CMSSW_TensorFlow.h"
 //#include "PhysicsTools/TensorFlow/interface/TensorFlow.h" //CMSSW

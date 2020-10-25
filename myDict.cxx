@@ -149,7 +149,7 @@ namespace ROOT {
       ::TH1EFT *ptr = 0;
       static ::TVirtualIsAProxy* isa_proxy = new ::TInstrumentedIsAProxy< ::TH1EFT >(0);
       static ::ROOT::TGenericClassInfo 
-         instance("TH1EFT", ::TH1EFT::Class_Version(), "Utils/TH1EFT.h", 18,
+         instance("TH1EFT", ::TH1EFT::Class_Version(), "Utils/TH1EFT.h", 17,
                   typeid(::TH1EFT), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &::TH1EFT::Dictionary, isa_proxy, 4,
                   sizeof(::TH1EFT) );

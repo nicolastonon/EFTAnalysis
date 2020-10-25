@@ -2940,7 +2940,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                                     if(v[i].second != 0)
                                     {
                                         if(EFTpointlabel != "") {EFTpointlabel+= ",";}
-                                        EFTpointlabel+= v[i].first + "=" + v[i].second;
+                                        EFTpointlabel+= v[i].first + "=" + Convert_Number_To_TString(v[i].second);
                                     }
                                 }
                                 if(EFTpointlabel == "") {EFTpointlabel = "SM";}

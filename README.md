@@ -65,34 +65,55 @@ CODE EXAMPLE
 * [Combine](https://github.com/nicolastonon/EFTAnalysis#Combine)
 
 
-![Mining gold](https://images.deepai.org/converted-papers/1805.00013/x1.png)
+<!-- ![Mining gold](https://images.deepai.org/converted-papers/1805.00013/x1.png) -->
 
 *[Credit : 10.1103/PhysRevLett.121.111801]*
 
 # Setup
 
-The analysis of Ntuples does not require CMSSW, and can be run locally offline.
+This standalone Ntuple analysis code does not require CMSSW, and can be run locally offline.
 
 However, running `Combine` requires a CMSSW environment *(e.g. CMSSW_10_2_20)*.
 
 Instructions for setting up `Combine` properly are given in the dedicated [directory](https://github.com/nicolastonon/EFTAnalysis/COMBINE).
 
+## Interfacing with CMSSW
+
+Please follow the following instructions to install and interface the code with CMSSW. This has been tested on NAF servers under SL7.
+
+```
+cd PATH
+cmsrel CMSSW_10_2_24 [or another release]
+cd CMSSW_10_2_24/src; cmsenv
+git clone https://github.com/nicolastonon/EFTAnalysis.git
+git-cms-addpkg PhysicsTools/TensorFlow
+git cms-addpkg FWCore/Framework
+git cms-addpkg FWCore/Utilities
+scram b [very slow]
+cd EFTAnalysis
+[Adapt Makefile.cmssw if needed; comment/uncomment relevant headers in Utils/TFModel.h; ]
+[Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/.profile settings]
+make -f Makefile.cmssw
+```
+
 ## Input ntuples
 
-The directory [input_ntuples](https://github.com/nicolastonon/EFTAnalysis/input_ntuples) must contain the ntuples to analyze, produced via the [PoTATo](https://gitlab.cern.ch/joknolle/potato) framework.
+The directory [input_ntuples](https://github.com/nicolastonon/EFTAnalysis/input_ntuples) must contain the ntuples to analyze, produced via the [PoTATo](https://gitlab.cern.ch/cms-desy-topv/potato-common/-/tree/master) framework.
 They must be organized into sub-directories corresponding to their years of data-taking (2016/2017/2018).
+
+You may run the code `input_ntuples/Split_FullSamples.cxx` in order to further split the Ntuples by sub-categories (for faster access), to compute and store the per-event EFT parameterizations in private SMEFT samples, to produce the data-driven Fakes sample, etc.
 
 # Analysis
 
 The basic workflow is the following :
 
-* The [Makefile](https://github.com/nicolastonon/EFTAnalysis/tree/master/Makefile) compiles all the codes.
+* The [Makefile](https://github.com/nicolastonon/EFTAnalysis/tree/master/Makefile) compiles all the codes. Use [Makefile.cmssw](https://github.com/nicolastonon/EFTAnalysis/tree/master/Makefile.cmssw) instead if you're working under CMSSW.
 
-* The [TopEFT_analysis](https://github.com/nicolastonon/EFTAnalysis/tree/master/TopEFT_analysis.cxx) class contains all the main analysis functions.
+* The [TopEFT_analysis](https://github.com/nicolastonon/EFTAnalysis/tree/master/TopEFT_analysis.cxx) class contains all the main analysis functions (make templates, plots, studies, etc.)
 
 * The [Helper](https://github.com/nicolastonon/EFTAnalysis/tree/master/Helper.cxx) code contains additional, helper functions.
 
-* The [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/analysis_main.cxx) code contains the *main()* which runs the function calls.
+* The [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/analysis_main.cxx) code contains the *main()* which runs the function calls. There are also defined all the customisable user-options.
 
 **The user should only modify the [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/analysis_main.cxx) code, compile, and run it.**
 
@@ -102,17 +123,16 @@ Modify the [analysis_main.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/
 
 The configuration interface relies heavily on the use of vectors, and is intended to be self-explanatory.
 
-In particuler, you can easily configure the :
+In particular, you can easily configure the :
 * general options (your signal, etc.)
 * list of data-taking years to consider
 * skimming cuts to apply to the ntuples
-* list of leptonic sub-channels
 * list of samples
-* list of BDT input variables
+* list of BDT input variables (if used)
 * list of additional variables, not used in the MVA but only e.g. for control plots
 * list of shape systematics to compute and store
 
-Select the steps to perform by setting the corresponding booleans accordingly.
+Select the functions to call by setting the corresponding booleans accordingly.
 
 ## Running the code
 
@@ -120,29 +140,32 @@ Select the steps to perform by setting the corresponding booleans accordingly.
 make
 ./analysis_main.exe
 
-#Optional -- specify a year, e.g. :
-./analysis_main.exe 2016
+#Optional -- specify a year and region, e.g. :
+./analysis_main.exe 2016 signal
 ```
 
-:arrow_right: Output root files (containing templates, control histograms, TMVA control file, ...) are stored in the [outputs](https://github.com/nicolastonon/EFTAnalysis/tree/master/outputs) directory.
+:arrow_right: Output root files (containing templates, control histograms, TMVA control file, etc.) are stored in the [outputs](https://github.com/nicolastonon/EFTAnalysis/tree/master/outputs) directory.
 
 :arrow_right: Output plots are stored in the [plots](https://github.com/nicolastonon/EFTAnalysis/tree/master/plots) directory.
 
 # Event yields
 
-The code [Produce_Cutflow.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/Produce_Cutflow.cxx) will read the input ntuples, and automatically compute the event yields for all processes.
+The code [Utils/Yield_Table.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/Utils/Yield_Table.cxx) opens the input ntuples, and automatically computes the event yields for all selected processes.
 Modify the *main()* options to select the data-taking year, processes, etc.
 
 ```
 make
-./Produce_Cutflow.exe
+./Yield_Table.cxx.exe
 ```
+
 # ROCS
 
 Move to the [ROCS](https://github.com/nicolastonon/EFTAnalysis/tree/master/ROCS) directory.
 
-The code [Compare_ROC_curves.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/ROCS/Compare_ROC_curves.cxx) will read TMVA control files to plot the corresponding ROC curves.
+The code [Compare_ROC_curves.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/ROCS/Compare_ROC_curves.cxx) will read histogram files to plot the corresponding ROC curves.
 It makes it easy to superimpose and compare several ROCS.
+*NB1: plotting functions are implemented in [ROC_Plotter.cxx](https://github.com/nicolastonon/EFTAnalysis/tree/master/ROCS/ROC_Plotter.cxx)*
+*NB2: specific naming conventions must be enforced for this code to work.*
 
 Modify the *main()* options to define the paths of the input rootfiles, etc.
 

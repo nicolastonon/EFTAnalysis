@@ -1711,12 +1711,12 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
             {
                 for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
                 {
-                    TString opname1 = operator_scan1 + "_" + v_WCs_operator_scan1[iop1]; //Default: scan 1 operator
+                    TString opname1 = operator_scan1 + "_" + Convert_Number_To_TString(v_WCs_operator_scan1[iop1]); //Default: scan 1 operator
                     TString opname2 = ""; //Optional: scan 2nd operator
                     for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
                     {
                         if(operator_scan2=="" && iop2>0) {break;}
-                        else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + v_WCs_operator_scan2[iop2];}
+                        else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + Convert_Number_To_TString(v_WCs_operator_scan2[iop2]);}
                         variable_list.push_back(var_list_tmp[ivar] + "_" + opname1 + opname2);
                         // cout<<"Added variable: "<<variable_list[variable_list.size()-1]<<endl;
                     }

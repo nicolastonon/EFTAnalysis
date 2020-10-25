@@ -3,7 +3,6 @@
 //TODO:
 //- Ways to deal with under/overflow ?
 
-
 #ifndef TH1EFT_H_
 #define TH1EFT_H_
 
