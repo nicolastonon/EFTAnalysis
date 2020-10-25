@@ -4,7 +4,7 @@
 # Directories #
 ############
 
-./weightsMVA/*
+./weightsMVA
 
 ./myDict*
 ./myLib*
