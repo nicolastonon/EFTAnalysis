@@ -63,9 +63,9 @@
 #include "ROCS/ROC_Plotter.h" //ROC functions
 
 //Custom classes for EFT (see https://github.com/Andrew42/EFTGenReader/blob/maste)
-#include "TH1EFT.h"
-#include "WCPoint.h"
-#include "WCFit.h"
+#include "Utils/TH1EFT.h"
+#include "Utils/WCPoint.h"
+#include "Utils/WCFit.h"
 
 using namespace std;
 

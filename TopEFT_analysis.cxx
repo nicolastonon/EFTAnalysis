@@ -1678,7 +1678,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     				tree->GetEntry(ientry);
 
-    				if(isnan(eventWeight*eventMCFactor) || isinf(eventWeight*eventMCFactor))
+    				if(std::isnan(eventWeight*eventMCFactor) || std::isinf(eventWeight*eventMCFactor))
     				{
     					cout<<BOLD(FRED("* Found event with eventWeight*eventMCFactor = "<<eventWeight*eventMCFactor<<" ; remove it..."))<<endl; continue;
     				}
@@ -1966,7 +1966,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 if(syst_list[isyst] != "") {weight_tmp*= *(v_double_systWeights[isyst]);} //Syst weights were already divided by nominal weight
                                 // cout<<"syst : "<<weight_tmp<<endl;
 
-        						if(isnan(weight_tmp) || isinf(weight_tmp))
+        						if(std::isnan(weight_tmp) || std::isinf(weight_tmp))
         						{
         							cout<<BOLD(FRED("* Found event with syst. weight = "<<weight_tmp<<" ; remove it..."))<<endl;
         							cout<<"(sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<")"<<endl;
