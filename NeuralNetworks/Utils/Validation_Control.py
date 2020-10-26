@@ -24,7 +24,7 @@ from Utils.Helper import close_event, KS_test, Anderson_Darling_test, ChiSquare_
 from Utils.ColoredPrintout import colors
 from Utils.RegressorValidation import *
 from pandas.plotting import scatter_matrix
-from ann_visualizer.visualize import ann_viz
+# from ann_visualizer.visualize import ann_viz #Requires installation
 from tensorflow.keras.utils import plot_model
 from scipy import optimize
 

@@ -1,4 +1,5 @@
 #Nicolas -- This script merges the ntuples from all 3 years ; these merged files will be used when processing the full run 2 dataset
+#-- OBSOLETE
 
 #New repo, store merged files
 outDir="Run2"

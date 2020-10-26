@@ -67,7 +67,7 @@ std::vector<float> TFModel::evaluate(std::vector<float> v_inputs)
 }
 
 //Overload //Avoid un-necessary copies, pass all by reference (not much faster...)
-void TFModel::evaluate_fast(tensorflow::Tensor input, std::vector<tensorflow::Tensor>& outputs)
+void TFModel::evaluate_fast(tensorflow::Tensor& input, std::vector<tensorflow::Tensor>& outputs)
 // void TFModel::evaluate_fast(tensorflow::Tensor input, std::vector<float>& out)
 {
     // tensorflow::Tensor input(tensorflow::DT_FLOAT, {1, n_inputs} );

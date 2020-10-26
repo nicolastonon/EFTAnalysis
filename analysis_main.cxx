@@ -20,9 +20,13 @@ int main(int argc, char **argv)
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
-    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR)
+    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
     bool include_PrivMC_samples = true; //true <-> also process private SMEFT samples (necessary e.g. for limit-setting, but much slower)
+
+    //-- N T U P L E S  O P T I O N S
+    TString NTUPLEDIR = "./input_ntuples/"; //HARDCODED PATH TO NTUPLES, used by all codes (declared in Helper.h)
+    // NTUPLEDIR = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/";
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
@@ -152,7 +156,7 @@ int main(int argc, char **argv)
     {
         thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
         thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
-        // thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ"); //FIXME
+        thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ"); //FIXME
     }
 
     //Signals (central samples)

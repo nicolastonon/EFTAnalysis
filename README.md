@@ -91,15 +91,17 @@ git cms-addpkg FWCore/Framework
 git cms-addpkg FWCore/Utilities
 scram b [very slow]
 cd EFTAnalysis
-[Adapt Makefile.cmssw if needed; comment/uncomment relevant headers in Utils/TFModel.h; ]
+[Adapt Makefile.cmssw if needed; comment/uncomment relevant headers in Utils/TFModel.h]
+cp Makefile.cmssw Makefile
 [Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/.profile settings]
-make -f Makefile.cmssw
+make
 ```
 
 ## Input ntuples
 
-The directory [input_ntuples](https://github.com/nicolastonon/EFTAnalysis/input_ntuples) must contain the ntuples to analyze, produced via the [PoTATo](https://gitlab.cern.ch/cms-desy-topv/potato-common/-/tree/master) framework.
-They must be organized into sub-directories corresponding to their years of data-taking (2016/2017/2018).
+The directory [input_ntuples](https://github.com/nicolastonon/EFTAnalysis/input_ntuples) is intended to contain the ntuples to be analyzed, produced via the [PoTATo](https://gitlab.cern.ch/cms-desy-topv/potato-common/-/tree/master) framework.
+Alternatively, you may hardcode the relevant path to the ntuple directory in 'Utils/Helper.cxx'.
+Ntuples must be stored into sub-directories corresponding to their years of data-taking ('2016'/'2017'/'2018').
 
 You may run the code `input_ntuples/Split_FullSamples.cxx` in order to further split the Ntuples by sub-categories (for faster access), to compute and store the per-event EFT parameterizations in private SMEFT samples, to produce the data-driven Fakes sample, etc.
 
@@ -135,6 +137,8 @@ In particular, you can easily configure the :
 Select the functions to call by setting the corresponding booleans accordingly.
 
 ## Running the code
+
+Copy either 'Makefile.local' or 'Makefile.cmssw' to 'Makefile', depending on your case.
 
 ```
 make

@@ -5,7 +5,7 @@ from tensorflow.keras.optimizers import SGD, Adam,Nadam, RMSprop, Adadelta
 from tensorflow.keras import backend as K
 from Utils.ColoredPrintout import colors
 from Utils.adabound_tf import AdaBound
-from focal_loss import BinaryFocalLoss
+# from focal_loss import BinaryFocalLoss #Requires installation
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -22,6 +22,7 @@ from focal_loss import BinaryFocalLoss
 # //--------------------------------------------
 
 #Focal loss definition, taken from: https://github.com/mkocabas/focal-loss-keras/blob/master/focal_loss.py, based on paper 'Focal Loss for Dense Object Detection' (Lin et. al.)
+'''
 def focal_loss(gamma=2., alpha=.25):
     def focal_loss_fixed(y_true, y_pred):
         pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
@@ -29,6 +30,7 @@ def focal_loss(gamma=2., alpha=.25):
         return -K.mean(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.mean((1 - alpha) * K.pow(pt_0, gamma) * K.log(1. - pt_0))
 
     return focal_loss_fixed
+'''
 
 # //--------------------------------------------
 # //--------------------------------------------

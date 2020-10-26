@@ -2,6 +2,10 @@
 
 using namespace std;
 
+//-- HARDCODE THE BASE DIR. CONTAINING PRIVATE NTUPLES (used by all codes)
+TString NTUPLEDIR = "./input_ntuples/"; //LOCAL
+// TString NTUPLEDIR = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/"; //CMSSW
+
 
 //--------------------------------------------
 // ##        #######  ##      ##         ##       ######## ##     ## ######## ##

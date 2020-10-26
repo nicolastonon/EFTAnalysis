@@ -21,6 +21,7 @@ from tensorflow.keras.models import load_model
 from Utils.LossOptimMetric import Get_Loss_Optim_Metrics
 from Utils.InputFeatures import *
 
+
 # //--------------------------------------------
 # //--------------------------------------------
 # //--------------------------------------------
@@ -123,7 +124,7 @@ def get_normalization_iqr(np_array, q):
     for i, (il, ir) in enumerate(zip(l,r)):
         # print('il', il); print('ir', ir)
         if il == ir:
-            print(colors.dim, f"[WARNING] feature {df.keys()[i]} has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
+            print(colors.dim, "[WARNING] feature {df.keys()[i]} has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
             l[i] = maximums[i]; r[i] = maximums[i]
 
     return median.values, np.maximum(l, r).values #Return median and quantile boundary for rescaling
@@ -246,7 +247,7 @@ def Load_PreExisting_Model(h5modelName):
 # //--------------------------------------------
 # //--------------------------------------------
 
-def truncate(number, digits) -> float:
+def truncate(number, digits): #-> float:
     stepper = 10.0 ** digits
     return math.trunc(stepper * number) / stepper
 
@@ -337,7 +338,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         opts["maxWC"] = 3
 
     #Top directory containing all input ntuples
-    ntuplesDir = "../input_ntuples/"
+    ntuplesDir = "../input_ntuples/" #LOCAL
+    # ntuplesDir = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/" #CMSSW
 
     #Determine/store number of process classes, depending on strategy
     opts["nofOutputNodes"] = len(processClasses_list) #Multiclass classification --> 1 output node per process class
@@ -530,7 +532,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["makeValPlotsOnly"] == False: #If training a new NN, remove previous output folder
         # os.remove(weightDir+"/*")
-        if path.exists(weightDir): shutil.rmtree(weightDir)
+        if path.exists(weightDir): shutil.rmtree(weightDir, ignore_errors=True)
         os.makedirs(weightDir, exist_ok=True)
     else: print(colors.fg.orange, colors.bold, "\n\nWill only produce validation plots. Reading pre-existing NN model:\n", colors.reset, h5modelName, '\n')
 

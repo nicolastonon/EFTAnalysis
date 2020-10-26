@@ -234,8 +234,9 @@ class EFTFit(object):
         if params_POI:
             for wc in params_POI: args.extend(['-P','{}'.format(wc)])
         if not fixedPointNLL and startValue is not '': args.extend(['--setParameters',','.join('{}={}'.format(wc, startValue) for wc in params_POI)]) #Set POI default value for generating toys (otherwise, use B-only model)
-        else: args.extend(['--setParameters',','.format(poi) for poi in opts['wcs']]) #Set default values to 0
-        if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI)]) #Freeze other parameters
+        else: args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0
+        if freeze:
+            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
         if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
@@ -243,7 +244,7 @@ class EFTFit(object):
         if other:               args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
         if check: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
-        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in params_POI)])
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -320,7 +321,7 @@ class EFTFit(object):
 
         for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
         args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
-        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,opts["wc_ranges"][wc][0],opts["wc_ranges"][wc][1]) for wc in opts["wcs"])])
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
 
         args.extend(['--points','{}'.format(points)])
         if name: args.extend(['-n','{}'.format(name)])
@@ -1074,7 +1075,7 @@ if __name__ == "__main__":
     else:
         #-- Create Combine Workspace
         if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspaceEFT(datacard_path, verbosity=verb)
-        elif createWS==1: exit(1)
+        if createWS==1: exit(1)
         if name == '': name = '.EFT' #Default
 
         #-- Maximum Likelihood Fit

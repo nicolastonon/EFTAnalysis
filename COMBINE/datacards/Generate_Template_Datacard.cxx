@@ -343,11 +343,11 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         //-- the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
         //-- idem, [201617] can be used to disactivate the prefiring syst for 2018 !
         outfile<<"[SHAPE]";
-        if(v_normSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";}
-        else if(v_normSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
-        else if(v_normSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
-        else if(v_normSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
-        else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
+        if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";}
+        else if(v_shapeSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+        else if(v_shapeSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
+        else if(v_shapeSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
+        else if(v_shapeSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
 
         outfile<<v_shapeSyst[isyst]; //the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
         if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
@@ -561,7 +561,12 @@ int main()
     v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
+    
+
     v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FR_pt"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FR_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
     //-- NEW //FIXME
     // v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); //-- next prod

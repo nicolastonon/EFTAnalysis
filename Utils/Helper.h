@@ -81,6 +81,10 @@
 #include "TH1EFT.h"
 
 //--------------------------------------------
+//-- HARDCODE THE BASE DIR. CONTAINING PRIVATE NTUPLES (defined in Helper.cxx, used by all codes)
+extern TString NTUPLEDIR;
+
+//--------------------------------------------
 //-- Low-level helper functions
 bool Check_File_Existence(const TString&, bool=false);
 int MoveFile(TString, TString);

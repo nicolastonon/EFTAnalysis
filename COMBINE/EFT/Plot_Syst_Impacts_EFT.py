@@ -73,7 +73,7 @@ def log_subprocess_output(pipe,level):
 
 def makeWorkspaceEFT(datacard='datacard.txt', verbosity=0):
         ### Generates a workspace from a datacard and fit parameterization file ###
-        print(colors.fg.lightblue + "Creating workspace" + colors.reset)
+        print(colors.fg.lightblue + "Creating workspace from datacard " + datacard + colors.reset)
         if not os.path.isfile(datacard):
             print("Datacard does not exist!")
             sys.exit()
@@ -122,15 +122,13 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         exit(1)
 
     if only_collect_outputs == False:
-        #-- Do the initial fits
-        args = ['combineTool.py','-M','Impacts','-d',workspace,'--doInitialFit','--robustFit','1','-m','125','--cminPoiOnlyFit']
+
+        #-- Do the initial fit
+        args = ['combineTool.py','-M','Impacts','-d',workspace,'--doInitialFit','--robustFit','1','-m','125','--cminPoiOnlyFit'] #NB: -m 125 required
 
         # Options
         args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
-
-        #FIXME #FIXME #FIXME
         args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
-
         frozen_pois = [] #By default, no WC is frozen
         if name == '': name = 'EFT'
         args.extend(['-n','{}'.format(name)])
@@ -139,9 +137,10 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
             args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
             frozen_pois = [wc for wc in opts['wcs'] if wc not in POIs] #Define which WCs are frozen
         if exp: args.extend(['-t','-1']) #Assume MC expected
+        args.extend(['--trackParameters',','.join(poi for poi in opts['wcs'] if poi not in POIs)])
         if verbosity>0: args.extend(['-v', str(verbosity)])
         if other: args.extend(other)
-        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in opts['wcs'])]) #for poi in POIs
         args.extend(['--autoBoundsPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
         args.extend(['--autoMaxPOIs',','.join('{}'.format(wc) for wc in opts['wcs'] if wc not in frozen_pois)])
         #args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
@@ -161,12 +160,13 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         args = ['combineTool.py','-M','Impacts','--doFits','--robustFit','1','-d',workspace,'-m','125','--cminPoiOnlyFit']
         args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
         args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
-        if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
+        #-- NB: '--algo impact' hardcodes options '--floatOtherPOIs=1 --saveInactivePOI=1', hence must not repeat these
+        if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze other WCs
         if exp: args.extend(['-t','-1']) #Assume MC expected
         if verbosity>0: args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
-        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in POIs)])
+        args.extend(['--trackParameters',','.join(poi for poi in opts['wcs'] if poi not in POIs)])
+        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(poi,opts["wc_ranges"][poi][0],opts["wc_ranges"][poi][1]) for poi in opts['wcs'])])
         args.extend(['--autoBoundsPOIs=%s' % (','.join(POIs))])
         args.extend(['--autoMaxPOIs=%s' % (','.join(POIs))])
         if name != '': args.extend(['-n','{}'.format(name)])
@@ -246,8 +246,8 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     #-- Perform grid scan for single nuisance
     args = ['combineTool.py','-d',workspace,'-M','MultiDimFit','--algo','grid','--points',str(npoints),'-n',('_paramFit_'+nuisance),'-P',nuisance,'--saveInactivePOI','1','--robustFit','1']
     args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in [nuisance]+opts['wcs'])]) #Set default values to 0 for all WCs and nuisance
-    if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-    else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
+    #-- NB: '--algo impact' hardcodes options '--floatOtherPOIs=1 --saveInactivePOI=1', hence must not repeat these
+    if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
     if exp: args.extend(['-t','-1']) #Assume MC expected
     if verbosity>0: args.extend(['-v', str(verbosity)])
     if other: args.extend(other)
@@ -263,7 +263,7 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     process.wait()
 
     #-- Plot NLL scan
-    args = ['plot1DScan.py','higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH120.root','--POI', nuisance] #Minimal args
+    args = ['plot1DScan.py','higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH125.root','--POI', nuisance] #Minimal args
     args.extend(['--y-cut','7','--y-max','8','--main-color','1','--logo','CMS','--logo-sub','Internal']) #Optional args
     if exp: args.extend(['--main-label','Expected'])
     else: args.extend(['--main-label','Observed'])
@@ -340,7 +340,7 @@ def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], fr
 if __name__ == "__main__":
 
     init()
-    print('Example usage: [python Plot_Syst_Impacts_EFT.py -m impacts -d ../datacards/workspace.root --POI ctz --freeze --exp]')
+    print('Example usage: [python Plot_Syst_Impacts_EFT.py -m impacts -d ./EFTWorkspace.root --POI ctz --freeze --exp]')
 
 # User options -- Default values
 # //--------------------------------------------
@@ -359,7 +359,7 @@ if __name__ == "__main__":
 
 # Set up the command line arguments
 # //--------------------------------------------
-    parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
+    parser = argparse.ArgumentParser(description='Make impact plots for specific/all nuisance parameters')
     parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
     parser.add_argument("--collect", metavar="collect", help="Impact plot: only collect output files previously produced e.g. on the grid", nargs='?', const=1)
     parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
@@ -395,11 +395,12 @@ if __name__ == "__main__":
         print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
         exit(1)
 
+
 # //--------------------------------------------
 
     if 'txt' in datacard_path:
-        makeWorkspaceEFT(datacard=datacard_path) #Create RooWorkspace from txt datacard
-        datacard_path = 'EFTWorkspace.root' #Use created workspace
+        if only_collect_outputs == False: makeWorkspaceEFT(datacard=datacard_path) #Create RooWorkspace from txt datacard
+        datacard_path = 'EFTWorkspace.root' #Assume the WS was already created
 
     if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name)
 

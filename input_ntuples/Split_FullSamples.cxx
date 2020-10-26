@@ -725,7 +725,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
     cout<<"---------------------------"<<endl<<endl<<endl;
     usleep(4000000); //Pause for 4s
 
-    TString prefix = "./input_ntuples/";
+    TString prefix = NTUPLEDIR; //Defined in Utils/Helper.h
 
     //-- Split the full ntuples by sub-categories
     for(int iyear=0; iyear<v_years.size(); iyear++)
@@ -875,36 +875,36 @@ int main(int argc, char **argv)
     vector<TString> v_samples; vector<TString> v_sample_groups;
 
     //-- MAIN ANALYSIS SAMPLES
-	// v_samples.push_back("DATA"); v_sample_groups.push_back("DATA");
-    // v_samples.push_back("PrivMC_tZq"); v_sample_groups.push_back("PrivMC_tZq");
-    // v_samples.push_back("PrivMC_ttZ"); v_sample_groups.push_back("PrivMC_ttZ");
-    // v_samples.push_back("PrivMC_tWZ"); v_sample_groups.push_back("PrivMC_tWZ");
-    // v_samples.push_back("tZq"); v_sample_groups.push_back("tZq");
-    // v_samples.push_back("ttZ"); v_sample_groups.push_back("ttZ");
-    // v_samples.push_back("tWZ"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttZ_M1to10"); v_sample_groups.push_back("tX");
-	// v_samples.push_back("tHq"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("tHW"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttH"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttW"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttZZ"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttWW"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttWZ"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttZH"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttWH"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("tttt"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ttHH"); v_sample_groups.push_back("tX");
-    // v_samples.push_back("ZZ4l"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("ggToZZTo4l"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("ZZZ"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("WZZ"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("WWW"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("WWZ"); v_sample_groups.push_back("VVV");
-    // v_samples.push_back("WZ"); v_sample_groups.push_back("WZ");
-	// v_samples.push_back("TTGamma_Dilep"); v_sample_groups.push_back("XG");
-	// v_samples.push_back("tGJets"); v_sample_groups.push_back("XG");
-	// v_samples.push_back("WGToLNuG"); v_sample_groups.push_back("XG");
-	// v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("XG");
+	v_samples.push_back("DATA"); v_sample_groups.push_back("DATA");
+    v_samples.push_back("PrivMC_tZq"); v_sample_groups.push_back("PrivMC_tZq");
+    v_samples.push_back("PrivMC_ttZ"); v_sample_groups.push_back("PrivMC_ttZ");
+    v_samples.push_back("PrivMC_tWZ"); v_sample_groups.push_back("PrivMC_tWZ");
+    v_samples.push_back("tZq"); v_sample_groups.push_back("tZq");
+    v_samples.push_back("ttZ"); v_sample_groups.push_back("ttZ");
+    v_samples.push_back("tWZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZ_M1to10"); v_sample_groups.push_back("tX");
+	v_samples.push_back("tHq"); v_sample_groups.push_back("tX");
+    v_samples.push_back("tHW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWW"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWZ"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttZH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttWH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("tttt"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ttHH"); v_sample_groups.push_back("tX");
+    v_samples.push_back("ZZ4l"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("ggToZZTo4l"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("ZZZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WZZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WWW"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WWZ"); v_sample_groups.push_back("VVV");
+    v_samples.push_back("WZ"); v_sample_groups.push_back("WZ");
+	v_samples.push_back("TTGamma_Dilep"); v_sample_groups.push_back("XG");
+	v_samples.push_back("tGJets"); v_sample_groups.push_back("XG");
+	v_samples.push_back("WGToLNuG"); v_sample_groups.push_back("XG");
+	v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("XG");
 
     //-- OBSOLETE
 	// v_samples.push_back("DY"); v_sample_groups.push_back("DY");
@@ -941,9 +941,9 @@ int main(int argc, char **argv)
 
     //--- Define the data-taking years
     vector<TString> v_years;
-    // v_years.push_back("2016");
-    // v_years.push_back("2017");
-    // v_years.push_back("2018");
+    v_years.push_back("2016");
+    v_years.push_back("2017");
+    v_years.push_back("2018");
 
 
  // ###### #    # #    #  ####      ####    ##   #      #

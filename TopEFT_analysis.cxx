@@ -127,7 +127,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     Set_Luminosity(lumiName); //Compute the corresponding integrated luminosity
 
     this->use_optimized_ntuples = false;
-    dir_ntuples = "./input_ntuples/";
+    dir_ntuples = NTUPLEDIR; //Defined in Utils/Helper
     TString dir_ntuples_tmp = dir_ntuples;
 
     /* //Obsolete
@@ -136,7 +136,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     if(dir_ntuples == dir_ntuples_SR && !Check_File_Existence((dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")))
     {
         cout<<endl<<FMAG("Warning : SR sub-sample (produced with code input_ntuples/Split_FullSamples) "<<(dir_ntuples_SR + v_lumiYears[0] + "/DATA.root")<<" not found ! Assuming that split ntuples are not available --> Will use full ntuples ! (slower)")<<endl<<endl;
-        dir_ntuples = "./input_ntuples/";
+        dir_ntuples = NTUPLEDIR;
     }
     // cout<<"dir_ntuples : "<<dir_ntuples<<endl;
 
@@ -944,8 +944,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         array_prefiringWeight = new double[2];
         array_Btag = new double[16];
         array_jetPileupID = new double[4];
-        array_fakeFactor = new double[6]; //ttH FR
         // array_fakeFactor = new double[2]; //David's FR
+        array_fakeFactor = new double[6]; //ttH FR //TMP
+        // array_fakeFactor = new double[12]; //ttH FR
         array_ME = new double[2];
         array_alphaS = new double[2];
         array_PDFtotal = new double[2];
@@ -4386,6 +4387,8 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
             if(systname.EndsWith("Down")) {index = 0;}
             else if(systname.EndsWith("Up")) {index = 1;}
         }
+
+        if(systname.Contains("m_")) {index+= 6;} //Convention: first 6 elements correspond to FR ele, last 6 to FR mu
     }
     else if(systname.BeginsWith("PDF"))
     {
@@ -4777,8 +4780,8 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
     {
         if(var_list_tmp[ivar] == "ctz" || var_list_tmp[ivar] == "ctw" || var_list_tmp[ivar] == "cpq3" || var_list_tmp[ivar] == "cpqm" || var_list_tmp[ivar] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
         tree->SetBranchStatus(var_list_tmp[ivar], 1); //Activate only necessary branches
-        // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]);
-        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //CHANGED -- Fill tensor directly for speed up
+        // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //CMSSW
+        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //CHANGED -- Fill tensor directly for speed up //LOCAL
     }
 
     //-- May cut on an 'event category flag' whose name is given as argument (<-> no need to evaluate MVA for events which do not enter the region of interest)
@@ -4789,13 +4792,14 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
 	int nentries = tree->GetEntries();
     if(nentries_max > 0 && nentries > nentries_max) {nentries = nentries_max;}
     v.clear(); v.resize(nentries); std::fill(v.begin(),v.end(),0); //Fill with '0' for all tree entries
-    std::vector<float> clfy_outputs; //Do we gain some time by declaring this vector only once (rather than for each event) ?
+    std::vector<float> clfy_outputs;
 
 	for(int ientry=0; ientry<nentries; ientry++)
 	{
 		if(ientry && ientry%50000==0) {cout<<DIM(" --- "<<ientry<<" / "<<nentries<<"")<<endl;}
 		tree->GetEntry(ientry);
 
+        //-- TESTING
         // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp);
         // clfy_tmp->evaluate_fast(input, clfy_outputs);
         // continue;
@@ -4806,10 +4810,12 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         if(classifier_name == "BDT") {mva_output = reader_tmp->EvaluateMVA(BDT_method_name);}
         else //NN
         {
-            //NB: if get segfault here of type 'Incompatible shapes: [1,105] vs. [35]' <-> means that the NN info file and actual .pb model are incompatible (need to retrain NN)
-            // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //SLOW !
-            // clfy_tmp->evaluate_fast(input, clfy_outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies
-            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies
+            //-- NB: if get segfault here of type 'Incompatible shapes: [1,105] vs. [35]' <-> means that the NN info file and actual .pb model are incompatible (need to retrain NN)
+            // {
+            //     clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //SLOW ! //CMSSW
+            //     clfy_tmp->evaluate_fast(input, clfy_outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //CMSSW
+            // }
+            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
 
             NN_iMaxNode = -1;
             for(int inode=0; inode<NN_nNodes; inode++)
