@@ -83,17 +83,17 @@ Please follow the following instructions to install and interface the code with 
 
 ```
 cd PATH
-cmsrel CMSSW_10_2_24 [or another release]
-cd CMSSW_10_2_24/src; cmsenv
+cmsrel CMSSW_11_1_2 [or another release; but the code is meant to work with TF2, apparently only available for >=11_1_0]
+cd CMSSW_11_1_2/src; cmsenv
+#git-cms-addpkg PhysicsTools/TensorFlow #NEEDED?
+#git cms-addpkg FWCore/Framework #NEEDED?
+#git cms-addpkg FWCore/Utilities #NEEDED?
+scram b -j 4 [very slow]
 git clone https://github.com/nicolastonon/EFTAnalysis.git
-git-cms-addpkg PhysicsTools/TensorFlow
-git cms-addpkg FWCore/Framework
-git cms-addpkg FWCore/Utilities
-scram b [very slow]
 cd EFTAnalysis
 [Adapt Makefile.cmssw if needed; comment/uncomment relevant headers in Utils/TFModel.h]
 cp Makefile.cmssw Makefile
-[Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/.profile settings]
+[Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/profile settings]
 make
 ```
 

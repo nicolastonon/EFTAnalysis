@@ -1,28 +1,28 @@
-#SPECIFIC MAKEFILE TO RUN UNDER CMSSW ONLY
+#-- SPECIFIC MAKEFILE TO RUN UNDER CMSSW ONLY --#
 
 CC=g++ -fPIC #Compiler used #fPIC useful to get debug messages #C++11 option: -std=c++0x
 DEBUG = -g
 CFLAGS = -c #Compilation options
 ROOTFLAGS = `root-config --glibs --cflags`
 
-LFLAGS = $(DEBUG) -lTMVA -lPyMVA -lrt
-LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/1.6.0-gnimlf2/lib/ -ltensorflow_framework
-LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.5.2/lib/ -lprotobuf
-LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow #-lFWCoreUtilities #CMSSW
-
-#-- Paths copied from : https://gitlab.cern.ch/cms-desy-topv/potato-common/-/blob/master/python/Setup.py
-# to find the correct libraries and include paths for tensorflow,
-#     you may have to look under "USE" and include these stuff as well:
+#-- To find the correct libraries/include paths for tensorflow/eigen/protobuf/... for your CMSSW version, check:
 #       scram tool list
-#       scram tool info tensorflow-cc
-#       scram tool info tensorflow-c
+#       scram tool info tensorflow
 #       scram tool info eigen
 #       scram tool info protobuf
+#       scram tool info tbb
+
+LFLAGS = $(DEBUG) -lTMVA -lPyMVA
+LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow -lFWCoreUtilities
+LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/2.1.0-bcolbf2/lib -ltensorflow_framework
+LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.11.3/lib -lprotobuf
+LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2019_U9-bcolbf/lib -ltbbmalloc
+
 INCFLAGS = -I${CMSSW_BASE}/src
-INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/1.6.0-gnimlf2/include
-INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/eigen/64060da8461a627eb25b5a7bc0616776068db58b/include/eigen3
-INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.5.2/include
-INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/1.6.0-gnimlf2/include/tensorflow/core/public #FIXME
+INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/2.1.0-bcolbf2/include
+INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/eigen/d812f411c3f9-bcolbf2/include/eigen3
+INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.11.3/include
+INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2019_U9-bcolbf/include
 
 SRCS = $(wildcard *.cxx) #Source files are all files with .cxx extension
 HDRS = $(wildcard *.h) #Header files are all files with .h extension
@@ -44,7 +44,7 @@ all: $(DICT) $(LIB) $(MY_ANALYSIS) $(ROCS) $(YIELD) $(SPLIT)
 
 $(DICT): Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h
 	@echo "-- Creating dictionnary $(DICT) --"
-	@rootcling -f $(DICT) -rml $(LIB) -rmf myLib.rootmap -c -p Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h
+	@rootcling -f $(DICT) -rml $(LIB) -rmf myLib.rootmap Utils/WCPoint.h Utils/WCFit.h Utils/TH1EFT.h Utils/LinkDef.h #-c -p Utils/...
 
 $(LIB): Utils/TH1EFT.cxx $(DICT)
 	@echo "-- Creating shared library $(LIB) --"
