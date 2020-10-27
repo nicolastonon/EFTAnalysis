@@ -20,7 +20,7 @@ def analyze(args):
     os.mkdir(output)
 
     #-- NB: may loop here to generate multiple jobs
-    i = 0 #Default: submit 1 single job    
+    i = 0 #Default: submit 1 single job
     if  True:
 
         # construct job name
@@ -211,17 +211,15 @@ def Submit():
 
     args = parser.parse_args()
 
-
     # parse arguments and call subparser
-    if args.subparser == 'analyze':
-        analyze(args)
-    elif args.subparser == 'check':
+    if args.subparser == 'check':
         check(args)
     elif args.subparser == 'GUI':
         GUI()
+    else: #Default -- Analyzer
+        analyze(args)
 
 if __name__ == '__main__':
     Submit()
 # end: parse command line arguments
 #-----
-

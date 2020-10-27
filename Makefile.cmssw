@@ -13,8 +13,8 @@ ROOTFLAGS = `root-config --glibs --cflags`
 #       scram tool info tbb
 
 LFLAGS = $(DEBUG) -lTMVA -lPyMVA
-#LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow -lFWCoreUtilities
-LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/cms/cmssw/${CMSSW_VERSION}/lib/${SCRAM_ARCH} -lFWCoreUtilities -lPhysicsToolsTensorFlow
+#LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/cms/cmssw/${CMSSW_VERSION}/lib/${SCRAM_ARCH} -lFWCoreUtilities -lPhysicsToolsTensorFlow #Why does not work ? Need to create these lib manually
+LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow -lFWCoreUtilities #Libraries generated manually via scram
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/2.1.0-bcolbf2/lib -ltensorflow_framework
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.11.3/lib -lprotobuf
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2019_U9-bcolbf/lib -ltbbmalloc

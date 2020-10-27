@@ -85,15 +85,14 @@ Please follow the following instructions to install and interface the code with 
 cd PATH
 cmsrel CMSSW_11_1_2 [or another release; but the code is meant to work with TF2, apparently only available for >=11_1_0]
 cd CMSSW_11_1_2/src; cmsenv
-#git-cms-addpkg PhysicsTools/TensorFlow #NEEDED?
-#git cms-addpkg FWCore/Framework #NEEDED?
-#git cms-addpkg FWCore/Utilities #NEEDED?
-scram b -j 4 [very slow]
+git-cms-addpkg PhysicsTools/TensorFlow
+git cms-addpkg FWCore/Utilities
+scram b -j 4 [slow]
 git clone https://github.com/nicolastonon/EFTAnalysis.git
 cd EFTAnalysis
 [Adapt Makefile.cmssw if needed; comment/uncomment relevant headers in Utils/TFModel.h]
 cp Makefile.cmssw Makefile
-[Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/profile settings]
+[Add 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:DIRPATH' into your .bashrc/profile settings, needed for custom lib]
 make
 ```
 
@@ -138,6 +137,8 @@ Select the functions to call by setting the corresponding booleans accordingly.
 
 ## Running the code
 
+### Locally
+
 Copy either 'Makefile.local' or 'Makefile.cmssw' to 'Makefile', depending on your case.
 
 ```
@@ -151,6 +152,16 @@ make
 :arrow_right: Output root files (containing templates, control histograms, TMVA control file, etc.) are stored in the [outputs](https://github.com/nicolastonon/EFTAnalysis/tree/master/outputs) directory.
 
 :arrow_right: Output plots are stored in the [plots](https://github.com/nicolastonon/EFTAnalysis/tree/master/plots) directory.
+
+### On HTCondor
+
+*NB1: only works under CMSSW.*
+*NB2: make sure the code is compiled first.*
+```
+make
+./submit analyze #Will run ./analysis_main.exe on condor, and store outputs in relevant sub-dirs
+```
+
 
 # Event yields
 
