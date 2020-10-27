@@ -4815,6 +4815,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
             //     clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //SLOW ! //CMSSW
             //     clfy_tmp->evaluate_fast(input, clfy_outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //CMSSW
             // }
+            // input.tensor.flat<float>().setZero(); //Reset inputs (cf. https://cms-ml.github.io/documentation/inference/tensorflow2.html) //FIXME
             clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
 
             NN_iMaxNode = -1;
