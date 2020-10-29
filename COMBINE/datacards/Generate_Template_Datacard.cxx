@@ -84,8 +84,8 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
 	// cout<<"syst "<<syst<<endl;
 	// cout<<"sample "<<sample<<endl;
 
-    if(syst.Contains("Fake", TString::kIgnoreCase) && !sample.Contains("NPL")) {return false;}
-    else if(sample.Contains("NPL") && !syst.Contains("Fake", TString::kIgnoreCase) && !syst.Contains("CRDY") ) {return false;}
+    if( (syst.Contains("Fake", TString::kIgnoreCase) || syst.BeginsWith("FR") || syst.Contains("NPL")) && !sample.Contains("NPL")) {return false;}
+    else if(sample.Contains("NPL") && !syst.Contains("Fake", TString::kIgnoreCase) && !syst.BeginsWith("FR") && !syst.Contains("NPL") && !syst.Contains("CRDY") ) {return false;}
 
     else if(syst.Contains("tZq", TString::kIgnoreCase) && !sample.Contains("tZq")) {return false;}
     else if(syst.Contains("ttZ", TString::kIgnoreCase) && !sample.Contains("ttZ")) {return false;}
@@ -146,10 +146,25 @@ void Choose_Arguments_From_CommandLine(TString& signal)
  * @param v_normSystValue    value of these systematics
  * @param v_shapeSyst    list of shape systematics
  */
-void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears)
+void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, TString outfile_name="Template_Datacard.txt")
 {
-    TString outfile_name = "Template_Datacard.txt";
+    //TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
+
+    //OBSOLETE //-- Make template datacard without any signal (to be used specifically in CRs where signal is negligible)
+    /*if(outfile_name != "Template_Datacard.txt") 
+    {
+        for(int isample=0; isample<v_samples.size(); isample++)
+		{
+			if(v_isSignal[isample]) //Remove signals from sample lists
+			{
+				v_samples.erase(v_samples.begin() + isample);
+				v_isSignal.erase(v_isSignal.begin() + isample);
+				v_sampleUncert.erase(v_sampleUncert.begin() + isample);
+				isample--; //Modify index accordingly
+			}
+		}
+    } */
 
 	//-- Protections
 	if(v_shapeSyst.size() != v_shapeSyst_isCorrelYears.size()) {cout<<"ERROR: incorrect size for vector 'v_shapeSyst_isCorrelYears' !"<<endl; return;}
@@ -470,41 +485,59 @@ int main()
 //-- Sample / 0 = sig, 1 = bkg / -1 = rateParam, else = lnN uncertainty
 //--------------------------------------------
     vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
-    if(signal == "efttzq") //Signal : tZq
+    if(signal == "efttzq") //Signal : SMEFT tZq
     {
         v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
-    else if(signal == "eftttz") //Signal : tZq
+    else if(signal == "eftttz") //Signal : SMEFT ttZ
     {
         v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
-    else if(signal == "eft") //Signals : tZq+ttZ
+    else if(signal == "efttwz") //Signal : SMEFT tWZ
+    {
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    }
+    else if(signal == "eft") //Signals : SMEFT tZq+ttZ+tWZ
     {
         v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
     }
-    else if(signal == "0") //Signals : tZq+ttZ
+    else if(signal == "0") //Signals : SM tZq+ttZ+tWZ
     {
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
     }
-    else if(signal == "tzq") //Signal : tZq
+    else if(signal == "tzq") //Signal : SM tZq
     {
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
-    else if(signal == "ttz") //Signal : ttZ
+    else if(signal == "ttz") //Signal : SM ttZ
     {
         v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
-    else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
+    else if(signal == "twz") //Signal : SM tWZ
+    {
+        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    }
+    //else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
-    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(-1);
+    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(15); //FIXME
+    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15); //FIXME
     v_samples.push_back("XG"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
     v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(30);
 
@@ -517,8 +550,8 @@ int main()
  // #      #   ## #    ##    #    #   #   #    #   #
  // ###### #    # #     #     ####    #    ####    #
 
-//lnN systematics.
-//Write "1+X%". E.g for lnN symmetric of 10% => "1.10"
+//lnN systematics
+//Write "(1+X)%". E.g for lnN symmetric of 10% => "1.10"
 //For a 5%/10% lnN asymmetric syst, write : "1.05/1.10"
 //-1 <-> values must be hardcoded (to allow for correlations with different values per year)
 //--------------------------------------------
@@ -561,21 +594,24 @@ int main()
     v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
-    
 
-    v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
+    //FIXME
+    // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
     //v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FR_pt"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FR_be"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRm_be"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRe_norm"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //-- NEW //FIXME
+    //FIXME
     // v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); //-- next prod
     // v_shapeSyst.push_back("Total"); v_shapeSyst_isCorrelYears.push_back(true); //Not available for PrivMC_tWZ yet
     // v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     // v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(true); //-- next prod
     // v_shapeSyst.push_back("UnclEn"); v_shapeSyst_isCorrelYears.push_back(false);
 
-    //-- MISSING //FIXME
+    //-- MISSING
     // v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -594,7 +630,7 @@ int main()
 
 //Function calls
 //--------------------------------------------
-    //Generate the template datacards for ele and mu channels (some differences)
+    //Generate the template datacard
     Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears);
 
     return 0;

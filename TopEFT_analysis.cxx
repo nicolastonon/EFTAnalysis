@@ -1,6 +1,4 @@
-//FIXME
-// -- find a way to avoid restoring MVA-SM info for each ttree... ! Not viable locally with MVA-SM
-// -- as long to evaluate NN-EFT variable as for NN-SM ?
+//Is it as long to evaluate NN-EFT variable as for NN-SM ?
 
 //-- by Nicolas Tonon (DESY) --//
 
@@ -126,10 +124,10 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     Set_Luminosity(lumiName); //Compute the corresponding integrated luminosity
 
-    this->use_optimized_ntuples = false;
     dir_ntuples = NTUPLEDIR; //Defined in Utils/Helper
     TString dir_ntuples_tmp = dir_ntuples;
 
+    this->use_optimized_ntuples = false; //Obsolete
     /* //Obsolete
     dir_ntuples_SR = dir_ntuples + "SR/";
     if(region=="tZq" || region=="ttZ" || region=="signal") {dir_ntuples = dir_ntuples_SR; cout<<endl<<FMAG("NB: will use SR sub-samples ! Make sure they are up-to-date !")<<endl<<endl;}
@@ -590,8 +588,8 @@ void TopEFT_analysis::Train_BDT(TString channel)
         {
             TString samplename_tmp = sample_list[isample];
 
-            TString mycut_string_tmp = mycut.GetTitle(); //Modify flag for NPL samples
-            if(samplename_tmp.Contains("NPL", TString::kIgnoreCase) || samplename_tmp.Contains("DY", TString::kIgnoreCase) || samplename_tmp.Contains("ttbar", TString::kIgnoreCase)) {mycut_string_tmp = mycut_string_tmp.ReplaceAll("_SR", "_SRFake"); mycut_string_tmp = mycut_string_tmp.ReplaceAll("_CR", "_CRFake");}
+            TString mycut_string_tmp = mycut.GetTitle();
+            if(samplename_tmp.Contains("NPL", TString::kIgnoreCase) || samplename_tmp.Contains("DY", TString::kIgnoreCase) || samplename_tmp.Contains("ttbar", TString::kIgnoreCase)) {mycut_string_tmp = mycut_string_tmp.ReplaceAll("_SR", "_SRFake"); mycut_string_tmp = mycut_string_tmp.ReplaceAll("_CR", "_CRFake");} //Modify flag for NPL samples only
             TCut mycut_tmp = mycut_string_tmp.Data();
 
             //-- Protections
@@ -869,7 +867,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     if(template_name=="") {template_name = classifier_name;}
     if(!makeHisto_inputVars && !make_SMvsEFT_templates_plots && categorization_strategy>0 && template_name!="BDT") {template_name = "NN";} //Special case: if want to produce SM vs SM classifier plots, make sure we consider NN templates (for BDT, must specify in main)
     if(this->make_fixedRegions_templates && makeHisto_inputVars) {cout<<FRED("Warning: option [make_fixedRegions_templates] is incompatible with control plots for input variables... Setting it to false !")<<endl; this->make_fixedRegions_templates = false;}
-    if(this->make_fixedRegions_templates || this->use_SMdiffAnalysis_strategy) {template_name = "";} //Irrelevant
+    if(this->make_fixedRegions_templates || this->use_SMdiffAnalysis_strategy) {template_name = "";} //Irrelevant variable
 
     cout<<endl<<BYEL("                          ")<<endl<<endl;
 	if(makeHisto_inputVars) {cout<<FYEL("--- Producing Input variables histograms ---")<<endl;}
@@ -1156,77 +1154,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         	{
                 //-- Could use this helper function to fill the (hardcoded) list of variables to consider, based on user-options
                 Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates);
-
-                /* //Obsolete (repeated/hardcoded in 'Fill_Variables_List()')
-                total_var_list.push_back(template_name);
-
-                //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
-                if(use_predefined_EFT_strategy)
-                {
-                    vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-                    total_var_list.clear();
-                    for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
-                    {
-                        if(cat_tmp == "signal" || cat_tmp == "tZq") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRtZq"); //Replaced: total_var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
-                        if(cat_tmp == "signal" || cat_tmp == "ttZ") total_var_list.push_back(total_var_list_tmp[ivar] + "_SRttZ");
-                        if(cat_tmp == "signal")
-                        // if(cat_tmp == "signal" && !this->scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
-                        if(cat_tmp == "signal")
-                        {
-                            if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
-                            else {total_var_list.push_back(total_var_list_tmp[ivar] + "_CR");}
-                        }
-                    }
-
-                    //-- EFT scan woth parameterized NN: need to consider 1 NN variable (template) *per EFT point*
-                    if(this->scanOperators_paramNN)
-                    {
-                        vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-                        total_var_list.clear(); //Reset the actual list
-                        for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++) //For each variable initially found in the list, duplicate it once for each considered EFT point
-                        {
-                            for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
-                            {
-                                if(total_var_list_tmp[ivar].Contains("CR")) {total_var_list.push_back(total_var_list_tmp[ivar]); break;} //CR: don't use parameterized NN (--> use 1 single template)
-
-                                TString opname1 = operator_scan1 + "_" + Convert_Number_To_TString(v_WCs_operator_scan1[iop1]); //Default: scan 1 operator
-                                TString opname2 = ""; //Optional: scan 2nd operator
-                                for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
-                                {
-                                    if(operator_scan2=="" && iop2>0) {break;}
-                                    else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + Convert_Number_To_TString(v_WCs_operator_scan2[iop2]);}
-                                    total_var_list.push_back(total_var_list_tmp[ivar] + "_" + opname1 + opname2);
-                                    // cout<<"Added variable: "<<total_var_list[total_var_list.size()-1]<<endl;
-                                }
-                            }
-                        }
-                    } //MVA EFT scan
-                } //Predefined strategy
-                else if(!use_predefined_EFT_strategy && template_name == "NN")
-                {
-                    total_var_list.clear();
-                    for(int inode=0; inode<NN_nNodes; inode++) {total_var_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
-                }
-
-                //-- Override: hardcoded strategies
-                if(this->use_SMdiffAnalysis_strategy) //Hard-coded, following SM analysis strategy
-                {
-                    total_var_list.clear();
-                    if(region == "tZq" || region == "ttZ") {total_var_list.push_back("NN");}
-                    else if(region == "wz") {total_var_list.push_back("mTW");}
-                    else if(region == "zz") {total_var_list.push_back("countExp");}
-                    else if(region == "Vg") {total_var_list.push_back("channel");}
-                    template_name = total_var_list[0];
-                }
-                else if(this->make_fixedRegions_templates)
-                {
-                    total_var_list.clear();
-                    total_var_list.push_back("mTW_CRWZ");
-                    total_var_list.push_back("countExp_CRZZ");
-                    total_var_list.push_back("countExp_SRttZ4l");
-                    template_name = "";
-                }
-                */
         	} //Templates
 
             total_var_floats.resize(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
@@ -1330,7 +1257,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			{
     				cout<<BOLD(FRED("ERROR : tree '"<<treename_tmp<<"' not found in file : "<<inputfile<<" ! Skip !"))<<endl;
                     if(!itree) {break;} //If we did not find the nominal TTree, no need to look for the others
-                    continue; //Skip sample
+                    continue; //Skip sampleTH1EF
     			}
 
                 v_isEventPassMVACut_tZq.clear(); v_isEventPassMVACut_ttZ.clear(); v_isEventPassMVACut_multiclass.clear();
@@ -1467,7 +1394,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     tree->SetBranchStatus(cat_name, 1);
                     tree->SetBranchAddress(cat_name, &v_is_goodCategory[3]);
                 }
-                else if(cat_tmp != "" && !this->use_optimized_ntuples)
+                else if(cat_tmp != "")
                 {
                     TString cat_name = Get_Category_Boolean_Name(cat_tmp, isFake);
 
@@ -1548,19 +1475,19 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			{
     				if((channel_list.size() > 1 && channel_list[ichan] == "") || sample_list[isample] == "DATA"  || systTree_list[itree] != "") {v3_histo_chan_syst_var[ichan].resize(1);} //Cases for which we only need to store the nominal weight
 
-                    //Reserve memory for TH1Fs
+                    //-- Reserve memory for TH1Fs/TH1EFTs
     				if(sample_list[isample] == "DATA" || systTree_list[itree] != "") //1 single weight
     				{
                         v3_histo_chan_syst_var[ichan].resize(1); //Cases for which we only need to store the nominal weight
                         v3_TH1EFT_chan_syst_var[ichan].resize(1);
     				}
-    				else //Subcategories -> 1 histo for nominal + 1 histo per systematic
+    				else //Need 1 histo for nominal + 1 histo per systematic
     				{
                         v3_histo_chan_syst_var[ichan].resize(syst_list.size());
-                        v3_TH1EFT_chan_syst_var[ichan].resize(syst_list.size());
+                        v3_TH1EFT_chan_syst_var[ichan].resize(syst_list.size()); //Actually only need TH1EFTs for nominal histos... but keep same structure as TH1Fs for symmetry
     				}
 
-    				//Init TH1Fs/TH1EFTs
+    				//-- Init TH1Fs/TH1EFTs
     				for(int isyst=0; isyst<v3_histo_chan_syst_var[ichan].size(); isyst++)
     				{
                         v3_histo_chan_syst_var[ichan][isyst].resize(total_var_list.size());
@@ -1578,42 +1505,14 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             {
                                 Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max);
                                 // cout<<"nbins_tmp "<<nbins_tmp<<" / xmin_tmp "<<xmin_tmp<<" / xmax_tmp "<<xmax_tmp<<endl;
-
-                                /* -- Obsolete: now define all templates binnings in 'Get_Template_Range'
-                                if(template_name.Contains("NN") || total_var_list[ivar].Contains("BDT")) {nbins_tmp = 10;}
-                                if(template_name.Contains("mTW") || total_var_list[ivar].Contains("mTW"))
-                                {
-                                    nbins_tmp=15; xmin_tmp=0; xmax_tmp=150;
-                                    if(use_SMdiffAnalysis_strategy) {nbins_tmp=10; xmax_tmp=150;} //Keep my binning for now
-                                }
-                                if(template_name.Contains("countExp")) {nbins_tmp=1; xmax_tmp=1;}
-                                if(template_name.Contains("channel")) {nbins_tmp=2; xmax_tmp=2;}
-
-                                //Set binning according to min/max bounds read from NN info file (avoid empty bins at boundaries)
-                                if(template_name.Contains("NN") && make_SMvsEFT_templates_plots)
-                                {
-                                    // if() {xmin_tmp = minmax_bounds.first; xmax_tmp = minmax_bounds.second;}
-
-                                    if(use_predefined_EFT_strategy) //Special case: if we consider SRtZq/SRttZ/CR, need to use first NN for SRtZq templates & second NN for SRttZ templates //Hard-coded
-                                    {
-                                        if(total_var_list[ivar].Contains("tZq")) {xmin_tmp = Round_Float_toDecimal(minmax_bounds[0], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds[1], 0.1, false);}
-                                        else if(total_var_list[ivar].Contains("ttZ")) {xmin_tmp = Round_Float_toDecimal(minmax_bounds2[0], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds2[1], 0.1, false);}
-                                    }
-                                    else //Else, consider that the different variables correspond to the different nodes (>=1 if multiclass NN) --> Read min/max boundaries of each node and adapt binning accordingly !
-                                    {
-                                        // cout<<"total_var_list[ivar] "<<total_var_list[ivar]<<endl;
-                                        // cout<<"minmax_bounds.size() "<<minmax_bounds.size()<<endl;
-                                        xmin_tmp = Round_Float_toDecimal(minmax_bounds[ivar*2], 0.1, true); xmax_tmp = Round_Float_toDecimal(minmax_bounds[ivar*2+1], 0.1, false); //Read floats 0,1, then 2,3, etc. (correspond to min/max values for each node)
-                                    }
-                                }
-                                */
                             } //templates
 
                             // v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp); //Obsolete -- redundant for PrivMC
 
-                            if(isPrivMC)
+                            if(isPrivMC) //For private SMEFT samples, init both TH1F/TH1EFT objects; can then decide which to Fill (usually: only need more complex TH1EFT for nominal histos, but can choose to simply use TH1Fs e.g. in CRs...)
                             {
-                                v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = new TH1EFT("", "", nbins_tmp, xmin_tmp, xmax_tmp);
+                                if(syst_list[isyst] != "") {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = NULL;} //Don't need TH1EFT objects in this case, don't reserve un-necessary memory
+                                else {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = new TH1EFT("", "", nbins_tmp, xmin_tmp, xmax_tmp);}
                                 v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp);
                                 // v3_histo_chan_syst_var[ichan][isyst][ivar] = NULL;
                             }
@@ -1839,6 +1738,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //NB: only need to fill additional variables here in 2 cases: a) if 'use_predefined_EFT_strategy=true'; b) if 'make_fixedRegions_templates=true' --> predefined set of multiple templates ! (otherwise, considering single template, which was filled above)
                             if(!makeHisto_inputVars)
                             {
+                                if(this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ 4l SR (neglect SMEFT in CRs) --> Don't fill event otherwise
+
                                 //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
                                 if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
                                 {
@@ -1850,16 +1751,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                         else {idx_EFT_var = 2;} //CR template
                                     }
 
-                                    if(categorization_strategy == 1) //Strategy 1 //Cut on flags and MVA-SM
+                                    if(categorization_strategy == 1) //Strategy 1 //Cut on flags & MVA-SM
                                     {
                                         if(cat_alreadyFound && !this->scanOperators_paramNN) {continue;} //Don't consider same event twice
                                         else if(idx_EFT_var == 0 && (!is_tZqSR || (apply_MVASM_cut && !v_isEventPassMVACut_tZq[ientry]))) {continue;} //Event did not pass the required MVA-SM-tZq cut
                                         else if(idx_EFT_var == 1 && (!is_ttZSR || (apply_MVASM_cut && !v_isEventPassMVACut_ttZ[ientry]))) {continue;} //Event did not pass the required MVA-SM-ttZ cut
-                                        //Else: idx_EFT_var == 2 (CR) --> contains all events which did not enter SRtZq/SRttZ
+                                        //else: idx_EFT_var == 2 (SRother) --> contains all events which did not enter SRtZq/SRttZ
 
                                         cat_alreadyFound = true; //Did not hit 'continue' so far <-> event category has been found
                                     }
-                                    else //Strategy 2 //Cut on MVA-SM
+                                    else //Strategy 2 //Cut only on MVA-SM
                                     {
                                         // cout<<"ivar "<<ivar<<" / v_isEventPassMVACut_multiclass[ientry] "<<v_isEventPassMVACut_multiclass[ientry]<<endl;
                                         // if(total_var_floats[0] < 0.40) {cout<<"total_var_floats[0] "<<total_var_floats[0]<<endl;}
@@ -2029,7 +1930,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     						file_output->cd();
 
-                            if(isPrivMC && syst_list[isyst] == "") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
+                            // if(isPrivMC && syst_list[isyst] == "") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
+                            if(isPrivMC && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) ) //CHANGED //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
                             {
                                 if(sample_list[isample] != "NPL_MC") {Avoid_Histogram_EmptyOrNegativeBins(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]);}
                                 // if(sample_list[isample] != "NPL_MC" && v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, true);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
@@ -2195,7 +2097,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     //-- For COMBINE fit, want to directly merge contributions from different processes into single histograms
     //-- For control histograms, only need to substract MC NPL from data-driven NPL
-    if(!this->use_optimized_ntuples) {MergeSplit_Templates(makeHisto_inputVars, output_file_name, total_var_list, template_name, region, true);}
+    MergeSplit_Templates(makeHisto_inputVars, output_file_name, total_var_list, template_name, region, true);
 
 	return;
 }
@@ -2370,27 +2272,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         }
 
         Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates);
-
-        /*
-        else {total_var_list.push_back(template_name);} //Single BDT template
-
-        //-- Add suffix to variables (SM/EFT, category, ...)
-        if(!drawInputVars && this->categorization_strategy > 0) //Hard-coded
-        {
-            vector<TString> total_var_list_tmp(total_var_list); //Tmp copy of variable list
-            total_var_list.clear();
-            for(int ivar=0; ivar<total_var_list_tmp.size(); ivar++)
-            {
-                total_var_list.push_back(total_var_list_tmp[ivar] + "_SRtZq"); //Changed from: total_var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
-                total_var_list.push_back(total_var_list_tmp[ivar] + "_SRttZ");
-                // if(EFTpoint == "" || EFTpoint.BeginsWith(this->operator_scan1+"_"+Convert_Number_To_TString(this->v_WCs_operator_scan1[0])) ) //If EFT scan, plot single CR template only once !
-                {
-                    if(make_SMvsEFT_templates_plots) {total_var_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
-                    else {total_var_list.push_back(total_var_list_tmp[ivar] + "_CR");} //For SM vs SM, use whatever chosen distribution
-                }
-            }
-        } //Use categ. strategy
-        */
 	} //Templates
 
     //-- Read input file (may be year-dependent)
@@ -3109,7 +2990,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_MC_histo[i], "tZq", "f");}
             else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_MC_histo[i], "t#bar{t}Z", "f");}
-            else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
+            else if(MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
+            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
             else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_MC_histo[i], "t(#bar{t})X", "f");}
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
             else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
@@ -4657,13 +4539,13 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
 
             						delete h_merging; h_merging = NULL;
 
-                                    //Special case: for control histograms/plots, want to substract NPL_MC from (data-driven) NPL --> then overwrite "NPL" and delete "NPL_MC" (to avoid ambiguities)
-                                    if(sample_list[isample] == "NPL_MC")
-                                    {
-                                        //FIXME -- necessary ? problem delete npl mc too early
-                                        // f->Delete(histoname+";1"); //Delete (first cycle of) histogram
-                                        // cout<<DIM("Merged and deleted histogram "<<histoname+";1"<<"")<<endl;
-                                    }
+                                    //-- Special case: for control histograms/plots, want to substract NPL_MC from (data-driven) NPL --> then overwrite "NPL" and delete "NPL_MC" (to avoid ambiguities)
+                                    //-- Necessary ? problem delete NPL_MC too early
+                                    // if(sample_list[isample] == "NPL_MC")
+                                    // {
+                                    //     f->Delete(histoname+";1"); //Delete (first cycle of) histogram
+                                    //     // cout<<DIM("Merged and deleted histogram "<<histoname+";1"<<"")<<endl;
+                                    // }
                                 } //write histo
                             } //sample loop
                         } //bin loop
@@ -4815,7 +4697,8 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
             //     clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //SLOW ! //CMSSW
             //     clfy_tmp->evaluate_fast(input, clfy_outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //CMSSW
             // }
-            // input.tensor.flat<float>().setZero(); //Reset inputs (cf. https://cms-ml.github.io/documentation/inference/tensorflow2.html) //FIXME
+            // input.tensor.flat<float>().setZero(); //Reset inputs (cf. https://cms-ml.github.io/documentation/inference/tensorflow2.html)
+
             clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
 
             NN_iMaxNode = -1;

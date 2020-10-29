@@ -91,7 +91,7 @@ def makeWorkspaceEFT(datacard='datacard.txt', verbosity=0):
 
 #=====================================
 
-def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False, only_collect_outputs=False, name=''):
+def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False, only_collect_outputs=False, name='', ntoys=0):
     '''
     Generate impact plots. Can choose to run the per-nuisance fits on the grid.
 
@@ -134,9 +134,11 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         args.extend(['-n','{}'.format(name)])
         if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         else:
-            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
             frozen_pois = [wc for wc in opts['wcs'] if wc not in POIs] #Define which WCs are frozen
-        if exp: args.extend(['-t','-1']) #Assume MC expected
+            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs and len(frozen_pois)>0)]) #Freeze others
+        if exp:
+            if ntoys == 0: args.extend(['-t','-1']) #Assume MC expected
+            else: args.extend(['-t',str(ntoys),'-s','12345']) #Generate MC toys #NB: provide this random seed as arg, propagated through calls (-- needed modification in CHarv/Impacts.py, otherwise can't deal with automatic seed suffix --)
         args.extend(['--trackParameters',','.join(poi for poi in opts['wcs'] if poi not in POIs)])
         if verbosity>0: args.extend(['-v', str(verbosity)])
         if other: args.extend(other)
@@ -162,7 +164,9 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
         #-- NB: '--algo impact' hardcodes options '--floatOtherPOIs=1 --saveInactivePOI=1', hence must not repeat these
         if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze other WCs
-        if exp: args.extend(['-t','-1']) #Assume MC expected
+        if exp:
+            if ntoys == 0: args.extend(['-t','-1']) #Assume MC expected
+            else: args.extend(['-t',str(ntoys),'-s','12345']) #Generate MC toys
         if verbosity>0: args.extend(['-v', str(verbosity)])
         if other:               args.extend(other)
         args.extend(['--trackParameters',','.join(poi for poi in opts['wcs'] if poi not in POIs)])
@@ -207,9 +211,11 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
     #-- Create a json file using as input the files generated in the previous two steps
     args = ['combineTool.py','-M','Impacts','-o','impacts.json','-d',workspace,'-m','125']
     args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
-    if exp: args.extend(['-t','-1']) #Assume MC expected
+    if exp:
+        if ntoys == 0: args.extend(['-t','-1']) #Assume MC expected
+        else: args.extend(['-t',str(ntoys),'-s','12345']) #Generate MC toys
     if verbosity>0: args.extend(['-v', str(verbosity)])
-    if other:               args.extend(other)
+    if other: args.extend(other)
     if name != '': args.extend(['-n','{}'.format(name)])
 
     logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -236,7 +242,7 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
     return
 
 
-def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
+def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other='', ntoys=0):
     '''
     Perform a NLL grid scan for a given nuisance parameter.
     '''
@@ -248,7 +254,9 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in [nuisance]+opts['wcs'])]) #Set default values to 0 for all WCs and nuisance
     #-- NB: '--algo impact' hardcodes options '--floatOtherPOIs=1 --saveInactivePOI=1', hence must not repeat these
     if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in POIs)]) #Freeze others
-    if exp: args.extend(['-t','-1']) #Assume MC expected
+    if exp:
+        if ntoys == 0: args.extend(['-t','-1']) #Assume MC expected
+        else: args.extend(['-t',str(ntoys),'-s','12345']) #Generate MC toys
     if verbosity>0: args.extend(['-v', str(verbosity)])
     if other: args.extend(other)
     args.extend(['--setParameterRanges',nuisance+'='+str(range[0])+','+str(range[1])])
@@ -263,7 +271,8 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     process.wait()
 
     #-- Plot NLL scan
-    args = ['plot1DScan.py','higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH125.root','--POI', nuisance] #Minimal args
+    inputfile = 'higgsCombine_paramFit_'+nuisance+'.MultiDimFit.mH125'+('' if ntoys==0 else '.12345')+'.root'
+    args = ['plot1DScan.py',inputfile,'--POI', nuisance] #Minimal args
     args.extend(['--y-cut','7','--y-max','8','--main-color','1','--logo','CMS','--logo-sub','Internal']) #Optional args
     if exp: args.extend(['--main-label','Expected'])
     else: args.extend(['--main-label','Observed'])
@@ -281,7 +290,7 @@ def Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints=100, range=[-4,
     return
 
 
-def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other=''):
+def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], freeze=True, verbosity=0, exp=False, other='', ntoys=0):
     '''
     Run NLL grid scans for all nuisance parameters found in the input RooWorkspace.
 
@@ -318,7 +327,7 @@ def Make_NLL_Scan_AllNuisancePars(workspace, POIs, npoints=100, range=[-4,4], fr
     #-- Do grid scan and plot for each individual nuisance
     for nuisance in nuisances:
         print(colors.fg.lightblue + "-- Nuisance " + nuisance + "\n" + colors.reset)
-        Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints, range, freeze, verbosity, exp, other)
+        Make_NLL_Scan_NuisancePar(workspace, nuisance, POIs, npoints, range, freeze, verbosity, exp, other, ntoys=ntoys)
 
     return
 
@@ -355,7 +364,8 @@ if __name__ == "__main__":
     nuisance = '' #Name of single nuisance parameter to scan
     npoints = 50 #Number of points to scan nuisance(s)
     only_collect_outputs = False #True <-> for impact plot, only collect output files previously produced e.g. on the grid
-    batch = '' #Can choose to run jobs on 'crab' or 'condor'
+    batch = False #True <-> condor #Can choose to run jobs on 'crab' or 'condor'
+    ntoys = 0 # >0 <-> will generate MC toys rather than Asimov dataset
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -370,7 +380,8 @@ if __name__ == "__main__":
     parser.add_argument("-n", metavar="name", help="add suffix to output filename")
     parser.add_argument("--nuisance", metavar="nuisance", help="Name of single nuisance to scan")
     parser.add_argument("--npoints", metavar="npoints", help="Number of points to scan nuisance(s)")
-    parser.add_argument("--batch", metavar="batchmode", help="crab or condor")
+    parser.add_argument("--batch", metavar="batchmode", help="(crab or condor -- only condor for now)", nargs='?', const=1)
+    parser.add_argument("--toys", metavar="ntoys", help="Number of MC toys to generate")
 
     args = parser.parse_args()
     if args.d: datacard_path = args.d
@@ -386,13 +397,17 @@ if __name__ == "__main__":
     if args.nuisance: nuisance = args.nuisance
     if args.npoints: npoints = args.npoints
     if args.collect: only_collect_outputs = True
-    if args.batch: batch = args.batch
+    if args.batch: batch = 'condor' #Only use condor
+    if args.toys: ntoys = args.toys
 
     if mode not in ['impact','impacts','scan_nuisance','scan_all']:
         logging.info(colors.fg.lightblue + "ERROR: wrong option mode" + colors.reset)
         exit(1)
-    if batch=='crab':
-        print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
+    #if batch=='crab':
+    #    print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
+    #    exit(1)
+    if ntoys>0 and exp == False:
+        print('ERROR: you set both [exp=False] and [ntoys>0] which are incompatible... !')
         exit(1)
 
 
@@ -402,8 +417,8 @@ if __name__ == "__main__":
         if only_collect_outputs == False: makeWorkspaceEFT(datacard=datacard_path) #Create RooWorkspace from txt datacard
         datacard_path = 'EFTWorkspace.root' #Assume the WS was already created
 
-    if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name)
+    if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name, ntoys=ntoys)
 
-    elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
+    elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='', ntoys=ntoys)
 
-    elif mode == 'scan_all': Make_NLL_Scan_AllNuisancePars(datacard_path, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='')
+    elif mode == 'scan_all': Make_NLL_Scan_AllNuisancePars(datacard_path, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='', ntoys=ntoys)

@@ -24,6 +24,8 @@ print('\n * Creating datacard for year : '+year+' / channel : '+channel+' / vari
 
 fileToSearch = "Template_Datacard.txt" #TEMPLATE to parse
 
+#if any(x in theVar for x in ['_CR']): fileToSearch = "Template_Datacard_noSig.txt" #Special case: don't consider any signal in CRs (approximation)
+
 # //--------------------------------------------
 # if(channel!="" and channel!="all" and channel!="uuu" and channel!="uue" and channel!="eeu" and channel!="eee" and channel!="ee" and channel!="uu" and channel!="ue"):
 #     print("wrong channel")

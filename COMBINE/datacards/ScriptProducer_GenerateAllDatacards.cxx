@@ -52,30 +52,6 @@ using namespace std;
 // ##     ## ######## ######## ##        ######## ##     ##
 //--------------------------------------------
 
-//OBSOLETE //HARD-CODED: define here whether the combination of region/template is valid (according to SM tZq differential analysis)
-/*
-bool Is_Template_Matching_Region(TString templatename, TString region, char use_SM_setup, char include_otherRegions)
-{
-    if(use_SM_setup == 'y')
-    {
-        if(templatename == "NN" && (region == "tZq" || region == "ttZ")) {return true;}
-        if(templatename == "channel" && region == "Vg") {return true;}
-        if(templatename == "mTW" && region == "wz") {return true;}
-        if(templatename == "countExp" && region == "zz") {return true;}
-    }
-    else if(include_otherRegions == 'y')
-    {
-        if(templatename == "NN" && (region == "tZq" || region == "ttZ")) {return true;}
-        if(templatename == "channel" && region == "Vg") {return true;}
-        if(templatename == "mTW" && (region == "wz" || region == "CRWZ")) {return true;}
-        if(templatename == "countExp" && (region == "zz" || region == "SRttZ4l" || region == "CRZZ")) {return true;}
-    }
-    else {return true;} //Incorrect case
-
-    return false;
-}
-*/
-
 //Use stat function (from library sys/stat) to check if a file exists
 bool Check_File_Existence(const TString& name)
 {
@@ -260,7 +236,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
                     if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
-                    if(v_regions[iregion] == "CR" && filename_template_suffix.Contains("EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
@@ -371,7 +347,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                    if(v_regions[iregion] == "CR" && filename_template_suffix.Contains("EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
                     if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
 
@@ -461,7 +437,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
                 {
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                    if(v_regions[iregion] == "CR" && filename_template_suffix.Contains("EFT")) {var = "mTW_CR";} //Use mTW for now in CR //Hard-coded
+                    if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
@@ -685,7 +661,7 @@ int main()
     vector<TString> v_regions; //'SR', 'CR_xx', ... (must reflect bin names)
     v_regions.push_back("SRtZq");
     v_regions.push_back("SRttZ");
-    v_regions.push_back("CR");
+    v_regions.push_back("SRother");
 
     TString selection = ""; //Main event selection, before sub-categorization
     TString filename_template_suffix = "EFT2"; //Specify extension in histo filename
@@ -705,7 +681,7 @@ int main()
     int mode_histoBins = 1; //0 <-> use full MVA distribution (default); 1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations; 2 <-> entire histogram treated as single bin (counting experiment)
     char use_SM_setup = 'n'; //'y' <-> overrides some option to perform a fit following the setup of the main SM tZq differential analysis
     TString template_name = "0", region = "0";
-    char include_otherRegions = 'n'; //'y' <-> expect to find merged template files containing both SR templates and templates from other regions (hardcoded: ttZ 4l SR / WZ CR / ZZ CR)
+    char include_otherRegions = 'n'; //'y' <-> expect to find merged template files containing both SR templates and templates from other regions (hardcoded: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins, use_SM_setup, selection, filename_template_suffix, include_otherRegions);
 
 	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup, selection, filename_template_suffix, include_otherRegions);

@@ -179,8 +179,13 @@ class EFTModel(PhysicsModel):
    #   # ###### ###### #####     ####   ####  #    # ###### ######
 
     def getYieldScale(self, bin, process):
-        "Return the name of a RooAbsReal to scale this yield by or the two special values 1 and 0 (don't scale, and set to zero)"
-
+        "Return the name of a RooAbsReal to scale this yield by, or the two special values 1 and 0 (don't scale, and set to zero)"
+    
+        #FIXME -- works fine to ignore SMEFT signals in CRs ?
+        if 'PrivMC' in process and '_CR' in bin: #Can set SMEFT samples to 0 in CR (negligible contributions)
+            print(colors.fg.lightgrey + '* Setting ({0},{1}) to 0'.format(process, bin) + colors.reset)
+            return 0
+        
         if (process,bin) not in self.procbins:
             print(colors.fg.lightgrey + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
             # print(colors.fg.orange + '* ({0},{1},{2}) not in self.procbins ! => Do not scale'.format(process, bin, systematic) + colors.reset)

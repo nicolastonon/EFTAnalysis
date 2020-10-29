@@ -754,8 +754,8 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
                 if((update_fullSMEFTSamples_withWCFit && isel==0) && v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(filepath, v_TTrees, nominal_tree_name);}
 
                 //-- Skip unwanted selection/sample combinations
-                if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
-                else if(!make_FakesMC_samples && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
+                // if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
+                if(!make_FakesMC_samples && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
                 else if(v_sel[isel].Contains("Fake") && (v_samples[isample].Contains("PrivMC") || v_samples[isample].Contains("TTbar") || v_samples[isample].Contains("DY"))) {continue;} //Don't consider prompt fake contributions from: private samples / ttbar / DY / ...
                 else if(!make_nominal_samples && v_sel[isel].Contains("Fake") && v_samples[isample] == "DATA") {continue;} //If 'make_nominal_samples=False', dont make NPL_DATA sub-ntuples neither !
 
@@ -795,7 +795,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
             while(answer != 'y') {cout<<"Try again... "<<endl; cin>>answer;}
         }
 
-        Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);
+        if(make_nominal_samples) {Merge_Many_TTrees_Into_One(v_years, v_sel, v_samples, v_TTrees, prefix, nominal_tree_name);} //Make subregion/NPL_MC sample only if make_nominal_samples==make_FakesMC_samples==true
         Make_Full_Merged_Ntuples(v_years, v_TTrees, v_samples, make_FakesMC_samples, prefix, NPL_flag, false); //NPL MC
     }
 

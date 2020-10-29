@@ -27,6 +27,20 @@ import getopt # command line parser
 import argparse
 from settings import opts #Custom dictionnary of settings
 import shutil
+import CombineHarvester.CombineTools.plotting as plot #Combine plotting utils
+from EFTPlotter import BuildScan
+
+
+def PrintBanner():
+    #Print some info when starting this code
+
+    print('\n' + colors.bg.orange + '                                           ' + colors.reset)
+    print(colors.fg.orange + '-- EFTFitter --' + colors.reset + '\n')
+    print('* NB1: make sure you are using the relevant template file')
+    print('* NB2: make sure you have extracted the relevant EFT parameterizations')
+    print(colors.bg.orange + '                                           ' + colors.reset + '\n')
+
+    return
 
 
 ######## ######## ######## ######## #### ########
@@ -50,27 +64,16 @@ class EFTFit(object):
         self.logger = logging.getLogger(__name__)
 
         self.wcs = opts['wcs']
+        self.wc = opts['wc']
         self.scan_wcs = opts['scan_wcs']
         self.wcs_tracked = opts['wcs_tracked']
         self.wc_ranges = opts['wc_ranges']
         self.wcs_pairs = opts['wcs_pairs']
-
-        '''
-        # WCs lists for easy use
-        # Full list of opeators
-        self.wcs = ['ctz'] #Full list
-        # Default pair of wcs for 2D scans
-        self.scan_wcs = ['ctw','ctz']
-        # Default wcs to keep track of during 2D scans
-        self.wcs_tracked = [] #OTHERS
-        # Scan ranges of the wcs
-        self.wc_ranges = {'ctz':(-6,6) #, 'ctw':(-7,7)
-                         }
-        '''
+        self.SM_mu = opts['SM_mu']
+        self.SM_mus = opts['SM_mus']
 
         # Systematics names except for FR stats. Only used for debug
         self.systematics = []
-        # self.systematics = ['CERR1','CERR2']
 
 
  #       ####   ####   ####  ###### #####
@@ -138,9 +141,9 @@ class EFTFit(object):
         # Map signal strengths to processes in all bins
         for iproc,proc in enumerate(opts["processes"]):
             args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
-
         if verbosity>0:
             args.extend(['-v', str(verbosity)])
+        args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
 
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -158,8 +161,8 @@ class EFTFit(object):
             sys.exit()
         CMSSW_BASE = os.getenv('CMSSW_BASE')
         args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
-
         if verbosity>0: args.extend(['-v', str(verbosity)])
+        args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
 
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -176,7 +179,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFitSM(self, name='.SM', freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=0):
+    def bestFitSM(self, name='.SM', params_POI=[], freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=0, mask=[], antimask=[]):
         '''
         Perform a MLF to find the best fit value of the POI(s).
         '''
@@ -184,21 +187,27 @@ class EFTFit(object):
         ### Multidimensional fit ###
         logging.info(colors.fg.lightblue + "Enter function bestFitSM()\n" + colors.reset)
 
+        if len(params_POI) == 0: params = self.SM_mus
+
+        #-- #Define channel masking regexp pattern, if any
+        maskPattern = []; antimaskPattern = []
+        if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
+        #if len(antimask)>0: antimaskPattern=[','.join('rgx{{^mask_(?!.*{}).*$}}=1'.format(chan) for chan in antimask)]
+        if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+
         args=['combine', '-d','./SMWorkspace.root', '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit','--do95','1','--robustFit','1']
 
-        for mu in opts["SM_mus"]: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
-        args.extend(['--setParameters',','.join('{}=1'.format(xx) for xx in opts["SM_mus"])]) #Set default values to 1
+        for mu in params_POI: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
+        #args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in self.SM_mus)]) 
+        args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
         if freeze:
-            params_all=[opts["SM_mu"]]
-            fit=list(set(params_all) - set(freeze))
-            name += '.'
-            name += '.'.join(fit)
-        if name:        args.extend(['-n','{}'.format(name)])
-        if freeze:      args.extend(['--freezeParameters',','.join(freeze)])
-        if verbosity>0:   args.extend(['-v', str(verbosity)])
-        if exp:
-            args.extend(['-t', '-1'])
-        if other:       args.extend(other)
+            frozen_pois = [wc for wc in self.wcs if wc not in params_POI] #Define which WCs are frozen
+            args.extend(['--freezeParameters',','.join('{}'.format(mu) for mu in self.SM_mus if mu not in params_POI and len(frozen_pois)>0)]) #Freeze other parameters
+        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        if name: args.extend(['-n','{}'.format(name)])
+        if verbosity>0: args.extend(['-v', str(verbosity)])
+        if exp: args.extend(['-t', '-1'])
+        if other:args.extend(other)
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -208,10 +217,12 @@ class EFTFit(object):
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
         logging.info(colors.fg.lightblue + "Done with SM best fit !" + colors.reset)
-        self.printBestFitsSM(name)
+        self.printBestFit(name=name, params=params_POI)
+    
+        return
 
 
-    def bestFitEFT(self, name='.EFT', params_POI=[], startValue='', freeze=False, autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False):
+    def bestFitEFT(self, name='.EFT', params_POI=[], freeze=False, startValue='', autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[]):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -223,6 +234,12 @@ class EFTFit(object):
         if params_POI == []: params_POI = self.wcs
         if name == '': name = '.EFT'
 
+        #-- #Define channel masking regexp pattern, if any
+        maskPattern = []; antimaskPattern = []
+        if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
+        #if len(antimask)>0: antimaskPattern=[','.join('rgx{{^mask_(?!.*{}).*$}}=1'.format(chan) for chan in antimask)]
+        if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
         # args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
         args=['combine','-d','./EFTWorkspace.root','-M','MultiDimFit','--saveNLL','--saveFitResult','--do95','1','--robustFit','1']
@@ -233,10 +250,10 @@ class EFTFit(object):
             args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
         if params_POI:
             for wc in params_POI: args.extend(['-P','{}'.format(wc)])
-        if not fixedPointNLL and startValue is not '': args.extend(['--setParameters',','.join('{}={}'.format(wc, startValue) for wc in params_POI)]) #Set POI default value for generating toys (otherwise, use B-only model)
-        else: args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0
+        args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
         if freeze:
-            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI)]) #Freeze other parameters
+            frozen_pois = [wc for wc in self.wcs if wc not in params_POI] #Define which WCs are frozen
+            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI and len(frozen_pois)>0)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
         if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
@@ -255,7 +272,7 @@ class EFTFit(object):
         process.wait()
         logging.info(colors.fg.lightblue + "Done with bestFitEFT." + colors.reset)
 
-        if not fixedPointNLL: self.printBestFitsEFT(name, params_POI)
+        if not fixedPointNLL: self.printBestFit(name=name, params=params_POI)
 
 
   ####  #####  # #####      ####   ####    ##   #    #
@@ -265,7 +282,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    #FIXME -- could merge with EFT func ? (also harmonize batch mode, ...)
+    #FIXME -- could merge with EFT func ? (also harmonize batch mode, ...) #Check when will rerun it
     def gridScanSM(self, name='.SM', batch='', scan_params=['r_tzq'], params_tracked=[], points=300, freeze=False, other=[], exp=False, verbosity=0):
 
         ### Runs deltaNLL Scan in a parameter using CRAB ###
@@ -369,7 +386,8 @@ class EFTFit(object):
         if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
         else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-        if batch=='': fitter.printIntervalFitsEFT(basename='.EFT', scan_params=param_tmp) #Print exclusion range
+        if batch=='': 
+            fitter.printIntervalFitsEFT(basename='.EFT', scan_params=param_tmp) #Print exclusion range #Obsolete
 
         return
 
@@ -824,17 +842,31 @@ class EFTFit(object):
  #      #   #  # #   ##   #
  #      #    # # #    #   #
 
-    def printBestFitsSM(self, name='.SM'):
+    def printBestFit(self, name='.EFT', params = []):
         '''
         Print a table of SM signal strengths, their best fits, and their uncertainties ###
 
         Example to inspect file via command line:
         root multidimfit.EFT.root
         a = fit_mdf->floatParsFinal().find("ctz")
-        a->Print()
+        b = (RooAbsReal*) a
+        b->Print()
+        rf = dynamic_cast<RooRealVar*>(a)
+        rf->getMin("err68") #...
+
+        Example in python:
+        import ROOT
+        fit_file = ROOT.TFile.Open('multidimfit.EFT.root')
+        fit = fit_file.Get('fit_mdf')
+        roorealvar = fit.floatParsFinal().find('ctz')
+        value = round(roorealvar.getVal(),2) #Best fit value
+        value = round(roorealvar.getMin('err68'),2) #Lower 68% limit; idem with getMax, err95
         '''
 
-        params = opts["SM_mus"]
+        logging.info(colors.fg.lightblue + "\nEnter function printBestFit()" + colors.reset)
+
+        if len(params)==0: 
+            print('params is empty... Return !')
 
         fit_array = []
 
@@ -846,73 +878,65 @@ class EFTFit(object):
             roorealvar = fit.floatParsFinal().find(param)
             if not roorealvar: continue
 
-            value = round(roorealvar.getVal(),2)
-            err_sym =  round(roorealvar.getError(),2)
-            err_low = round(roorealvar.getErrorLo(),2)
-            err_high = round(roorealvar.getErrorHi(),2)
+            value = round(roorealvar.getVal(),3)
+            #err_sym =  round(roorealvar.getError(),3)
+            err_low = round(roorealvar.getErrorLo(),3)
+            err_high = round(roorealvar.getErrorHi(),3)
+            err_low_95 = -9; err_high_95 = -9
+            if roorealvar.hasRange('err95'): #If 95% CL errors available (using --do95 --robustFit 1 options)
+                err_low_95 = round(roorealvar.getMin('err95'),3)
+                err_high_95 = round(roorealvar.getMax('err95'),3)
 
-            fit_array.append((param,value,err_sym,err_low,err_high))
+            fit_array.append((param,value,err_low,err_high,err_low_95,err_high_95))
 
-        logging.info(colors.fg.orange + "Quick result:" + colors.reset)
-        logging.info("Param, Best Fit Value, Symmetric Error, Low side of Asym Error, High side of Asym Error")
+        logging.info('\n' + colors.fg.orange + "Fit result:" + colors.reset)
+        logging.info(colors.fg.orange + "Param | Best Fit Value | [68% interval] | [95% interval]" + colors.reset)
         for row in fit_array:
-            print row[0],row[1],"+/-",row[2]," ",row[3],"+{}".format(row[4])
-            logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
-
-
-    def printBestFitsEFT(self, basename='.EFT', wcs=[], simultaneous=True):
-        logging.info(colors.fg.lightblue + "\nEnter function printBestFitsEFT()" + colors.reset)
-        ### Print a table of wcs, their best fits, and their uncertainties ###
-        if not wcs: wcs = self.wcs
-
-        fit_array = []
-        if simultaneous: # <-> all WCs stored in same file... ?
-            logging.info("Obtaining result of fit: multidimfit{}.root".format(basename))
-            fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(basename))
-            fit = fit_file.Get('fit_mdf')
-
-            for wc in wcs:
-                print(colors.fg.orange + 'wc: ' + wc + colors.reset)
-
-                roorealvar = fit.floatParsFinal().find(wc)
-
-                #Fit parameters
-                value = round(roorealvar.getVal(),6)
-                err_sym =  round(roorealvar.getError(),6)
-                err_low = round(roorealvar.getErrorLo(),6)
-                err_high = round(roorealvar.getErrorHi(),6)
-
-                fit_array.append((wc,value,err_sym,err_low,err_high))
-        else:
-            for wc in wcs:
-                logging.info("Obtaining result of fit: multidimfit{}.{}.root".format(basename,wc))
-                fit_file = ROOT.TFile.Open('./multidimfit{}.{}.root'.format(basename,wc))
-                fit = fit_file.Get('fit_mdf')
-
-                roorealvar = fit.floatParsFinal().find(wc)
-
-                value = round(roorealvar.getVal(),6)
-                err_sym =  round(roorealvar.getError(),6)
-                err_low = round(roorealvar.getErrorLo(),6)
-                err_high = round(roorealvar.getErrorHi(),6)
-
-                fit_array.append((wc,value,err_sym,err_low,err_high))
-
-        logging.info("Quick result:")
-        for row in fit_array:
-            print row[0],"+/-",row[1]
-            logging.debug(colors.fg.orange + "{0} +/- {1}".format(row[0],row[1]) + colors.reset)
-        logging.info("WC / Best Fit Value / Symmetric Error / Low side of Asym Error / High side of Asym Error")
-        for row in fit_array:
-            print ', '.join([str(ele) for ele in row])
-            logging.debug(row)
-
+            logging.info(colors.fg.orange + row[0] + ' | ' + str(row[1]) + ' | ' + "[" + str(row[2]) + ";" + str(row[3]) + "] | [" + str(row[4]) + ';' + str(row[5]) + ']' + colors.reset + '\n')
+            #logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
+                        
         return
 
 
     def printIntervalFitsEFT(self, basename='.EFT', scan_params=[]):
         ### Print a table of wcs, their best fits, and their uncertainties ###
         ### Use 1D scans instead of regular MultiDimFit ###
+        logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
+
+        if not scan_params: scan_params = [self.wc]
+        ROOT.gROOT.SetBatch(True)
+        fit_array = []
+        canvas = ROOT.TCanvas()
+        for wc in scan_params:
+
+            canvas.Clear()
+
+            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root for WC {}".format(basename,wc))
+
+            #-- Get scan TTree
+            rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
+            limitTree = rootFile.Get('limit')
+
+            #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
+            graph = plot.TGraphFromTree(limitTree, wc, '2*deltaNLL', 'quantileExpected > -1.5')
+
+            yvals = [1., 3.84] #1sigma, 95%CL intervals
+            #func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig = BuildScan(graph, ROOT.kBlack, yvals)
+            main_scan = BuildScan(graph, ROOT.kBlack, yvals)
+
+            crossings = main_scan['crossings'][yvals[1]][0]
+            if crossings['valid_lo'] == True and crossings['valid_hi'] == True:
+                print(colors.fg.orange + wc + ": 95% interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
+            else: print('Error: invalid crossing X-values...')
+
+        return
+
+
+    '''
+    def printIntervalFitsEFT(self, basename='.EFT', scan_params=[]):
+        ### Print a table of wcs, their best fits, and their uncertainties ###
+        ### Use 1D scans instead of regular MultiDimFit ###
+        #-- NB: this method is actually very imprecise (takes crossings as (x1+x2)/2), relies on very fine scans. Better to use Combine function 'BuildScan' like in EFTPlotter. See new function above.
         logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
 
         NLL_threshold = 3.84 #Define NN threshold to determine exclusion boundaries #3.84 <-> 95%
@@ -970,7 +994,9 @@ class EFTFit(object):
 
         for line in fit_array:
             print line
-
+        
+        return
+    ''' 
 
 
 
@@ -1011,6 +1037,8 @@ if __name__ == "__main__":
     batch = '' #Can choose to run jobs on 'crab' or 'condor'
     dryrun = '' #Perform dry run (don't submit jobs)
     points = -1 #Choose npoints for grid scans #-1 <-> use default values set below (different for 1D/2D)
+    mask = [] #Can choose to mask specific channels from the likelihood #Mask channels matching pattern(s)
+    antimask = [] #Mask channels NOT matching any pattern
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1032,6 +1060,8 @@ if __name__ == "__main__":
     parser.add_argument("--onlyworkspace", metavar="onlyworkspace", help="Only create workspace", nargs='?', const=1)
     parser.add_argument("--dryrun", metavar="dryrun", help="Perform dry run (don't submit jobs)", nargs='?', const=1)
     parser.add_argument("-points", metavar="points", help="Number of points for grid scans")
+    parser.add_argument('--mask', metavar="mask", nargs='+', help='Mask channels matching pattern', required=False) #Takes >=0 args
+    parser.add_argument('--antimask', metavar="antimask", nargs='+', help='Mask channels NOT matching any pattern', required=False) #Takes >=0 args
 
     args = parser.parse_args()
     if args.sm: sm = True
@@ -1051,6 +1081,8 @@ if __name__ == "__main__":
     if args.batch: batch = args.batch
     if args.dryrun: dryrun = '--dry-run'
     if args.points: points = args.points
+    if args.mask: mask = args.mask
+    if args.antimask: antimask = args.antimask #FIXME also SM
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1058,13 +1090,19 @@ if __name__ == "__main__":
         print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
         exit(1)
 
+    PrintBanner() #Init printouts
+
+
 # SM fit
 # //--------------------------------------------
     if SM:
         if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspaceSM(datacard_path, verbosity=verb)
         if createWS==1: exit(1)
 
-        if mode in ['','bestfit']: fitter.bestFitSM(exp=exp, verbosity=verb)
+        if mode in ['','bestfit']: fitter.bestFitSM(params_POI=POI, exp=exp, verbosity=verb, mask=mask, antimask=antimask)
+        elif mode is 'printbestfit': #Only print best fit results
+            fitter.printBestFit(name='.EFT', params=POI)
+            exit(1)
 
         if mode in ['','grid']:
             if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb, batch=batch) #1D
@@ -1079,7 +1117,10 @@ if __name__ == "__main__":
         if name == '': name = '.EFT' #Default
 
         #-- Maximum Likelihood Fit
-        if mode in ['','bestfit']: fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze)
+        if mode in ['','bestfit']: fitter.bestFitEFT(params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
+        elif mode is 'printbestfit': #Only print best fit results
+            fitter.printBestFit(name='.EFT', params=POI)
+            exit(1)
 
         #-- Grid Scan
         if not fixedPointNLL and mode in ['','grid']:

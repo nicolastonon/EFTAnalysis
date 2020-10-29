@@ -895,13 +895,15 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
     v_custom_colors.resize(10, 0);
 
     //-- Colors definition : Number + RGB value, from 0 to 1
-    v_custom_colors[0] = new TColor(9000, 31./255., 120./255., 180./255.);
-    v_custom_colors[1] = new TColor(9001, 166./255., 206./255., 227./255.);
-    v_custom_colors[2] = new TColor(9002, 51./255., 160./255., 44./255.);
-    v_custom_colors[3] = new TColor(9003, 178./255., 223./255., 138./255.);
-    v_custom_colors[4] = new TColor(9004, 255./255., 129./255., 123./255.);
-    v_custom_colors[5] = new TColor(9005, 53./255., 184./255., 99./255.);
-    v_custom_colors[6] = new TColor(9006, 227./255., 65./255., 61./255.);
+    v_custom_colors[0] = new TColor(9000, 31./255., 120./255., 180./255.); //Dark blue
+    v_custom_colors[1] = new TColor(9001, 166./255., 206./255., 227./255.); //Light blue
+    v_custom_colors[2] = new TColor(9002, 51./255., 160./255., 44./255.); //Dark green 2
+    v_custom_colors[3] = new TColor(9003, 178./255., 223./255., 138./255.); //Light green
+    v_custom_colors[4] = new TColor(9004, 255./255., 129./255., 123./255.); //Salmon
+    v_custom_colors[5] = new TColor(9005, 53./255., 184./255., 99./255.); //Mild green
+    v_custom_colors[6] = new TColor(9006, 227./255., 65./255., 61./255.); //Dark red
+    v_custom_colors[7] = new TColor(9007, 255./255., 210./255., 47./255.); //Mild yellow
+    v_custom_colors[8] = new TColor(9008, 152./255., 78./255., 163./255.); //Dark purple
 
     //Also nice
     //kOrange-2,
@@ -914,6 +916,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //Signals
             if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
             else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();} //FIXME
 
             //t(t)X
             else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
@@ -944,6 +947,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = kOrange+10;}
             // if(v_samples[isample] == "tZq") {v_colors[isample] = test.GetNumber();}
             else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = kOrange+6;}
+            else if(v_samples[isample] == "tWZ" || v_samples[isample] == "PrivMC_tWZ") {v_colors[isample] = kOrange+2;}
 
             //ttX
             else if(v_samples[isample] == "ttH") {v_colors[isample] = kGreen-5;}
@@ -958,7 +962,6 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //tX
             else if(v_samples[isample] == "tHq") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "tHW") {v_colors[isample] = kSpring+2;}
-            else if(v_samples[isample] == "tWZ") {v_colors[isample] = kSpring+2;}
             else if(v_samples[isample] == "ST") {v_colors[isample] = kSpring+2;}
 
             //VV(V)
@@ -988,6 +991,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //Signals
             if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
             else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+            else if(v_samples[isample] == "tWZ") {v_colors[isample] = kOrange+2;}
 
             //ttX
             else if(v_samples[isample] == "ttH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
@@ -1001,7 +1005,7 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             else if(v_samples[isample] == "ttHH") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
             else if(v_samples[isample] == "tHq") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
             else if(v_samples[isample] == "tHW") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
-            else if(v_samples[isample] == "tWZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
+            // else if(v_samples[isample] == "tWZ") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
             else if(v_samples[isample] == "ST") {v_colors[isample] = v_custom_colors[2]->GetNumber();}
 
             //WZ
@@ -1342,7 +1346,8 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name_nominal, vecto
 }
 
 //-- For systs uncorrelated between years, need to add the year in the systName (to make it unique)
-//NB: for first arg. can pass the concatenation of 'syst_list[isyst]+systTree_list[itree]' because only 1 can be non-empty at a time !
+//-- NB: for first arg. can pass the concatenation of 'syst_list[isyst]+systTree_list[itree]' because only 1 can be non-empty at a time !
+//-- NB: could also use the 'nuisance edit rename process channel oldname newname' directive directly in Combine datacards
 TString Get_Modified_SystName(TString systname, TString lumiYear, TString samplename)
 {
     //-- Only list the systematics which are *not* to be correlated in-between years
@@ -1669,6 +1674,7 @@ TString Get_Region_Label(TString region, TString variable)
     if(region=="signal") {label = "SR";}
     else if(region=="tZq") {label = "tZq SR";}
     else if(region=="ttZ") {label = "ttZ SR";}
+    else if(region=="ttZ4l") {label = "ttZ 4l SR";}
 
     else if(region=="Vg") {label = "V#gamma CR";}
     else if(region=="zz") {label = "ZZ CR";}
@@ -1677,9 +1683,9 @@ TString Get_Region_Label(TString region, TString variable)
     else if(region=="wz") {label = "WZ CR";}
     else if(region=="dy") {label = "DY CR";}
 
-    if(variable.Contains("SRtZq")) {label = "tZq SR";}
-    else if(variable.Contains("SRttZ")) {label = "ttZ SR";}
-    else if(variable.Contains("_CR")) {label = "CR";}
+    if(variable.Contains("SRtZq")) {label = "SR-tZq";}
+    else if(variable.Contains("SRttZ")) {label = "SR-ttZ";}
+    else if(variable.Contains("_SRother")) {label = "SR-Other";}
 
     return label;
 }
@@ -1701,8 +1707,8 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
             // if(region == "signal" && !scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
             if(region == "signal")
             {
-                if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_CR");} //For SM vs EFT in CR, use mTW distribution for now
-                else {variable_list.push_back(var_list_tmp[ivar] + "_CR");}
+                if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_SRother");} //For SM vs EFT in CR, use mTW distribution for now
+                else {variable_list.push_back(var_list_tmp[ivar] + "_SRother");}
             }
         }
 
