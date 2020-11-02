@@ -1,5 +1,7 @@
 #include "TFModel.h"
 
+using namespace std;
+
 TFModel::TFModel(const std::string &model_name, const unsigned _n_inputs,
     const std::string &_input_name, const unsigned _n_outputs,
     const std::string &_output_name):
@@ -8,10 +10,11 @@ TFModel::TFModel(const std::string &model_name, const unsigned _n_inputs,
     input_name(_input_name),
     output_name(_output_name)
 {
-    std::cout<<"Load tensorflow graph from "<<model_name<<std::endl;
+    std::cout<<"Loading tensorflow graph from "<<model_name<<"...";
     graphDef = tensorflow::loadGraphDef(model_name);
+    // cout<<__LINE__<<endl;
 
-    //-- could also call sub-functions directly
+    //-- May instead call sub-functions directly
     // graphDef = new tensorflow::GraphDef();
     // tensorflow::Status status = ReadBinaryProto(tensorflow::Env::Default(), model_name, graphDef);
 
@@ -21,14 +24,18 @@ TFModel::TFModel(const std::string &model_name, const unsigned _n_inputs,
 
     // std::cout<<"Create tensorflow session"<<std::endl<<std::endl;
 
-    // NICOLAS -- CHANGED -- GOT UNEXPLAINED ERROR : 'No session factory registered for the given session options'... => Get TF session directly
+    //-- COMMENTED OUT -- Else, got unexplained error : 'No session factory registered for the given session options'... => Get TF session directly
     // session = tensorflow::createSession((tensorflow::GraphDef*) graphDef); //1 thread by default
 
-    //--> call sub-functions directly
+    //--> Call sub-functions directly
     tensorflow::Status status;
     tensorflow::SessionOptions sessionOptions;
     status = NewSession(sessionOptions, &session);
-    status = session->Create(*graphDef);
+    // cout<<"session "<<session<<endl;
+    // cout<<"graphDef "<<graphDef<<endl;
+    status = session->Create(*graphDef); //NB: got segfault (bad_alloc) at some point exactly here. Was actually not related to TF/NN, but to dynamic memory incorrectly allocated somewhere else in code ! Could diagnose it with Valgrind
+
+    cout<<" Done !"<<endl;
 }
 
 // std::vector<float> TFModel::evaluate(const double inputs[])

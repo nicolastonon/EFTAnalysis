@@ -1,12 +1,12 @@
 # Neural Network codes
 
-:heavy_exclamation_mark: *Warning: don't call `cmsenv`, as this will conflict with user-installed packages...*
+:heavy_exclamation_mark: *Don't call `cmsenv`, as this will conflict with user-installed packages. Do `conda activate` (if deactivated by default) when starting the session, to enter the virtual env.*
 
 ## Setup
 
 *(Instructions adapted from David Walter's DeepPotato code.)*
 
-- First, install conda (anaconda or the lightweight miniconda):
+- First, install conda (`anaconda` or the lightweight `miniconda`):
 
 Download the installer (for anaconda, check the newest version on [www.anaconda.com](https://www.anaconda.com))
 ```
@@ -30,9 +30,9 @@ bash DIRPATH/Anaconda3-2018.12-Linux-x86_64.sh
 
 Set paths to your conda.
 ```
-source ~/.conda_init
+source ~/.(mini)conda_init
 ```
-with `conda_init` sourcing/adding to path the relevant files:
+with `.(mini)conda_init` sourcing/adding to path the relevant files:
 ```
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
@@ -50,12 +50,7 @@ unset __conda_setup
 # <<< conda initialize <<<
 ```
 
-*NB: there might be issues if the PYTHONPATH is set.
-If needed, execute these lines whenever you use conda:*
-```
-export PYTHONPATH=
-export PATH=/your/path/to/conda/bin:$PATH
-```
+*(NB: is this necessary ? Is e.g. `source /nfs/dust/cms/user/ntonon/miniconda3/etc/profile.d/conda.sh` equivalent? ...)*
 
 - Setup conda, install tensorflow and all the necessary packages. In order to use GPU support, the cuda environment has to be set beforehand.
 This is the case e.g. on 'naf-cms-gpu01.desy.de'.

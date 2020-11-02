@@ -121,6 +121,8 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         print(colors.fg.red + "ERROR: empty list POIs\n" + colors.reset)
         exit(1)
 
+    if name == '': name = 'EFT' #Default suffix
+
     if only_collect_outputs == False:
 
         #-- Do the initial fit
@@ -130,7 +132,6 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
         args.extend(['--setParameters',','.join('{}=0'.format(poi) for poi in opts['wcs'])]) #Set default values to 0 for all WCs
         frozen_pois = [] #By default, no WC is frozen
-        if name == '': name = 'EFT'
         args.extend(['-n','{}'.format(name)])
         if not freeze: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         else:

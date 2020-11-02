@@ -105,12 +105,14 @@ void Choose_Arguments_From_CommandLine(TString& signal)
     cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ"<<endl;
     cout<<"* 'efttzq'   <-> Signal is SMEFT tZq only"<<endl;
     cout<<"* 'eftttz'   <-> Signal is SMEFT ttZ only"<<endl;
+    cout<<"* 'efttwz'   <-> Signal is SMEFT tWZ only"<<endl;
     cout<<"* '0'   <-> Signals are tZq + ttZ"<<endl;
     // cout<<"* 'thq' <-> Signals are tHq + tHW"<<endl;
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
+    cout<<"* 'twz' <-> Signal is tWZ"<<endl;
 	cin>>signal;
-	while(signal != "tzq" && signal != "ttz" && signal != "0" && signal != "eft" && signal != "efttzq" && signal != "eftttz")
+	while(signal != "tzq" && signal != "ttz" && signal != "twz" && signal != "0" && signal != "eft" && signal != "efttzq" && signal != "eftttz" && signal != "efttwz")
 	{
 		cin.clear();
 		cin.ignore(1000, '\n');
@@ -152,7 +154,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     ofstream outfile(outfile_name.Data());
 
     //OBSOLETE //-- Make template datacard without any signal (to be used specifically in CRs where signal is negligible)
-    /*if(outfile_name != "Template_Datacard.txt") 
+    /*if(outfile_name != "Template_Datacard.txt")
     {
         for(int isample=0; isample<v_samples.size(); isample++)
 		{
@@ -262,9 +264,10 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         //-- Year-specific markers
         if(v_normSyst[isyst].EndsWith("1617")) {outfile<<"[201617]";}
         else if(v_normSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+        else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[201618]";}
         else if(v_normSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
         else if(v_normSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
-        else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
+        else if(v_normSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
 
         //-- Region-specific markers
         if(v_normSyst[isyst].Contains("CRWZ")) {outfile<<"[CRWZ]";}
@@ -358,11 +361,12 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         //-- the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
         //-- idem, [201617] can be used to disactivate the prefiring syst for 2018 !
         outfile<<"[SHAPE]";
-        if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";}
+        if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";} //Hardcoded: prefire for 16/17 only
         else if(v_shapeSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+        else if(v_shapeSyst[isyst].EndsWith("1618")) {outfile<<"[201618]";}
         else if(v_shapeSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
         else if(v_shapeSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
-        else if(v_shapeSyst[isyst].EndsWith("1618")) {outfile<<"[2018]";}
+        else if(v_shapeSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
 
         outfile<<v_shapeSyst[isyst]; //the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
         if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
@@ -583,7 +587,7 @@ int main()
 //--------------------------------------------
     vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
     v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true); //Hardcoded: prefire for 16/17 only
     v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);

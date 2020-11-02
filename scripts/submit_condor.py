@@ -20,7 +20,7 @@ def analyze(args):
     os.mkdir(output)
 
     #-- NB: may loop here to generate multiple jobs
-    i = 0 #Default: submit 1 single job
+    i = 0 #Default: submit 1 single job    
     if  True:
 
         # construct job name
@@ -47,6 +47,52 @@ def analyze(args):
     command = './scripts/job.sh {} ./analysis_main.exe'.format(os.getcwd())
     call('./scripts/cs.sh -n{} -a0:{} "{}"'.format(jobname, i-1, command), shell=True) #NB: use [-a0:i-1] to submit i jobs with arguments 0...i-1
 # end: submit analyzer jobs
+#-----
+
+
+#-----
+# submit NN training jobs
+def train(args):
+    # process arguments
+    test = args.test
+    split = int(args.split)
+
+    # create output directory
+    from datetime import datetime
+    output = 'condor/d{}-t{}'.format(datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S'))
+    import os
+    if not os.path.exists('condor'):
+        os.mkdir('condor')
+    os.mkdir(output)
+
+    #-- NB: may loop here to generate multiple jobs
+    i = 0 #Default: submit 1 single job    
+    if  True:
+
+        # construct job name
+        jobname = 'test'
+
+        # create jobinformation
+        ji = {
+            'name': jobname,
+            'jobs': {},
+        }
+        i += 1
+
+    # write jobinformation
+    import json
+    with open(output+'/jobs.json', 'w') as f:
+        json.dump(ji, f, indent=4, separators=(',', ': '))
+
+    # submit jobs
+    if test:
+        def call(text, **opts):
+            print(text)
+    else:
+        from subprocess import call
+    command = '../scripts/job.sh {} python ./Train_Neural_Network.py'.format(os.getcwd())
+    call('../scripts/cs.sh -n{} -a0:{} "{}"'.format(jobname, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
+# end: submit training jobs
 #-----
 
 #-----
@@ -185,6 +231,20 @@ def Submit():
         help='split each job into multiple jobs'
     )
 
+    # command line arguments: train
+    parserT = subparsers.add_parser(
+        'train',
+        help='Train NN on ntuples'
+    )
+    parserT.add_argument(
+        '-t', '--test', action='store_true',
+        help='don\'t submit, just test'
+    )
+    parserT.add_argument(
+        '-s', '--split', default=1,
+        help='split each job into multiple jobs'
+    )
+
     # command line arguments: check
     parserC = subparsers.add_parser(
         'check',
@@ -211,15 +271,19 @@ def Submit():
 
     args = parser.parse_args()
 
+
     # parse arguments and call subparser
-    if args.subparser == 'check':
+    if args.subparser == 'analyze':
+        analyze(args)
+    elif args.subparser == 'train':
+        train(args)
+    elif args.subparser == 'check':
         check(args)
     elif args.subparser == 'GUI':
         GUI()
-    else: #Default -- Analyzer
-        analyze(args)
 
 if __name__ == '__main__':
     Submit()
 # end: parse command line arguments
 #-----
+

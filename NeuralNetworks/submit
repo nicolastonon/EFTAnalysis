@@ -1,0 +1,2 @@
+#-- Compile code, submit it to HTCondor (via sub-scripts)
+python -c "import sys; sys.path.append(\"../scripts\"); from submit_condor import Submit; import subprocess as sp; Submit()" "$@"

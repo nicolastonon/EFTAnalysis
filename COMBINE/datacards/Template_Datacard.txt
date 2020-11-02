@@ -2,22 +2,48 @@ imax	1	number of categories
 jmax	*	number of backgrounds
 kmax	*	number of nuisance parameters (sources of systematic uncertainties)
 ---------------------------------------------------
-shapes * var_chan filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC
+shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC
 ---------------------------------------------------
-bin        	var_chan
+bin        	[VAR]_[CHAN]_[YEAR]
 observation	-1
 ---------------------------------------------------
-bin    	var_chan	var_chan	var_chan	var_chan
-process	tZq	ttZ	ttW	ttH
-process	0	1	2	3
-rate 	-1	-1	-1	-1
+bin    	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]
+process	PrivMC_tZq	PrivMC_ttZ	PrivMC_tWZ	tX	VVV	WZ	XG	NPL
+process	0	-1	-2	3	4	5	6	7
+rate 	-1	-1	-1	-1	-1	-1	-1	-1
 ---------------------------------------------------
-Lumi	lnN	1.023	1.023	1.023	1.023
+[2016]Lumi16	lnN	1.022	1.022	1.022	1.022	1.022	1.022	1.022	-
+[2017]Lumi17	lnN	1.020	1.020	1.020	1.020	1.020	1.020	1.020	-
+Lumi18	lnN	1.015	1.015	1.015	1.015	1.015	1.015	1.015	-
+[201617]Lumi1617	lnN	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	-
+[201718]Lumi1718	lnN	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	-
+LumiXY	lnN	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	-
+Lumi	lnN	1.023	1.023	1.023	1.023	1.023	1.023	1.023	-
+[2016]Trigger16	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
+[2017]Trigger17	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
+Trigger18	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
+[CRWZ]N_CRWZ_extrap	lnN	-	-	1.08	-	-	1.08	-	-
+[CRZZ]N_CRZZ_extrap	lnN	-	-	-	-	1.08	-	-	-
+[CRDY]N_CRDY_extrap	lnN	-	-	1.08	-	1.08	1.08	1.08	1.08
 ---------------------------------------------------
-ttZ_rate	lnN	-	1.15	-	-
-ttW_rate	lnN	-	-	1.15	-
-ttH_rate	lnN	-	-	-	1.15
+tX_rate	lnN	-	-	-	1.2	-	-	-	-
+VVV_rate	lnN	-	-	-	-	1.15	-	-	-
+WZ_rate	lnN	-	-	-	-	-	1.15	-	-
+XG_rate	lnN	-	-	-	-	-	-	1.1	-
+NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 ---------------------------------------------------
+[SHAPE]PU	shape	1	1	1	1	1	1	1	-
+[SHAPE][201617]prefire	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagHF	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagLF	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagHFstats1[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagHFstats2[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagLFstats1[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagLFstats2[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagCFerr1[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]BtagCFerr2[YEAR]	shape	1	1	1	1	1	1	1	-
+[SHAPE]jetPUIDEff	shape	1	1	1	1	1	1	1	-
+[SHAPE]jetPUIDMT	shape	1	1	1	1	1	1	1	-
 ---------------------------------------------------
 ---------------------------------------------------
 [STAT]	*	autoMCStats	10

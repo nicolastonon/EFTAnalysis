@@ -13,6 +13,7 @@ ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 verbose = 0 #(Dis)activate printouts for this code
+min_threshold = 0.001 #Don't store coefficients below this threshold
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -112,14 +113,14 @@ class EFTModel(PhysicsModel):
 
                 # Fill function pieces
                 for idx,wc1 in enumerate(self.wcs):
-                    if abs(fits[procbin][(SM_name,wc1)]) >= 0.0001: #CHANGED
+                    if abs(fits[procbin][(SM_name,wc1)]) >= min_threshold:
                         lin_term.append('{0}*{1}'.format(round(fits[procbin][(SM_name,wc1)],4),wc1))
                         lin_args.append(wc1)
                     for idy,wc2 in enumerate(self.wcs):
                         # print('wc1', wc1, 'wc2', wc2)
                         if (wc1,wc2) not in fits[procbin]:
                             print(colors.fg.red + "ERROR: WCs " + str((wc1,wc2)) + " not found in EFT parameterization... Did you run [DumpEFTParametrization.py] on the proper template file ?" + colors.reset); exit(1)
-                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= 0.0001): #CHANGED
+                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= min_threshold):
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
 
@@ -180,12 +181,12 @@ class EFTModel(PhysicsModel):
 
     def getYieldScale(self, bin, process):
         "Return the name of a RooAbsReal to scale this yield by, or the two special values 1 and 0 (don't scale, and set to zero)"
-    
+
         #FIXME -- works fine to ignore SMEFT signals in CRs ?
-        if 'PrivMC' in process and '_CR' in bin: #Can set SMEFT samples to 0 in CR (negligible contributions)
-            print(colors.fg.lightgrey + '* Setting ({0},{1}) to 0'.format(process, bin) + colors.reset)
-            return 0
-        
+        # if 'PrivMC' in process and '_CR' in bin: #Can set SMEFT samples to 0 in CR (negligible contributions)
+        #     print(colors.fg.lightgrey + '* Setting ({0},{1}) to 0'.format(process, bin) + colors.reset)
+        #     return 0
+
         if (process,bin) not in self.procbins:
             print(colors.fg.lightgrey + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
             # print(colors.fg.orange + '* ({0},{1},{2}) not in self.procbins ! => Do not scale'.format(process, bin, systematic) + colors.reset)

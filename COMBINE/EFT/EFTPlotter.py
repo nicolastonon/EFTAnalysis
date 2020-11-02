@@ -506,6 +506,10 @@ class EFTPlot(object):
         graph.SetLineWidth(3)
         graph.Draw("AL") #A:axes, P: markers, L:line
 
+        #-- Xmin, xmax
+        xmin = max([graph.GetXaxis().GetXmin(), self.wc_ranges[param][0]], key=abs)
+        xmax = max([graph.GetXaxis().GetXmax(), self.wc_ranges[param][1]], key=abs)
+
         yvals = [1., 3.84] #1sigma, 95%CL intervals
         #func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig = BuildScan(graph, ROOT.kBlack, yvals)
         main_scan = BuildScan(graph, ROOT.kBlack, yvals)
@@ -516,6 +520,8 @@ class EFTPlot(object):
         line.SetLineColor(16) #12 Grey, kRed+1, ...
         line.SetLineStyle(7)
         line.SetLineWidth(3)
+        print('graph.GetXaxis().GetXmin()', graph.GetXaxis().GetXmin())
+        print('graph.GetXaxis().GetXmax()', graph.GetXaxis().GetXmax())
         for yval in yvals:
             if yval == 1: line.SetLineColor(12)
             elif yval == 3.84: line.SetLineColor(ROOT.kAzure-7) #kRed+1
@@ -585,12 +591,8 @@ class EFTPlot(object):
             #    print(ipt, x, y)
 
         #-- Axis ranges
-        xmin = graph.GetXaxis().GetXmin()
-        xmax = graph.GetXaxis().GetXmax()
         graph.SetMinimum(0.001) #Don't display 0 label
         graph.SetMaximum(10.) #Arbitrary
-        xmin = self.wc_ranges[param][0]
-        xmax = self.wc_ranges[param][1]
         graph.GetXaxis().SetRangeUser(xmin,xmax)
 
         #-- Legend

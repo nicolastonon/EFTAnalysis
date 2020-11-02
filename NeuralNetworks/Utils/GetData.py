@@ -65,13 +65,11 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #FIXME #FIXME -- to get independent train/val extended SMEFT datasets, could 1) split real data here in 2, 2) iterate twice all other funcs, once for each data; 3) proceed as usual
-
     #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
-    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
+    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
 
     #-- Concatenate + reshape arrays, and modify them as needed
-    x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, singleThetaName)
+    x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class, TrainValTest_allClasses = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses, singleThetaName)
 
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
@@ -83,17 +81,17 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y, y_process, x = Get_Targets(opts, list_features, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
 
     #-- Sanitize data
-    x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName)
+    x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, singleThetaName)
 
-    if singleThetaName is not "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
+    if singleThetaName != "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
 
     # x[:,1][y==0]*=2 #Force dummy value for Zeta (debugging -- verify that additional info is used by NN)
 
-    #-- No validation dataset required --> shuffle and split the data between training / testing datasets only
-    if opts["splitTrainValTestData"][1] == 0. and opts["nEventsTot_val"] < 0:
-        x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses)
+    #-- Train/(val)/test splitting
+    if opts["splitTrainValTestData"][1] == 0. and opts["nEventsTot_val"] < 0: #-- No validation dataset required --> shuffle and split the data between training / testing datasets only
+        x_train, x_test, y_train, y_test, y_process_train, y_process_test, PhysicalWeights_train, PhysicalWeights_test, LearningWeights_train, LearningWeights_test = Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses)
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
-    else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses) #Split data into train / val / test datasets
+    else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses) #Split data into train / val / test datasets
 
     #-- NB: wrong -- biases performance on training dataset !
     # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30, remove_above_treshold=True)
@@ -110,7 +108,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     print(colors.fg.lightblue, "\n===========")
     print("-- Total nof events : " + str(x.shape[0]))
     print("-- Will use " + str(x_train.shape[0]) + " training events !")
-    print("-- Will use " + str(x_val.shape[0]) + " validation events !")
+    if opts["splitTrainValTestData"][1] != 0. or opts["nEventsTot_val"] > 0: print("-- Will use " + str(x_val.shape[0]) + " validation events !")
     print("-- Will use " + str(x_test.shape[0]) + " testing events !")
     print("===========\n", colors.reset)
 
@@ -154,11 +152,13 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
         for iproc, process in enumerate(procClass): #Loop on physics processes (samples)
 
             isNPLsample = False
-            cuts_tmp = cuts
+            cuts_total = cuts
+            cuts_NPL_sideband = cuts
             norm_NPL_3tights = 0 #Store the total normalization of NPL events with ==3 tight (use this normalization even if using sideband events)
             if "npl" in process.lower() or "dy" in process.lower() or "ttbar" in process.lower():
                 isNPLsample = True
-                if opts["useFakeableNPL"] is True: cuts_tmp = cuts.replace("_SR", "_SRFake"); cuts_tmp = cuts.replace("_SR", "_CRFake") #NPL sample <-> different category flags
+                cuts_NPL_sideband = cuts_NPL_sideband.replace("_SR", "_SRFake"); cuts_NPL_sideband = cuts_NPL_sideband.replace("_CR", "_CRFake")
+                cuts_total = '('+str(cuts)+') || ('+str(cuts_NPL_sideband)+')' #Consider *both* SR and sideband selections for NPL
 
             isPrivMCsample = False
             if ("PrivMC" in process and "PrivMC" not in label) or ("PrivMC" in label and "PrivMC" not in process):
@@ -190,35 +190,43 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 if opts["trainAtManyEFTpoints"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
-                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts_tmp).shape[0], 'entries)') #Dummy variable, just to read the nof entries
+                print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts_total).shape[0], 'entries)') #Dummy variable, just to read the nof entries
                 if nevents is not None: print('(---> Will consider at most ' + str(nevents) + ' entries [<-> maxEventsPerClass])')
+                if cuts_total != '': print('(---> Apply cuts : ' + str(cuts_total) + ')')
                 print('\n\n')
 
-                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts_tmp)) #Store values of input features into array, append to list
+                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts_total)) #Store values of input features into array, append to list
 
                 #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
                 #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
-                # x_tmp = tree2array(tree, branches=list_features, selection=cuts_tmp, start=0,stop=nevents)
-                x_tmp = tree2array(tree, branches=list_features, selection=cuts_tmp); x_tmp = x_tmp[:nevents]
+                # x_tmp = tree2array(tree, branches=list_features, selection=cuts_total, start=0,stop=nevents)
+                x_tmp = tree2array(tree, branches=list_features, selection=cuts_total); x_tmp = x_tmp[:nevents]
                 x_tmp = np.column_stack([x_tmp[name] for name in x_tmp.dtype.names]) #1D --> 2D
                 x_tmp = x_tmp.astype(np.float32) #Convert all to floats
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
-                # if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_tmp, start=0,stop=nevents))
-                # elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_tmp, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
-                # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp, start=0,stop=nevents))
-                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_tmp)[:nevents])
-                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_tmp)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                # if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_total, start=0,stop=nevents))
+                # elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_total, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
+                # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_total, start=0,stop=nevents))
+                if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_total)[:nevents])
+                elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_total)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
                 else:
-                    if isNPLsample and opts["useFakeableNPL"] is True: #If using sideband region for NPL events, use normalization corresponding to SR events only (otherwise, should apply fake factors to sideband events)
-                        norm_NPL_3tights = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts)[:nevents].sum() #Compute yield from SR events
-                        weights_NPL_tmp = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents] / norm_NPL_3tights #Use it to renormalize sideband+SR events
-                        list_weights_proc.append(weights_NPL_tmp) #Store corrected event weights
-                    else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_tmp)[:nevents])
+                    if isNPLsample and opts["useFakeableNPL"] == True: #If using sideband region for NPL events, use normalization corresponding to SR events only (otherwise, should apply fake factors to sideband events)
+                        weights_NPL = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts)[:nevents] #Get NPL SR events only
+                        # print('NPL Yield (SR only)', weights_NPL.sum())
+                        if opts["useFakeableNPL"] == True: #Also include sideband region events for NPL samples #NB: need to rescale to SR-events-only yield
+                            yield_NPL_SR = weights_NPL.sum() #Compute yield from SR events
+                            weights_NPL = tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_total)[:nevents] #Get NPL sideband events + NPL SR events (all together)
+                            # print('NPL Yield (SR+SB)', weights_NPL.sum())
+                            weights_NPL = weights_NPL * (yield_NPL_SR/weights_NPL.sum()) #Rescale to SR-only yield
+                            # print('Rescaled yield', weights_NPL.sum())
+
+                        list_weights_proc.append(weights_NPL) #Store corrected event weights
+                    else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_total)[:nevents])
 
             if isPrivMCsample: #For private MC samples, get the EFT reweights (properly normalized) and their IDs
-                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts_tmp, isPureEFT, iproc, nevents)
+                EFTweights_proc_tmp, EFTweightIDs_proc_tmp, SMweights_proc_tmp = Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, process, cuts_total, isPureEFT, iproc, nevents)
                 list_EFTweights_proc.append(EFTweights_proc_tmp); list_EFTweightIDs_proc.append(EFTweightIDs_proc_tmp); list_SMweights_proc.append(SMweights_proc_tmp)
 
         #-- Concatenate the different arrays (for all years, processes) corresponding to a single class of process, and append them to their lists --> 1 single array per process class
@@ -384,7 +392,7 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
  #    # #    # #    # #      #
   ####  #    # #    # #      ######
 
-def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, singleThetaName=""):
+def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses, singleThetaName=""):
     '''
     Properly shape the arrays and concatenate them (for all years, processes, etc.).
 
@@ -407,20 +415,18 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
 
                 #-- If only consider part of the process class data, shuffle events, so that the resulting dataset is representative of the event proportions of each process within the class (else, it could happen that e.g. only events from the first process get considered)
                 #NB: only arrays potentially used for training (x, weight, theta, ...) must be shuffled simultaneously
-                # if opts["strategy"] is "classifier" or opts["strategy"] is "regressor" or (np.all(list_EFTweights_allClasses[iclass] == -999)): list_tmp=[list_x_arrays_allClasses,list_weights_allClasses]
-                # else: list_tmp=[list_x_arrays_allClasses,list_weights_allClasses,list_thetas_allClasses,list_targetClass_allClasses]
                 if opts["strategy"] is "classifier" or opts["strategy"] is "regressor" or (np.all(list_EFTweights_allClasses[iclass] == -999)):
                     list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass] = unison_shuffled_copies(list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass]) # To verify
                     # list_tmp=[list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass]]
                     list_x_arrays_allClasses[iclass] = list_x_arrays_allClasses[iclass][0:maxEvents]
                     list_weights_allClasses[iclass] = list_weights_allClasses[iclass][0:maxEvents]
                 else:
-                    list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass] = unison_shuffled_copies(list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass])
-                    # list_tmp=[list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass]]
+                    list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass],list_TrainValTest_allClasses[iclass] = unison_shuffled_copies(list_x_arrays_allClasses[iclass],list_weights_allClasses[iclass],list_thetas_allClasses[iclass],list_targetClass_allClasses[iclass],list_TrainValTest_allClasses[iclass])
                     list_x_arrays_allClasses[iclass] = list_x_arrays_allClasses[iclass][0:maxEvents]
                     list_weights_allClasses[iclass] = list_weights_allClasses[iclass][0:maxEvents]
                     list_thetas_allClasses[iclass] = list_thetas_allClasses[iclass][0:maxEvents]
                     list_targetClass_allClasses[iclass] = list_targetClass_allClasses[iclass][0:maxEvents]
+                    list_TrainValTest_allClasses[iclass] = list_TrainValTest_allClasses[iclass][0:maxEvents]
 
                 list_nentries_class[iclass] = maxEvents
 
@@ -461,9 +467,9 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
                         list_thetas_allClasses[jclass] = tmp
             '''
 
-    #Default dummy arrays and lists
+    #Default/dummy arrays and lists
     jointLR_allClasses = np.array([]); scores_allClasses_eachOperator = [] #Scores are stored in a list, 1 element per component
-    thetas_allClasses = np.zeros((1,1)); targetClass_allClasses = thetas_allClasses
+    thetas_allClasses = np.zeros((1,1)); targetClass_allClasses = thetas_allClasses; TrainValTest_allClasses = np.zeros((1,1));
 
     #-- Transform list of arrays --> single concatenated array
     x = np.concatenate(list_x_arrays_allClasses, 0)
@@ -478,6 +484,7 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
     elif opts["trainAtManyEFTpoints"]==True:
         thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
+        TrainValTest_allClasses = np.concatenate(list_TrainValTest_allClasses, 0)
 
         if opts["strategy"] in ["ROLR", "RASCAL"]:
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
@@ -487,7 +494,6 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
                 scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #problems for single operator ?
 
         #-- Append WC values to input features, etc.
-
         if opts["parameterizedNN"] is True and opts["strategy"] is not "classifier": #NB: in case we run StandaloneValidation code on classifier (not parameterized), want to evaluate on SMEFT sample but without including WCs as inputs !
 
             if singleThetaName is not "": # <-> Standalone validation #NB: for stdval in multiclass, need to evaluate on a single operator (<-> single class), but retain all operators used during training
@@ -517,7 +523,7 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
 
     # print(x.shape)
 
-    return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class
+    return x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class, TrainValTest_allClasses
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -784,15 +790,15 @@ def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, t
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, singleThetaName=""):
+def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, singleThetaName=""):
     '''
     Sanitize the data provided as input to the NN.
     '''
 
     #-- Sanity check (NaN, infinite)
     removeEvent = False
-    lists_names= ['x', 'y', 'y_process', 'PhysicalWeights_allClasses', 'LearningWeights_allClasses']
-    for il, l in enumerate([x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses]):
+    lists_names= ['x', 'y', 'y_process', 'PhysicalWeights_allClasses', 'LearningWeights_allClasses', 'TrainValTest_allClasses']
+    for il, l in enumerate([x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses]):
         if np.isnan(l).any() or not np.isfinite(l).all():
             print('\n', colors.fg.red, 'WARNING : found a NaN/inf value in array', lists_names[il],'(returned by Get_Data). Removing this event from all arrays...', colors.reset)
             removeEvent = True
@@ -802,7 +808,7 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         mask_nan = ~np.isnan(x.reshape(len(x), -1)).any(axis=1) & ~np.isnan(y.reshape(len(y), -1)).any(axis=1) & ~np.isnan(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isnan(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
         mask_inf = ~np.isinf(x.reshape(len(x), -1)).any(axis=1) & ~np.isinf(y.reshape(len(y), -1)).any(axis=1) & ~np.isinf(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isinf(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isinf(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
         mask = mask_nan & mask_inf #Combine both masks
-        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
+        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]; TrainValTest_allClasses = TrainValTest_allClasses[mask]
         # print(len(x))
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
@@ -825,10 +831,10 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             print('---> Removing these events from all arrays...')
             #-- Define masks to remove any event (row) containing a NaN/inf value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
             mask = np.where(PhysicalWeights_allClasses <= np.mean(PhysicalWeights_allClasses)*100)
-            x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
+            x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]; TrainValTest_allClasses = TrainValTest_allClasses[mask]
             # print(len(x))
 
-    return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses
+    return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -841,13 +847,17 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
   ####  #      ###### #   #
 
 #Split into train/test datasets
-def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses):
+def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses):
     '''
     Split data into training/testing datasets.
 
     #http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
     #Default args : shuffle=True <-> shuffle events ; random_state=None <-> random seed ; could also use stratify=y so that the final splitting respects the class proportions of the array y, if desired (else: random)
     '''
+
+    #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
+    if opts["trainAtManyEFTpoints"] == True:
+        return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==2], PhysicalWeights_allClasses[TrainValTest_allClasses==0], PhysicalWeights_allClasses[TrainValTest_allClasses==2], LearningWeights_allClasses[TrainValTest_allClasses==0], LearningWeights_allClasses[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events
         _trainsize=opts["nEventsTot_train"]; _testsize=opts["nEventsTot_test"]
@@ -860,12 +870,17 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
 
     return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
+
 #Split into train/val/test datasets
 #NB: don't simply call sklearn.train_test_split twice, because this makes the fractions complicated (x% of y%...)
-def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses):
+def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses):
     '''
     Split data into training/validation/testing datasets.
     '''
+
+    #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
+    if opts["trainAtManyEFTpoints"] == True:
+        return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==1], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==1], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==1], y_process[TrainValTest_allClasses==2], PhysicalWeights[TrainValTest_allClasses==0], PhysicalWeights[TrainValTest_allClasses==1], PhysicalWeights[TrainValTest_allClasses==2], LearningWeights[TrainValTest_allClasses==0], LearningWeights[TrainValTest_allClasses==1], LearningWeights[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_val"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events
         _trainsize=opts["nEventsTot_train"]; _valsize=opts["nEventsTot_val"] ; _testsize=opts["nEventsTot_test"]
@@ -913,7 +928,7 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, transfType='qu
     transfType: 'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
     '''
 
-    nmax = 100000 #None <-> use all events; else: don't compute means shifts and scales on more than nmax events (slow)
+    nmax = -1 #None <-> use all events; else: don't compute means shifts and scales on more than nmax events (slow)
     np.set_printoptions(precision=3)
     xTrainRescaled = None
 

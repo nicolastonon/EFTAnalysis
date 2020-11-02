@@ -684,6 +684,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     extendedList_WCs_allClasses = []
     extendedList_jointLR_allClasses = []
     extendedList_score_allClasses_allOperators = [ [] for iclass in range(len(list_labels))] #List of list because score is a vector --> will store values for each class, for each score component
+    extendedList_TrainValTest_allClasses = []
 
     rng = np.random.default_rng() #Init random generator
 
@@ -726,6 +727,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
+        trainValTest_idx = [] #See explanations below
         #-- For non-mixed-EFT NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
         if trainAtManyEFTpoints == False:
 
@@ -734,7 +736,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
             targetClasses_allThetas_class = np.concatenate( (np.zeros(len(list_x_allClasses[iclass])), np.ones(len(list_x_allClasses[iclass]))) ) #0 <-> SM; 1 <-> ref. point
 
-        #-- Parametrized NN
+        #-- NN trained at many different SMEFT points (parameterized or not)
         else:
 
             #-- Get the 'effective WC' values scaling each fit component
@@ -794,12 +796,27 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
                         list_gradNewXsecs_operators_refPoint.append(Extrapolate_EFTxsecs_fromWeights(list_gradweights_thetas_operators_refPoint[iop]))
                         list_score_allOperators_refPoint.append(Compute_Score_Component(weights_refPoint, xsecs_refPoint, list_gradweights_thetas_operators_refPoint[iop], list_gradNewXsecs_operators_refPoint[iop]) )
                     """
+
+            #FIXME #FIXME #FIXME
+            #-- NEW: add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
+            trainValTest_idx = np.full(shape=(len(list_x_allClasses[iclass])), fill_value=0) #Default: all events are 'training events' (idx 0)
+            x1 = int(opts["splitTrainValTestData"][0] * len(list_x_allClasses[iclass]))
+            if opts["splitTrainValTestData"][1] != 0.: #Use validation dataset (idx 1)
+                x2 = int(opts["splitTrainValTestData"][1] * len(list_x_allClasses[iclass]))
+                trainValTest_idx[x1:x1+x2] = 1
+                x1 = x1+x2
+            trainValTest_idx[x1:] = 2 #Testing events (idx 2) #NB: verified that (train+test+val)=1, so can safely take all remaining events as test dataset
+            # print(trainValTest_idx)
+            # print(len(trainValTest_idx))
+            np.random.shuffle(trainValTest_idx) #Shuffle array (don't care about the order of the train/val/test indices)
+
+
 # //--------------------------------------------
 # Get the data for all points thetas (twice: both drawn at point theta and at ref point)
 
             if opts["testToy1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
 
-            elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
+            elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class, TrainValTest_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score, trainValTest_idx)
             else: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
 
 # //--------------------------------------------
@@ -809,12 +826,13 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         extendedList_targetClass_allClasses.append(targetClasses_allThetas_class)
         if trainAtManyEFTpoints == True:
             extendedList_WCs_allClasses.append(WCs_allThetas_class)
+            extendedList_TrainValTest_allClasses.append(TrainValTest_allThetas_class)
             if need_jlr:
                 extendedList_jointLR_allClasses.append(jointLR_allThetas_class)
                 if need_score:
                     for iop in range(len(opts['listOperatorsParam'])): extendedList_score_allClasses_allOperators[iclass].append(list_score_allOperators_allThetas_class[iop]) #Retain correct operator ordering (for given process class)
 
-    return extendedList_x_allClasses, extendedList_weights_allClasses, extendedList_WCs_allClasses, extendedList_targetClass_allClasses, extendedList_jointLR_allClasses, extendedList_score_allClasses_allOperators
+    return extendedList_x_allClasses, extendedList_weights_allClasses, extendedList_WCs_allClasses, extendedList_targetClass_allClasses, extendedList_jointLR_allClasses, extendedList_score_allClasses_allOperators, extendedList_TrainValTest_allClasses
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -827,7 +845,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 ##    ##  ##          ##       ##    ##  ##     ## ##     ## ##   ###    ##     ##     ##     ##  ##       ##    ##
  ######   ########    ##        ##### ##  #######  ##     ## ##    ##    ##    ####    ##    #### ########  ######
 
-def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
+def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score, trainValTest_idx=[]):
     """
     For each point theta, sample events according both to theta and ref point. Get the corresponding quantities, and concatenate events for all points thetas
     Samples are first 'unweighted', i.e. events are drawn from samples with probability corresponding to their relative weights, and then all attributed a weight of 1.
@@ -849,6 +867,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     list_weights_allThetas = []
     list_WCs_allThetas = []
     list_targetClass_allThetas = []
+    list_TrainValTest_allThetas = []
     list_jointLR_allThetas = []
     list2D_score_allOperators_allThetas = [ [] for iop in range(len(opts['listOperatorsParam']))] #List of list because score is a vector (first index corresponds to score component <-> operator) #Initialize an empty list for each operator
 
@@ -900,6 +919,10 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             else: targetClass_refPoint = np.zeros((targetClass_theta.shape)); targetClass_refPoint[:,0] = 1 #Ref point <-> first row in multiclass
             targetClass_theta = np.squeeze(targetClass_theta); targetClass_refPoint = np.squeeze(targetClass_refPoint)
 
+        #-- Train/test/val indices
+        TrainValTest_theta = trainValTest_idx[indices_theta]
+        TrainValTest_refPoint = trainValTest_idx[indices_refPoint]
+
         #-- Augmented data
         if need_jlr:
             jointLR_theta = jointLR[indices_theta,itheta]
@@ -926,7 +949,8 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             list_x_allThetas.append(np.concatenate((x_theta, x_refPoint)) )
             list_weights_allThetas.append(np.concatenate((weights_theta, weights_refPoint)))
             list_WCs_allThetas.append(np.concatenate((WCs_theta, WCs_refPoint)))
-            list_targetClass_allThetas.append(np.concatenate((targetClass_theta, targetClass_refPoint)) )
+            list_targetClass_allThetas.append(np.concatenate((targetClass_theta, targetClass_refPoint)))
+            list_TrainValTest_allThetas.append(np.concatenate((TrainValTest_theta, TrainValTest_refPoint)))
             if need_jlr:
                 list_jointLR_allThetas.append(np.concatenate((jointLR_theta,jointLR_refPoint)))
                 if need_score:
@@ -937,6 +961,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             list_weights_allThetas.append(weights_theta)
             list_WCs_allThetas.append(WCs_theta)
             list_targetClass_allThetas.append(targetClass_theta)
+            list_TrainValTest_allThetas.append(TrainValTest_theta)
             if need_jlr:
                 list_jointLR_allThetas.append(jointLR_theta)
                 if need_score:
@@ -947,6 +972,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     weights_allThetas = np.concatenate(list_weights_allThetas)
     WCs_allThetas = np.concatenate(list_WCs_allThetas)
     targetClass_allThetas = np.concatenate(list_targetClass_allThetas)
+    TrainValTest_allThetas = np.concatenate(list_TrainValTest_allThetas)
     jointLR_allThetas = np.empty((0,0)); list_score_allOperators_allThetas = [] #Default
     if need_jlr:
         jointLR_allThetas = np.concatenate(list_jointLR_allThetas)
@@ -955,7 +981,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
 
     # print(counter_events_drawnNtimes[counter_events_drawnNtimes > 1])
 
-    return x_allThetas, weights_allThetas, WCs_allThetas, targetClass_allThetas, jointLR_allThetas, list_score_allOperators_allThetas
+    return x_allThetas, weights_allThetas, WCs_allThetas, targetClass_allThetas, jointLR_allThetas, list_score_allOperators_allThetas, TrainValTest_allThetas
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -964,7 +990,7 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
     """
     Get the quantities necessary to evaluate a parameterized NN (x, weights, augmented data, etc.) for a single point theta (either SM or any EFT point). Used for validation.
 
-    Returns:
+    Returns:Get_Quantities_SinglePointTheta
     Quantities for all events, at given point theta.
     """
 
@@ -1081,6 +1107,15 @@ def Get_Quantities_SinglePointTheta(opts, theta_name, operatorNames, EFT_fitCoef
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+
+########  #######  ##    ##       ##   ########
+   ##    ##     ##  ##  ##      ####   ##     ##
+   ##    ##     ##   ####         ##   ##     ##
+   ##    ##     ##    ##          ##   ##     ##
+   ##    ##     ##    ##          ##   ##     ##
+   ##    ##     ##    ##          ##   ##     ##
+   ##     #######     ##        ###### ########
 
 def GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, x, weightsThetas, weightsRefPoint, jointLR, list_score_allOperators, nEventsPerPoint, need_jlr, need_score):
     """

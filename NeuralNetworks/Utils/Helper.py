@@ -22,6 +22,11 @@ from Utils.LossOptimMetric import Get_Loss_Optim_Metrics
 from Utils.InputFeatures import *
 
 
+#-- Top directory containing all input ntuples
+ntuplesDir = "../input_ntuples/" #LOCAL
+# ntuplesDir = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/" #CMSSW
+
+
 # //--------------------------------------------
 # //--------------------------------------------
 # //--------------------------------------------
@@ -321,7 +326,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if opts["trainAtManyEFTpoints"] is False:
         if opts["parameterizedNN"] is True:
             opts["parameterizedNN"] = False
-            print(colors.fg.orange, colors.bold, "Warning: you are not training on a mixture of many EFT points, hence option 'parameterizedNN' must be set to False ! \n", colors.reset)
+            print(colors.fg.orange, colors.bold, "\nWarning: you are not training on a mixture of many EFT points, hence option 'parameterizedNN' has been forced to False ! \n", colors.reset)
 
     #Year selection
     lumiName = Get_LumiName(lumi_years)
@@ -336,10 +341,6 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         opts["nPointsPerOperator"] = 3
         opts["minWC"] = -3
         opts["maxWC"] = 3
-
-    #Top directory containing all input ntuples
-    ntuplesDir = "../input_ntuples/" #LOCAL
-    # ntuplesDir = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/" #CMSSW
 
     #Determine/store number of process classes, depending on strategy
     opts["nofOutputNodes"] = len(processClasses_list) #Multiclass classification --> 1 output node per process class
@@ -451,8 +452,25 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint" or (opts["trainAtManyEFTpoints"] is True and opts["parameterizedNN"] is False): opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
     elif opts["parameterizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
 
-    if len(opts["splitTrainValTestData"]) is not 3 or (opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2]) != 1.:
-        print(colors.fg.red, 'Wrong option [splitTrainValTestData]', colors.reset); exit(1)
+    if len(opts["splitTrainValTestData"]) is not 3 or opts["splitTrainValTestData"][0]==1. or (opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2]) != 1.:
+        print(colors.fg.red, 'ERROR: Wrong option [splitTrainValTestData]', colors.reset); exit(1)
+
+    if opts["nEventsTot_train"]!=-1. and opts["nEventsTot_val"]==-1. and opts["nEventsTot_test"]==-1.:
+        print(colors.fg.red, 'ERROR: Wrong option [nEventsTot_train/nEventsTot_val/nEventsTot_test]', colors.reset); exit(1)
+    elif (opts["nEventsTot_train"]!=-1. or opts["nEventsTot_val"]!=-1. or opts["nEventsTot_test"]!=-1.) and opts["trainAtManyEFTpoints"] == True:
+        print(colors.fg.red, 'ERROR: Dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] can not be used when training at many EFT points... Use [splitTrainValTestData] proportions instead !', colors.reset); exit(1)
+    elif opts["nEventsTot_train"]!=-1. and (opts["splitTrainValTestData"][0]!=0 or opts["splitTrainValTestData"][1]!=0 or opts["splitTrainValTestData"][2]!=0)  == True:
+        print(colors.fg.red, 'ERROR: Dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] are not compatible with different splitting mode [splitTrainValTestData]... Choose one !', colors.reset); exit(1)
+
+    if (opts["splitTrainValTestData"][1] != 0. and opts["splitTrainValTestData"][2] == 0.) or (opts["splitTrainValTestData"][2] != 0. and opts["splitTrainValTestData"][1] == 0.) or (opts["nEventsTot_val"] == -1. and opts["nEventsTot_test"] != -1.) (opts["nEventsTot_val"] != -1. and opts["nEventsTot_test"] == -1.):
+        print(colors.fg.orange, 'NB: you have either set testData=0 or valData=0; will hence use the same data for both val/test !', colors.reset)
+        if opts["nEventsTot_train"] != -1. and opts["nEventsTot_test"] == -1.: #Convention: want nTest to be non-zero, not nVal
+            opts["nEventsTot_test"] = opts["nEventsTot_val"]
+            opts["nEventsTot_val"] = -1.
+        elif opts["splitTrainValTestData"][0] != 0 and opts["splitTrainValTestData"][2] == 0.: #Convention: want nTest to be non-zero, not nVal
+            opts["splitTrainValTestData"][2] = opts["splitTrainValTestData"][1]
+            opts["splitTrainValTestData"][1] = 0.
+
 
 # //--------------------------------------------
 #-- Set/update list of input features
@@ -460,9 +478,11 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     #-- User can choose to use a case-specific list of input features (hard-coded in 'InputFeatures.py'); otherwise, use list of features defined in the main code
     if opts["useHardCodedListInputFeatures"]:
 
-        #Hardcode different use-cases here
-        # if opts["strategy"] is "classifier":
-        if opts["strategy"] is "CARL_singlePoint":
+        #-- Hardcode different use-cases here
+        if opts["strategy"] is "classifier": #NN-SM
+            list_features = features_SM
+
+        elif opts["strategy"] is "CARL_singlePoint":
             if 'tZq' in labels_list[0]: list_features = features_CARL_singlePoint_tZq
             elif 'ttZ' in labels_list[0]: list_features = features_CARL_singlePoint_ttZ
         # elif opts["strategy"] is "CARL":
@@ -527,6 +547,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
             else: weightDir+= 'Other/'
 
+    if opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
+        weightDir+= opts["listOperatorsParam"][0] + '/'
+
     #Model output name
     h5modelName = weightDir + 'model.h5'
 
@@ -545,7 +568,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     Write_Timestamp_toLogfile(weightDir, 0)
     Dump_NN_Options_toLogFile(opts, weightDir) #Write user-options to dedicated logfile
 
-    return lumiName, weightDir, h5modelName, ntuplesDir, opts["batchSize"], list_features
+    return lumiName, weightDir, h5modelName, opts["batchSize"], list_features
 
 # //--------------------------------------------
 # //--------------------------------------------

@@ -102,7 +102,7 @@ for key in readfile.GetListOfKeys():
             # elif (process,bin_name,systematic) not in fits.keys(): fits[(process,bin_name,systematic)]={}
             # if verbose: print('fits[(process,bin_name,systematic)]', fits[(process,bin_name,systematic)])
 
-            #For given bin,
+            #For a given bin:
             for op1 in operators:
                 for op2 in operators:
                     if verbose: print process, [op1,op2], fit.getCoefficient(op1,op2), round(fit.getCoefficient(op1,op2)/fit.getCoefficient(SM_name,SM_name), 8)

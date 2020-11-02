@@ -892,9 +892,9 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
 void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_colors, vector<TString> v_samples, vector<TString> v_groups, int color_scheme)
 {
     //Define some TColors, which we can then use to define the default color vector. NB : must only delete them after all plots have been created.
-    v_custom_colors.resize(10, 0);
+    v_custom_colors.resize(25, 0);
 
-    //-- Colors definition : Number + RGB value, from 0 to 1
+    //-- Colors definition : New color index + RGB values (from 0 to 1)
     v_custom_colors[0] = new TColor(9000, 31./255., 120./255., 180./255.); //Dark blue
     v_custom_colors[1] = new TColor(9001, 166./255., 206./255., 227./255.); //Light blue
     v_custom_colors[2] = new TColor(9002, 51./255., 160./255., 44./255.); //Dark green 2
@@ -904,9 +904,18 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
     v_custom_colors[6] = new TColor(9006, 227./255., 65./255., 61./255.); //Dark red
     v_custom_colors[7] = new TColor(9007, 255./255., 210./255., 47./255.); //Mild yellow
     v_custom_colors[8] = new TColor(9008, 152./255., 78./255., 163./255.); //Dark purple
+    v_custom_colors[9] = new TColor(9009, 226./255., 125./255., 96./255.); //Soft red / terracotta
+    v_custom_colors[10] = new TColor(9010, 232./255., 168./255., 124./255.); //Soft orange / tacao
+    v_custom_colors[11] = new TColor(9011, 195./255., 141./255., 158./255.); //Desaturated pink / oriental pink
+    v_custom_colors[12] = new TColor(9012, 5./255., 56./255., 107./255.); //Very dark blue / catalina blue
+    v_custom_colors[13] = new TColor(9013, 85./255., 122./255., 149./255.); //Desaturated dark blue / smalt blue
+    v_custom_colors[14] = new TColor(9014, 252./255., 205./255., 4./255.); //Vivid yellow / supernova
+    v_custom_colors[15] = new TColor(9015, 134./255., 179./255., 279./255.); //Desaturated blue / Half baked
+    v_custom_colors[16] = new TColor(9016, 252./255., 225./255., 129./255.); //Soft yellow / sweet corn
+    v_custom_colors[17] = new TColor(9017, 133./255., 220./255., 186./255.); //Lime green / algae green
+    v_custom_colors[18] = new TColor(9018, 204./255., 205./255., 198./255.); //Soft gray
 
-    //Also nice
-    //kOrange-2,
+    //-- Also nice: kOrange-2, ...
 
 //--------------------------------------------
     if(color_scheme == 0) //Custom color scheme
@@ -916,7 +925,8 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             //Signals
             if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
             else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
-            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();} //FIXME
+            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[16]->GetNumber();}
+            // else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();}
 
             //t(t)X
             else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
@@ -968,7 +978,35 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             else if(v_samples[isample] == "WZ") {v_colors[isample] = kViolet-6;}
             else if(v_samples[isample] == "ZZ4l") {v_colors[isample] = kViolet-6;}
             else if(v_samples[isample] == "ZZZ") {v_colors[isample] = kViolet-6;}
-            else if(v_samples[isample] == "WZZ") {v_colors[isample] = kViolet-6;}
+            else if(color_scheme == 0) //Custom color scheme
+    {
+        for(int isample=0; isample<v_groups.size(); isample++)
+		{
+            //Signals
+            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();}
+
+            //t(t)X
+            else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+
+            //WZ
+            else if(v_groups[isample] == "WZ") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
+
+            //ZZ
+
+            //VVV
+            else if(v_groups[isample] == "VVV") {v_colors[isample] = v_custom_colors[5]->GetNumber();}
+            // else if(v_groups[isample] == "ZZ") {v_colors[isample] = v_custom_colors[5]->GetNumber();}
+            // else if(v_groups[isample] == "VVV") {v_colors[isample] = kViolet+2;}
+
+            //X+g
+            else if(v_groups[isample] == "Vg" || v_groups[isample] == "Xg" || v_groups[isample] == "VG" || v_groups[isample] == "XG") {v_colors[isample] = kPink+2;}
+
+            //NPL
+            else if(v_groups[isample] == "NPL") {v_colors[isample] = kGray;}
+		}
+    }if(v_samples[isample] == "WZZ") {v_colors[isample] = kViolet-6;}
             else if(v_samples[isample] == "WWW") {v_colors[isample] = kViolet-6;}
             else if(v_samples[isample] == "WWZ") {v_colors[isample] = kViolet-6;}
             else if(v_samples[isample] == "WZ2l2q") {v_colors[isample] = kViolet-6;}
@@ -1037,6 +1075,34 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
             else if(v_samples[isample].Contains("NPL")) {v_colors[isample] = kGray;}
 		}
 	}
+
+    else if(color_scheme == 3) //TESTING
+    {
+        for(int isample=0; isample<v_groups.size(); isample++)
+        {
+            //Signals
+            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[9]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[16]->GetNumber();}
+
+            //t(t)X
+            else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+
+            //WZ
+            else if(v_groups[isample] == "WZ") {v_colors[isample] = v_custom_colors[3]->GetNumber();}
+
+            //ZZ
+
+            //VVV
+            else if(v_groups[isample] == "VVV") {v_colors[isample] = v_custom_colors[17]->GetNumber();}
+
+            //X+g
+            else if(v_groups[isample] == "Vg" || v_groups[isample] == "Xg" || v_groups[isample] == "VG" || v_groups[isample] == "XG") {v_colors[isample] = kPink+2;}
+
+            //NPL
+            else if(v_groups[isample] == "NPL") {v_colors[isample] = v_custom_colors[18]->GetNumber();}
+        }
+    }
 
 	return;
 }
@@ -1320,7 +1386,7 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name_nominal, vecto
 
             for(int itree=0; itree<v_systTrees.size(); itree++)
     		{
-                TTree* tree = 0;
+                TTree* tree = NULL;
                 TString tmp = v_systTrees[itree];
     			if(tmp == "") {tmp = t_name_nominal;}
                 tree = (TTree*) file_input->Get(tmp);

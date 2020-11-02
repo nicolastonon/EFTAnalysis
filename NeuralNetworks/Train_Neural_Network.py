@@ -25,7 +25,7 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"parameterizedNN": True, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
+"parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
@@ -36,8 +36,8 @@ optsTrain = {
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training/architecture settings ===#
-"nEpochs": 40, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-"splitTrainValTestData": [0.70, 0.00, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low)
+"nEpochs": 10, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
@@ -54,7 +54,7 @@ optsTrain = {
 "earlyStopping": False, #True <-> use Keras' early stopping
 
 #=== Settings for non-parameterized NN ===# (separate processes, or SM/pure-EFT)
-"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased
+"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
 "batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
@@ -69,7 +69,7 @@ optsTrain = {
 # "listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
-"nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 100, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
@@ -94,7 +94,8 @@ optsTrain = {
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
 "storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
-"useFakeableNPL": False, #FIXME ok ? #True <-> if running on MC NPL samples (hardcoded names), will consider events from the sideband of the main selection (with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, keep that of ==3 tight lepton events
+"storePerOperatorSeparately": True, #FIXME ok? #True <-> when training on SM vs EFT and considering a single operator, will store all outputs in an operatgor-specific dir. (allows to then consider different trainigs for different operators)
+"useFakeableNPL": True, #True <-> if running on MC NPL samples (hardcoded names), will consider events from both SR+sideband (i.e. events with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, use that of ==3 tight lepton events only (otherwise need FR weights)
 }
 
 # Analysis options
@@ -102,9 +103,9 @@ optsTrain = {
 
 # -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
-_list_lumiYears.append("2016")
-_list_lumiYears.append("2017")
-_list_lumiYears.append("2018")
+_list_lumiYears.append("2016") #FIXME
+# _list_lumiYears.append("2017")
+# _list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
@@ -122,7 +123,7 @@ _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
-# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY", "ZGToLLG_01J"]) #WARNING: too low statistics for DY/ZGToLLG_01J, degrades performance
+# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY"]) #WARNING: too low statistics for DY/ZGToLLG_01J, degrades performance
 # _list_processClasses.append(["ttbar_Alessia"])
 # _list_processClasses.append(["tt1j_2016_Sebastian"])
 
@@ -256,6 +257,13 @@ from Utils.Validation_Control import *
 from Utils.Predictions import *
 from Utils.DataGenerator import *
 import Utils.InputFeatures
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+# 0 = all messages are logged (default behavior)
+# 1 = INFO messages are not printed
+# 2 = INFO and WARNING messages are not printed
+# 3 = INFO, WARNING, and ERROR messages are not printed
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -310,7 +318,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
  # #    # #   #
 
     #-- Initialization, sanity checks
-    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+    _lumiName, _weightDir, _h5modelName, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
     print(colors.fg.lightgrey, '\n===> Saving NN settings to: ', _weightDir + "NN_settings.txt", colors.reset)
     print(colors.fg.lightgrey, '\n===> Saving NN features list and node names to: ', _weightDir + "NN_info.txt", colors.reset)
 
@@ -324,7 +332,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
 
     #-- Get data
     print(colors.fg.lightblue, "\n\n--- Get the data...\n", colors.reset)
-    x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName)
+    x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, _list_labels, _list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, ntuplesDir, _lumiName)
 
     #-- Plot input features distributions, after applying to train data same rescaling as will be done by first NN layer (-> check rescaling)
     Plot_Input_Features(optsTrain, xTrainRescaled, y_process_train, PhysicalWeights_train, _list_features, _weightDir, True)

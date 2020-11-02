@@ -1,5 +1,6 @@
 # //--------------------------------------------
 
+#-- CARL_singlePoint tZq
 features_CARL_singlePoint_tZq = []
 features_CARL_singlePoint_tZq.append("recoZ_Pt")
 features_CARL_singlePoint_tZq.append("recoZ_Eta")
@@ -17,9 +18,43 @@ features_CARL_singlePoint_tZq.append("cosThetaStarPolZ")
 
 # //--------------------------------------------
 
+#-- CARL_singlePoint ttZ
 features_CARL_singlePoint_ttZ = features_CARL_singlePoint_tZq
 
 # //--------------------------------------------
+
+# NN-SM: tZq vs ttZ vs Others
+features_SM = []
+features_SM.append("recoZ_Pt")
+features_SM.append("recoZ_Eta")
+features_SM.append("mHT")
+features_SM.append("mTW")
+features_SM.append("Mass_3l")
+features_SM.append("maxDelPhiLL")
+features_SM.append("lAsymmetry")
+features_SM.append("jPrimeAbsEta")
+features_SM.append("maxEtaJet")
+features_SM.append("maxDeepJet")
+features_SM.append("nbjets")
+features_SM.append("maxDiJet_M")
+features_SM.append("dR_blW")
+features_SM.append("dR_lWjprime")
+# features_SM.append("njets") #FIXME -- remove because of PrivMC_tZq discrepancy ?
+
+#-- Testing
+# features_SM.append("maxDelRbL")
+# features_SM.append("maxDiJet_Pt")
+
+# //--------------------------------------------
+
+
+
+
+# //--------------------------------------------
+# //--------------------------------------------
+# //--------------------------------------------
+#-- Full list of available high-level features
+
 '''
 list_features.append("recoZ_Pt")
 list_features.append("recoZ_Eta")
@@ -92,35 +127,4 @@ list_features.append("recoLepTopB_Pt")
 list_features.append("recoLepTopB_Eta")
 list_features.append("recoLepTopB_Phi")
 list_features.append("recoLepTop_Phi")
-
-list_features.append("lep1_pt")
-list_features.append("lep2_pt")
-list_features.append("lep3_pt");
-list_features.append("lep1_eta")
-list_features.append("lep2_eta")
-list_features.append("lep3_eta")
-list_features.append("lep1_phi")
-list_features.append("lep2_phi")
-list_features.append("lep3_phi")
-
-list_features.append("jet1_pt")
-list_features.append("jet2_pt")
-list_features.append("jet3_pt")
-list_features.append("jet1_eta")
-list_features.append("jet2_eta")
-list_features.append("jet3_eta")
-list_features.append("jet1_phi")
-list_features.append("jet2_phi")
-list_features.append("jet3_phi")
-list_features.append("jet4_pt")
-list_features.append("jet4_eta")
-list_features.append("jet4_phi")
-list_features.append("jet1_DeepCSV")
-list_features.append("jet2_DeepCSV")
-list_features.append("jet3_DeepCSV")
-list_features.append("jet4_DeepCSV")
-list_features.append("jet1_DeepJet")
-list_features.append("jet2_DeepJet")
-list_features.append("jet3_DeepJet")
-list_features.append("jet4_DeepJet")
 '''

@@ -174,6 +174,9 @@ int main(int argc, char **argv)
     thesamplelist.push_back("tttt"); thesamplegroups.push_back("tX");
     thesamplelist.push_back("ttHH"); thesamplegroups.push_back("tX");
 
+    //WZ
+    thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
+
     //VV(V)
     thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
@@ -181,9 +184,6 @@ int main(int argc, char **argv)
     thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWW"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWZ"); thesamplegroups.push_back("VVV");
-
-    //WZ
-    thesamplelist.push_back("WZ"); thesamplegroups.push_back("WZ");
 
     //X+g
     thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("XG");

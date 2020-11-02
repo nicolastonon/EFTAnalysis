@@ -159,7 +159,6 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
 	//-- Get colors
     int color_scheme = 0; //Check color scheme definitions directly in Get_Samples_Colors()
-    // int color_scheme = 2; //Check color scheme definitions directly in Get_Samples_Colors()
 	color_list.resize(sample_list.size());
 	Get_Samples_Colors(color_list, v_custom_colors, sample_list, sample_groups, color_scheme); //Read hard-coded sample colors
 
@@ -1738,7 +1737,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //NB: only need to fill additional variables here in 2 cases: a) if 'use_predefined_EFT_strategy=true'; b) if 'make_fixedRegions_templates=true' --> predefined set of multiple templates ! (otherwise, considering single template, which was filled above)
                             if(!makeHisto_inputVars)
                             {
-                                if(this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ 4l SR (neglect SMEFT in CRs) --> Don't fill event otherwise
+                                if(isPrivMC && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise
 
                                 //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
                                 if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
@@ -2996,7 +2995,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
             else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
             else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_MC_histo[i], "X+#gamma", "f");}
-            else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
+            else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
 		}
 
         if(superimpose_EFThist)
@@ -4618,6 +4617,9 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
     //Use local variables to avoid conflict with class members (different MVAs)
     vector<TString> var_list_NN; TString NN_inputLayerName = ""; TString NN_outputLayerName = ""; int NN_iMaxNode = -1; int NN_nNodes = -1;
 
+    TMVA::Reader* reader_tmp = NULL; //TMVA BDT reader
+    TFModel* clfy_tmp = NULL; //TF NN reader
+
     if(classifier_name == "BDT") //BDT
     {
         var_list_tmp = var_list;
@@ -4638,7 +4640,17 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         TString NNinfo_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, true, categorization_strategy);
         if(NNinfo_input_path == "") {cout<<"MVA info file not found ! "<<endl; return false;} //MVA file not found
 
-        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds)) {clfy_tmp = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
+        //-- Load neural network model
+        if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds))
+        {
+            // cout<<"clfy_tmp "<<clfy_tmp<<endl;
+            // cout<<"MVA_input_path "<<MVA_input_path<<endl;
+            // cout<<"var_list_NN.size() "<<var_list_NN.size()<<endl;
+            // cout<<"NN_inputLayerName "<<NN_inputLayerName<<endl;
+            // cout<<"NN_outputLayerName "<<NN_outputLayerName<<endl;
+            // cout<<"NN_nNodes "<<NN_nNodes<<endl;
+            clfy_tmp = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());
+        }
         else {cout<<"Missing NN information ! "<<endl; return false;} //Error: missing NN infos
 
         var_list_tmp = var_list_NN;

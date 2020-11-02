@@ -102,9 +102,8 @@ class TopEFT_analysis
 //--- MEMBERS
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
 
-    TMVA::Reader *reader, *reader_tmp;
+    TMVA::Reader *reader=NULL;
     //NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
-    TFModel* clfy_tmp=NULL; //NN classifier
     TFModel* clfy1=NULL; //NN classifier
     TFModel* clfy2=NULL; //NN classifier
 

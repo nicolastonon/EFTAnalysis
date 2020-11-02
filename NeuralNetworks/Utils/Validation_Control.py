@@ -545,6 +545,8 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
 def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, weight_dir):
     '''
     Superimpose the distributions of the NN output for 'signal' and 'backgrounds'.
+
+    NB: follow TMVA conventions: red=bkg, blue=sig; dots=train, filled/hatched=test
     '''
 
     nofOutputNodes = opts["nofOutputNodes"]
@@ -598,8 +600,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 for iclass in range(len(list_labels)):
 
                     col = cmap[iclass] #Same color for train/test
-                    plt.hist(list_predictions_train_allNodes_allClasses[inode][iclass], bins=nbins, range=(rmin,rmax), alpha=0.30, weights=list_PhysicalWeightsTrain_allClasses[iclass], density=True, histtype='step', log=False, label=list_labels[iclass]+' (Train)', fill=True, color=col) #Training data for current class
-                    plt.hist(list_predictions_test_allNodes_allClasses[inode][iclass], bins=nbins, range=(rmin,rmax), weights=list_PhysicalWeightsTest_allClasses[iclass], density=True, histtype='step', log=False, label=list_labels[iclass]+' (Test)', color=col) #Testing data for current class
+                    plt.hist(list_predictions_train_allNodes_allClasses[inode][iclass], bins=nbins, range=(rmin,rmax), weights=list_PhysicalWeightsTrain_allClasses[iclass], density=True, histtype='step', log=False, label=list_labels[iclass]+' (Train)', color=col) #Training data for current class --> Line
+                    plt.hist(list_predictions_test_allNodes_allClasses[inode][iclass], bins=nbins, range=(rmin,rmax), weights=list_PhysicalWeightsTest_allClasses[iclass], density=True, histtype='step', log=False, label=list_labels[iclass]+' (Test)', color=col, fill=True, alpha=0.30) #Testing data for current class --> Filled
 
             else: #Plot current node vs all other process classes
 
@@ -608,46 +610,47 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 if opts["trainAtManyEFTpoints"] == True and inode == 0: label_class0 = "EFT"; label_class1 = "SM" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
                 # if opts["trainAtManyEFTpoints"] == True and inode == 0: label_class0 = "SM"; label_class1 = "EFT" #Only have 'SM vs EFT' scenario when considering SM node vs the rest (EFT)
 
-                #-- Plot TRAIN sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
-                suffix = " (Train)"
+                #-- Plot TEST sig/bkg histos, normalized (no errors displayed <-> don't need TH1Fs)
+                suffix = " (Test)"
                 if use_simplified_plotLayout: suffix = ""
 
-                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_train_allNodes_allClasses[inode][inode]+1) #Transform r -> s
-                else: tmp = list_predictions_train_allNodes_allClasses[inode][inode]
+                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1/(list_predictions_test_allNodes_allClasses[inode][inode]+1) #Transform r -> s
+                else: tmp = list_predictions_test_allNodes_allClasses[inode][inode]
 
-                plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label=list_labels[inode]+' (Test)', edgecolor='cornflowerblue',fill=True) #Testing data for current class
+                plt.hist(tmp, bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=True, histtype='step', log=False, label=list_labels[inode]+' (Test)', edgecolor='cornflowerblue',fill=True) #Testing data for current class --> Filled blue
 
-                # Trick : want to get arrays of predictions/weights for all events *which do not belong to class of current node* => Loop on classes, check if matches node
+                #-- Trick : want to get arrays of predictions/weights for all test events *which do not belong to class of current node* => Loop on classes, check if matches node
                 lists_predictions_bkgs = []; lists_weights_bkg = []
                 for iclass in range(0, len(list_labels)):
                     if iclass != inode:
-                        # print(list_labels[iclass], list_PhysicalWeightsTrain_allClasses[iclass][:20])
+                        # print(list_labels[iclass], list_PhysicalWeightsTest_allClasses[iclass][:20])
                         if opts["strategy"] is "CARL_multiclass" and inode>0:
                             if iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
-                            indices_SMevents = np.where(list_xTrain_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0) #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
-                            pred_tmp = list_predictions_train_allNodes_allClasses[inode][0][indices_SMevents]
-                            w_tmp = list_PhysicalWeightsTrain_allClasses[0][indices_SMevents]
+                            indices_SMevents = np.where(list_xTest_allClasses[0][:,-len(opts["listOperatorsParam"])-1+inode]!=0) #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
+                            pred_tmp = list_predictions_test_allNodes_allClasses[inode][0][indices_SMevents]
+                            w_tmp = list_PhysicalWeightsTest_allClasses[0][indices_SMevents]
                         elif opts["strategy"] in ["ROLR", "RASCAL"]:
-                            pred_tmp = 1/(list_predictions_train_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
-                            w_tmp = list_PhysicalWeightsTrain_allClasses[iclass]
+                            pred_tmp = 1/(list_predictions_test_allNodes_allClasses[inode][iclass]+1) #Transform r -> s
+                            w_tmp = list_PhysicalWeightsTest_allClasses[iclass]
                         else:
-                            pred_tmp = list_predictions_train_allNodes_allClasses[inode][iclass]
-                            w_tmp = list_PhysicalWeightsTrain_allClasses[iclass]
+                            pred_tmp = list_predictions_test_allNodes_allClasses[inode][iclass]
+                            w_tmp = list_PhysicalWeightsTest_allClasses[iclass]
                         lists_predictions_bkgs.append(pred_tmp)
                         lists_weights_bkg.append(w_tmp)
 
-                if len(lists_predictions_bkgs) > 0:
+                #Plot test bkg --> Red hatched
+                if len(lists_predictions_bkgs) > 0: #Protection
                     predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-                    if use_simplified_plotLayout: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, edgecolor='orangered',fill=True) #TRAIN BKG
-                    else: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, hatch='/', edgecolor='orangered',fill=False) #TRAIN BKG
+                    if use_simplified_plotLayout: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, edgecolor='orangered',fill=False)
+                    else: plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=True, histtype='step', log=False, label=label_class1+suffix, hatch='/', edgecolor='orangered',fill=False)
 
-                # Trick : for TEST histos, we want to compute the bin errors correctly ; to do this we first fill TH1Fs, then read their bin contents/errors
+                #-- For TRAIN histos, we want to compute/display the bin errors correctly; to do this we first fill TH1Fs, then read their bin contents/errors
                 hist_overtrain_sig = TH1F('hist_overtrain_sig', '', nbins, rmin, rmax); hist_overtrain_sig.Sumw2(); hist_overtrain_sig.SetDirectory(0)
                 hist_overtrain_bkg = TH1F('hist_overtrain_bkg', '', nbins, rmin, rmax); hist_overtrain_bkg.Sumw2(); hist_overtrain_bkg.SetDirectory(0)
 
                 #-- Only signal process
                 if opts["strategy"] is "regressor" and opts["nofOutputNodes"] > len(list_labels): continue
-                for val, w in zip((list_predictions_test_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTest_allClasses[inode]): #'zip' stops when the shorter of the lists stops
+                for val, w in zip((list_predictions_train_allNodes_allClasses[inode][inode]), list_PhysicalWeightsTrain_allClasses[inode]): #'zip' stops when the shorter of the lists stops
                     # if opts["strategy"] in ["ROLR", "RASCAL"]: val = 1/(val+1) #Transform r -> s
                     if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
                     hist_overtrain_sig.Fill(val, w)
@@ -657,13 +660,13 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                     if iclass != inode:
                         if opts["strategy"] is "CARL_multiclass" and inode > 0 and iclass != 0: continue #For EFT nodes, only consider SM as background, not the other EFT operators
 
-                        for val, w, x in zip(list_predictions_test_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTest_allClasses[iclass], list_xTest_allClasses[iclass]):
+                        for val, w, x in zip(list_predictions_train_allNodes_allClasses[inode][iclass], list_PhysicalWeightsTrain_allClasses[iclass], list_xTrain_allClasses[iclass]):
                             if opts["strategy"] is "CARL_multiclass" and inode > 0 and x[-len(opts["listOperatorsParam"])-1+inode]==0: continue #SM events are used for training each node w/ corresponding WC values; but for evaluation of EFT nodes, need to only consider SM events corresponding to the current node (conservation of proba, meaningless for other nodes)
                             if opts["strategy"] in ["ROLR", "RASCAL"]: val = s_from_r(val) #Transform r -> s
                             hist_overtrain_bkg.Fill(val, w)
                             # print(inode, iclass, val)
 
-                # Normalize
+                #-- Normalize
                 int_sig = hist_overtrain_sig.Integral(0,hist_overtrain_sig.GetNbinsX()+1)
                 int_bkg = hist_overtrain_bkg.Integral(0,hist_overtrain_bkg.GetNbinsX()+1)
                 if int_sig <= 0: int_sig = 1
@@ -672,19 +675,19 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 hist_overtrain_sig.Scale(1./(int_sig*sf_integral))
                 hist_overtrain_bkg.Scale(1./(int_bkg*sf_integral))
 
-                # Read bin contents/errors
+                #-- Read bin contents/errors
                 bin_centres = []; counts_sig = []; err_sig = []; counts_bkg = []; err_bkg = []
                 for ibin in range(1, hist_overtrain_sig.GetNbinsX()+1):
                     bin_centres.append(hist_overtrain_sig.GetBinCenter(ibin))
                     counts_sig.append(hist_overtrain_sig.GetBinContent(ibin)); counts_bkg.append(hist_overtrain_bkg.GetBinContent(ibin))
                     err_sig.append(hist_overtrain_sig.GetBinError(ibin)); err_bkg.append(hist_overtrain_bkg.GetBinError(ibin))
 
-                # Plot TEST sig/bkg histos, normalized, with errorbars
+                #-- Plot TRAIN sig/bkg histos, normalized, with errorbars
                 if use_simplified_plotLayout is False:
-                    plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Test)')
-                    plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Test)')
+                    plt.errorbar(bin_centres, counts_sig, marker='o', yerr=err_sig, linestyle='None', markersize=6, color='blue', alpha=0.90, label=label_class0+' (Train)')
+                    plt.errorbar(bin_centres, counts_bkg, marker='o', yerr=err_bkg, linestyle='None', markersize=6, color='red', alpha=0.90, label=label_class1+' (Train)')
 
-            # Labels
+            #-- Labels
             plt.legend(loc='best', numpoints=1)
             plt.title("Output distributions for Signal & Background")
             plt.grid(axis='y', alpha=0.75)
@@ -850,20 +853,6 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
 
         plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color='cornflowerblue', density=norm, histtype='step', log=False, label=label_class0+" (Pred.)", alpha=0.50, edgecolor='cornflowerblue',fill=True)
         if not plotSingleEventClass: plt.hist(list_predictions_test_allNodes_allClasses[inode][1], weights=list_PhysicalWeightsTest_allClasses[1], bins=nbins, range=(rmin,rmax), color='orangered', density=norm, histtype='step', log=False, label=label_class1+" (Pred.)", alpha=0.50, edgecolor='orangered',fill=True)
-
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], weights=list_PhysicalWeightsTest_allClasses[0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', density=norm, alpha=0.50, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1:], weights=list_PhysicalWeightsTest_allClasses[1:], bins=nbins, range=(rmin,rmax), color= 'orangered', density=norm, alpha=0.50, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][inode], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, weights=list_PhysicalWeightsTest_allClasses[inode], density=norm, histtype='step', log=False, label="Signal (Test)", edgecolor='cornflowerblue',fill=True)
-        # lists_predictions_bkgs = []; lists_weights_bkg = []
-        # for iclass in range(0, len(list_labels)):
-        #     if iclass != inode:
-        #         lists_predictions_bkgs.append(list_predictions_test_allNodes_allClasses[inode][iclass])
-        #         lists_weights_bkg.append(list_PhysicalWeightsTest_allClasses[iclass])
-        # if len(lists_predictions_bkgs) > 0:
-        #     predictions_bkgs = np.concatenate(lists_predictions_bkgs); weights_bkgs = np.concatenate(lists_weights_bkg)
-        #     plt.hist(predictions_bkgs, bins=nbins, range=(rmin,rmax), color='orangered', alpha=0.50, weights=weights_bkgs, density=norm, histtype='step', log=False, label="Background (Test)", hatch='/', edgecolor='orangered',fill=False)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=norm, histtype='step', log=False, label=label_class0+" (Pred.)", edgecolor='cornflowerblue',fill=True)
-        # plt.hist(list_predictions_test_allNodes_allClasses[inode][1], bins=nbins, range=(rmin,rmax), color= 'orangered', alpha=0.50, density=norm, histtype='step', log=False, label=label_class1+" (Pred.)", edgecolor='cornflowerblue',fill=True)
 
         nodename = 'node' + str(inode)
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode == 0: nodename = 'LR'
@@ -1178,8 +1167,8 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 # //--------------------------------------------
 
     if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
-    shap.initjs() #Load Javascript library (not needed ?)
-    shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix
+    # shap.initjs() #Load Javascript library #Obsolete
+    # shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- obsolete
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
     if opts['activInputLayer'] == 'lrelu' or opts['activHiddenLayers'] == 'lrelu': return #Not compatible
 

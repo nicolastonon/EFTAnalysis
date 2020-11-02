@@ -1090,6 +1090,10 @@ if __name__ == "__main__":
         print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
         exit(1)
 
+    if mode not in ['', 'bestfit', 'printbestfit', 'scan', 'grid']:
+        print('ERROR: mode not recognized !')
+        exit(1)
+
     PrintBanner() #Init printouts
 
 
@@ -1104,7 +1108,7 @@ if __name__ == "__main__":
             fitter.printBestFit(name='.EFT', params=POI)
             exit(1)
 
-        if mode in ['','grid']:
+        if mode in ['','grid','scan']:
             if scan_dim=='1D': fitter.gridScanSM(scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb, batch=batch) #1D
             elif scan_dim=='2D': fitter.gridScanSM(scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb, batch=batch) #2D
 
@@ -1123,7 +1127,7 @@ if __name__ == "__main__":
             exit(1)
 
         #-- Grid Scan
-        if not fixedPointNLL and mode in ['','grid']:
+        if not fixedPointNLL and mode in ['','grid','scan']:
             if scan_dim=='1D':
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
                 points = points if points != -1 else 50
