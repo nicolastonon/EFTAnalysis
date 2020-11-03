@@ -85,13 +85,13 @@ def train(args):
         json.dump(ji, f, indent=4, separators=(',', ': '))
 
     # submit jobs
-    if test:
-        def call(text, **opts):
-            print(text)
-    else:
-        from subprocess import call
+    from subprocess import call
+
+    pretend=''
+    if test: pretend = ' --pretend' #cs.sh won't submit
     command = '../scripts/job.sh {} python ./Train_Neural_Network.py'.format(os.getcwd())
-    call('../scripts/cs.sh -n{} -a0:{} "{}"'.format(jobname, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
+    print('EXECUTING: ', '../scripts/cs.sh -n{}{} -a0:{} "{}"'.format(jobname, pretend, i-1, command), '\n')
+    call('../scripts/cs.sh -n{}{} -a0:{} "{}"'.format(jobname, pretend, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
 # end: submit training jobs
 #-----
 

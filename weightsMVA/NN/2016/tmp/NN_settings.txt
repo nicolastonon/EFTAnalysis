@@ -1,4 +1,4 @@
-Start of NN training :02-Nov-2020 (21:05:59)
+Start of NN training :03-Nov-2020 (10:40:02)
 
 OPTIONS
 ----------------- 
@@ -55,4 +55,3 @@ metrics --> binary_accuracy
 NN_strategy --> MVA_EFT
 ----------------- 
 
-End of NN training and evaluation :02-nov.-2020 (21:06:26)

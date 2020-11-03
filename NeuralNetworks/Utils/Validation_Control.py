@@ -997,9 +997,11 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
 def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, isControlNorm=False):
     '''
     Plot distributions of input features (train/etst/both depending on dataset given in arg).
+
+    NB: 'isControlNorm' <-> rescaled features, training data (for control plots)
     '''
 
-    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
+    useMostExtremeWCvaluesOnly = False #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
     plot_eachSingleFeature = False #True <-> also save 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
     nbins = 40 #Binning for plots
@@ -1020,13 +1022,14 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     np.random.shuffle(shuf)
     x = np.copy(x[shuf]); y_process = np.copy(y_process[shuf]); weights = np.copy(weights[shuf])
 
-    nMax = 150000 #Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
-    if len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
+    nMax = 500000 # >0 <-> Don't use more events (slow) #Warning : for parameterized NN, biases distributions of WCs (will most likely not cover all EFT points)
+    if nMax>0 and len(x) > nMax: x = x[:nMax]; y_process = y_process[:nMax]; weights = weights[:nMax] #Else, too slow
 
     if opts["parameterizedNN"] == True: #Only retain EFT events whose operator values are at boundaries #NB: for SM can select all events (input features don't depend on WC, only output prediction)
         if useMostExtremeWCvaluesOnly is True:
             sl = np.s_[x.shape[1]-len(opts["listOperatorsParam"]):] #Specify slice corresponding to indices of theory parameters features (placed last)
-            indices_class0 = np.where(y_process==0) #Class 0
+            # indices_class0 = np.where(y_process==0) #Class 0
+            indices_class0 = np.where(np.logical_and(y_process==0, np.logical_or(np.all(x[:,sl]==opts['minWC'],axis=1),np.all(x[:,sl]==opts['maxWC'],axis=1))) ) #Class 1
             indices_class1 = np.where(np.logical_and(y_process==1, np.logical_or(np.all(x[:,sl]==opts['minWC'],axis=1),np.all(x[:,sl]==opts['maxWC'],axis=1))) ) #Class 1
             # print(x[indices_class0].shape); print(x[indices_class1].shape)
             # print(np.mean(x[indices_class0,0].T, axis=0)); print(np.mean(x[indices_class1,0].T, axis=0))
@@ -1099,8 +1102,8 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
             plt.xlabel(feature, fontsize=20)
 
             x = [df[df['class'] == 1][feature].to_numpy(), df[df['class'] == 0][feature].to_numpy()]
-            plt.hist(x[0], label='Signal', color='b', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==1])
-            plt.hist(x[1], label='Backgrounds', color='r', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.4, weights=df['weight'][df['class']==0])
+            plt.hist(x[0], label='Signal', color='b', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.3, weights=df['weight'][df['class']==1])
+            plt.hist(x[1], label='Backgrounds', color='r', density=True, histtype='stepfilled', linewidth=2, bins=nbins, alpha=0.3, weights=df['weight'][df['class']==0])
             plt.legend(loc='best')
 
             os.makedirs(weight_dir + 'features/', exist_ok=True)
@@ -1168,7 +1171,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
     # shap.initjs() #Load Javascript library #Obsolete
-    # shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- obsolete
+    shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- does not work on NAF ?
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
     if opts['activInputLayer'] == 'lrelu' or opts['activHiddenLayers'] == 'lrelu': return #Not compatible
 

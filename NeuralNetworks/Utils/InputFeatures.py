@@ -1,25 +1,39 @@
 # //--------------------------------------------
 
 #-- CARL_singlePoint tZq
-features_CARL_singlePoint_tZq = []
-features_CARL_singlePoint_tZq.append("recoZ_Pt")
-features_CARL_singlePoint_tZq.append("recoZ_Eta")
-features_CARL_singlePoint_tZq.append("jprime_Pt")
-features_CARL_singlePoint_tZq.append("jPrimeAbsEta")
-features_CARL_singlePoint_tZq.append("maxDelPhiLL")
-features_CARL_singlePoint_tZq.append("cosThetaStarPolZ")
 
-# features_CARL_singlePoint_tZq.append("dR_bW")
-# features_CARL_singlePoint_tZq.append("mHT")
-# features_CARL_singlePoint_tZq.append("Mass_3l")
-# features_CARL_singlePoint_tZq.append("TopZsystem_M")
-# features_CARL_singlePoint_tZq.append("recoLepTop_Pt")
-# features_CARL_singlePoint_tZq.append("dR_tClosestJet")
+#-- ctz
+features_CARL_singlePoint_tZq_ctz = []
+features_CARL_singlePoint_tZq_ctz.append("recoZ_Pt")
+features_CARL_singlePoint_tZq_ctz.append("recoZ_Eta")
+features_CARL_singlePoint_tZq_ctz.append("maxDelPhiLL")
+features_CARL_singlePoint_tZq_ctz.append("jPrimeAbsEta")
+features_CARL_singlePoint_tZq_ctz.append("cosThetaStarPolZ")
+
+# features_CARL_singlePoint_tZq_ctz.append("dR_blW")
+# features_CARL_singlePoint_tZq_ctz.append("mHT")
+# features_CARL_singlePoint_tZq_ctz.append("Mass_3l")
+# features_CARL_singlePoint_tZq_ctz.append("recoLepTop_Pt")
+# features_CARL_singlePoint_tZq_ctz.append("dR_tClosestJet")
+# features_CARL_singlePoint_tZq_ctz.append("recoLepTop_Eta")
+# features_CARL_singlePoint_tZq_ctz.append("lAsymmetry")
+
+#-- ctw
+features_CARL_singlePoint_tZq_ctw = []
+features_CARL_singlePoint_tZq_ctw.append("recoZ_Pt")
+features_CARL_singlePoint_tZq_ctw.append("recoZ_Eta")
+features_CARL_singlePoint_tZq_ctw.append("jprime_Pt")
+features_CARL_singlePoint_tZq_ctw.append("jPrimeAbsEta")
+features_CARL_singlePoint_tZq_ctw.append("maxDelPhiLL")
+features_CARL_singlePoint_tZq_ctw.append("cosThetaStarPolZ")
+
+
 
 # //--------------------------------------------
 
 #-- CARL_singlePoint ttZ
-features_CARL_singlePoint_ttZ = features_CARL_singlePoint_tZq
+features_CARL_singlePoint_ttZ_ctz = features_CARL_singlePoint_tZq_ctz
+features_CARL_singlePoint_ttZ_ctw = features_CARL_singlePoint_tZq_ctw
 
 # //--------------------------------------------
 

@@ -478,9 +478,10 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
     if len(list_thetas_allClasses) == 0 and opts["makeValPlotsOnly"] is False and opts["trainAtManyEFTpoints"] is True: print('Warning: len(list_thetas_allClasses)==0 but [trainAtManyEFTpoints==True]... Normal ?\n')
 
     # if opts["strategy"] in ["CARL_singlePoint", "CARL_multiclass"]: #-- can not parameterize CARL_multiclass as I did, else NN relies ~ only on WC values
-    if opts["strategy"] == "CARL_singlePoint": targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
+    if opts["strategy"] == "CARL_singlePoint":
+        targetClass_allClasses = np.concatenate(list_targetClass_allClasses, axis=0)
+        TrainValTest_allClasses = np.concatenate(list_TrainValTest_allClasses, axis=0)
 
-    #-- Parameterized NN: pass the values of the WCs as input features
     elif opts["trainAtManyEFTpoints"]==True:
         thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
@@ -856,7 +857,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     '''
 
     #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
-    if opts["trainAtManyEFTpoints"] == True:
+    if opts["trainAtManyEFTpoints"] == True or opts["strategy"] == "CARL_singlePoint":
         return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==2], PhysicalWeights_allClasses[TrainValTest_allClasses==0], PhysicalWeights_allClasses[TrainValTest_allClasses==2], LearningWeights_allClasses[TrainValTest_allClasses==0], LearningWeights_allClasses[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events
@@ -879,7 +880,7 @@ def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Lear
     '''
 
     #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
-    if opts["trainAtManyEFTpoints"] == True:
+    if opts["trainAtManyEFTpoints"] == True  or opts["strategy"] == "CARL_singlePoint":
         return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==1], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==1], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==1], y_process[TrainValTest_allClasses==2], PhysicalWeights[TrainValTest_allClasses==0], PhysicalWeights[TrainValTest_allClasses==1], PhysicalWeights[TrainValTest_allClasses==2], LearningWeights[TrainValTest_allClasses==0], LearningWeights[TrainValTest_allClasses==1], LearningWeights[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_val"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events

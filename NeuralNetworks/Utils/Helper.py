@@ -129,7 +129,7 @@ def get_normalization_iqr(np_array, q):
     for i, (il, ir) in enumerate(zip(l,r)):
         # print('il', il); print('ir', ir)
         if il == ir:
-            print(colors.dim, "[WARNING] feature {df.keys()[i]} has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
+            print(colors.dim, "[WARNING] feature", {df.keys()[i]}, "has no width --> Set width = ", maximums[i], ' (max. value)', colors.reset) #Happens e.g. for discrete variables perfectly centered at 0. Better to return the max value, so that all values will effectively lie in [-1;+1]
             l[i] = maximums[i]; r[i] = maximums[i]
 
     return median.values, np.maximum(l, r).values #Return median and quantile boundary for rescaling
@@ -452,19 +452,23 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if centralVSpureEFT is True or opts["strategy"] is "CARL_singlePoint" or (opts["trainAtManyEFTpoints"] is True and opts["parameterizedNN"] is False): opts["NN_strategy"] = "MVA_EFT" #Will need to consider each MVA bin separately, for individual EFT parametrization
     elif opts["parameterizedNN"] is True: opts["NN_strategy"] = "MVA_param" #Will need to produce MVA templates for each and every point considered for signal extraction
 
-    if len(opts["splitTrainValTestData"]) is not 3 or opts["splitTrainValTestData"][0]==1. or (opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2]) != 1.:
+    #-- Protections on dataset splitting
+    if opts["trainAtManyEFTpoints"] == True and (opts["nEventsTot_train"]!=-1. or opts["nEventsTot_val"]!=-1. or opts["nEventsTot_test"]!=-1): #Mixed-EFT strategy <-> don't consider these options
+        print(colors.fg.red, 'Warning: dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] can not be used when training at many EFT points... Will use [splitTrainValTestData] proportions instead !', colors.reset)
+        opts["nEventsTot_train"]=-1.; opts["nEventsTot_val"]=-1.; opts["nEventsTot_test"]=-1.;
+
+    if opts["splitTrainValTestData"][0]>0. and (opts["nEventsTot_train"]!=-1. or opts["nEventsTot_val"]!=-1. or opts["nEventsTot_test"]!=-1): #splitTrainValTestData option superseeds these other options
+        print(colors.fg.red, 'Warning: Overriding dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] with superseeding options [splitTrainValTestData] !', colors.reset)
+        opts["nEventsTot_train"]=-1.; opts["nEventsTot_val"]=-1.; opts["nEventsTot_test"]=-1.;
+
+    if len(opts["splitTrainValTestData"]) is not 3 or opts["splitTrainValTestData"][0]==1. or (opts["splitTrainValTestData"][0]>0. and opts["splitTrainValTestData"][0]+opts["splitTrainValTestData"][1]+opts["splitTrainValTestData"][2] != 1.): #Check option validity
         print(colors.fg.red, 'ERROR: Wrong option [splitTrainValTestData]', colors.reset); exit(1)
+    if opts["nEventsTot_train"]!=-1. and opts["nEventsTot_val"]==-1. and opts["nEventsTot_test"]==-1.: #Check option validity
+        print(colors.fg.red, 'ERROR: Wrong values for options [nEventsTot_train/nEventsTot_val/nEventsTot_test]', colors.reset); exit(1)
 
-    if opts["nEventsTot_train"]!=-1. and opts["nEventsTot_val"]==-1. and opts["nEventsTot_test"]==-1.:
-        print(colors.fg.red, 'ERROR: Wrong option [nEventsTot_train/nEventsTot_val/nEventsTot_test]', colors.reset); exit(1)
-    elif (opts["nEventsTot_train"]!=-1. or opts["nEventsTot_val"]!=-1. or opts["nEventsTot_test"]!=-1.) and opts["trainAtManyEFTpoints"] == True:
-        print(colors.fg.red, 'ERROR: Dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] can not be used when training at many EFT points... Use [splitTrainValTestData] proportions instead !', colors.reset); exit(1)
-    elif opts["nEventsTot_train"]!=-1. and (opts["splitTrainValTestData"][0]!=0 or opts["splitTrainValTestData"][1]!=0 or opts["splitTrainValTestData"][2]!=0)  == True:
-        print(colors.fg.red, 'ERROR: Dataset splitting options [nEventsTot_train/nEventsTot_val/nEventsTot_test] are not compatible with different splitting mode [splitTrainValTestData]... Choose one !', colors.reset); exit(1)
-
-    if (opts["splitTrainValTestData"][1] != 0. and opts["splitTrainValTestData"][2] == 0.) or (opts["splitTrainValTestData"][2] != 0. and opts["splitTrainValTestData"][1] == 0.) or (opts["nEventsTot_val"] == -1. and opts["nEventsTot_test"] != -1.) (opts["nEventsTot_val"] != -1. and opts["nEventsTot_test"] == -1.):
+    if (opts["splitTrainValTestData"][1] != 0. and opts["splitTrainValTestData"][2] == 0.) or (opts["splitTrainValTestData"][2] != 0. and opts["splitTrainValTestData"][1] == 0.) or (opts["nEventsTot_val"] == -1. and opts["nEventsTot_test"] != -1.) (opts["nEventsTot_val"] != -1. and opts["nEventsTot_test"] == -1.): #Convention: want nTest to be non-zero, not nVal (if not requiring independent val/test sets)
         print(colors.fg.orange, 'NB: you have either set testData=0 or valData=0; will hence use the same data for both val/test !', colors.reset)
-        if opts["nEventsTot_train"] != -1. and opts["nEventsTot_test"] == -1.: #Convention: want nTest to be non-zero, not nVal
+        if opts["nEventsTot_train"] != -1. and opts["nEventsTot_test"] == -1.:
             opts["nEventsTot_test"] = opts["nEventsTot_val"]
             opts["nEventsTot_val"] = -1.
         elif opts["splitTrainValTestData"][0] != 0 and opts["splitTrainValTestData"][2] == 0.: #Convention: want nTest to be non-zero, not nVal
@@ -482,10 +486,13 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         if opts["strategy"] is "classifier": #NN-SM
             list_features = features_SM
 
-        elif opts["strategy"] is "CARL_singlePoint":
-            if 'tZq' in labels_list[0]: list_features = features_CARL_singlePoint_tZq
-            elif 'ttZ' in labels_list[0]: list_features = features_CARL_singlePoint_ttZ
-        # elif opts["strategy"] is "CARL":
+        elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==1) or opts["strategy"]=="CARL_singlePoint":
+            if 'tZq' in labels_list[0]:
+                if opts["listOperatorsParam"][0]=='ctz' or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctz
+                elif opts["listOperatorsParam"][0]=="ctw" or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctw
+            elif 'ttZ' in labels_list[0]:
+                if opts["listOperatorsParam"][0]=="ctz" or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctz
+                elif opts["listOperatorsParam"][0]=="ctw" or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctw
 
         else: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
 
@@ -547,7 +554,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
             else: weightDir+= 'Other/'
 
-    if opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
+    if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
         weightDir+= opts["listOperatorsParam"][0] + '/'
 
     #Model output name

@@ -25,6 +25,10 @@ NB: Squared amplitude M^2 = a0 + a1.c1 + a2.c2, for a single EFT operator. The 3
 - 'Fit coefficients'/'coefficients' = factors 'a_i' scaling the components ; these are the coefficients determined per-event from the benckmark points, which are then used to parameterize the event weight
 - 'JLR' = joint likelihood ratio, denoted r. Along with score t, these variables correspond to the augmented data extracted from the generator (see reference summary article: https://arxiv.org/abs/1805.00020)
 - ...
+
+- 'Parameterized NN' = the WCs are provided (both at training & evaluation) as additional inputs to the NN (<-> ideal SM vs EFT learning strategy, but leads to complication in Combine)
+- 'Trained at many SMEFT points' or 'mixed-EFT' = training is performed over many SMEFT hypotheses (e.g. we consider only the SMEFT tZq sample and we reweight events according to many scenarios to learn to separate SM from EFT)
+NB: those are 2 different things : parameterized NNs must be 'mixed-EFT', but mixed-EFT NNs don't need to be parameterized
 '''
 
 # //--------------------------------------------
@@ -727,7 +731,19 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        trainValTest_idx = [] #See explanations below
+        #-- NEW: add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
+        trainValTest_idx = []
+        trainValTest_idx = np.full(shape=(len(list_x_allClasses[iclass])), fill_value=0) #Default: all events are 'training events' (idx 0)
+        x1 = int(opts["splitTrainValTestData"][0] * len(list_x_allClasses[iclass]))
+        if opts["splitTrainValTestData"][1] != 0.: #Use validation dataset (idx 1)
+            x2 = int(opts["splitTrainValTestData"][1] * len(list_x_allClasses[iclass]))
+            trainValTest_idx[x1:x1+x2] = 1
+            x1 = x1+x2
+        trainValTest_idx[x1:] = 2 #Testing events (idx 2) #NB: verified that (train+test+val)=1, so can safely take all remaining events as test dataset
+        # print(trainValTest_idx)
+        # print(len(trainValTest_idx))
+        np.random.shuffle(trainValTest_idx) #Shuffle array (don't care about the order of the train/val/test indices)
+
         #-- For non-mixed-EFT NN (<-> 'CARL_singlePoint'), only 1 EFT point to separate from SM --> build lists differently
         if trainAtManyEFTpoints == False:
 
@@ -735,6 +751,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_allThetas_class = np.concatenate((weights_thetas, weights_refPoint))
             x_allThetas_class = np.concatenate((list_x_allClasses[iclass], list_x_allClasses[iclass]))
             targetClasses_allThetas_class = np.concatenate( (np.zeros(len(list_x_allClasses[iclass])), np.ones(len(list_x_allClasses[iclass]))) ) #0 <-> SM; 1 <-> ref. point
+            TrainValTest_allThetas_class = np.concatenate((trainValTest_idx, trainValTest_idx))
 
         #-- NN trained at many different SMEFT points (parameterized or not)
         else:
@@ -797,19 +814,6 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
                         list_score_allOperators_refPoint.append(Compute_Score_Component(weights_refPoint, xsecs_refPoint, list_gradweights_thetas_operators_refPoint[iop], list_gradNewXsecs_operators_refPoint[iop]) )
                     """
 
-            #FIXME #FIXME #FIXME
-            #-- NEW: add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
-            trainValTest_idx = np.full(shape=(len(list_x_allClasses[iclass])), fill_value=0) #Default: all events are 'training events' (idx 0)
-            x1 = int(opts["splitTrainValTestData"][0] * len(list_x_allClasses[iclass]))
-            if opts["splitTrainValTestData"][1] != 0.: #Use validation dataset (idx 1)
-                x2 = int(opts["splitTrainValTestData"][1] * len(list_x_allClasses[iclass]))
-                trainValTest_idx[x1:x1+x2] = 1
-                x1 = x1+x2
-            trainValTest_idx[x1:] = 2 #Testing events (idx 2) #NB: verified that (train+test+val)=1, so can safely take all remaining events as test dataset
-            # print(trainValTest_idx)
-            # print(len(trainValTest_idx))
-            np.random.shuffle(trainValTest_idx) #Shuffle array (don't care about the order of the train/val/test indices)
-
 
 # //--------------------------------------------
 # Get the data for all points thetas (twice: both drawn at point theta and at ref point)
@@ -824,9 +828,9 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         extendedList_x_allClasses.append(x_allThetas_class)
         extendedList_weights_allClasses.append(weights_allThetas_class)
         extendedList_targetClass_allClasses.append(targetClasses_allThetas_class)
+        extendedList_TrainValTest_allClasses.append(TrainValTest_allThetas_class)
         if trainAtManyEFTpoints == True:
             extendedList_WCs_allClasses.append(WCs_allThetas_class)
-            extendedList_TrainValTest_allClasses.append(TrainValTest_allThetas_class)
             if need_jlr:
                 extendedList_jointLR_allClasses.append(jointLR_allThetas_class)
                 if need_score:

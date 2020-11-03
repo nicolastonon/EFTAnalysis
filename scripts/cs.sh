@@ -22,7 +22,7 @@
 
 # split arguments into two parts (2nd part starts with first argument which does not begin with '-' and does not contain '='):
 # (1) options for submission script
-# (2) command tro run on the cluster
+# (2) command to run on the cluster
 ArgsSub=''
 ArgsExe=''
 for a do
@@ -55,13 +55,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # check arguments
-FlagPtetend=0
+FlagPretend=0
 #JobName=`echo $ArgsExe | sed -e 's/ /-/g' | sed -e 's/\.\///g'`
 #JobName=`echo $ArgsExe | sed -e 's/\.\///g' | awk '{print $1}'`
 JobName=`basename "$ArgsExe" | awk '{print $1}'`
 JobMem='1999'
 JobTime='10799'
-JobGroup=''
 ExtraOptions=()
 FlagOuputNameFileExplicit=0
 JobArray=0
@@ -73,7 +72,7 @@ NameCondorDir='condor'
 for arg in ${ArgsSub}; do
   # check for pretend
   if [ ${arg} == "--pretend" ] || [ ${arg} == "-p" ]; then
-    FlagPtetend=1
+    FlagPretend=1
   # check for job name
   elif [[ "${arg}"* == "-n"* ]]; then
     JobName=${arg:2}
@@ -92,9 +91,6 @@ for arg in ${ArgsSub}; do
     FlagOuputNameFileExplicit=1
   elif [[ *"${arg}"* == *"="* ]]; then
     ExtraOptions+=('-append '${arg})
-  # check for group name (MyProject)
-  elif [[ "${arg}"* == "-g"* ]]; then
-    JobGroup=${arg:2}
   # check if this is a job array (with an array of arguments)
   elif [[ "${arg}"* == "-a"* ]]; then
     JobArray=1
@@ -136,9 +132,9 @@ echo '  echo "Using LD_LIBRARY_PATH_STORED"' >> ${NameScriptFile}
 echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_STORED:$LD_LIBRARY_PATH' >> ${NameScriptFile}
 echo 'fi' >> ${NameScriptFile}
 echo '' >> ${NameScriptFile}
-echo 'echo "PATH=$PATH"' >> ${NameScriptFile}
-echo 'echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"' >> ${NameScriptFile}
+echo 'source ~/.profile' >> ${NameScriptFile} #Must source conda, packages, ... on HTCondor server
 echo 'echo "command to run: '${ArgsExe}'"' >> ${NameScriptFile}
+echo '' >> ${NameScriptFile}
 echo '' >> ${NameScriptFile}
 echo ${ArgsExe} >> ${NameScriptFile}
 chmod +x ${NameScriptFile}
@@ -154,33 +150,29 @@ echo 'error = '${NameFileOutErr} >> ${NameSubmitFile}
 echo 'Universe = vanilla' >> ${NameSubmitFile}
 echo 'notification = Error' >> ${NameSubmitFile}
 echo 'Initialdir = '`pwd` >> ${NameSubmitFile}
-echo 'getenv=True' >> ${NameSubmitFile}
 echo '+RequestRuntime = '${JobTime} >> ${NameSubmitFile}
 echo 'RequestMemory = '${JobMem} >> ${NameSubmitFile}
+#echo 'getenv=True' >> ${NameSubmitFile} #CONFLICTING WITH CONDA ENV !
 
 #echo 'Requirements = ( OpSysAndVer == "CentOS7" || OpSysAndVer == "SL6")' >> ${NameSubmitFile}
-if [[ ${SCRAM_ARCH:3:1} == 7 ]]; then
-  echo 'Requirements = (OpSysAndVer == "CentOS7")' >> ${NameSubmitFile}
-else
-  echo 'Requirements = (OpSysAndVer == "SL6")' >> ${NameSubmitFile}
-fi
+#if [[ ${SCRAM_ARCH:3:1} == 7 ]]; then
+#  echo 'Requirements = (OpSysAndVer == "CentOS7")' >> ${NameSubmitFile}
+#else
+#  echo 'Requirements = (OpSysAndVer == "SL6")' >> ${NameSubmitFile}
+#fi
+echo 'Requirements = (OpSysAndVer == "CentOS7")' >> ${NameSubmitFile}
 
-if [ ! -z ${JobGroup} ]; then
-  echo '+MyProject = '\"${JobGroup}\" >> ${NameSubmitFile}
-fi
-#echo '+MyProject = "herafitter"' >> ${NameSubmitFile}
-#echo '+MyProject = "zeus"' >> ${NameSubmitFile}
-
-if [ ${JobArray} -eq 0 ]; then
-  echo 'queue 1' >> ${NameSubmitFile}
-else
-  echo 'arguments = $(Item)' >> ${NameSubmitFile}
-  echo "queue from seq ${JobArrayMin} ${JobArrayMax} |" >> ${NameSubmitFile}
-fi
+#if [ ${JobArray} -eq 0 ]; then
+#  echo 'queue 1' >> ${NameSubmitFile}
+#else
+#  echo 'arguments = $(Item)' >> ${NameSubmitFile}
+#  echo "queue from seq ${JobArrayMin} ${JobArrayMax} |" >> ${NameSubmitFile}
+#fi
+echo 'queue 0' >> ${NameSubmitFile} #Done describing the job, can submit it #Number defines $(Item)?
 
 # submit job (or print corresponding command)
 com="condor_submit -batch-name ${JobName} ${ExtraOptions} ${NameSubmitFile}"
-if [ ${FlagPtetend} -eq 1 ]; then
+if [ ${FlagPretend} -eq 1 ]; then
   com='echo '${com}
 fi
 ${com}
