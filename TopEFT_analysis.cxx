@@ -233,7 +233,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 	for(int i=0; i<thevarlist.size(); i++) //TMVA vars
 	{
 		var_list.push_back(thevarlist[i]);
-		var_list_floats.push_back(-999);
+		// var_list_floats.push_back(-999);
+        var_list_pfloats.push_back(NULL);
 
 		for(int ivar=0; ivar<set_v_add_var_names.size(); ivar++)
 		{
@@ -347,6 +348,16 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         if(region != "tZq" && region != "ttZ" && region != "wz" && region != "zz" && region != "Vg") {cout<<"ERROR: you have set option [use_SMdiffAnalysis_strategy=true] but selected wrong region "<<region<<endl; stop_program = true;}
         if(make_fixedRegions_templates) {cout<<BOLD(FRED("ERROR: options [make_fixedRegions_templates=true] and [use_SMdiffAnalysis_strategy=true] are incompatible ! Abort !"))<<endl; stop_program = true;}
         if(v_cut_name.size()) {cout<<FRED("Warning: you have set option [use_SMdiffAnalysis_strategy=true] but set some manual cuts in the main()... is this intended ? Make sure that you don't cut on the same category flags used by this hardcoded strategy !")<<endl;}
+    }
+
+    //-- Hard-coded: for njet-PrivMC_tZq shape systematics, need to read pre-existing histos
+    for(int isyst=0; isyst<syst_list.size(); isyst++)
+    {
+        if(syst_list[isyst]== "njets_tZqDown")
+        {
+            v_njets_SF_tZq = Get_nJets_SF("njets", "tZq", "PrivMC_tZq", v_lumiYears);
+            if(v_njets_SF_tZq[0].size()==0) {cout<<BOLD(FRED("ERROR: Get_nJets_SF() failed !"))<<endl; stop_program = true;}
+        }
     }
 
     cout<<endl<<endl<<BLINK(BOLD(FBLU("[Region : "<<region<<"]")))<<endl;
@@ -857,7 +868,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 //--- OPTIONS --------------------------------
 //--------------------------------------------
     bool noSysts_inputVars = true; //true <-> don't compute syst weights for histos of input variables (not worth the CPU-time)
-    int nentries_max = -1; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
+    int nentries_max = 1000; //-1 <-> use all entries; N <-> use at most N entries per sample (for testing)
     bool doNot_storeWCFit_PrivSamples = false; //true <-> for PrivMC samples, don't store WCFit objects (only e.g. the SM point) --> Much faster
 //--------------------------------------------
 //--------------------------------------------
@@ -963,7 +974,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             for(int i=0; i<var_list.size(); i++)
             {
                 //cout<<"Added variable "<<var_list[i]<<endl;
-                reader->AddVariable(var_list[i].Data(), &var_list_floats[i]);
+                // reader->AddVariable(var_list[i].Data(), &var_list_floats[i]);
+                var_list_pfloats[i] = new float; reader->AddVariable(var_list[i].Data(), var_list_pfloats[i]);
             }
             for(int i=0; i<v_cut_name.size(); i++)
             {
@@ -972,7 +984,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         }
     }
 
-	//Input TFile and TTree, called for each sample
+	//-- Input TFile and TTree, called for each sample
 	TFile* file_input = NULL;
 	TTree* tree = NULL;
 
@@ -1038,7 +1050,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     TString BDT_method_name = "BDT"; //Need to store BDT method name for evaluation
 
     //-- YEARS LOOP
-    vector<TString> total_var_list; vector<float> total_var_floats;
+    vector<TString> total_var_list; vector<float> total_var_floats; vector<float*> total_var_pfloats;
     for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
     {
         cout<<endl<<UNDL(FMAG("=== YEAR : "<<v_lumiYears[iyear]<<""))<<endl<<endl;
@@ -1076,7 +1088,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 else if(this->scanOperators_paramNN && template_name != "NN") {cout<<BOLD(FRED("ERROR ! You have set [scanOperators_paramNN=true] to scan over EFT operators, but you have selected 'template_name != NN' (MVA scan only makes sense for parametrized NN) ! Please fix this ! Aborting..."))<<endl; return;}
 
                 var_list = var_list_NN; //Use NN input features
-                var_list_floats.resize(var_list.size());
+                // var_list_floats.resize(var_list.size());
+                var_list_pfloats.resize(var_list.size()); for(int ivar=0; ivar<var_list_pfloats.size(); ivar++) {var_list_pfloats[ivar] = new float;} //Allocate necessary memory
 
                 if(use_predefined_EFT_strategy)
                 {
@@ -1094,7 +1107,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN2, v_NN2_nodeLabels, NN2_inputLayerName, NN2_outputLayerName, NN2_iMaxNode, NN2_nNodes, minmax_bounds2)) {clfy2 = new TFModel(MVA_input_path.Data(), var_list_NN2.size(), NN2_inputLayerName.Data(), NN2_nNodes, NN2_outputLayerName.Data());} //Load neural network model
                         else {return;} //Error: missing NN infos
 
-                        var_list_floats_2.resize(var_list_NN2.size());
+                        // var_list_floats_2.resize(var_list_NN2.size());
+                        var_list_pfloats_2.resize(var_list_NN2.size()); for(int ivar=0; ivar<var_list_pfloats_2.size(); ivar++) {var_list_pfloats_2[ivar] = new float;} //Reserve necessary memory
 
                         //-- Can set variables addresses only once --> Get correspondance between list of variables of MVA1 and MVA2
                         v_varIndices_inMVA1.resize(var_list_NN2.size());
@@ -1155,7 +1169,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates);
         	} //Templates
 
-            total_var_floats.resize(total_var_list.size()); //NB : can not read/cut on BDT... (would conflict with input var floats ! Can not set address twice)
+            // total_var_floats.resize(total_var_list.size());
+            total_var_pfloats.resize(total_var_list.size()); for(int ivar=0; ivar<total_var_pfloats.size(); ivar++) {total_var_pfloats[ivar] = new float;} //Reserve necessary memory
         }
         // for(int ivar=0; ivar<total_var_list.size(); ivar++) {cout<<"total_var_list[ivar] "<<total_var_list[ivar]<<endl;}
 
@@ -1284,28 +1299,45 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     			//Disactivate all un-necessary branches ; below, activate only needed ones
     			tree->SetBranchStatus("*", 0); //disable all branches by default, speed up
 
-                float njets, nbjets; //Needed for 'categ' templates
-                float* mTW = 0; //Needed for CR EFT template
-                int idx_mTW = -1; //Must keep track of this variable's index, and whether its address is already set
-    			if(makeHisto_inputVars)
+                //-- Always keep track of these vars (needed for different templates, syst, etc.)
+                float* njets = new float;
+                float* mTW = new float;
+                float* channel = new float;
+                tree->SetBranchStatus("mTW", 1); tree->SetBranchAddress("mTW", mTW);
+                tree->SetBranchStatus("njets", 1); tree->SetBranchAddress("njets", njets);
+                tree->SetBranchStatus("channel", 1); tree->SetBranchAddress("channel", channel);
+
+                float nbjets; //Needed for 'categ' templates
+
+                if(makeHisto_inputVars)
     			{
     				for(int i=0; i<total_var_list.size(); i++)
     				{
+                        if(total_var_list[i] == "mTW") {total_var_pfloats[i] = mTW; continue;}
+                        if(total_var_list[i] == "njets") {total_var_pfloats[i] = njets; continue;}
+                        if(total_var_list[i] == "channel") {total_var_pfloats[i] = channel; continue;}
+
                         tree->SetBranchStatus(total_var_list[i], 1);
-                        tree->SetBranchAddress(total_var_list[i], &total_var_floats[i]);
+                        // tree->SetBranchAddress(total_var_list[i], &total_var_floats[i]);
+                        tree->SetBranchAddress(total_var_list[i], total_var_pfloats[i]);
     				}
+
     			}
-    			else //Book input variables in same order as for MVA training
+    			else //Templates
     			{
-                    if(template_name=="BDT" || template_name=="NN") //Activate input features needed for MVA evaluation (same as used for training)
+                    if(template_name=="BDT" || template_name=="NN") //Book input variables in same order as for MVA training //Activate input features needed for MVA evaluation (same as used for training)
                     {
                         for(int i=0; i<var_list.size(); i++)
                         {
                             if(!isample) {cout<<DIM("MVA 1 -- "<<i<<" -- Activate variable '"<<var_list[i]<<"'")<<endl;}
                             if(var_list[i] == "ctz" || var_list[i] == "ctw" || var_list[i] == "cpq3" || var_list[i] == "cpqm" || var_list[i] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
+
+                            if(var_list[i] == "mTW") {var_list_pfloats[i] = mTW; continue;}
+                            if(var_list[i] == "njets") {var_list_pfloats[i] = njets; continue;}
+                            if(var_list[i] == "channel") {var_list_pfloats[i] = channel; continue;}
                             tree->SetBranchStatus(var_list[i], 1);
-                            tree->SetBranchAddress(var_list[i], &var_list_floats[i]);
-                            if(var_list[i] == "mTW") {idx_mTW = i;}
+                            tree->SetBranchAddress(var_list[i], var_list_pfloats[i]);
+                            // cout<<var_list[i]<<" "<<var_list_pfloats[i]<<endl;
                         }
 
                         if(clfy2) //Also set branch addresses for second MVA
@@ -1316,17 +1348,25 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 if(!isample) {cout<<DIM("MVA 2 "<<i<<" -- Activate variable '"<<var_list_NN2[i]<<"'")<<endl;}
 
                                 if(var_list_NN2[i] == "ctz" || var_list_NN2[i] == "ctw" || var_list_NN2[i] == "cpq3" || var_list_NN2[i] == "cpqm" || var_list_NN2[i] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
+                                if(var_list_NN2[i] == "mTW") {var_list_pfloats_2[i] = mTW; continue;}
+                                if(var_list_NN2[i] == "njets") {var_list_pfloats_2[i] = njets; continue;}
+                                if(var_list_NN2[i] == "channel") {var_list_pfloats_2[i] = channel; continue;}
 
                                 int index_sameVar_in_NN1_list = -1; //Check whether same input variable was already set in first MVA (can not set branch addresses twice !)
                                 for(int j=0; j<var_list_NN.size(); j++)
                                 {
-                                    if(var_list_NN2[i] == var_list_NN[j]) {index_sameVar_in_NN1_list = j; break;} //Found same variable in var_list_NN
+                                    if(var_list_NN2[i] == var_list_NN[j])
+                                    {
+                                        var_list_pfloats_2[j] = var_list_pfloats[i];
+                                        index_sameVar_in_NN1_list = j; break; //Found same variable in var_list_NN
+                                    }
                                 }
 
                                 if(index_sameVar_in_NN1_list < 0) //Variable only found in 2nd MVA
                                 {
                                     tree->SetBranchStatus(var_list_NN2[i], 1);
-                                    tree->SetBranchAddress(var_list_NN2[i], &var_list_floats_2[i]);
+                                    tree->SetBranchAddress(var_list_NN2[i], var_list_pfloats_2[i]);
+                                    // tree->SetBranchAddress(var_list_NN2[i], &var_list_floats_2[i]);
                                 }
                             }
                         } //2nd MVA
@@ -1341,20 +1381,19 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     else if(template_name=="Zpt") //Need to read Zpt variable //NB: no conflict with any MVA input, etc.
                     {
                         tree->SetBranchStatus("recoZ_Pt", 1);
-                        tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                        // tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                        tree->SetBranchAddress("recoZ_Pt", total_var_pfloats[0]);
                     }
                     else if(template_name=="ZptCos") //Need to read Zpt and cosThetaStarPolZ variables
                     {
                         tree->SetBranchStatus("recoZ_Pt", 1);
-                        tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                        // tree->SetBranchAddress("recoZ_Pt", &total_var_floats[0]);
+                        tree->SetBranchAddress("recoZ_Pt", total_var_pfloats[0]);
                         tree->SetBranchStatus("cosThetaStarPolZ", 1);
-                        tree->SetBranchAddress("cosThetaStarPolZ", &total_var_floats[1]);
+                        tree->SetBranchAddress("cosThetaStarPolZ", total_var_pfloats[1]);
+                        // tree->SetBranchAddress("cosThetaStarPolZ", &total_var_floats[1]);
                     }
-
-                    //-- mTW address //Always keep track of this var (needed for templates in different regions)
-                    tree->SetBranchStatus("mTW", 1);
-                    if(idx_mTW >= 0) {mTW = &var_list_floats[idx_mTW];} //Point to float already storing the value
-                    else {mTW = new float; tree->SetBranchAddress("mTW", mTW);} //Need to allocate memory for mTW and set its adress to the relevant branch
+                    else if(template_name=="mTW") {total_var_pfloats[0] = mTW;} //Set address to dedicated mTW variable
                 } //Templates
 
     			for(int i=0; i<v_cut_name.size(); i++)
@@ -1419,11 +1458,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     tree->SetBranchStatus(Get_Category_Boolean_Name("ttZ", isFake), 1); tree->SetBranchAddress(Get_Category_Boolean_Name("ttZ", isFake), &is_ttZSR);
                 }
 
-    			//--- Cut on relevant categorization (lepton flavour, btagging, charge)
-    			float channel;
-    			tree->SetBranchStatus("channel", 1);
-    			tree->SetBranchAddress("channel", &channel);
-
                 //--- Event weights
                 double eventWeight; //Corresponds to 'nominalMEWeight_' in TopAnalysis code
                 float eventMCFactor; //Sample-specific SF (xsec*lumi/SWE)
@@ -1449,7 +1483,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     tree->SetBranchAddress("mc_EFTweightIDs", &v_ids);
                 }
 
-                //Reserve 1 float for each systematic weight (also for nominal to keep ordering, but not used)
+                //-- Reserve 1 float for each systematic weight (also for nominal to keep ordering, but not used)
     			vector<Double_t*> v_double_systWeights(syst_list.size(), NULL);
     			for(int isyst=0; isyst<syst_list.size(); isyst++)
     			{
@@ -1459,15 +1493,16 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                     else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                     else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                    else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
                     //Set proper branch address (hard-coded mapping)
                     SetBranchAddress_SystVariationArray(tree, syst_list[isyst], v_double_systWeights, isyst);
     			}
 
-    			//Reserve memory for 1 TH1F per category, per systematic, per variable //v3 <-> vec of vec of vec
+    			//-- Reserve memory for 1 TH1F per category, per systematic, per variable //v3 <-> vec of vec of vec
     			vector<vector<vector<TH1F*>>> v3_histo_chan_syst_var(channel_list.size());
 
-                //Idem for TH1EFT
+                //-- Idem for TH1EFT
                 vector<vector<vector<TH1EFT*>>> v3_TH1EFT_chan_syst_var(channel_list.size());
 
     			for(int ichan=0; ichan<channel_list.size(); ichan++)
@@ -1573,7 +1608,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                     if(isPrivMC && ientry%5000==0) {cout<<DIM("Entry "<<ientry<<"")<<endl;} //Very slow, print progress
 
-    				std::fill(var_list_floats.begin(), var_list_floats.end(), 0); //Reset vectors reading inputs to 0
+                    // std::fill(var_list_floats.begin(), var_list_floats.end(), 0); //Reset vectors reading inputs to 0
 
     				tree->GetEntry(ientry);
 
@@ -1609,40 +1644,49 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     ibar++;
                     if(draw_progress_bar && ibar%50000==0) {timer.DrawProgressBar(ibar, ""); cout<<ibar<<" / "<<total_nentries_toProcess<<endl; }
 
+                    // cout<<"//-------------------------------------------- "<<endl;
                     // cout<<"eventWeight "<<eventWeight<<endl;
                     // cout<<"eventMCFactor "<<eventMCFactor<<endl;
                     // for(int ivar=0; ivar<var_list_floats.size(); ivar++) {cout<<"var_list_floats "<<ivar<<" = "<<var_list_floats[ivar]<<endl;} //Debug
+                    // for(int ivar=0; ivar<var_list_floats.size(); ivar++) {cout<<"var_list_floats "<<ivar<<" "<<var_list[ivar]<<" / "<<var_list_pfloats[ivar]<<" = "<<*var_list_pfloats[ivar]<<endl;} //Debug
+                    // cout<<"mTW "<<*mTW<<endl;
+                    // cout<<"njets "<<*njets<<endl;
 
     				//-- S i n g l e    t e m p l a t e     v a l u e (<-> only consider 'template_name')
-                    std::vector<float> clfy1_outputs, clfy2_outputs;
-                    if(!makeHisto_inputVars)
+                    std::vector<float> clfy1_outputs, clfy2_outputs; //Compute NN responses only once per event
+                    if(!makeHisto_inputVars) //Templates
                     {
-                        if(clfy2) //Also read 2nd MVA
-                        {
-                            for(int i=0; i<var_list_NN2.size(); i++)
-                            {
-                                if(v_varIndices_inMVA1[i] >= 0) {var_list_floats_2[i] = var_list_floats[v_varIndices_inMVA1[i]];} //Read value from MVA1 float vector
-                            }
-                        }
+                        // if(clfy2) //Also read 2nd MVA //Obsolete?
+                        // {
+                        //     for(int i=0; i<var_list_NN2.size(); i++)
+                        //     {
+                        //         if(v_varIndices_inMVA1[i] >= 0) {var_list_floats_2[i] = var_list_floats[v_varIndices_inMVA1[i]];} //Read value from MVA1 float vector
+                        //     }
+                        // }
 
-                        if(template_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(BDT_method_name);} //BDT output value
+                        // if(template_name == "BDT") {total_var_floats[0] = reader->EvaluateMVA(BDT_method_name);} //BDT output value
+                        if(template_name == "BDT") {*total_var_pfloats[0] = reader->EvaluateMVA(BDT_method_name);} //BDT output value
                         else if(template_name == "NN" && !use_predefined_EFT_strategy) //NN output value //Default
                         {
-                            clfy1_outputs = clfy1->evaluate(var_list_floats); //Evaluate output node(s) value(s) //TODO: check that the 'session...' line in the TFModel function is the slow part (when the model is actually read/evaluated)
+                            // clfy1_outputs = clfy1->evaluate(var_list_floats); //Evaluate output node(s) value(s) //TODO: check that the 'session...' line in the TFModel function is the slow part (when the model is actually read/evaluated)
+                            clfy1_outputs = clfy1->evaluate(var_list_pfloats); //Evaluate output node(s) value(s) //TODO: check that the 'session...' line in the TFModel function is the slow part (when the model is actually read/evaluated)
                             float mva_tmp = -1;
                             NN_iMaxNode = -1;
                             for(int inode=0; inode<NN_nNodes; inode++)
                             {
-                                if(this->use_SMdiffAnalysis_strategy && region == "ttZ") {total_var_floats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
+                                if(this->use_SMdiffAnalysis_strategy && region == "ttZ") {*total_var_pfloats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
 
-                                total_var_floats[inode] = clfy1_outputs[inode];
+                                // total_var_floats[inode] = clfy1_outputs[inode];
+                                // if(clfy1_outputs[inode] > mva_tmp) {mva_tmp = clfy1_outputs[inode]; NN_iMaxNode = inode;} //Store max. node info
+                                *total_var_pfloats[inode] = clfy1_outputs[inode];
                                 if(clfy1_outputs[inode] > mva_tmp) {mva_tmp = clfy1_outputs[inode]; NN_iMaxNode = inode;} //Store max. node info
                             }
 
                             if(clfy2) //Also read 2nd MVA
                             {
                                 NN2_iMaxNode = -1;
-                                clfy2_outputs = clfy2->evaluate(var_list_floats_2); //Evaluate output node(s) value(s)
+                                // clfy2_outputs = clfy2->evaluate(var_list_floats_2); //Evaluate output node(s) value(s)
+                                clfy2_outputs = clfy2->evaluate(var_list_pfloats_2); //Evaluate output node(s) value(s)
                                 float mva_tmp = -1;
                                 for(int inode=0; inode<NN2_nNodes; inode++)
                                 {
@@ -1653,26 +1697,25 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                         else if(template_name == "categ") //Arbitrary binning depending on jets/bjets multiplicities
                         {
-                            total_var_floats[0] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
+                            // total_var_floats[0] = Get_x_jetCategory(njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
+                            *total_var_pfloats[0] = Get_x_jetCategory(*njets, nbjets, nbjets_min, nbjets_max, njets_min, njets_max);
                             // cout<<"njets "<<njets<<" / nbjets "<<nbjets<<" --> categ "<<total_var_floats[0]<<endl;
-                        }
-                        else if(template_name == "mTW")
-                        {
-                            total_var_floats[0] = *mTW;
                         }
                         else if(template_name == "countExp")
                         {
-                            total_var_floats[0] = 0.5;
+                            *total_var_pfloats[0] = 0.5;
                         }
                         else if(template_name == "channel") //Hard-coded from main SM analysis
                         {
-                            total_var_floats[0] = (channel==1 || channel==3)? 0.5:1.5;
+                            *total_var_pfloats[0] = (*channel==1 || *channel==3)? 0.5:1.5;
+                            // total_var_floats[0] = (*channel==1 || *channel==3)? 0.5:1.5;
                         }
                         else if(template_name == "ZptCos")
                         {
-                            total_var_floats[0] = Get_x_ZptCosCategory(total_var_floats[0], total_var_floats[1]);
+                            *total_var_pfloats[0] = Get_x_ZptCosCategory(*total_var_pfloats[0], *total_var_pfloats[1]);
+                            // total_var_floats[0] = Get_x_ZptCosCategory(total_var_floats[0], total_var_floats[1]);
                         }
-                        //NB: no need to set anything more for Zpt template, its address is already set
+                        //NB: no need to set anything more for Zpt/mTW/... templates: variable address already set before event loop
                     } //Templates
 
                     double weight_tmp = eventWeight * eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
@@ -1725,10 +1768,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				for(int ichan=0; ichan<channel_list.size(); ichan++)
     				{
                         //-- Fill histos for sub-channels with corresponding events
-                        if(channel_list[ichan] == "uuu" && channel != 0) {continue;}
-                        if(channel_list[ichan] == "uue" && channel != 1) {continue;}
-                        if(channel_list[ichan] == "eeu" && channel != 2) {continue;}
-                        if(channel_list[ichan] == "eee" && channel != 3) {continue;}
+                        if(channel_list[ichan] == "uuu" && *channel != 0) {continue;}
+                        if(channel_list[ichan] == "uue" && *channel != 1) {continue;}
+                        if(channel_list[ichan] == "eeu" && *channel != 2) {continue;}
+                        if(channel_list[ichan] == "eee" && *channel != 3) {continue;}
 
                         bool cat_alreadyFound = false; //For pre-defined strategies, fill orthogonal categories
                         for(int ivar=0; ivar<total_var_list.size(); ivar++)
@@ -1779,15 +1822,19 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                                 {
                                                     if(idx_EFT_var == 0) //tZq MVA
                                                     {
-                                                        var_list_floats[idx1_operator_scan1] = v_WCs_operator_scan1[iop1];
-                                                        var_list_floats[idx1_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                        *var_list_pfloats[idx1_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        *var_list_pfloats[idx1_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                        // var_list_floats[idx1_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        // var_list_floats[idx1_operator_scan2] = v_WCs_operator_scan2[iop2];
                                                         // cout<<iop1<<" var "<<idx1_operator_scan1<<" ==> "<<v_WCs_operator_scan1[iop1]<<endl;
                                                         // cout<<iop2<<" var "<<idx1_operator_scan2<<" ==> "<<v_WCs_operator_scan2[iop2]<<endl;
                                                     }
                                                     else if(idx_EFT_var == 1) //ttZ MVA
                                                     {
-                                                        var_list_floats_2[idx2_operator_scan1] = v_WCs_operator_scan1[iop1];
-                                                        var_list_floats_2[idx2_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                        *var_list_pfloats_2[idx2_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        *var_list_pfloats_2[idx2_operator_scan2] = v_WCs_operator_scan2[iop2];
+                                                        // var_list_floats_2[idx2_operator_scan1] = v_WCs_operator_scan1[iop1];
+                                                        // var_list_floats_2[idx2_operator_scan2] = v_WCs_operator_scan2[iop2];
                                                     }
                                                 }
                                             }
@@ -1796,52 +1843,62 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                         //-- Re-evaluate output nodes values *at this particular EFT point*
                                         if(idx_EFT_var == 0)
                                         {
-                                            clfy1_outputs = clfy1->evaluate(var_list_floats);
-                                            total_var_floats[ivar] = clfy1_outputs[0];
+                                            // clfy1_outputs = clfy1->evaluate(var_list_floats);
+                                            // total_var_floats[ivar] = clfy1_outputs[0];
+                                            clfy1_outputs = clfy1->evaluate(var_list_pfloats);
+                                            *total_var_pfloats[ivar] = clfy1_outputs[0];
                                         }
                                         else if(idx_EFT_var == 1)
                                         {
-                                            clfy2_outputs = clfy2->evaluate(var_list_floats_2);
-                                            total_var_floats[ivar] = clfy2_outputs[0];
+                                            // clfy2_outputs = clfy2->evaluate(var_list_floats_2);
+                                            // total_var_floats[ivar] = clfy2_outputs[0];
+                                            clfy2_outputs = clfy2->evaluate(var_list_pfloats_2);
+                                            *total_var_pfloats[ivar] = clfy2_outputs[0];
                                         }
                                     } //MVA EFT scan
                                     else if(template_name == "NN")
                                     {
                                         if(make_SMvsEFT_templates_plots) //SM vs EFT --> use EFT MVA or mTW)
                                         {
-                                            if(idx_EFT_var==0) {clfy1_outputs = clfy1->evaluate(var_list_floats); total_var_floats[ivar] = clfy1_outputs[0];} //MVA-EFT-tZq
-                                            else if(idx_EFT_var==1) {clfy2_outputs = clfy2->evaluate(var_list_floats_2); total_var_floats[ivar] = clfy2_outputs[0];} //MVA-EFT-ttZ
-                                            else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;}
+                                            // if(idx_EFT_var==0) {clfy1_outputs = clfy1->evaluate(var_list_floats); total_var_floats[ivar] = clfy1_outputs[0];} //MVA-EFT-tZq
+                                            // else if(idx_EFT_var==1) {clfy2_outputs = clfy2->evaluate(var_list_floats_2); total_var_floats[ivar] = clfy2_outputs[0];} //MVA-EFT-ttZ
+                                            // else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;}
+                                            if(idx_EFT_var==0) {*total_var_pfloats[ivar] = clfy1->evaluate(var_list_pfloats)[0];} //MVA-EFT-tZq
+                                            else if(idx_EFT_var==1) {*total_var_pfloats[ivar] = clfy2->evaluate(var_list_pfloats_2)[0];} //MVA-EFT-ttZ
+                                            else if(idx_EFT_var==2) {total_var_pfloats[ivar] = total_var_pfloats[2];} //All pointing to mTW variable
                                             else {cout<<"ERROR: wrong index !"<<endl; continue;}
                                         }
                                         else //SM vs SM --> use multiclass MVA nodes
                                         {
-                                            clfy1_outputs = clfy1->evaluate(var_list_floats);
-                                            total_var_floats[ivar] = clfy1_outputs[idx_EFT_var];
+                                            // clfy1_outputs = clfy1->evaluate(var_list_floats);
+                                            // total_var_floats[ivar] = clfy1_outputs[idx_EFT_var];
+                                            *total_var_pfloats[ivar] = clfy1->evaluate(var_list_pfloats)[idx_EFT_var];
                                         }
                                     }
                                     else //E.g. Zpt template, ...--> Need to fill all variables (with same value)
                                     {
-                                        if(idx_EFT_var==1) {total_var_floats[ivar] = total_var_floats[0];} //Force use of first variable in both SRs
-                                        else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;} //Force use of mTW in CR
+                                        // if(idx_EFT_var==1) {total_var_floats[ivar] = total_var_floats[0];} //Force use of first variable in both SRs
+                                        // else if(idx_EFT_var==2) {total_var_floats[ivar] = *mTW;} //Force use of mTW in CR
+                                        if(idx_EFT_var==1) {total_var_pfloats[ivar] = total_var_pfloats[0];} //Force use of first variable in both SRs
+                                        else if(idx_EFT_var==2) {total_var_pfloats[ivar] = mTW;} //Force use of mTW in CR
                                     }
                                 } //predefined EFT strategy
                                 else if(this->make_fixedRegions_templates)
                                 {
                                     //Hardcoded: fill variables with corresponding variables, provided the event satisfies the relevant flag
-                                    if(ivar == 0 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp ttZ 4l SR
-                                    else if(ivar == 1 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = *mTW;} //mTW WZ CR
-                                    else if(ivar == 2 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp ZZ CR
-                                    else if(ivar == 3 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp DY CR
+                                    // if(ivar == 0 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp ttZ 4l SR
+                                    // else if(ivar == 1 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = *mTW;} //mTW WZ CR
+                                    // else if(ivar == 2 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp ZZ CR
+                                    // else if(ivar == 3 && v_is_goodCategory[ivar]) {total_var_floats[ivar] = 0.5;} //countExp DY CR
+                                    if(ivar == 0 && v_is_goodCategory[ivar]) {*total_var_pfloats[ivar] = 0.5;} //countExp ttZ 4l SR
+                                    else if(ivar == 1 && v_is_goodCategory[ivar]) {total_var_pfloats[ivar] = mTW;} //mTW WZ CR
+                                    else if(ivar == 2 && v_is_goodCategory[ivar]) {*total_var_pfloats[ivar] = 0.5;} //countExp ZZ CR
+                                    else if(ivar == 3 && v_is_goodCategory[ivar]) {*total_var_pfloats[ivar] = 0.5;} //countExp DY CR
                                     else {continue;} //Categories are non-orthogonal, so make sure we don't fill unwanted entries
                                 }
                             } //Templates //NB: ALL OTHER CASES SHOULD HAVE BEEN TAKEN CARE OF ABOVE THIS
 
-                            //-- CONTROL HISTOGRAMS
-                            else //Some features have their address set twice (but only works once) --> need to read the proper variable
-                            {
-                                if(total_var_list[ivar] == "channel") {total_var_floats[ivar] = channel;}
-                            }
+                            // cout<<total_var_list[ivar]<<" = "<<*total_var_pfloats[ivar]<<endl; //Debug printout
 
                             //-- S y s t  e m a t i c    w e i g h t s
         					for(int isyst=0; isyst<syst_list.size(); isyst++)
@@ -1852,6 +1909,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                                 else if( (syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;} //Only considered for signal samples
+                                else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
         						// cout<<"-- sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
 
@@ -1864,7 +1922,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                                 // if(isyst>0) cout<<"syst_list[isyst] "<<syst_list[isyst]<<" : "<<*(v_double_systWeights[isyst])<<endl;
                                 // cout<<"nominal : "<<weight_tmp<<endl;
-                                if(syst_list[isyst] != "") {weight_tmp*= *(v_double_systWeights[isyst]);} //Syst weights were already divided by nominal weight
+                                if(syst_list[isyst] != "") //Syst weights were already divided by nominal weight
+                                {
+                                    if(syst_list[isyst].Contains("njets_tZq")) {weight_tmp*= Apply_nJets_SF(v_njets_SF_tZq, (int) *njets, iyear, syst_list[isyst]);}
+                                    else {weight_tmp*= *(v_double_systWeights[isyst]);}
+                                }
                                 // cout<<"syst : "<<weight_tmp<<endl;
 
         						if(std::isnan(weight_tmp) || std::isinf(weight_tmp))
@@ -1877,10 +1939,13 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 //-- F i l l     h i s t o
                                 if(isPrivMC)
                                 {
-                                    if(syst_list[isyst] == "") {Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);} //Nominal --> need TH1EFT to store WCFit objects
-                                    else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);} //Weight systematics --> can use regular TH1F objects
+                                    // if(syst_list[isyst] == "") {Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);} //Nominal --> need TH1EFT to store WCFit objects
+                                    // else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);} //Weight systematics --> can use regular TH1F objects
+                                    if(syst_list[isyst] == "") {Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], *total_var_pfloats[ivar], w_SMpoint, *eft_fit);} //Nominal --> need TH1EFT to store WCFit objects
+                                    else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], *total_var_pfloats[ivar], weight_tmp);} //Weight systematics --> can use regular TH1F objects
                                 }
-                                else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);}
+                                // else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);}
+                                else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], *total_var_pfloats[ivar], weight_tmp);}
                             } //syst loop
     					} //var loop
 
@@ -1911,6 +1976,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                         else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                         else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                        else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
     					{
@@ -2027,7 +2093,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 if(v_ids) {delete v_ids; v_ids = NULL;}
     			tree->ResetBranchAddresses(); //Detach tree from local variables (safe)
     			delete tree; tree = NULL;
-                if(mTW && idx_mTW <= 0) {delete mTW; mTW = NULL;}
+                if(mTW) {delete mTW; mTW = NULL;}
+                if(njets) {delete mTW; mTW = NULL;}
+                if(channel) {delete channel; channel = NULL;}
                 if(eft_fit) {delete eft_fit; eft_fit = NULL;}
                 if(tree_EFTparameterization) {delete tree_EFTparameterization; tree_EFTparameterization = NULL;}
             } //TTree loop
@@ -2041,7 +2109,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             else
             {
                 if(clfy1 && use_specificMVA_eachYear) {delete clfy1; clfy1 = NULL; MVA_alreadyLoaded = false;} //Only delete if not going to be reused for another iteration
-                //-- NB: do not delete clfy2 //Causes crash (because both it uses the same TF session as clfy1, hence double-free... ?)
+                //-- NB: do not delete clfy2 //Causes crash (because it uses the same TF session as clfy1, hence double-free... ?)
                 // if(clfy2) {delete clfy2; clfy2 = NULL;}
             }
         }
@@ -2066,7 +2134,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     // cout<<"total_nentries_toProcess --> "<<total_nentries_toProcess<<endl;
     // cout<<"tmp_compare --> "<<tmp_compare<<endl;
 
-    //Restore potentially modified variables
+    //Restore potfile_outputentially modified variables
     classifier_name = restore_classifier_name;
     syst_list = restore_syst_list;
     systTree_list = restore_systTree_list;
@@ -2083,8 +2151,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(array_PDFtotal) {delete array_PDFtotal; array_PDFtotal = NULL;}
         if(array_partonShower) {delete array_partonShower; array_partonShower = NULL;}
     }
-
     if(clfy1) {delete clfy1; clfy1 = NULL;}
+    for(int ivar=0; ivar<var_list_pfloats.size(); ivar++) {if(var_list_pfloats[ivar]) {/*cout<<"del var "<<var_list[ivar]<<endl;*/ delete var_list_pfloats[ivar]; var_list_pfloats[ivar] = NULL;}}
+    //-- Segfault when delete these ?
+    // for(int ivar=0; ivar<var_list_pfloats_2.size(); ivar++) {if(var_list_pfloats_2[ivar]) {/*cout<<"del var "<<var_list_NN2[ivar]<<endl;*/ delete var_list_pfloats_2[ivar]; var_list_pfloats_2[ivar] = NULL;}}
+    // for(int ivar=0; ivar<total_var_pfloats.size(); ivar++) {if(total_var_pfloats[ivar]) {/*cout<<"del var "<<total_var_list[ivar]<<endl;*/ delete total_var_pfloats[ivar]; total_var_pfloats[ivar] = NULL;}}
 
 
 // #    # ###### #####   ####  ######
@@ -2174,18 +2245,18 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison... //Experimental
 
     bool superimpose_EFThist = false; //true <-> superimpose shape of EFT hists
-        bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
+        bool normalize_EFThist = true; //true <-> normalize EFT hists (arbitrary)
         vector<TString> v_EFT_samples;//Names of the private EFT samples to superimpose
-        // v_EFT_samples.push_back("PrivMC_tZq");
+        v_EFT_samples.push_back("PrivMC_tZq");
         v_EFT_samples.push_back("PrivMC_ttZ");
         // v_EFT_samples.push_back("PrivMC_tWZ");
         vector<TString> v_EFT_points; //Names of the EFT points at which to reweight the histos //Must follow naming convention used for private generation
-        // v_EFT_points.push_back("rwgt_ctz_0");
+        v_EFT_points.push_back("rwgt_ctz_0");
         // v_EFT_points.push_back("rwgt_ctz_5");
-        v_EFT_points.push_back("rwgt_ctw_0");
-        v_EFT_points.push_back("rwgt_ctw_5");
-        v_EFT_points.push_back("rwgt_ctz_5");
-        // v_EFT_points.push_back("rwgt_cpqm_5");
+        // v_EFT_points.push_back("rwgt_ctw_0");
+        // v_EFT_points.push_back("rwgt_ctw_5");
+        // v_EFT_points.push_back("rwgt_ctz_5");
+        // v_EFT_points.push_back("rwgt_cpqm_10");
         // v_EFT_points.push_back("rwgt_cpt_5");
         // v_EFT_points.push_back("rwgt_ctz_0_ctw_0_cpqm_0_cpq3_0_cpt_15");
 
@@ -3644,7 +3715,6 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
 //Compare shapes of several (hard-coded) samples for some variables
 //Reads pre-existing histograms, which must have been previously produced with Draw_Templates(drawInputVars=True)
-//== Add ratio pad ==
 void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TString channel)
 {
 //--- OPTIONS --------------------------------
@@ -3738,29 +3808,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     TString cat_tmp = region;
     if(cat_tmp=="") {cat_tmp = region;}
 
-	//-- Get input TFile
-	TString input_name;
-    /*
-	if(drawInputVars)
-	{
-        input_name = "outputs/ControlHistograms_" + cat_tmp + "_" + lumiName + filename_suffix +".root";
-	}
-	else
-	{
-        if(make_SMvsEFT_templates_plots && categorization_strategy > 0 && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
-
-        input_name = "outputs/Templates_" + classifier_name + template_name + "_" + cat_tmp + "_" + lumiName + filename_suffix + ".root";
-    }
-
-	if(!Check_File_Existence(input_name))
-	{
-		cout<<FRED("File "<<input_name<<" (prefit templates) not found ! Did you specify the region/background ? Abort")<<endl;
-		return;
-	}
-	cout<<endl<<endl<<endl;
-    */
-
     //-- Read input file (may be year-dependent)
+    TString input_name;
     TString template_type = this->make_fixedRegions_templates? "otherRegions":template_name;
     input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, lumiName, false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);
     if(input_name == "") {cat_tmp = "signal"; input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, "Run2", false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);} //Retry with 'signal_process' as 'region' argument
@@ -3797,16 +3846,13 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     			v3_histos_var_sample_syst[ivar][isample].resize(v_syst.size());
 
-                TFile* f;
-                f = file_input;
-
     			TString samplename = v_samples[isample];
 
                 for(int isyst=0; isyst<v_syst.size(); isyst++)
                 {
     				// cout<<"syst "<<v_syst[isyst]<<endl;
 
-                    h_tmp = 0;
+                    h_tmp = NULL;
 
                     TString histo_name = total_var_list[ivar];
                     if(channel_list[ichan] != "") {histo_name+= "_" + channel_list[ichan];}
@@ -3814,9 +3860,9 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                     histo_name+= "_" + theyear;
                     histo_name+= "__" + samplename;
 
-        			if(!f->GetListOfKeys()->Contains(histo_name)) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
+        			if(!file_input->GetListOfKeys()->Contains(histo_name)) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
 
-        			h_tmp = (TH1F*) f->Get(histo_name);
+        			h_tmp = (TH1F*) file_input->Get(histo_name);
     				h_tmp->SetDirectory(0); //Dis-associate from TFile
         			// cout<<"histo_name "<<histo_name<<endl;
                     // cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
@@ -3857,12 +3903,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
         			delete h_tmp; h_tmp = 0;
                 } //end syst loop
-
-    			// f->Close();
     		} //end sample loop
     	} //subcat loop
-
     } //var loop
+
 
 // #####  #####    ##   #    #
 // #    # #    #  #  #  #    #
@@ -4155,8 +4199,10 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         }
     }
 
+    file_input->Close();
+
 	return;
-}
+} //Compare_TemplateShapes_Processes()
 
 
 
@@ -4341,6 +4387,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         else if(systname.EndsWith("TightUp")) {index = 3;}
     }
     */
+    else if(systname.Contains("njets_tZq")) {return;} //Handled differently (class member SF)
 
     else {cout<<FRED("ERROR ! Systematic '"<<systname<<"' not included in function SetBranchAddress_SystVariation() from Helper.cxx ! Can *not* compute it !")<<endl; return;}
 
@@ -4394,8 +4441,12 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
 {
     cout<<endl<<FYEL("==> Merging/splitting histograms in TFile : ")<<filename<<endl;
 
+cout<<__LINE__<<endl;
+
 	if(!Check_File_Existence(filename) ) {cout<<endl<<FRED("File "<<filename<<" not found! Abort merging procedure !")<<endl; return;}
 	TFile* f = TFile::Open(filename, "UPDATE");
+
+    cout<<__LINE__<<endl;
 
     // int n_total_histos = Count_nofHistos_inTFile(f); //Too slow for huge files
     int counter = 0; //Count nof read histos
@@ -4441,6 +4492,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                                 else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
                                 else if(systTree_list[itree] != "" && (sample_list[isample] == "DY" || sample_list[isample].Contains("TTbar") || sample_list[isample].Contains("NPL")) ) {continue;}
+                                else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
             					//Check if this sample needs to be merged, i.e. if the samples before/after belong to the same "group of samples"
             					bool merge_this_sample = false;
@@ -4657,7 +4709,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         var_floats_tmp.resize(var_list_tmp.size());
     }
 
-    // Create an input tensor
+    //-- Create an input tensor
     long long int n_inputs = var_list_NN.size() > 0? var_list_NN.size():1;
     tensorflow::Tensor input(tensorflow::DT_FLOAT, { 1, n_inputs }); // single batch of dimension 10
     std::vector<tensorflow::Tensor> outputs; //Store outputs
@@ -4711,7 +4763,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
             // }
             // input.tensor.flat<float>().setZero(); //Reset inputs (cf. https://cms-ml.github.io/documentation/inference/tensorflow2.html)
 
-            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
+            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
 
             NN_iMaxNode = -1;
             for(int inode=0; inode<NN_nNodes; inode++)

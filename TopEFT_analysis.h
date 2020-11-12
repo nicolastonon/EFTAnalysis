@@ -102,7 +102,7 @@ class TopEFT_analysis
 //--- MEMBERS
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
 
-    TMVA::Reader *reader=NULL;
+    TMVA::Reader* reader=NULL;
     //NB: if booking 2 BDTs, must make sure that they use the same input variables... or else, find some way to make it work in the code)
     TFModel* clfy1=NULL; //NN classifier
     TFModel* clfy2=NULL; //NN classifier
@@ -122,6 +122,11 @@ class TopEFT_analysis
     std::vector<TString> var_list; std::vector<Float_t> var_list_floats; //Names + float storage of MVA input features
     std::vector<Float_t> var_list_floats_2; //float storage of MVA input features (additional MVA)
 	std::vector<TString> v_add_var_names; vector<Float_t> v_add_var_floats; //Additional vars only for CR plots
+
+    //CHANGED -- use vectors of pointers to read values (more flexible, can point several times to same address, etc.)
+    std::vector<Float_t*> var_list_pfloats; //Names + float storage of MVA input features
+    std::vector<Float_t*> var_list_pfloats_2; //float storage of MVA input features (additional MVA)
+	std::vector<Float_t*> pv_add_var_floats; //Additional vars only for CR plots
 
 	std::vector<int> color_list;
 	std::vector<TColor*> v_custom_colors;
@@ -180,12 +185,14 @@ class TopEFT_analysis
     double* array_PDFtotal;
     double* array_partonShower;
 
-    //-- For parametrized NN
+    //-- For parameterized NN
     bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
     TString operator_scan1, operator_scan2; //First and second EFT operators to scan
     int idx1_operator_scan1, idx1_operator_scan2;
     int idx2_operator_scan1, idx2_operator_scan2;
     vector<float> v_WCs_operator_scan1, v_WCs_operator_scan2; //Grid points for first and second scanned EFT operators
+
+    vector<vector<float>> v_njets_SF_tZq; //May be filled with helper func 'Get_nJets_SF' to apply a shape uncertainty to PrivMC_tZq based on jet multiplicity disagreements w.r.t. central sample
 };
 
 #endif

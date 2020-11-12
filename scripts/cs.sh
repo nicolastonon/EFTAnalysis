@@ -168,7 +168,7 @@ echo 'Requirements = (OpSysAndVer == "CentOS7")' >> ${NameSubmitFile}
 #  echo 'arguments = $(Item)' >> ${NameSubmitFile}
 #  echo "queue from seq ${JobArrayMin} ${JobArrayMax} |" >> ${NameSubmitFile}
 #fi
-echo 'queue 0' >> ${NameSubmitFile} #Done describing the job, can submit it #Number defines $(Item)?
+echo 'queue 1' >> ${NameSubmitFile} #Done describing the job, can submit it #Number defines $(Item)?
 
 # submit job (or print corresponding command)
 com="condor_submit -batch-name ${JobName} ${ExtraOptions} ${NameSubmitFile}"
@@ -178,4 +178,3 @@ fi
 ${com}
 
 exit $?
-

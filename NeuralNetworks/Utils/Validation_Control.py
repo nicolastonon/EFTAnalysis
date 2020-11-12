@@ -7,7 +7,7 @@ NB: ROC curves don't take event weights into account --> Not correct ! (should g
 import os
 import ROOT
 import numpy as np
-import keras
+# import keras
 import math
 import json
 import shap
@@ -51,16 +51,27 @@ from scipy import optimize
 def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses=[], list_PhysicalWeightsTrain_allClasses=[], list_xTrain_allClasses=[], scan=False, op='', WC=''):
     '''
     Apply NN model on train/test datasets to produce ROOT histograms which can later be used to plot ROC curves.
+
+    NB: normalize to avoid effect from different nof entries, ... ?
     '''
 
     print(colors.fg.lightblue, "\n--- Create & store ROC histos...", colors.reset)
 
     compare_ROC_inputFeature = 'recoZ_Pt' #If not '', will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
+    # compare_ROC_inputFeature = 'recoZ_Eta'
     # compare_ROC_inputFeature = 'lep3_phi'
-    xmin_feature = 0; xmax_feature = 500 #Hard-codeed feature histogram range
+    # compare_ROC_inputFeature = 'dEta_tjprime'
 
-    # nbins = 50
+    xmin_feature = -1; xmax_feature = -1 #Can hard-code feature histogram range here #-1 : use ranges predefined below
+
     nbins = 100
+    if xmin_feature==-1 and xmax_feature==-1:
+        if compare_ROC_inputFeature=="recoZ_Pt":
+            xmin_feature = 0; xmax_feature=500
+        elif compare_ROC_inputFeature=="recoZ_Eta":
+            xmin_feature = -5; xmax_feature=5
+        else: #Default
+            xmin_feature = 0; xmax_feature=500
 
     maxEvents = 500000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
@@ -73,14 +84,16 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
         # print(feature, idx_compare_ROC_inputFeature)
 
     # Fill a ROOT histogram from NumPy arrays, with fine binning (no loss of info)
-    rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+".root"
-    if scan: rootfile_outname = "../outputs/NN_"+list_labels[0]+"_"+lumiName+"_"+op+"_"+WC+".root"
+    signame_tmp = list_labels[0]
+    if signame_tmp == "SM": signame_tmp = "EFT" #Special case: in StdVal code, SM point is first... but by convention, want to have signal=EFT (first position)
+    rootfile_outname = "../outputs/NN_"+signame_tmp+"_"+lumiName+".root"
+    if scan: rootfile_outname = "../outputs/NN_"+signame_tmp+"_"+lumiName+"_"+op+"_"+WC+".root"
     fout = ROOT.TFile(rootfile_outname, "RECREATE")
 
     # Comparison with input feature: store in separate file
     if idx_compare_ROC_inputFeature>=0:
-        rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+'.root'
-        if scan: rootfile_outname_feature = "../outputs/NN_"+list_labels[0]+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+"_"+op+WC+".root"
+        rootfile_outname_feature = "../outputs/NN_"+signame_tmp+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+'.root'
+        if scan: rootfile_outname_feature = "../outputs/NN_"+signame_tmp+"_"+lumiName+'_'+list_features[idx_compare_ROC_inputFeature]+"_"+op+WC+".root"
         if path.exists(rootfile_outname_feature): os.remove(rootfile_outname_feature) #Remove existing file (to avoid amconfusion)
         fout_feature = ROOT.TFile(rootfile_outname_feature, "RECREATE")
 
@@ -94,7 +107,10 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
         if opts["targetVarIdx"][0] >=0:
             nodes_labels = []; [nodes_labels.append(list_features[v]) for v in opts["targetVarIdx"]] #1 node per target variable
         else: nodes_labels = ['target'] #Default target
+    elif nofOutputNodes==1 and nodes_labels[0]=="SM": nodes_labels = ["EFT"] #Special case, want to have EFT as signal (not SM) by convention
 
+    #-- For each NN output node, fill+write train/test histos for each class
+    # print('nodes_labels', nodes_labels); print('list_labels', list_labels)
     for inode in range(nofOutputNodes):
         if len(list_predictions_test_allNodes_allClasses)==1 and inode>0: break
 
@@ -112,27 +128,31 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
             if store_trainHisto:
                 hist_TrainingEvents_class = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TrainingEvents_class.Sumw2(); hist_TrainingEvents_class.SetDirectory(0)
                 fill_hist(hist_TrainingEvents_class, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+                hist_TrainingEvents_class.Scale(1./hist_TrainingEvents_class.Integral())
                 hist_TrainingEvents_class.Write()
 
             hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
+            hist_TestingEvents_class.Scale(1./hist_TestingEvents_class.Integral())
             hist_TestingEvents_class.Write()
 
-            if store_trainHisto: fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
-            fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
+            #-- Sum all classes in a given node #Useless ?
+            # if store_trainHisto: fill_hist(hist_TrainingEvents_allClasses, list_predictions_train_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+            # fill_hist(hist_TestingEvents_allClasses, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
 
             # Also store histogram for selected input feature, for ROC comparison
             if idx_compare_ROC_inputFeature>=0 and inode==0:
 
                 fout_feature.cd()
-
                 if store_trainHisto:
                     hist_TrainingEvents_class_feature = TH1F('hist_train_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, xmin_feature, xmax_feature); hist_TrainingEvents_class_feature.Sumw2(); hist_TrainingEvents_class_feature.SetDirectory(0)
                     fill_hist(hist_TrainingEvents_class_feature, list_xTrain_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTrain_allClasses[iclass][:maxEvents])
+                    hist_TrainingEvents_class_feature.Scale(1./hist_TrainingEvents_class_feature.Integral())
                     hist_TrainingEvents_class_feature.Write()
 
                 hist_TestingEvents_class_feature = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, xmin_feature, xmax_feature); hist_TestingEvents_class_feature.Sumw2(); hist_TestingEvents_class_feature.SetDirectory(0)
                 fill_hist(hist_TestingEvents_class_feature, list_xTest_allClasses[iclass][:maxEvents,idx_compare_ROC_inputFeature], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
+                hist_TestingEvents_class_feature.Scale(1./hist_TestingEvents_class_feature.Integral())
                 hist_TestingEvents_class_feature.Write()
 
     fout.Close()
@@ -289,8 +309,9 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
     plt.legend(lns, labs, loc='best')
     # plt.legend(lns, labs, loc='upper right')
 
-    timer.start()
-    plt.show()
+    if opts["displayImages"]==True:
+        timer.start()
+        plt.show()
 
     plotname = weight_dir + 'Loss_NN.png'
     fig.savefig(plotname, bbox_inches='tight') #bbox_inches='tight' ensures that second y-axis is visible
@@ -347,10 +368,11 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
     labs = [l.get_label() for l in lns]
     plt.legend(lns, labs, loc='best')
 
-    timer.start()
-    plt.show()
+    if opts["displayImages"]==True:
+        timer.start()
+        plt.show()
 
-    plotname = weight_dir + 'Accuracy_NN_.png'
+    plotname = weight_dir + 'Accuracy_NN.png'
     fig.savefig(plotname, bbox_inches='tight')
     # print("Saved Accuracy plot as : " + plotname)
     print(colors.fg.lightgrey, "\nSaved Accuracy plot as :", colors.reset, plotname)
@@ -469,7 +491,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         plt.legend(loc='best')
 
         #Display plot in terminal for quick check (only for first node)
-        if inode == 0:
+        if inode == 0 and opts["displayImages"]==True:
             timer.start()
             plt.show()
 
@@ -560,7 +582,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
             if iter > 0 and (nofOutputNodes == 1 or opts["strategy"] != "classifier"): break #Only makes sense for multiclassifier
             if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: break #Only for r node
 
-            nbins = 20
+            nbins = 30
             rmin = 0.; rmax = 1.
 
             fig = plt.figure('overtrain') #figsize=(30,15), dpi=200
@@ -700,7 +722,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
                 plt.xlabel("")
                 # plt.xlabel("Variable from Machine-Learning")
 
-            if inode == 0:
+            if inode == 0 and opts["displayImages"]==True:
                 timer.start()
                 plt.show()
 
@@ -865,10 +887,6 @@ def Make_Regressor_ControlPlots(opts, list_labels, list_predictions_train_allNod
         plt.xlabel(nodename)
         plt.ylabel('PDF')
 
-        # if inode == 0:
-        #     timer.start()
-        #     plt.show()
-
         plotname = weight_dir + 'Regressor_NN_' + nodename + '.png'
         fig.savefig(plotname)
         print(colors.fg.lightgrey, "\nSaved Regressor plot as :", colors.reset, plotname)
@@ -1001,10 +1019,10 @@ def Plot_Input_Features(opts, x, y_process, weights, list_features, weight_dir, 
     NB: 'isControlNorm' <-> rescaled features, training data (for control plots)
     '''
 
-    useMostExtremeWCvaluesOnly = False #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
+    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
     plot_eachSingleFeature = False #True <-> also save 1 single plot per feature
     doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
-    nbins = 40 #Binning for plots
+    nbins = 30 #Binning for plots
 
 # //--------------------------------------------
 
@@ -1312,7 +1330,6 @@ def Make_Test1D_Plot(opts, model):
         # plt.plot(x, gaus(x, params[0], params[1]), label='theta='+str(theta))
         # print(params[0]); print(params[1])
 
-    # plt.show()
     plt.legend(loc='best', numpoints=1, title='Theta param.')
     # plt.title('xxx')
     plt.ylabel('NN output')

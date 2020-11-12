@@ -119,7 +119,8 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
             X = Dropout(dropoutRate)(X)
 
         # Batch normalization
-        if use_batchNorm==True and iLayer < nHiddenLayers-1: #CHANGED -- never add batchNorm before output layer ? From this question (to be verified!): https://stats.stackexchange.com/questions/361700/lack-of-batch-normalization-before-last-fully-connected-layer
+        # if use_batchNorm==True and iLayer < nHiddenLayers-1: #CHANGED -- never add batchNorm before output layer ? From this question (to be verified!): https://stats.stackexchange.com/questions/361700/lack-of-batch-normalization-before-last-fully-connected-layer
+        if use_batchNorm==True and iLayer < nHiddenLayers: #CHANGED -- never add batchNorm before output layer ? From this question (to be verified!): https://stats.stackexchange.com/questions/361700/lack-of-batch-normalization-before-last-fully-connected-layer
             X = BatchNormalization()(X)
 # //--------------------------------------------
 # OUTPUT LAYER

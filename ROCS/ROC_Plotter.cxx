@@ -304,7 +304,7 @@ bool Retrieve_Histogram_From_TMVA_File(TH1F*& h, TString filename, TString varia
 
 // #    # ###### #####    ##    ####
 // #   #  #      #    #  #  #  #
-// ####   #####  #    # #    #  ####
+// #### 3  #####  #    # #    #  ####
 // #  #   #      #####  ######      #
 // #   #  #      #   #  #    # #    #
 // #    # ###### #    # #    #  ####
@@ -441,7 +441,7 @@ bool Get_Histogram_From_CustomFile(TH1F*& h, TString filename, TString histo_nam
 /**
  * For each bin of input signal/bkg histograms, will compute corresponding efficiency and store it in a TGraph (passed as arg)
  */
-bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg)
+bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg, vector<TString> v_processes)
 {
 	if(DEBUG) {cout<<FYEL("-- Produce_Efficiency_TGraph()")<<endl;}
 
@@ -455,8 +455,9 @@ bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg
 	if(h_sig->GetNbinsX() != h_bkg->GetNbinsX()) {cout<<BOLD(FRED("Different nbins for sig & bkg histograms ! Abort"))<<endl;}
 	if(nbins < 50) {cout<<"Warning : only "<<nbins<<" bins in histograms (Low precision) !"<<endl;}
 
-    bool invert_ROC = true; //The convention used on the plot is such that we need the signal distributions to be 'more to the right' w.r.t. the bkg distribution. Otherwise, we need to take the symmetric curve w.r.t. the diagonal
-    if(h_sig->GetMean() < h_bkg->GetMean()) {invert_ROC = false;}
+    int ROC_config = 0; //cf. below
+    if(h_sig->GetMean() < h_bkg->GetMean() ) {ROC_config = 1;} //Convention used on plots is such that we need the signal distributions to be 'more to the right' w.r.t. the bkg distribution. Otherwise, we need to take the symmetric curve w.r.t. the diagonal
+    // if(v_processes[0] == "SM") {ROC_config = 2;} //Special case: for SM vs EFT, by convention EFT is the signal (classified to the right)... and need to 'invert' curve
 
     AUC = 0; //Also compute the area under curve
 	double integral_sig = h_sig->Integral();
@@ -474,12 +475,13 @@ bool Produce_Efficiency_TGraph(TGraph* &g, double& AUC, TH1F* h_sig, TH1F* h_bkg
 		double eff_sig_tmp = integral_sig_tmp / integral_sig;
 		double eff_bkg_tmp = integral_bkg_tmp / integral_bkg;
 
-		// eff_sig_tmp = eff_bkg_tmp; //set for xcheck, so that auc = 0.5
+		// eff_sig_tmp = eff_bkg_tmp; //Debug xcheck, so that auc = 0.5
         // cout<<"ibin "<<ibin<<endl; cout<<"eff_sig_tmp "<<eff_sig_tmp<<endl; cout<<"eff_bkg_tmp "<<eff_bkg_tmp<<endl;
 
 		//Fill efficiency graph
-        if(invert_ROC) {g->SetPoint(ibin-1, eff_sig_tmp, 1-eff_bkg_tmp);}
-        else {g->SetPoint(ibin-1, 1-eff_sig_tmp, eff_bkg_tmp);}
+        if(ROC_config==0) {g->SetPoint(ibin-1, eff_sig_tmp, 1-eff_bkg_tmp);}
+        else if(ROC_config==1) {g->SetPoint(ibin-1, 1-eff_sig_tmp, eff_bkg_tmp);} //Invert ROC
+        else if(ROC_config==2) {g->SetPoint(ibin-1, eff_bkg_tmp, 1-eff_sig_tmp);} //Interchange eff_sig <-> eff_bkg (SM <-> EFT)
 	}
 
     //ROOT's TGraph->Integral() computes the integral of the closed polygon defined by first/lasrt points
@@ -595,7 +597,7 @@ void Get_ROC_Curves(vector<TGraph*>& v_graph, vector<double>& v_AUC, vector<TStr
 
             //Produce efficiency TGraph from sig & bkg histograms
             v_graph.push_back(0);
-            if(!Produce_Efficiency_TGraph(v_graph[index_tgraph], v_AUC[index_tgraph], h_sig, h_bkg) ) {return;}
+            if(!Produce_Efficiency_TGraph(v_graph[index_tgraph], v_AUC[index_tgraph], h_sig, h_bkg, v_processes) ) {return;}
             index_tgraph++;
 
             for(int isig=0; isig<v_h_sig.size(); isig++) {delete v_h_sig[isig]; v_h_sig[isig] = 0;}

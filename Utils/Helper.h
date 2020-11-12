@@ -136,6 +136,8 @@ TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, 
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool);
+vector<vector<float>> Get_nJets_SF(TString, TString, TString, vector<TString>);
+float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
 //--------------------------------------------
 
 //--------------------------------------------

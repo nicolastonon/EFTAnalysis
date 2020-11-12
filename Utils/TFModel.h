@@ -15,9 +15,9 @@ public:
             const std::string &_output_name);
     ~TFModel();
     std::vector<float> evaluate(float inputs[]);
-    std::vector<float> evaluate(std::vector<float>); //Overload
+    std::vector<float> evaluate(std::vector<float>&); //Overload
+    std::vector<float> evaluate(std::vector<float*>&); //Overload
     void evaluate_fast(tensorflow::Tensor&, std::vector<tensorflow::Tensor>&); //Overload
-    // void evaluate_fast(tensorflow::Tensor, std::vector<float>&); //Overload
 
 private:
     //-- CHANGED

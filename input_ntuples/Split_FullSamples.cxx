@@ -43,7 +43,7 @@
 #define DIM(x) "\e[2m" x RST
 #define DOUBLEUNDERLINE(x) "\e[21m" x RST
 #define CURLYUNDERLINE(x) "\e[4:3m" x RST
-#define BLINK(x) "\e[5m" x RST
+#define BLINK(x) "\treese[5m" x RST
 #define REVERSE(x) "\e[7m" x RST
 #define INVISIBLE(x) "\e[8m" x RST
 #define OVERLINE(x) "\e[53m" x RST
@@ -82,7 +82,7 @@
 #include "TF1.h"
 #include "TLegendEntry.h"
 #include "TGaxis.h"
-#include "TLeaf.h"
+#include "TLeaf.h"trees
 #include "TFractionFitter.h"
 #include "TVirtualFitter.h"
 #include "TFitResultPtr.h"
@@ -317,8 +317,8 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
 
         cout<<"("<<t_new->GetEntries()<<" entries)"<<endl;
 
-        delete t_input; t_input = 0;
-        delete t_new; t_new = 0;
+        delete t_input; t_input = NULL;
+        delete t_new; t_new = NULL;
     } //TTrees
 
     f_data->Close();

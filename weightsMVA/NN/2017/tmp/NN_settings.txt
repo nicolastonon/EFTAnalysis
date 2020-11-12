@@ -1,11 +1,12 @@
-Start of NN training :24-Sep-2020 (09:12:25)
+Start of NN training :08-Nov-2020 (18:55:02)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-strategy --> classifier
-nEpochs --> 50
+parameterizedNN --> False
+strategy --> CARL_singlePoint
+nEpochs --> 70
 splitTrainValTestData --> [0.7, 0.0, 0.3]
 nHiddenLayers --> 3
 nNeuronsAllHiddenLayers --> 50
@@ -24,12 +25,12 @@ nEventsTot_train --> -1
 nEventsTot_val --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 512
-refPoint --> SM
-listOperatorsParam --> ['ctw']
-nPointsPerOperator --> 50
-minWC --> -6
-maxWC --> 6
-nEventsPerPoint --> 5000
+refPoint --> rwgt_ctw_5
+listOperatorsParam --> ['ctz']
+nPointsPerOperator --> 20
+minWC --> -5
+maxWC --> 5
+nEventsPerPoint --> 10000
 batchSizeEFT --> 1000
 score_lossWeight --> 1
 regress_onLogr --> False
@@ -37,18 +38,22 @@ targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> is_signal_SR
 useHardCodedListInputFeatures --> False
-useLowLevelFeatures --> True
+useLowLevelFeatures --> False
 makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> True
-parameterizedNN --> False
+storePerOperatorSeparately --> True
+useFakeableNPL --> True
+displayImages --> False
+trainAtManyEFTpoints --> False
 regress --> False
 nofOutputNodes --> 1
 maxEvents --> -1
 batchSize --> 512
-samplesType --> centralVSpureEFT
+samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
 NN_strategy --> MVA_EFT
 ----------------- 
 
+End of NN training and evaluation :08-nov.-2020 (18:56:29)

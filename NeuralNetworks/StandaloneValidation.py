@@ -20,13 +20,13 @@ from Utils.Helper import *
 from Utils.ColoredPrintout import colors
 from Utils.RegressorValidation import *
 from pandas.plotting import scatter_matrix
-from ann_visualizer.visualize import ann_viz
 from tensorflow.keras.utils import plot_model
 from Utils.GetData import Get_Data
 from Train_Neural_Network import optsTrain,_list_lumiYears,_list_labels,_list_features,_list_processClasses
 from Utils.Validation_Control import *
 from Utils.Predictions import *
 from Utils.RegressorValidation import *
+# from ann_visualizer.visualize import ann_viz
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -70,8 +70,8 @@ list_points_sampling.append("rwgt_ctz_5")
 
 #== SCAN OPTIONS ==#
 scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
-operator_scan = 'ctw' #Operator to scan
-range_step = [-6, 6, 2] #(range,steps) with which to scan operator
+operator_scan = 'ctz' #Operator to scan
+range_step = [-3, 3, 1] #(range,steps) with which to scan operator
 # range_step = [-1, 1, 2] #(range,steps) with which to scan operator
 # range_step = [0, 15, 3] #(range,steps) with which to scan operator
 only_SM_events = False #True <-> sample same SM events for each input WC value to test
@@ -82,7 +82,7 @@ only_SM_events = False #True <-> sample same SM events for each input WC value t
 def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_features, _list_processClasses, list_points_sampling, evalPoint, nEventsStandaloneVal):
 
     optsTrain["makeValPlotsOnly"] = True #Don't delete existing files
-    _lumiName, _weightDir, _h5modelName, _ntuplesDir, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
+    _lumiName, _weightDir, _h5modelName, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
     if optsTrain["trainAtManyEFTpoints"] is False: #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
         optsTrain["trainAtManyEFTpoints"] = True; _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"]
@@ -123,7 +123,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
         #     print('evalPoint = ', point)
 
         if not scan_singleOperator or not only_SM_events or idx == 0: #-- Special case: may only need to reuse SM distribution at different EFT points (<-> only need to sample events at SM point)
-            x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, _ntuplesDir, _lumiName, singleThetaName=point)
+            x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, ntuplesDir, _lumiName, singleThetaName=point)
             # list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
             y_process_tmp = np.squeeze(y_process_tmp)
             pred_tmp = np.squeeze(model.predict(x_tmp))
@@ -154,7 +154,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
                 # ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, np.concatenate((pred_tmp,pred_SM)), np.concatenate((y_process_tmp,y_process_SM)), np.concatenate((PhysicalWeights_tmp,PhysicalWeights_SM)), [point,'SM'], True, operator_scan, WCs, idx, ymax)
                 ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), ['SM',point], True, operator_scan, WCs, idx, ymax)
-                Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), list_points_sampling, True, operator_scan, str(WCs[idx]).replace('.0',''), feature_name='recoZ_Pt')
+                Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), list_points_sampling, True, operator_scan, str(WCs[idx]).replace('.0',''), feature_name='recoZ_Pt') #recoZ_Pt/dEta_tjprime
 
     if scan_singleOperator:
         Make_Animation_fromParamOutputPlots(standaloneValDir, list_labels, list_points_sampling, operator_scan, WCs)
@@ -291,7 +291,7 @@ def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, proc
     cmap = sns.color_palette('coolwarm', 7)
 
     var1 = "recoZ_Pt"
-    var2 = "Mass_3l"
+    var2 = "recoZ_Eta" #Mass_3l, recoZ_Eta,
 
 #Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
 
@@ -445,14 +445,18 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
 
-        nbins = 20; rmin = 0.; rmax = 1.
+        nbins = 30; rmin = 0.; rmax = 1.
 
         fig = plt.figure('overtrain')
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
         timer.add_callback(close_event)
 
         ax = plt.axes()
-        if feature_name == "": ax.set_xlim([rmin,rmax])
+        if feature_name == "":
+            ax.set_xlim([rmin,rmax])
+            myxlabel = "Classifier output"
+        else:
+            myxlabel = feature_name
 
         #--- COSMETICS
         ax.patch.set_edgecolor('black')
@@ -502,8 +506,6 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
             if point is "SM": plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True) #range=(rmin,rmax)
             else: plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
-
-        myxlabel = "Classifier output"
 
         bottom, top = ax.get_ylim()
         ax.set_ylim([0., top*1.1])

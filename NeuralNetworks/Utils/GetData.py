@@ -65,7 +65,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
     list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
-    #-- If the NN is parameterized on Wilson coeffs. (or training requires EFT reweighting), need to artificially extend the dataset to train on many different points in EFT phase space
+    #-- If strategy requires EFT reweighting, need to artificially extend the dataset to train on many different points in EFT phase space
     list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
 
     #-- Concatenate + reshape arrays, and modify them as needed
@@ -74,7 +74,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Define 'physical event weights' (for plotting, ...) and 'training weights' (rescaled arbitrarily to improve the training procedure)
     LearningWeights_allClasses, PhysicalWeights_allClasses = Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allClasses, targetClass_allClasses)
 
-    #-- For parameterized NN, need to count theory parameters as additional inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
+    #-- For mixed-EFT strategies, need to count theory parameters as additional inputs. Also, from there on, different classes correspond to SM vs EFT (not to different physics processes)
     list_labels, list_features = Update_Lists(opts, list_labels, list_features)
 
     #-- Define the targets 'y' (according to which the classification/regression is performed). Also keep track of the process class indices of all events ('y_process')
@@ -297,7 +297,7 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         #-- Get the sums of weights (before any preselection) corresponding to each EFT point
         hist = file.Get("EFT_SumWeights") #Sums of weights for each EFT reweight is stored in histogram, read it
         array_EFT_SWE_proc = hist2array(hist) #Store into array
-        array_EFT_SWE_proc = array_EFT_SWE_proc[0:array_EFTweights_proc.shape[1]] #Only need the SWE values for the considered reweight points
+        array_EFT_SWE_proc = array_EFT_SWE_proc[0:array_EFTweights_proc.shape[1]] #Only need the SWE values for the considered reweight points (which may be a subset of the full list of reweight points in the sample)
 
         #-- Store the MG reweight value for the SM point #Find the index of SM point in first event
         idx_SM = -1
@@ -323,7 +323,7 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         if SWE_SM == 0: SWE_SM = 1 #For pure-EFT samples, SM=0 -> Set to 1 (weights are unphysical anyway)
         array_EFTweights_proc = np.divide(array_EFTweights_proc, SWE_SM)
 
-        #Manually find and remove all weights with unproper naming conventions (for example 'rwgt_1' nominal weight is included by default by MG)
+        #-- Manually find and remove all weights with unproper naming conventions (for example 'rwgt_1' nominal weight is included by default by MG)
         array_EFTweights_proc, array_EFTweightIDs_proc = Remove_Unnecessary_EFTweights(array_EFTweights_proc, array_EFTweightIDs_proc)
 
         list_EFTweights_proc.append(array_EFTweights_proc) #Append array of EFT reweights (for given year) to list
@@ -613,14 +613,15 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
         for iclass in range(len(list_processClasses)):
             list_LearningWeights_allClasses.append(np.ones(len(list_weights_allClasses_abs[iclass])))
 
-    #-- Can artificially manipulate class weights here
-    # list_LearningWeights_allClasses[0]*= 0.
-
+    #-- Concatenate all classes
     LearningWeights_allClasses = np.concatenate(list_LearningWeights_allClasses, 0)
 
     if opts["strategy"] is "CARL_singlePoint":
         LearningWeights_allClasses[targetClass_allClasses==0] = LearningWeights_allClasses[targetClass_allClasses==0] * SF_SM
         LearningWeights_allClasses[targetClass_allClasses==1] = LearningWeights_allClasses[targetClass_allClasses==1] * SF_EFT
+
+    #-- Can artificially manipulate class weights here
+    # LearningWeights_allClasses[targetClass_allClasses==0]*= 10. #EFT vs SM
 
     return LearningWeights_allClasses, PhysicalWeights_allClasses
 
@@ -661,6 +662,7 @@ def Update_Lists(opts, list_labels, list_features):
                 del list_features[idx] #Remove feature(s) used as target(s) from list_features (--> don't use for training)
                 if opts["comparVarIdx"] > idx: opts["comparVarIdx"] = opts["comparVarIdx"] -1; #Removed 1 feature from list --> Need to update other indices accordingly
 
+    # print('list_labels', list_labels); print('list_features', list_features)
     return list_labels, list_features
 
 # //--------------------------------------------
@@ -809,7 +811,8 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         mask_nan = ~np.isnan(x.reshape(len(x), -1)).any(axis=1) & ~np.isnan(y.reshape(len(y), -1)).any(axis=1) & ~np.isnan(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isnan(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isnan(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
         mask_inf = ~np.isinf(x.reshape(len(x), -1)).any(axis=1) & ~np.isinf(y.reshape(len(y), -1)).any(axis=1) & ~np.isinf(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isinf(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isinf(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
         mask = mask_nan & mask_inf #Combine both masks
-        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]; TrainValTest_allClasses = TrainValTest_allClasses[mask]
+        if len(TrainValTest_allClasses)==len(x): TrainValTest_allClasses = TrainValTest_allClasses[mask]
+        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]
         # print(len(x))
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
@@ -832,7 +835,8 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             print('---> Removing these events from all arrays...')
             #-- Define masks to remove any event (row) containing a NaN/inf value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
             mask = np.where(PhysicalWeights_allClasses <= np.mean(PhysicalWeights_allClasses)*100)
-            x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]; TrainValTest_allClasses = TrainValTest_allClasses[mask]
+            if len(TrainValTest_allClasses)==len(x): TrainValTest_allClasses = TrainValTest_allClasses[mask]
+            x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
             # print(len(x))
 
     return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses
@@ -858,6 +862,7 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
 
     #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
     if opts["trainAtManyEFTpoints"] == True or opts["strategy"] == "CARL_singlePoint":
+        x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses = unison_shuffled_copies(x,y,y_process,PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses) #Not using sklearn function in this case, so need to shuffle arrays (coherently) manually ! (Otherwise, will have entire batches with a single class)
         return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==2], PhysicalWeights_allClasses[TrainValTest_allClasses==0], PhysicalWeights_allClasses[TrainValTest_allClasses==2], LearningWeights_allClasses[TrainValTest_allClasses==0], LearningWeights_allClasses[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events
@@ -865,10 +870,13 @@ def Train_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Learning
     else: #Specify train/test relative proportions
         _trainsize=opts["splitTrainValTestData"][0]; _testsize=1-_trainsize
 
+    if opts["makeValPlotsOnly"] is True:
+        _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
+        _testsize=1-_trainsize
+
     _testsize-=0.001 #For safety, remove 0.1% from testing dataset, to ensure that (n_train+n_test)<n_available
 
-    if opts["makeValPlotsOnly"] is True: _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
-
+    # print('_trainsize', _trainsize); print('_testsize', _testsize)
     return train_test_split(x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, train_size=_trainsize, test_size=_testsize, shuffle=True)
 
 
@@ -881,7 +889,8 @@ def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Lear
 
     #cf. other comments in code: if extending SMEFT dataset via reweighting, must use different strategy to ensure datasets independence; now check event indices values to decide if they belong to train/val/test
     if opts["trainAtManyEFTpoints"] == True  or opts["strategy"] == "CARL_singlePoint":
-        return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==1], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==1], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==1], y_process[TrainValTest_allClasses==2], PhysicalWeights[TrainValTest_allClasses==0], PhysicalWeights[TrainValTest_allClasses==1], PhysicalWeights[TrainValTest_allClasses==2], LearningWeights[TrainValTest_allClasses==0], LearningWeights[TrainValTest_allClasses==1], LearningWeights[TrainValTest_allClasses==2]
+        x,y,y_process,PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses = unison_shuffled_copies(x,y,y_process,PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses) #Not using sklearn function in this case, so need to shuffle arrays (coherently) manually ! (Otherwise, will have entire batches with a single class)
+        return x[TrainValTest_allClasses==0], x[TrainValTest_allClasses==1], x[TrainValTest_allClasses==2], y[TrainValTest_allClasses==0], y[TrainValTest_allClasses==1], y[TrainValTest_allClasses==2], y_process[TrainValTest_allClasses==0], y_process[TrainValTest_allClasses==1], y_process[TrainValTest_allClasses==2], PhysicalWeights_allClasses[TrainValTest_allClasses==0], PhysicalWeights_allClasses[TrainValTest_allClasses==1], PhysicalWeights_allClasses[TrainValTest_allClasses==2], LearningWeights_allClasses[TrainValTest_allClasses==0], LearningWeights_allClasses[TrainValTest_allClasses==1], LearningWeights_allClasses[TrainValTest_allClasses==2]
 
     if opts["nEventsTot_train"] != -1 and opts["nEventsTot_val"] != -1 and opts["nEventsTot_test"] != -1: #Specify nof train/test events
         _trainsize=opts["nEventsTot_train"]; _valsize=opts["nEventsTot_val"] ; _testsize=opts["nEventsTot_test"]

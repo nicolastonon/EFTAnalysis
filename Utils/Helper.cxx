@@ -1185,7 +1185,6 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "Top_delRbl" || var == "Top_delRbW") {nbins = 20; xmin = 0.; xmax = 4.5;}
     else if(var == "channel") {nbins = 4; xmin = 0.; xmax = 4;}
     else if(var == "mbjMax") {nbins = 20; xmin = 0.; xmax = 8.;}
-    else if(var == "recoZ_Eta") {nbins = 20; xmin = 0.; xmax = 1.;}
     else if(var == "recoLepTop_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "recoLepTop_Pt") {nbins = 20; xmin = 0.; xmax = 300.;}
     else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
@@ -1228,7 +1227,12 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     }
     else if(template_name.Contains("categ")) {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
     else if(template_name.Contains("ZptCos")) {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
-    else if(template_name.Contains("Zpt")) {nbins = 5; xmin = 0; xmax = 400;} //1D Zpt //1 bin per sub-category
+    else if(template_name.Contains("Zpt")) //1D Zpt
+    {
+        nbins = 5;
+        xmin = 0; xmax = 450;
+        if(template_name.Contains("SRtZq")) {xmax = 350;}
+    }
 
     if(use_SManalysis_strategy) {xmin = 0;}
 
@@ -1826,4 +1830,72 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
     }
 
     return;
+}
+
+/**
+ * Semi-hardcoded function: read 'ControlHistograms' rootfile (produced with main function 'Produce_Templates'), to extract a SF based on a given variable histogram for 2 given processes and a given year.
+ * Intended use-case: easily extract njet-based SF between central/private tZq samples
+ * NB: SF taken as : (proc1/proc2)
+ */
+vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc2, vector<TString> v_years)
+{
+    vector<vector<float>> v_SFs_years(v_years.size()); //Return 1 SF per njet bin, per year
+
+    for(int iyear=0; iyear<v_years.size(); iyear++)
+    {
+        TString input_histo_filename = "./outputs/ControlHistograms_signal_Run2.root"; //Hard-coded
+        if(!Check_File_Existence(input_histo_filename))
+        {
+            input_histo_filename = "./outputs/ControlHistograms_signal_"+v_years[iyear]+".root"; //Hard-coded
+            if(!Check_File_Existence(input_histo_filename)) {cout<<FRED("[Get_nJets_SF] ERROR: file "<<input_histo_filename<<" not found ! ")<<endl; return v_SFs_years;}
+        }
+        // cout<<DIM("Opening file "<<input_histo_filename<<" ... ")<<endl;
+        TFile* input_histo_file = TFile::Open(input_histo_filename, "READ");
+
+        TString h1name = variable + "_" + v_years[iyear] + "__" + proc1;
+        TString h2name = variable + "_" + v_years[iyear] + "__" + proc2;
+        // cout<<"h1name "<<h1name<<endl;
+        // cout<<"h2name "<<h2name<<endl;
+        TH1F* h1 = (TH1F*) input_histo_file->Get(h1name);
+        TH1F* h2 = (TH1F*) input_histo_file->Get(h2name);
+        if(h1->GetNbinsX() != h2->GetNbinsX()) {cout<<FRED("[Get_nJets_SF] ERROR: found different binnings for h1 and h2 : ")<<h1->GetNbinsX()<<" / "<<h2->GetNbinsX()<<endl; return v_SFs_years;}
+        for(int ibin=1; ibin<h1->GetNbinsX()+1; ibin++)
+        {
+            if(h1->GetBinContent(ibin)==0 || h2->GetBinContent(ibin)==0) {v_SFs_years[iyear].push_back(1); continue;}
+            float sf_tmp = h1->GetBinContent(ibin)/h2->GetBinContent(ibin);
+            v_SFs_years[iyear].push_back(sf_tmp);
+            // cout<<"year "<<v_years[iyear]<<" / njets "<<ibin<<" --> "<<sf_tmp<<endl;
+        }
+
+        input_histo_file->Close();
+    }
+
+    return v_SFs_years;
+}
+
+
+/**
+ * Apply the semi-hardcoded njets-SF (see 'Get_nJets_SF')
+ */
+float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iyear, TString systname)
+{
+    float SF = 0;
+
+    float sf_tmp = 1;
+    if(njet_val >= v_njets_SF_tZq[iyear].size()) {return v_njets_SF_tZq[iyear][njet_val];} //Overflow bin
+    else {sf_tmp = v_njets_SF_tZq[iyear][njet_val];}
+
+    if(systname == "njets_tZqDown") //DOWN
+    {
+        SF = 1 - (sf_tmp-1); //Example: SF=1.2 --> return 0.8 (and conversely)
+    }
+    else if(systname == "njets_tZqUp") //UP
+    {
+        SF = sf_tmp; //Example: SF=1.2 --> return 1.2
+    }
+    else {cout<<FRED("[Apply_nJets_SF] ERROR: syst not recognized :"<<systname<<"")<<endl;}
+
+    // cout<<"[Apply_nJets_SF] systname "<<systname<<" / iyear "<<iyear<<" / njet_val "<<njet_val<<" / SF = "<<SF<<endl;
+
+    return SF;
 }

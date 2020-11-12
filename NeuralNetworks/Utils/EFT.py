@@ -672,7 +672,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # Sanity checks
 
     if trainAtManyEFTpoints is False and opts["strategy"] is not "CARL_singlePoint": #Return empty lists #Exception: for strategy 'CARL_singlePoint', still need to extend the lists
-        return list_x_allClasses, list_weights_allClasses, [], [], [], []
+        return list_x_allClasses, list_weights_allClasses, [], [], [], [], []
 
     if DEBUG_>1: #Debug printout
         for iclass in range(len(list_x_allClasses)):
@@ -695,13 +695,15 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
     #-- Loop on process classes (each expected to contain a single EFT process)
     for iclass in range(len(list_labels)):
 
+        TrainValTest_allThetas_class = np.zeros((1,1)) #Dummy default
+        nEventsPerPoint_class = opts["maxEvents"]
+
         #-- Sanity checks
         operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Assume that benchmark points are identical for all events in the sample
         operatorNames = operatorNames[0] #Single-element list -> array
         for op1 in opts["listOperatorsParam"]:
             if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
 
-        nEventsPerPoint_class = opts["maxEvents"]
         if nEventsPerPoint_class > len(list_x_allClasses[iclass]):
             print(colors.fg.orange, 'Warning : requiring more events per EFT point (', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...\n', colors.reset)
             nEventsPerPoint_class = len(list_x_allClasses[iclass])
@@ -731,12 +733,16 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
 
-        #-- NEW: add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
-        trainValTest_idx = []
+        #-- Add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
+        _trainsize = opts["splitTrainValTestData"][0]; _valsize = opts["splitTrainValTestData"][1]; _testsize = opts["splitTrainValTestData"][2]
+        if opts["makeValPlotsOnly"] is True:
+            _trainsize = 0.10 #If not training a NN, use ~ all data for validation ('training data' is meaningless in that case)
+            _valsize = 0.
+            _testsize = 1 - _trainsize
         trainValTest_idx = np.full(shape=(len(list_x_allClasses[iclass])), fill_value=0) #Default: all events are 'training events' (idx 0)
-        x1 = int(opts["splitTrainValTestData"][0] * len(list_x_allClasses[iclass]))
-        if opts["splitTrainValTestData"][1] != 0.: #Use validation dataset (idx 1)
-            x2 = int(opts["splitTrainValTestData"][1] * len(list_x_allClasses[iclass]))
+        x1 = int(_trainsize * len(list_x_allClasses[iclass]))
+        if _valsize != 0.: #Use validation dataset (idx 1)
+            x2 = int(_valsize * len(list_x_allClasses[iclass]))
             trainValTest_idx[x1:x1+x2] = 1
             x1 = x1+x2
         trainValTest_idx[x1:] = 2 #Testing events (idx 2) #NB: verified that (train+test+val)=1, so can safely take all remaining events as test dataset
@@ -818,16 +824,17 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 # //--------------------------------------------
 # Get the data for all points thetas (twice: both drawn at point theta and at ref point)
 
-            if opts["testToy1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score)
+            if opts["testToy1D"]: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = GetData_TestToy1D(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score) #Expert test mode
 
-            elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class, TrainValTest_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score, trainValTest_idx)
-            else: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components)
+            elif singleThetaName is "": x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class, TrainValTest_allThetas_class = Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, probas_refPoint, list_x_allClasses[iclass], weights_thetas, weights_refPoint, jointLR_class, list_score_allOperators_thetas, nEventsPerPoint_class, need_jlr, need_score, trainValTest_idx) #Get  quantities for a given theta value (for validation, ...)
+            else: x_allThetas_class, weights_allThetas_class, WCs_allThetas_class, targetClasses_allThetas_class, jointLR_allThetas_class, list_score_allOperators_allThetas_class = Get_Quantities_SinglePointTheta(opts, singleThetaName, operatorNames, list_EFT_FitCoeffs_allClasses[iclass], list_x_allClasses[iclass], weights_refPoint, need_jlr, need_score, n_components, components) #Get quantities for all selected theta values
 
 # //--------------------------------------------
 # Append arrays for all classes
         extendedList_x_allClasses.append(x_allThetas_class)
         extendedList_weights_allClasses.append(weights_allThetas_class)
         extendedList_targetClass_allClasses.append(targetClasses_allThetas_class)
+        if len(TrainValTest_allThetas_class)<=1: TrainValTest_allThetas_class = np.full(shape=(len(x_allThetas_class)), fill_value=0) #If empty (e.g. for StandaloneVal code, consider all events as 'training' -- irrelevant)
         extendedList_TrainValTest_allClasses.append(TrainValTest_allThetas_class)
         if trainAtManyEFTpoints == True:
             extendedList_WCs_allClasses.append(WCs_allThetas_class)

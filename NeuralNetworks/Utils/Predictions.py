@@ -1,8 +1,8 @@
 #Apply the trained NN model to train and test data, to obtain its predictions (for control plots, etc.)
 
 import numpy as np
-import keras
-import tensorflow
+# import keras
+import tensorflow as tf
 import math
 from Utils.Helper import Printout_Outputs_Layer
 from Utils.ColoredPrintout import colors
@@ -36,7 +36,7 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
 
     maxEvents = 100000 #Upper limit on nof events per class, else validation too slow (problematic for parameterized NN with huge training stat.)
 
-    useMostExtremeWCvaluesOnly = False #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
+    useMostExtremeWCvaluesOnly = True #True <-> for 'EFT' class, will only consider points generated at the most extreme WC values included during training (not all the intermediate points) #Use this to create more "representative" val plots, in which only a few specific WC values are included instead of all points
 
 # //--------------------------------------------
 
@@ -110,7 +110,7 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
  #      #    # ###### #####  #  ####    #   #  ####  #    #  ####
 
     #--- Load model
-    tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+    tf.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(savedModelName, compile=False) #compile=False <-> does not need to define any custom loss, since not needed for testing
 
     # for i in range(len(list_xTest_allClasses[1][-100:] )):
@@ -140,7 +140,6 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
         list_predictions_train_class = []; list_predictions_test_class = []
         for iclass in range(len(list_labels)):
             # print('inode', inode, 'iclass', iclass)
-
 
             if opts["nofOutputNodes"] == 1: #Single output node
             # if opts["strategy"] is "regressor" and iclass>0: continue #hard-coded fix, because in that case the different 'labels' already correspond to different nodes... #need to change labels/nodes ?

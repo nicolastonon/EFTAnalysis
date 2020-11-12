@@ -215,6 +215,7 @@ def ChiSquare_test(obs, exp):
 # //--------------------------------------------
 # //--------------------------------------------
 
+''' #Obsolete?
 def my_training_batch_generator(features, labels, batch_size): # Create empty arrays to contain batch of features and labels
 
     batch_features = np.zeros((batch_size, features.shape[1]))
@@ -228,21 +229,21 @@ def my_training_batch_generator(features, labels, batch_size): # Create empty ar
             batch_labels[i] = labels[index]
 
         yield batch_features, batch_labels #'Yield' keyword returns a generator. It suspends the function, which resumes at next call ; allows to produce a series of objects over time, instead of computing/returning everything at once
+'''
 
 # //--------------------------------------------
 # //--------------------------------------------
 
 def Load_PreExisting_Model(h5modelName):
-
-# //--------------------------------------------
-#-- Can access weights and biases of any layer
-# weights_layer, biases_layer = model.layers[0].get_weights(); print(weights_layer.shape); print(biases_layer.shape); print(weights_layer); print(biases_layer[0:2])
-#-- Loads the latest checkpoint weights
-# latest = tensorflow.train.latest_checkpoint(ckpt_dir)
-# tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
-# model = load_model(_h5modelName) # model has to be re-loaded
-# model.load_weights(latest)
-# //-------------------------------------------
+    '''
+    #-- Can access weights and biases of any layer
+    # weights_layer, biases_layer = model.layers[0].get_weights(); print(weights_layer.shape); print(biases_layer.shape); print(weights_layer); print(biases_layer[0:2])
+    #-- Loads the latest checkpoint weights
+    # latest = tensorflow.train.latest_checkpoint(ckpt_dir)
+    # tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
+    # model = load_model(_h5modelName) # model has to be re-loaded
+    # model.load_weights(latest)
+    '''
 
     tensorflow.keras.backend.set_learning_phase(0) # This line must be executed before loading Keras model (else mismatch between training/eval layers, e.g. Dropout)
     model = load_model(h5modelName, compile=False) # model has to be re-loaded #compile=False <-> does not need to define any custom loss, since not needed for testing
@@ -466,7 +467,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if opts["nEventsTot_train"]!=-1. and opts["nEventsTot_val"]==-1. and opts["nEventsTot_test"]==-1.: #Check option validity
         print(colors.fg.red, 'ERROR: Wrong values for options [nEventsTot_train/nEventsTot_val/nEventsTot_test]', colors.reset); exit(1)
 
-    if (opts["splitTrainValTestData"][1] != 0. and opts["splitTrainValTestData"][2] == 0.) or (opts["splitTrainValTestData"][2] != 0. and opts["splitTrainValTestData"][1] == 0.) or (opts["nEventsTot_val"] == -1. and opts["nEventsTot_test"] != -1.) (opts["nEventsTot_val"] != -1. and opts["nEventsTot_test"] == -1.): #Convention: want nTest to be non-zero, not nVal (if not requiring independent val/test sets)
+    if (opts["splitTrainValTestData"][1] != 0. and opts["splitTrainValTestData"][2] == 0.) or (opts["splitTrainValTestData"][2] != 0. and opts["splitTrainValTestData"][1] == 0.) or (opts["nEventsTot_val"] == -1. and opts["nEventsTot_test"] != -1.) or (opts["nEventsTot_val"] != -1. and opts["nEventsTot_test"] == -1.): #Convention: want nTest to be non-zero, not nVal (if not requiring independent val/test sets)
         print(colors.fg.orange, 'NB: you have either set testData=0 or valData=0; will hence use the same data for both val/test !', colors.reset)
         if opts["nEventsTot_train"] != -1. and opts["nEventsTot_test"] == -1.:
             opts["nEventsTot_test"] = opts["nEventsTot_val"]
@@ -480,7 +481,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 #-- Set/update list of input features
 
     #-- User can choose to use a case-specific list of input features (hard-coded in 'InputFeatures.py'); otherwise, use list of features defined in the main code
-    if opts["useHardCodedListInputFeatures"]:
+    if opts["useHardCodedListInputFeatures"] == True:
+        list_features = [] #Re-initialize
 
         #-- Hardcode different use-cases here
         if opts["strategy"] is "classifier": #NN-SM
@@ -488,13 +490,21 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
         elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==1) or opts["strategy"]=="CARL_singlePoint":
             if 'tZq' in labels_list[0]:
-                if opts["listOperatorsParam"][0]=='ctz' or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctz
-                elif opts["listOperatorsParam"][0]=="ctw" or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctw
+                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=='ctz') or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctz
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctw
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpqm
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpq3
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpt
             elif 'ttZ' in labels_list[0]:
-                if opts["listOperatorsParam"][0]=="ctz" or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctz
-                elif opts["listOperatorsParam"][0]=="ctw" or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctw
+                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctz") or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctz
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctw
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpqm
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpq3
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpt
 
-        else: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
+                print('list_features', list_features)
+
+        if len(list_features)==0: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
 
     # '''
     if opts["useLowLevelFeatures"]: #Also include (hardcoded) low-level input features
