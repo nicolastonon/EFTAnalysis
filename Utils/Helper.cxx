@@ -3,8 +3,8 @@
 using namespace std;
 
 //-- HARDCODE THE BASE DIR. CONTAINING PRIVATE NTUPLES (used by all codes)
-TString NTUPLEDIR = "./input_ntuples/"; //LOCAL
-// TString NTUPLEDIR = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/"; //CMSSW
+TString NTUPLEDIR = "./input_ntuples/"; //FIXLOCAL
+// TString NTUPLEDIR = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/"; //FIXCMSSW
 
 
 //--------------------------------------------
@@ -822,12 +822,12 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
         else if(arg1 == "201718") {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
         else if(arg1 == "run2") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
 
-        else if(arg1 == "tzq") {region_choice = "tZq";}
-        else if(arg1 == "ttz") {region_choice = "ttZ";}
-        else if(arg1 == "ttz4l") {region_choice = "ttZ4l";}
-        else if(arg1 == "twz") {region_choice = "tWZ";}
+        else if(arg1 == "tzq") {region_choice = "tzq";}
+        else if(arg1 == "ttz") {region_choice = "ttz";}
+        else if(arg1 == "ttz4l") {region_choice = "ttz4l";}
+        else if(arg1 == "twz") {region_choice = "twz";}
         else if(arg1 == "signal") {region_choice = "signal";}
-        else if(arg1 == "vg") {region_choice = "Vg";}
+        else if(arg1 == "xg") {region_choice = "xg";}
         else if(arg1 == "zz") {region_choice = "zz";}
         else if(arg1 == "tt") {region_choice = "tt";}
         else if(arg1 == "wz") {region_choice = "wz";}
@@ -858,17 +858,17 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
             else if(arg2 == "201718") {v_lumiYear.resize(0); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
             else if(arg2 == "run2") {v_lumiYear.resize(0); v_lumiYear.push_back("2016"); v_lumiYear.push_back("2017"); v_lumiYear.push_back("2018");}
 
-            else if(arg2 == "tzq") {region_choice = "tZq";}
-            else if(arg2 == "ttz") {region_choice = "ttZ";}
-            else if(arg2 == "ttz4l") {region_choice = "ttZ4l";}
-            else if(arg2 == "twz") {region_choice = "tWZ";}
+            else if(arg2 == "tzq") {region_choice = "tzq";}
+            else if(arg2 == "ttz") {region_choice = "ttz";}
+            else if(arg2 == "ttz4l") {region_choice = "ttz4l";}
+            else if(arg2 == "twz") {region_choice = "twz";}
             else if(arg2 == "signal") {region_choice = "signal";}
-            else if(arg2 == "vg") {region_choice = "Vg";}
+            else if(arg2 == "xg") {region_choice = "xg";}
             else if(arg2 == "zz") {region_choice = "zz";}
             else if(arg2 == "tt") {region_choice = "tt";}
             else if(arg2 == "wz") {region_choice = "wz";}
             else if(arg2 == "dy") {region_choice = "dy";}
-            else if(arg2 == "tx") {region_choice = "tX";} //Obsolete
+            else if(arg2 == "tx") {region_choice = "tx";} //Obsolete
 
 			else
 			{
@@ -1309,18 +1309,20 @@ TString Get_Category_Boolean_Name(TString region, bool isFake)
 {
     TString name = "";
 
+    region.ToLower();
+
     // if(region=="tZq") {return "is_tZq_3l_SR";}
     // else if(region=="ttZ") {return "is_ttZ_3l_SR";}
     // else if(region=="tWZ") {return "is_tWZ_3l_SR";}
 
     if(region=="signal") {name = "is_signal_SR";}
-    else if(region=="tZq") {name = "is_tzq_SR";}
-    else if(region=="ttZ") {name = "is_ttz_SR";}
-    else if(region=="ttZ4l") {name = "is_ttz4l_SR";}
+    else if(region=="tzq") {name = "is_tzq_SR";}
+    else if(region=="ttz") {name = "is_ttz_SR";}
+    else if(region=="ttz4l") {name = "is_ttz4l_SR";}
 
-    else if(region=="Vg") {name = "is_Vg_CR";}
+    else if(region=="xg") {name = "is_Vg_CR";} //FIXME -- change name in next prod
     else if(region=="zz") {name = "is_zz_CR";}
-    else if(region=="tX") {name = "is_tX_CR";}
+    else if(region=="tx") {name = "is_tX_CR";}
     else if(region=="tt") {name = "is_tt_CR";}
     else if(region=="wz") {name = "is_wz_CR";}
     else if(region=="dy") {name = "is_dy_CR";}
@@ -1427,7 +1429,7 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
     || systname.BeginsWith("BtagCF")
     || systname.BeginsWith("JER")
     || systname.BeginsWith("UnclEn")
-    || systname.BeginsWith("MET") //New name
+    || systname.BeginsWith("MET")
     )
     {
         if(systname.EndsWith("Up"))
@@ -1741,14 +1743,15 @@ TString Get_Region_Label(TString region, TString variable)
 {
     TString label = "";
 
+    region.ToLower();
     if(region=="signal") {label = "SR";}
-    else if(region=="tZq") {label = "tZq SR";}
-    else if(region=="ttZ") {label = "ttZ SR";}
-    else if(region=="ttZ4l") {label = "ttZ 4l SR";}
+    else if(region=="tzq") {label = "tZq SR";}
+    else if(region=="ttz") {label = "ttZ SR";}
+    else if(region=="ttz4l") {label = "ttZ 4l SR";}
 
-    else if(region=="Vg") {label = "V#gamma CR";}
+    else if(region=="xg") {label = "V#gamma CR";}
     else if(region=="zz") {label = "ZZ CR";}
-    else if(region=="tX") {label = "tX CR";}
+    else if(region=="tx") {label = "tX CR";}
     else if(region=="tt") {label = "t#bar{t} CR";}
     else if(region=="wz") {label = "WZ CR";}
     else if(region=="dy") {label = "DY CR";}
@@ -1816,7 +1819,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         if(region == "tZq" || region == "ttZ") {variable_list.push_back("NN");}
         else if(region == "wz") {variable_list.push_back("mTW");}
         else if(region == "zz") {variable_list.push_back("countExp");}
-        else if(region == "Vg") {variable_list.push_back("channel");}
+        else if(region == "xg") {variable_list.push_back("channel");}
         template_name = variable_list[0];
     }
     else if(make_fixedRegions_templates) //NB: order is important !
@@ -1839,6 +1842,8 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
  */
 vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc2, vector<TString> v_years)
 {
+    cout<<FYEL("--- Enter Get_nJets_SF() ---")<<endl;
+
     vector<vector<float>> v_SFs_years(v_years.size()); //Return 1 SF per njet bin, per year
 
     for(int iyear=0; iyear<v_years.size(); iyear++)

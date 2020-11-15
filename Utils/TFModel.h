@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "CMSSW_TensorFlow.h" //LOCAL
-//#include "PhysicsTools/TensorFlow/interface/TensorFlow.h" //CMSSW
+#include "CMSSW_TensorFlow.h" //FIXLOCAL
+//#include "PhysicsTools/TensorFlow/interface/TensorFlow.h" //FIXCMSSW
 
 class TFModel {
 public:

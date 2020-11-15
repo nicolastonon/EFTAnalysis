@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 //  #######  ##           ##    ####  #######  ##    ##  ######
 //---------------------------------------------------------------------------
 
-    //-- M A I    A N A L Y S I S    O P T I O N S --
+    //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 
     //VV(V)
     thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VVV");
-    thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
+    // thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("ZZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWW"); thesamplegroups.push_back("VVV");
@@ -291,14 +291,10 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        /* FIXME
         //-- Implemented as separate TTrees
-        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp"); //FIXME -- next prod
-        theSystTree.push_back("TotalDown"); theSystTree.push_back("TotalUp"); //Not available for PrivMC_tWZ yet
+        theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
-        // theSystTree.push_back("METDown"); theSystTree.push_back("METUp"); //FIXME -- next prod
-        theSystTree.push_back("UnclEnDown"); theSystTree.push_back("UnclEnUp");
-        */
+        theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
@@ -315,24 +311,20 @@ int main(int argc, char **argv)
         theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
         theSystWeights.push_back("njets_tZqDown"); theSystWeights.push_back("njets_tZqUp"); //TESTING
 
-        // theSystWeights.push_back("FRDown"); theSystWeights.push_back("FRUp"); //FR from David: 1 set of variations
-        // theSystWeights.push_back("FRm_normDown"); theSystWeights.push_back("FRm_normUp"); //FR from ttH: 3*2 sets of variations
-        // theSystWeights.push_back("FRm_ptDown"); theSystWeights.push_back("FRm_ptUp");
-        // theSystWeights.push_back("FRm_beDown"); theSystWeights.push_back("FRm_beUp");
-        // theSystWeights.push_back("FRe_normDown"); theSystWeights.push_back("FRe_normUp");
-        // theSystWeights.push_back("FRe_ptDown"); theSystWeights.push_back("FRe_ptUp");
-        // theSystWeights.push_back("FRe_beDown"); theSystWeights.push_back("FRe_beUp");
-        // theSystWeights.push_back("FR_normDown"); theSystWeights.push_back("FR_normUp"); //FR from ttH: 3 sets of variations
-        // theSystWeights.push_back("FR_ptDown"); theSystWeights.push_back("FR_ptUp");
-        // theSystWeights.push_back("FR_beDown"); theSystWeights.push_back("FR_beUp");
+        theSystWeights.push_back("FRm_normDown"); theSystWeights.push_back("FRm_normUp"); //FR from ttH: 3*2*2 sets of variations
+        theSystWeights.push_back("FRm_ptDown"); theSystWeights.push_back("FRm_ptUp");
+        theSystWeights.push_back("FRm_beDown"); theSystWeights.push_back("FRm_beUp");
+        theSystWeights.push_back("FRe_normDown"); theSystWeights.push_back("FRe_normUp");
+        theSystWeights.push_back("FRe_ptDown"); theSystWeights.push_back("FRe_ptUp");
+        theSystWeights.push_back("FRe_beDown"); theSystWeights.push_back("FRe_beUp");
 
-        //-- MISSING //FIXME
+        //-- MISSING / OBSOLETE
         // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only //MISSING for PrivMC
         // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup"); //Signals only //MISSING for PrivMC
         // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only //MISSING for PrivMC  //Cross check e.g. ttZ all years...
         // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only
         // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only
-        // theSystWeights.push_back("LeptonIDDown"); theSystWeights.push_back("LeptonIDUp");
+        // theSystWeights.push_back("FRDown"); theSystWeights.push_back("FRUp"); //FR from David: 1 set of variations
     }
 
 
@@ -355,7 +347,7 @@ int main(int argc, char **argv)
     bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...

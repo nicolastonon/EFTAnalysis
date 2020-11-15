@@ -2,6 +2,23 @@
 
 using namespace std;
 
+//Hardcode nicer latex-compatible category names //Can use '\\mathbf{}' for bold, but does not work with greek letters ?
+TString Get_Category_LatexName(TString cat)
+{
+    TString name = cat;
+
+    if(cat.Contains("signal")) {name = "SR";}
+    else if(cat.Contains("ttZ4l")) {name = "SR $t\\bar{t}Z 4l$";}
+    if(cat.Contains("wz")) {name = "CR WZ";}
+    if(cat.Contains("zz")) {name = "CR ZZ";}
+    if(cat.Contains("xg")) {name = "CR $X\\gamma$";}
+    if(cat.Contains("dy")) {name = "CR DY";}
+    if(cat.Contains("ttbar")) {name = "CR $t\\bar{t}}$";}
+
+    return name;
+}
+
+
 //--------------------------------------------
 // ##    ## #### ######## ##       ########     ########    ###    ########  ##       ########
 //  ##  ##   ##  ##       ##       ##     3##       ##      ## ##   ##     ## ##       ##
@@ -14,6 +31,12 @@ using namespace std;
 
 void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TString category, TString signal, TString lumi, bool group_samples_together, bool remove_totalSF, TString channel)
 {
+    bool create_latex_table = true; //true <-> also output latex-format yield tables
+        bool blind = false; //true <-> don't include DATA in latex tables (but still include in printouts)
+        int precision = 1; //Nof decimals displayed after floating point
+
+//--------------------------------------------
+
     cout<<endl<<BYEL("                          ")<<endl<<endl;
 	cout<<FYEL("--- Will count the yields for each sample ---")<<endl;
 	cout<<"(category : "<<category<<" / lumi : "<<lumi<<" / channel : "<<channel<<")"<<endl;
@@ -21,14 +44,18 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
     mkdir("./outputs/", 0777);
     mkdir("./outputs/yields", 0777);
-    // mkdir("./outputs/yields/latex", 0777);
-
     TString outname = "./outputs/yields/Yields_"+category+"_"+lumi;
     if(channel != "") {outname+= "_" + channel;}
     outname+= ".txt";
-    // TString outname_latex = "./outputs/yields/latex/Yields_"+category+"_"+lumi;
-    // if(channel != "") {outname_latex+= "_" + channel;}
-    // outname_latex+= ".txt";
+
+    TString outname_latex = "./outputs/yields/latex/Yields_"+category+"_"+lumi;
+    if(create_latex_table)
+    {
+        mkdir("./outputs/yields/latex", 0777);
+        if(channel != "") {outname_latex+= "_" + channel;}
+        outname_latex+= ".txt";
+    }
+    ofstream file_latex; //Declaration
 
     vector<TString> v_years; //'Run2' -> Sum all 3 years
     if(lumi == "Run2") {v_years.push_back("2016"); v_years.push_back("2017"); v_years.push_back("2018");}
@@ -45,52 +72,63 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
     }
 
 //--------------------------------------------
-/*
-    ofstream file_latex(outname_latex.Data()); //NEW : directly write yields into latex table
 
-	//NB : '\' character must be escaped as '\\' in C++!
-    file_latex<<"\\begin{table}[]"<<endl;
-    file_latex<<"\\centering"<<endl;
-    file_latex<<"\\begin{tabular}{|c|";
-	for(int isample=0; isample<v_label.size(); isample++)
-	{
-		// if(v_samples[isample] == "QFlip" && (nLep != "2l" || subcat == "mm" || subcat == "uu")) {continue;}
-		// if(v_samples[isample].Contains("GammaConv") && (subcat == "mm" || subcat == "uu")) {continue;}
-
-		if(v_samples[isample] != "DATA" && !v_label[isample].Contains("SM") && isample < v_label.size()-1 && v_label[isample] != v_label[isample+1])
-		{
-			file_latex<<"c|"; //1 column per process
-		}
-	}
-	file_latex<<"c|"; //also add total bkg
-	file_latex<<"}"<<endl;
-	file_latex<<"\\hline"<<endl;
-	file_latex<<" & ";
-	for(int isample=0; isample<v_label.size(); isample++)
-	{
-		// if(v_samples[isample] == "QFlip" && (nLep != "2l" || subcat == "mm" || subcat == "uu")) {continue;}
-		// if(v_samples[isample].Contains("GammaConv") && (subcat == "mm" || subcat == "uu")) {continue;}
-
-		if(v_samples[isample] != "DATA" && !v_label[isample].Contains("SM") && isample < v_label.size()-1 && v_label[isample] != v_label[isample+1])
-		{
-			if(v_label[isample] == "TTZ") {file_latex<<"$\\mathbf{t\\bar{t}Z}$ & ";}
-			else if(v_label[isample] == "ttW") {file_latex<<"$\\mathbf{t\\bar{t}W}$ & ";}
-			else {file_latex<<"\\textbf{"<<v_label[isample]<<"} & ";}
-		}
-	}
-	file_latex<<"Total SM"; //1 column per process
-	file_latex<<"\\\\ \\hline"<<endl;
-	if(subcat != "")
+    if(create_latex_table)
     {
-        file_latex<<"\\textbf{";
-        if(subcat == "uu") {file_latex<<"\\mumu";}
-        else if(subcat == "ue") {file_latex<<"\\emu";}
-        else if(subcat == "ee") {file_latex<<"ee";}
-        else {file_latex<<nLep;}
-        file_latex<<"} & ";
-    }
-	else {file_latex<<"\\textbf{"<<nLep<<"} & ";}
-*/
+        file_latex.open(outname_latex.Data());
+
+    	//NB : '\' character must be escaped as '\\' in C++!
+        // file_latex<<"\\begin{table}[]"<<endl; //Horizontal
+        file_latex<<"\\begin{sidewaystable}[]"<<endl; //Vertical //Requires package rotating
+        file_latex<<"\\centering"<<endl;
+        file_latex<<"\\tiny"<<endl; //normal, small, tiny
+        file_latex<<"\\begin{tabular}{|c|"; //Init with 1 column (leftmost column, e.g. listing different event categories)
+    	for(int isample=0; isample<v_label.size(); isample++)
+    	{
+            // cout<<"v_label[isample] "<<v_label[isample]<<endl; //Debug
+
+            if(v_label[isample].Contains("TTbar") || v_label[isample].Contains("DY")) {continue;} //Consider DD NPL, not MC
+            else if(v_samples[isample] == "DATA") {continue;} //Data appended manually
+            else if(v_samples[isample].Contains("PrivMC")) {continue;} //Yield tables: consider central samples
+
+            // cout<<"Pass "<<(isample == v_label.size()-1 || v_label[isample] != v_label[isample+1])<<endl; //Debug
+
+    		if(isample == v_label.size()-1 || v_label[isample] != v_label[isample+1])
+    		{
+    			file_latex<<"c|"; //1 column per process (-1 already printed above)
+    		}
+    	}
+        file_latex<<"|c"; //also add total SM
+        if(!blind) {file_latex<<"|c|";} //also add data
+    	file_latex<<"}"<<endl;
+    	file_latex<<"\\hline"<<endl;
+    	file_latex<<" & "; //Leave leftmost case empty
+    	for(int isample=0; isample<v_label.size(); isample++) //Declare all process names
+    	{
+            if(v_label[isample].Contains("TTbar") || v_label[isample].Contains("DY")) {continue;}
+            else if(v_samples[isample] == "DATA") {continue;}
+            else if(v_samples[isample].Contains("PrivMC")) {continue;}
+
+            if(isample == v_label.size()-1 || v_label[isample] != v_label[isample+1])
+    		{
+    			if(v_label[isample] == "ttZ") {file_latex<<"$t\\bar{t}Z$ & ";}
+                else if(v_label[isample] == "ttW") {file_latex<<"$t\\bar{t}W$ & ";}
+                else if(v_label[isample] == "ttH") {file_latex<<"$t\\bar{t}H$ & ";}
+                else if(v_label[isample] == "tX") {file_latex<<"$t(\\bar{t})X$ & ";}
+                else if(v_label[isample] == "VVV") {file_latex<<"$VV(V)$ & ";}
+                else if(v_label[isample] == "XG") {file_latex<<"$X\\gamma$ & ";}
+    			else {file_latex<<""<<v_label[isample]<<" & ";}
+    		}
+    	}
+        file_latex<<"Total SM";
+        if(!blind) {file_latex<<" & Data";}
+    	file_latex<<"\\\\ \\hline"<<endl;
+
+        // file_latex<<" & "; //Leftmost column case empty
+        TString cat_latex_name = Get_Category_LatexName(category); //Leftmost column case = category name
+        file_latex<<cat_latex_name + " & ";
+    } //Latex
+
 //--------------------------------------------
 
 //--------------------------------------------
@@ -135,6 +173,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
     			cout<<FRED("File "<<filepath<<" not found ! Erased index '"<<isample<<"' from vectors")<<endl;
     		}
     	}
+
 
     //  ####    ##   #    # #####  #      ######    #       ####   ####  #####
     // #       #  #  ##  ## #    # #      #         #      #    # #    # #    #
@@ -250,6 +289,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             t->SetBranchStatus("channel", 1);
             t->SetBranchAddress("channel", &chan);
 
+
      // ###### #    # ###### #    # #####    #       ####   ####  #####
      // #      #    # #      ##   #   #      #      #    # #    # #    #
      // #####  #    # #####  # #  #   #      #      #    # #    # #    #
@@ -303,10 +343,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     if(remove_totalSF) {weight = v_reweights_floats->at(idx_sm) / v_SWE[idx_sm];}  //no SF, basic formula
 
                     //-- Tmp fixes to xsec
-                    if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;} //wrong eventMCFactor and wrong SWEs
-                    else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
-                    // else if(v_samples[isample] == "PrivMC_ttZ") {weight*= 0.86;} //Obsolete -- tmp xsec fix
-                    // else if(v_samples[isample] == "PrivMC_tWZ") {weight*= 1.20;} //FIXME
+                    // if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;} //wrong eventMCFactor and wrong SWEs
+                    // else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -330,7 +368,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 {
                     yield_tmp+= weight; statErr_tmp+= weight*weight;
 
-                    if(v_label[isample] == signal || v_label[isample] == "signal" || (signal=="signal" && (v_label[isample]=="tZq" || v_label[isample]=="ttZ"))) //Signals, group together
+                    if(v_label[isample] == signal || v_label[isample] == "signal" || (signal=="signal" && (v_label[isample]=="tZq" || v_label[isample]=="ttZ" || v_label[isample]=="tWZ"))) //Signals, group together
                     {
                         yield_signals+= weight;
                         statErr_signals+= weight*weight;
@@ -358,6 +396,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     file_out<<" (+/- "<<sqrt(statErr_tmp)<<" stat.)"<<endl;
                     // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
 
+                    if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
+                    {
+                        file_latex<<fixed<<setprecision(precision)<<yield_tmp<<" (+/-"<<fixed<<setprecision(precision)<<sqrt(statErr_tmp)<<") & "; //Single process
+                    }
+
                     yield_tmp = 0; //Reset after writing to file
                     statErr_tmp = 0;
                 } //write result
@@ -373,7 +416,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
     } //year loop
 
-    if(lumi == "Run2")
+    if(lumi == "Run2") //Run 2: need to sum quadratically per-year errors
     {
         float yield_currentGroup = 0, statErr_currentGroup = 0;
 
@@ -384,10 +427,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             //Combine errors from all years quadratically
             yield_currentGroup+= v_yields_proc_allYears[isample], statErr_currentGroup+= v_statErr_proc_allYears[isample]; //NB: no need to square uncert. here, it is already ! (cf. above)
 
-            if(group_samples_together && v_samples[isample] != "DATA" && isample < v_label.size()-1 && v_label[isample] == v_label[isample+1]) //Sum processes from same group
-            {
-                continue;
-            }
+            if(group_samples_together && v_samples[isample] != "DATA" && isample < v_label.size()-1 && v_label[isample] == v_label[isample+1]) {continue;} //Sum processes from same group
 
             //Printout
             file_out<<"--------------------------------------------"<<endl;
@@ -396,6 +436,11 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             file_out<<" (+/- "<<sqrt(statErr_currentGroup)<<" stat.)"<<endl;
             // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
+
+            if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
+            {
+                file_latex<<fixed<<setprecision(precision)<<yield_currentGroup<<" (+/-"<<fixed<<setprecision(precision)<<sqrt(statErr_currentGroup)<<") & "; //Single process
+            }
 
             yield_currentGroup = 0; statErr_currentGroup = 0; //Reset
         }
@@ -422,15 +467,20 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 	file_out<<"____________________________________________"<<endl;
 	file_out<<"____________________________________________"<<endl;
 
-	// file_latex<<setprecision(3)<<yield_bkg<<""; //Total bkg
-	// file_latex<<" \\\\ \\hline"<<endl;
-	// file_latex<<"\\end{tabular}"<<endl;
-	// file_latex<<"\\caption{xxx}"<<endl;
-	// file_latex<<"\\label{tab:my-table}"<<endl;
-	// file_latex<<"\\end{table}"<<endl;
+    if(create_latex_table)
+    {
+        file_latex<<fixed<<setprecision(precision)<<yield_signals+yield_bkg; //Total SM
+        if(!blind) {file_latex<<fixed<<setprecision(precision)<<" & "<<setprecision(precision)<<yield_DATA;} //Data
+        file_latex<<" \\\\ \\hline"<<endl;
+        file_latex<<"\\end{tabular}"<<endl;
+        file_latex<<"\\caption{Event yields for the "<<lumi<<" data-taking period.}"<<endl;
+        file_latex<<"\\label{tab:yields}"<<endl;
+        // file_latex<<"\\end{table}"<<endl;
+        file_latex<<"\\end{sidewaystable}"<<endl;
+    }
 
 	cout<<endl<<FYEL("-- Wrote file : "<<outname<<"")<<endl;
-	// cout<<FYEL("-- Wrote file : "<<outname_latex<<"")<<endl;
+	if(create_latex_table) {cout<<FYEL("-- Wrote file : "<<outname_latex<<"")<<endl;}
 
 	return;
 }
@@ -464,7 +514,7 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
     //-- Default args (can be over-riden via command line args)
-    TString signal = "signal"; //tZq/ttZ/signal (both)
+    TString signal = "signal"; //signal=tZq/ttZ/tWZ
 
     //-- Category: '' <-> all events ; 'xxx' <-> only include events satisfying condition xxx //E.g.: 'is_signal_SR'
     TString category = "is_signal_SR";
@@ -492,41 +542,37 @@ int main(int argc, char **argv)
 
     v_samples.push_back("tZq"); v_label.push_back("tZq");
     v_samples.push_back("ttZ"); v_label.push_back("ttZ");
+    v_samples.push_back("tWZ"); v_label.push_back("tWZ");
 
     v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
     v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
     v_samples.push_back("PrivMC_tWZ"); v_label.push_back("PrivMC_tWZ");
 
-    v_samples.push_back("ttZ_M1to10"); v_label.push_back("ttZ_M1to10");
-
-    v_samples.push_back("tWZ"); v_label.push_back("tWZ");
+    v_samples.push_back("ttZ_M1to10"); v_label.push_back("tX");
     v_samples.push_back("tHq"); v_label.push_back("tX");
     v_samples.push_back("tHW"); v_label.push_back("tX");
-    v_samples.push_back("tGJets"); v_label.push_back("tX");
-
-    v_samples.push_back("ttH"); v_label.push_back("ttH");
-    v_samples.push_back("ttW"); v_label.push_back("ttW");
-    v_samples.push_back("ttZZ"); v_label.push_back("ttX");
-    v_samples.push_back("ttHH"); v_label.push_back("ttX");
-    v_samples.push_back("ttWW"); v_label.push_back("ttX");
-    v_samples.push_back("ttWZ"); v_label.push_back("ttX");
-    v_samples.push_back("ttZH"); v_label.push_back("ttX");
-    v_samples.push_back("ttWH"); v_label.push_back("ttX");
-    v_samples.push_back("tttt"); v_label.push_back("ttX");
+    v_samples.push_back("ttH"); v_label.push_back("tX");
+    v_samples.push_back("ttW"); v_label.push_back("tX");
+    v_samples.push_back("ttZZ"); v_label.push_back("tX");
+    v_samples.push_back("ttHH"); v_label.push_back("tX");
+    v_samples.push_back("ttWW"); v_label.push_back("tX");
+    v_samples.push_back("ttWZ"); v_label.push_back("tX");
+    v_samples.push_back("ttZH"); v_label.push_back("tX");
+    v_samples.push_back("ttWH"); v_label.push_back("tX");
+    v_samples.push_back("tttt"); v_label.push_back("tX");
 
     v_samples.push_back("WZ"); v_label.push_back("WZ");
 
-    v_samples.push_back("ZZ4l"); v_label.push_back("ZZ");
-    v_samples.push_back("ZZZ"); v_label.push_back("VV");
-    v_samples.push_back("WZZ"); v_label.push_back("VV");
-    v_samples.push_back("WWW"); v_label.push_back("VV");
-    v_samples.push_back("WWZ"); v_label.push_back("VV");
+    v_samples.push_back("ZZ4l"); v_label.push_back("VVV");
+    v_samples.push_back("ZZZ"); v_label.push_back("VVV");
+    v_samples.push_back("WZZ"); v_label.push_back("VVV");
+    v_samples.push_back("WWW"); v_label.push_back("VVV");
+    v_samples.push_back("WWZ"); v_label.push_back("VVV");
 
     v_samples.push_back("TTGamma_Dilep"); v_label.push_back("XG");
     v_samples.push_back("tGJets"); v_label.push_back("XG");
     v_samples.push_back("WGToLNuG"); v_label.push_back("XG");
     v_samples.push_back("ZGToLLG_01J"); v_label.push_back("XG");
-    v_samples.push_back("ggToZZTo4l"); v_label.push_back("XG");
 
     //MC nonprompt fakes
     v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");

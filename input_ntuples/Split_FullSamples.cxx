@@ -43,7 +43,7 @@
 #define DIM(x) "\e[2m" x RST
 #define DOUBLEUNDERLINE(x) "\e[21m" x RST
 #define CURLYUNDERLINE(x) "\e[4:3m" x RST
-#define BLINK(x) "\treese[5m" x RST
+#define BLINK(x) "\e[5m" x RST
 #define REVERSE(x) "\e[7m" x RST
 #define INVISIBLE(x) "\e[8m" x RST
 #define OVERLINE(x) "\e[53m" x RST
@@ -82,7 +82,7 @@
 #include "TF1.h"
 #include "TLegendEntry.h"
 #include "TGaxis.h"
-#include "TLeaf.h"trees
+#include "TLeaf.h"
 #include "TFractionFitter.h"
 #include "TVirtualFitter.h"
 #include "TFitResultPtr.h"
@@ -716,7 +716,7 @@ void Merge_Samples_byGroups(vector<TString> v_samples, vector<TString> v_sampleG
 Automatically split all samples into different subsamples (based on categories) *
 * --> Call to Create_Subsample_fromSample() for all samples/selections
  */
-void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_samples, bool make_FakesDATA_fullSample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_forSMEFTsamples, bool split_WZ_byJetFlavour, bool hadd_subsamples_byGroup, bool hadd_fullSamples_byGroup, bool update_fullSMEFTSamples_withWCFit)
+void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sampleGroups, vector<TString> v_sel, vector<TString> v_years, bool make_nominal_samples, bool make_FakesMC_samples, bool make_FakesDATA_fullSample, vector<TString> v_TTrees, TString NPL_flag, TString nominal_tree_name, bool store_WCFit_inSMEFTsubsamples, bool split_WZ_byJetFlavour, bool hadd_subsamples_byGroup, bool hadd_fullSamples_byGroup, bool update_fullSMEFTSamples_withWCFit)
 {
     cout<<endl<<endl<<FBLU("== START OF NTUPLES SPLITTING ==")<<endl;
     cout<<"This can be quite long. Make sure you have correctly selected in the code :"<<endl;
@@ -774,7 +774,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
             	Create_Subsample_fromSample(filepath, outfile_path, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name, open_mode);
 
                 if(v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Copy_SumWeight_Histogram_Into_SplitSample(filepath, outfile_path, v_samples[isample]);} //'_c' <-> identifier for pure-EFT samples (no parameterization)
-                if(store_WCFit_forSMEFTsamples && v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(outfile_path, v_TTrees, nominal_tree_name);}
+                if(store_WCFit_inSMEFTsubsamples && v_samples[isample].Contains("PrivMC") && !v_samples[isample].Contains("_c")) {Store_EFTparameterization(outfile_path, v_TTrees, nominal_tree_name);}
                 if(v_sel[isel].Contains("Fake")) {opening_mode_FakesMC = "UPDATE";} //Will update the TFile with next samples
                 if(split_WZ_byJetFlavour) {Split_WZ_sample_byJetFlavour(prefix, dir, filepath, v_sel[isel], v_samples[isample], v_TTrees, nominal_tree_name);}
             } //sample loop
@@ -834,16 +834,16 @@ int main(int argc, char **argv)
 //--- Options---------------------------------
 //--------------------------------------------
     bool make_nominal_samples = false; //true <-> create sub-samples satisfying given category flags
-    bool make_FakesMC_samples = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
-    bool make_FakesDATA_fullSample = false; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
+    bool make_FakesMC_samples = true; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_FakesDATA_fullSample = true; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
     bool hadd_subsamples_byGroup = false; //true <-> hadd the ntuples (split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
     bool hadd_fullSamples_byGroup = false; //true <-> hadd the 'full' ntuples (*not* split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
     bool update_fullSMEFTSamples_withWCFit = false; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
+    TString NPL_flag = "isFake"; //Flag defining fake events
+    bool store_WCFit_inSMEFTsubsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
 
     TString nominal_tree_name = "result"; //Hard-coded nominal tree name (special case)
-    TString NPL_flag = "isFake"; //Flag defining fake events
-    bool store_WCFit_forSMEFTsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
-    bool split_WZ_byJetFlavour = false; //true <-> also split WZ sample depending on flavour of additional jet //FIXME -- test!
+    bool split_WZ_byJetFlavour = false; //NOT TESTED ! //true <-> also split WZ sample depending on flavour of additional jet
 //--------------------------------------------
 
 
@@ -857,11 +857,10 @@ int main(int argc, char **argv)
     //-- Copy nominal + JES/JER TTrees
     //-- NB: first must be nominal tree name
     vector<TString> v_TTrees;
-    v_TTrees.push_back("result"); //FIXME
-    // v_TTrees.push_back("JESDown"); v_TTrees.push_back("JESUp");
-    v_TTrees.push_back("TotalDown"); v_TTrees.push_back("TotalUp");
+    v_TTrees.push_back("result");
+    v_TTrees.push_back("JESDown"); v_TTrees.push_back("JESUp");
     v_TTrees.push_back("JERDown"); v_TTrees.push_back("JERUp");
-    v_TTrees.push_back("UnclEnDown"); v_TTrees.push_back("UnclEnUp");
+    v_TTrees.push_back("METDown"); v_TTrees.push_back("METUp");
 
 
  //  ####    ##   #    # #####  #      ######  ####
@@ -954,7 +953,7 @@ int main(int argc, char **argv)
  // #       ####  #    #  ####      ####  #    # ###### ######
 
     //-- Make split ntuples per sub-category
-    Split_AllNtuples_ByCategory(v_samples, v_sample_groups, v_sel, v_years, make_nominal_samples, make_FakesMC_samples, make_FakesDATA_fullSample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_forSMEFTsamples, split_WZ_byJetFlavour, hadd_subsamples_byGroup, hadd_fullSamples_byGroup, update_fullSMEFTSamples_withWCFit);
+    Split_AllNtuples_ByCategory(v_samples, v_sample_groups, v_sel, v_years, make_nominal_samples, make_FakesMC_samples, make_FakesDATA_fullSample, v_TTrees, NPL_flag, nominal_tree_name, store_WCFit_inSMEFTsubsamples, split_WZ_byJetFlavour, hadd_subsamples_byGroup, hadd_fullSamples_byGroup, update_fullSMEFTSamples_withWCFit);
 
     return 0;
 }

@@ -94,7 +94,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     {
         if(sample_groups[i] != sample_groups[i-1]) {nSampleGroups++;}
     }
-    if(region=="tWZ") {nSampleGroups++;} //In tWZ region, single out tWZ process from tX
+    if(region=="twz") {nSampleGroups++;} //In tWZ region, single out tWZ process from tX
 
 //=== LUMI ===//
 /*
@@ -345,7 +345,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     this->use_SMdiffAnalysis_strategy = use_SMdiffAnalysis_strategy;
     if(use_SMdiffAnalysis_strategy)
     {
-        if(region != "tZq" && region != "ttZ" && region != "wz" && region != "zz" && region != "Vg") {cout<<"ERROR: you have set option [use_SMdiffAnalysis_strategy=true] but selected wrong region "<<region<<endl; stop_program = true;}
+        if(region != "tzq" && region != "ttz" && region != "wz" && region != "zz" && region != "xg") {cout<<"ERROR: you have set option [use_SMdiffAnalysis_strategy=true] but selected wrong region "<<region<<endl; stop_program = true;}
         if(make_fixedRegions_templates) {cout<<BOLD(FRED("ERROR: options [make_fixedRegions_templates=true] and [use_SMdiffAnalysis_strategy=true] are incompatible ! Abort !"))<<endl; stop_program = true;}
         if(v_cut_name.size()) {cout<<FRED("Warning: you have set option [use_SMdiffAnalysis_strategy=true] but set some manual cuts in the main()... is this intended ? Make sure that you don't cut on the same category flags used by this hardcoded strategy !")<<endl;}
     }
@@ -356,7 +356,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         if(syst_list[isyst]== "njets_tZqDown")
         {
             v_njets_SF_tZq = Get_nJets_SF("njets", "tZq", "PrivMC_tZq", v_lumiYears);
-            if(v_njets_SF_tZq[0].size()==0) {cout<<BOLD(FRED("ERROR: Get_nJets_SF() failed !"))<<endl; stop_program = true;}
+            if(v_njets_SF_tZq[0].size()==0) {cout<<BOLD(FMAG("Warning: Get_nJets_SF() failed (missing histogram input file ?) --> Removing this systematic from the list !"))<<endl; syst_list.erase(syst_list.begin() + isyst);}
         }
     }
 
@@ -1200,7 +1200,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             //-- Apply ad-hoc scale factor to private ttZ sample so that SM yield matches that of central ttZ sample
             //-- NB: should correct the xsec at potato level instead !
             // float SF_SMEFT_ttZ = 0.86;
-            float SF_SMEFT_tWZ = 1.20; //FIXME -- 1 per year ?
 
     		// cout<<"inputfile "<<inputfile<<endl;
     		if(!Check_File_Existence(inputfile))
@@ -1251,9 +1250,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                     //-- Check whether the SMEFT parameterization was already stored previously (--> only need to read it)
                     TString tree_EFTparameterization_name = "EFTparameterization";
-                    if(systTree_list[itree] == "TotalDown") {tree_EFTparameterization_name+= "_JESDown";} //-- obsolete in next prod
-                    else if(systTree_list[itree] == "TotalUp") {tree_EFTparameterization_name+= "_JESUp";} //-- obsolete in next prod
-                    else if(systTree_list[itree] != "") {tree_EFTparameterization_name+= "_" + systTree_list[itree];}
+                    // if(systTree_list[itree] == "TotalDown") {tree_EFTparameterization_name+= "_JESDown";}
+                    if(systTree_list[itree] != "") {tree_EFTparameterization_name+= "_" + systTree_list[itree];}
                     // cout<<"tree_EFTparameterization_name "<<tree_EFTparameterization_name<<endl;
 
                     if(file_input->GetListOfKeys()->Contains(tree_EFTparameterization_name))
@@ -1419,7 +1417,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 if(this->make_fixedRegions_templates)
                 {
                     //-- For now: consider 3 regions (ttZ 4l, CR WZ, CR ZZ, CR DY)
-                    TString cat_name = Get_Category_Boolean_Name("ttZ4l", isFake);
+                    TString cat_name = Get_Category_Boolean_Name("ttz4l", isFake);
                     tree->SetBranchStatus(cat_name, 1);
                     tree->SetBranchAddress(cat_name, &v_is_goodCategory[0]);
                     cat_name = Get_Category_Boolean_Name("wz", isFake);
@@ -1529,7 +1527,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
     					{
-    						if(makeHisto_inputVars && !Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax)) {cout<<FRED("Unknown variable name : "<<total_var_list[ivar]<<"! (include it in function Get_Variable_Range() in Helper.cxx)")<<endl; continue;} //Get binning for this input variable
+    						if(makeHisto_inputVars)
+                            {
+                                if(!Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax)) {cout<<FRED("Unknown variable name : "<<total_var_list[ivar]<<"! (include it in function Get_Variable_Range() in Helper.cxx)")<<endl; continue;} //Get binning for this input variable
+                                if(region.Contains("ttz4l", TString::kIgnoreCase)) {nbins = (int) (nbins / 2);} //Need tighter binning in low-stat regions
+                            }
 
                             //-- Update case-specific template binnings
                             int nbins_tmp = nbins; float xmin_tmp = xmin, xmax_tmp = xmax;
@@ -1674,7 +1676,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             NN_iMaxNode = -1;
                             for(int inode=0; inode<NN_nNodes; inode++)
                             {
-                                if(this->use_SMdiffAnalysis_strategy && region == "ttZ") {*total_var_pfloats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
+                                if(this->use_SMdiffAnalysis_strategy && region == "ttz") {*total_var_pfloats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
 
                                 // total_var_floats[inode] = clfy1_outputs[inode];
                                 // if(clfy1_outputs[inode] > mva_tmp) {mva_tmp = clfy1_outputs[inode]; NN_iMaxNode = inode;} //Store max. node info
@@ -1756,7 +1758,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                                 //-- Apply ad-hoc scale factor to private sample so that SM yield matches that of central sample
                                 // if(sample_list[isample] == "PrivMC_ttZ") {eft_fit->scale(SF_SMEFT_ttZ);}
-                                if(sample_list[isample] == "PrivMC_tWZ") {eft_fit->scale(SF_SMEFT_tWZ);}
                             }
                             else {tree_EFTparameterization->GetEntry(ientry);} //Else, eft_fit is read automatically from dedicated TTree
                         }
@@ -2025,7 +2026,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                                 //-- Apply ad-hoc scale factor to private sample so that SM yield matches that of central sample
                                 // if(sample_list[isample] == "PrivMC_ttZ") {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(SF_SMEFT_ttZ);}
-                                if(sample_list[isample] == "PrivMC_tWZ") {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Scale(SF_SMEFT_tWZ);}
 
                                 //-- Store nominal normalization, and apply it to specific systematics
                                 if(systTree_list[itree] == "" && syst_list[isyst] == "") {v_storeNominalIntegral_chan_val[ichan][ivar] = v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral();} //Store nominal norm.
@@ -2659,7 +2659,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     					}
     					else {break;}
     				}
-                    if(region == "tWZ" && samplename == "tWZ") {h_tmp->SetFillColor(kBlue);} //Different color
+                    if(region == "twz" && samplename == "tWZ") {h_tmp->SetFillColor(kBlue);} //Different color
                     //---------------------------------------------------
 
                     //-- Fill vector of MC histograms
@@ -2986,13 +2986,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		{
 			if(!v_MC_histo[i]) {continue;} //Some templates may be null
 
-            if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
+            if(region=="twz" && MC_samples_legend[i] == "tWZ") {continue;} //Put tWZ on top in that region
 
 			stack_MC->Add(v_MC_histo[i]);
 			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_MC_histo[i]->Integral()<<endl;
             // cout<<"stack bin 1 content = "<<((TH1*) stack_MC->GetStack()->Last())->GetBinContent(1)<<endl;
 		}
-        if(region=="tWZ") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
+        if(region=="twz") {stack_MC->Add(v_MC_histo[index_tWZ_sample]);} //Put tWZ on top in that region
 
         //-- Debug printout (THStack bins contents)
         // for(int ibin=1; ibin<last->GetNbinsX()+1; ibin++) {cout<<"stack bin "<<ibin<<" content = "<<((TH1*) stack_MC->GetStack()->Last())->GetBinContent(ibin)<<endl;}
@@ -3060,8 +3060,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_MC_histo[i], "tZq", "f");}
             else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_MC_histo[i], "t#bar{t}Z", "f");}
-            else if(MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
-            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}            // else if(region=="tWZ" && MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
+            else if(MC_samples_legend[i] == "tWZ") {qw->AddEntry(v_MC_histo[i], "tWZ", "f");}
             else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_MC_histo[i], "t(#bar{t})X", "f");}
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
             else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
@@ -4726,8 +4725,8 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
     {
         if(var_list_tmp[ivar] == "ctz" || var_list_tmp[ivar] == "ctw" || var_list_tmp[ivar] == "cpq3" || var_list_tmp[ivar] == "cpqm" || var_list_tmp[ivar] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
         tree->SetBranchStatus(var_list_tmp[ivar], 1); //Activate only necessary branches
-        // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //CMSSW
-        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //CHANGED -- Fill tensor directly for speed up //LOCAL
+        // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //FIXCMSSW
+        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //CHANGED -- Fill tensor directly for speed up //FIXLOCAL
     }
 
     //-- May cut on an 'event category flag' whose name is given as argument (<-> no need to evaluate MVA for events which do not enter the region of interest)
@@ -4745,11 +4744,6 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
 		if(ientry && ientry%50000==0) {cout<<DIM(" --- "<<ientry<<" / "<<nentries<<"")<<endl;}
 		tree->GetEntry(ientry);
 
-        //-- TESTING
-        // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp);
-        // clfy_tmp->evaluate_fast(input, clfy_outputs);
-        // continue;
-
         if(!is_goodCategory) {continue;}
 
         float mva_output = 0.;
@@ -4757,13 +4751,9 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         else //NN
         {
             //-- NB: if get segfault here of type 'Incompatible shapes: [1,105] vs. [35]' <-> means that the NN info file and actual .pb model are incompatible (need to retrain NN)
-            // {
-            //     clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //SLOW ! //CMSSW
-            //     clfy_tmp->evaluate_fast(input, clfy_outputs); //Evaluate output node(s) value(s) //SLOW //CHANGED -- overloaded function avoids un-necessary copies //CMSSW
-            // }
-            // input.tensor.flat<float>().setZero(); //Reset inputs (cf. https://cms-ml.github.io/documentation/inference/tensorflow2.html)
+            // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //Slow... ! //FIXCMSSW
 
-            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //LOCAL
+            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //FIXLOCAL
 
             NN_iMaxNode = -1;
             for(int inode=0; inode<NN_nNodes; inode++)
