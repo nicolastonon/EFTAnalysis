@@ -39,14 +39,14 @@ optsTrain = {
 "nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nHiddenLayers": 3, #Number of hidden layers
+"nHiddenLayers": 20, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
-"activInputLayer": 'relu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
-"activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
+"activInputLayer": 'prelu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
+"activHiddenLayers": 'prelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
@@ -54,9 +54,9 @@ optsTrain = {
 "earlyStopping": False, #True <-> use Keras' early stopping
 
 #=== Settings for NN *not* trained at many different SMEFT points (parameterized or not) ===#
-"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
+"maxEventsPerClass": 5000, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
-"batchSizeClass": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
+"batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
 # "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
@@ -87,7 +87,7 @@ optsTrain = {
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== Input features ===#
-"useHardCodedListInputFeatures": True, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below
+"useHardCodedListInputFeatures": False, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below
 "useLowLevelFeatures": False, #True <-> include P4 vectors corresponding to 3 selected leptons, and up to 4 hardest jets #(+ btagging score) not for now
 
 #=== OTHERS ===#
@@ -143,15 +143,15 @@ _list_labels.append("PrivMC_tZq")
 #-- Choose input features x
 _list_features = []
 
-_list_features.append("recoZ_Pt")
-_list_features.append("recoZ_Eta")
+# _list_features.append("recoZ_Pt")
+# _list_features.append("recoZ_Eta")
+_list_features.append("recoZ_dPhill") #!
+
 _list_features.append("mHT")
+# _list_features.append("mTW")
+# _list_features.append("Mass_3l")
 
 '''
-_list_features.append("mTW")
-_list_features.append("Mass_3l")
-_list_features.append("maxDelPhiLL") #!
-
 _list_features.append("lAsymmetry")
 _list_features.append("jPrimeAbsEta") #!
 _list_features.append("maxEtaJet")
@@ -353,12 +353,12 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
         # ckpt_dir = os.path.dirname(ckpt_path); history = 0
 
         #-- Fit model (TRAIN)
-        #CHANGED -- need to use weighted abs weights for val. data too... (as for training) !
+        #NB: need to use weighted abs weights for val. data too... (as for training) !
         print('\n'); print(colors.fg.lightblue, "--- Train (fit) NN on training sample...", colors.reset); print('\n')
         if optsTrain["trainAtManyEFTpoints"]==False and len(x_train)<200000: #Use the default data generator (load entire samples at once)
             history = model.fit(x_train, y_train, sample_weight=LearningWeights_train, validation_data=(x_val, y_val, LearningWeights_val), epochs=optsTrain["nEpochs"], batch_size=_batchSize, callbacks=callbacks_list, shuffle=True, verbose=1) #Use learning weights (abs, rescaled) for training/validation
 
-            # Evaluate the neural network's performance (evaluate metrics on validation or test dataset) #Use physical weights
+            #-- Evaluate the neural network's performance (evaluate metrics on validation or test dataset) #Use physical weights
             print('\n'); print(colors.fg.lightblue, "--- Evaluate NN performance on test sample...", colors.reset); print('\n')
             score = model.evaluate(x_test, y_test, batch_size=_batchSize, sample_weight=PhysicalWeights_test, verbose=1) #Use physical weights for testing
 
@@ -371,7 +371,8 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
             # for ifeat in range(len(_list_features)): print('Mean x feature', _list_features[ifeat], '-->', np.mean(x_train[:,ifeat]), '/', np.mean(x_val[:,ifeat]), '/', np.mean(x_test[:,ifeat]), '(train/val/test)')
             # print('Mean y -->', np.mean(y_train), '/', np.mean(y_val), '/', np.mean(y_test), '(train/val/test)')
             # print('Mean learning w -->', np.mean(LearningWeights_train), '/', np.mean(LearningWeights_val), '/', np.mean(LearningWeights_test), '(train/val/test)')
-            # batch_x, batch_y, batch_weights = my_training_batch_generator.__getitem__(0); print(batch_x); print(batch_y)
+            # batch_x, batch_y, batch_weights = my_training_batch_generator.__getitem__(0); print(batch_x, batch_y)
+            # batch_x, batch_y, batch_weights = my_validation_batch_generator.__getitem__(0); print(batch_x, batch_y)
             # exit(1)
 
             _steps_per_epoch_train = np.ceil(len(x_train) / _batchSize); _steps_per_epoch_val = np.ceil(len(x_val)/ _batchSize) ; _steps_per_epoch_test = np.ceil(len(x_test)/ _batchSize)
@@ -383,7 +384,8 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
             score = model.evaluate(my_testing_batch_generator, steps=_steps_per_epoch_test, verbose=1)
 
         #-- Can printout the output of the i-th layer here for N events, e.g. to verify that the normalization layer works properly
-        # for ilayer in range(len(model.layers)): Printout_Outputs_Layer(model, ilayer, xx=x[0:1])
+        # for ilayer in range(len(model.layers)): Printout_Outputs_Layer(model, ilayer, xx=x[0:2])
+        # Printout_Weights_Layer(model)
 
 
                                       #

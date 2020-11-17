@@ -76,6 +76,7 @@ def Write_Variables_To_TextFile(weight_dir, var_list):
 
 # //--------------------------------------------
 # //--------------------------------------------
+
 #-- Get execution time
 class TimeHistory(tensorflow.keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
@@ -94,6 +95,7 @@ class TimeHistory(tensorflow.keras.callbacks.Callback):
 #Normalize input features
 def normalize(val, shift, scale):
     return (val-shift)/scale
+
 # //--------------------------------------------
 # //--------------------------------------------
 
@@ -106,10 +108,11 @@ def normalize2(x_train, x_test):
     x_test_normalized = (x_test - mu) / std
     return x_train_normalized, x_test_normalized
 '''
+
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Using median and stddev from quantile is more robust against distributions with large tails
+#-- Using median and stddev from quantile is more robust against distributions with large tails
 #q is the fraction of events that should be in the interval [-1, 1]
 def get_normalization_iqr(np_array, q):
 
@@ -144,6 +147,26 @@ def Printout_Outputs_Layer(model, ilayer, xx):
     get_layer_output = keras.backend.function([model.layers[0].input], [model.layers[ilayer].output])
     layer_output = get_layer_output([xx])[0]
     print("\n", layer_output)
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+#Printout the output of the first (=input) layer here for N events, e.g. to verify that the normalization layer works properly
+def Printout_Weights_Layer(model):
+    print('\n', colors.bg.orange,'--------------------------------------------', colors.reset)
+    for ilayer, layer in enumerate(model.layers):
+        print('\n\nLAYER ', ilayer, ' (', layer.name, ')')
+        weights = layer.get_weights() # list of numpy arrays #First array=kernel (weights), second array=biases, then NB/PRelu/... ?
+        for iarr in range(len(weights)):
+            str = '\n-- Weights:'
+            if 'batch_normalization' in layer.name:
+                if iarr==0: str = '\n-- Gamma:'
+                elif iarr==1: str = '\n-- Beta:'
+                elif iarr==2: str = '\n-- Mean:'
+                elif iarr==3: str = '\n-- Variance:'
+            elif iarr==1: str = '\n-- Biases:'
+            elif iarr>1: str = '\n-- (?):'
+            print(str, weights[iarr])
 
 # //--------------------------------------------
 # //--------------------------------------------

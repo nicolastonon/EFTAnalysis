@@ -223,7 +223,7 @@ int main(int argc, char **argv)
     thevarlist.push_back("mHT");
     thevarlist.push_back("mTW");
     thevarlist.push_back("Mass_3l");
-    thevarlist.push_back("maxDelPhiLL");
+    thevarlist.push_back("recoZ_dPhill");
     thevarlist.push_back("lAsymmetry");
     thevarlist.push_back("jPrimeAbsEta");
     thevarlist.push_back("maxEtaJet");
@@ -344,19 +344,19 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
-    bool draw_input_vars = true; //Plot input variables
+    bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
     bool compare_template_shapes = false;

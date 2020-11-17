@@ -1173,7 +1173,7 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "maxDijet_M") {nbins = 10; xmin = 100; xmax = 1000;}
     else if(var == "maxDiJet_Pt") {nbins = 20; xmin = 100; xmax = 400;}
     else if(var == "maxDijet_dPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
-    else if(var == "maxDelPhiLL") {nbins = 10; xmin = 0; xmax = 3.5;}
+    else if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {nbins = 10; xmin = 0; xmax = 3.5;}
     else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 50; xmax = 500;}
     else if(var == "leptonCharge") {nbins = 3; xmin = -1.5; xmax = 1.5;}
     else if(var == "mTW") {nbins = 20; xmin = 0.; xmax = 200;}
@@ -1272,7 +1272,7 @@ TString Get_Variable_Name(TString var)
     if(var == "delRljPrime") {return "#DeltaR(j',l)";}
     if(var == "lAsymmetry") {return "q_{l} #upoint #left|#eta(l)#right|";}
     if(var == "maxDijetMass") {return "max. m_{j,j}";}
-    if(var == "maxDelPhiLL") {return "max. #Delta#phi(l,l)";}
+    if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {return "max. #Delta#phi(l,l)";}
     if(var == "metEt") {return "E_{T}^{miss}";}
     if(var == "recoZ_Mass") {return "m_{Z}";}
     if(var == "Mass_tZ") {return "m_{tZ}";}
@@ -1854,13 +1854,15 @@ vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc
             input_histo_filename = "./outputs/ControlHistograms_signal_"+v_years[iyear]+".root"; //Hard-coded
             if(!Check_File_Existence(input_histo_filename)) {cout<<FRED("[Get_nJets_SF] ERROR: file "<<input_histo_filename<<" not found ! ")<<endl; return v_SFs_years;}
         }
-        // cout<<DIM("Opening file "<<input_histo_filename<<" ... ")<<endl;
+        cout<<DIM("Opening file "<<input_histo_filename<<" ... ")<<endl;
         TFile* input_histo_file = TFile::Open(input_histo_filename, "READ");
 
         TString h1name = variable + "_" + v_years[iyear] + "__" + proc1;
         TString h2name = variable + "_" + v_years[iyear] + "__" + proc2;
         // cout<<"h1name "<<h1name<<endl;
         // cout<<"h2name "<<h2name<<endl;
+        if(!input_histo_file->GetListOfKeys()->Contains(h1name) || !input_histo_file->GetListOfKeys()->Contains(h2name)) {cout<<FRED("Error : "<<h1name<<" or "<<h2name<<" not found in file "<<input_histo_filename<<"")<<endl; return v_SFs_years;}
+
         TH1F* h1 = (TH1F*) input_histo_file->Get(h1name);
         TH1F* h2 = (TH1F*) input_histo_file->Get(h2name);
         if(h1->GetNbinsX() != h2->GetNbinsX()) {cout<<FRED("[Get_nJets_SF] ERROR: found different binnings for h1 and h2 : ")<<h1->GetNbinsX()<<" / "<<h2->GetNbinsX()<<endl; return v_SFs_years;}

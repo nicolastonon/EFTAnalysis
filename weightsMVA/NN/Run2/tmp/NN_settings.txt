@@ -1,4 +1,4 @@
-Start of NN training :15-Nov-2020 (20:35:27)
+Start of NN training :16-Nov-2020 (23:42:15)
 
 OPTIONS
 ----------------- 
@@ -8,23 +8,23 @@ parameterizedNN --> False
 strategy --> CARL_singlePoint
 nEpochs --> 20
 splitTrainValTestData --> [0.7, 0.0, 0.3]
-nHiddenLayers --> 3
+nHiddenLayers --> 20
 nNeuronsAllHiddenLayers --> 50
-activInputLayer --> relu
-activHiddenLayers --> relu
+activInputLayer --> prelu
+activHiddenLayers --> prelu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.2
+dropoutRate --> 0.0
 regularizer --> ['', 0.0001]
 optimizer --> Adam
 learnRate --> 0.001
 balancedClasses --> True
 earlyStopping --> False
-maxEventsPerClass --> -1
+maxEventsPerClass --> 5000
 nEventsTot_train --> -1
 nEventsTot_val --> -1
 nEventsTot_test --> -1
-batchSizeClass --> 512
+batchSizeClass --> 1000
 refPoint --> rwgt_ctw_5
 listOperatorsParam --> ['cpq3']
 nPointsPerOperator --> 50
@@ -37,7 +37,7 @@ regress_onLogr --> False
 targetVarIdx --> []
 comparVarIdx --> -1
 cuts --> is_signal_SR
-useHardCodedListInputFeatures --> True
+useHardCodedListInputFeatures --> False
 useLowLevelFeatures --> False
 makeValPlotsOnly --> False
 testToy1D --> False
@@ -49,7 +49,7 @@ trainAtManyEFTpoints --> False
 regress --> False
 nofOutputNodes --> 1
 maxEvents --> -1
-batchSize --> 512
+batchSize --> 1000
 samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy

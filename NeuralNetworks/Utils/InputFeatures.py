@@ -32,12 +32,10 @@ features_CARL_singlePoint_tZq_ctz.append("mTW")
 features_CARL_singlePoint_tZq_ctw = []
 features_CARL_singlePoint_tZq_ctw.append("recoZ_Pt")
 features_CARL_singlePoint_tZq_ctw.append("recoZ_Eta")
-features_CARL_singlePoint_tZq_ctw.append("jprime_Pt")
 features_CARL_singlePoint_tZq_ctw.append("jPrimeAbsEta")
-features_CARL_singlePoint_tZq_ctw.append("maxDelPhiLL")
 features_CARL_singlePoint_tZq_ctw.append("cosThetaStarPolTop")
+features_CARL_singlePoint_tZq_ctw.append("recoZ_dPhill")
 
-features_CARL_singlePoint_tZq_ctw.append("dEta_Zjprime")
 features_CARL_singlePoint_tZq_ctw.append("dEta_bjprime")
 features_CARL_singlePoint_tZq_ctw.append("dR_blW")
 features_CARL_singlePoint_tZq_ctw.append("dR_tClosestLep")
@@ -46,7 +44,7 @@ features_CARL_singlePoint_tZq_ctw.append("lAsymmetry")
 features_CARL_singlePoint_tZq_ctw.append("recoLepTop_Eta")
 features_CARL_singlePoint_tZq_ctw.append("Mass_3l")
 features_CARL_singlePoint_tZq_ctw.append("maxDiJet_Pt")
-features_CARL_singlePoint_tZq_ctw.append("mTW")
+# features_CARL_singlePoint_tZq_ctw.append("jprime_Pt")
 
 #-- cpqm
 features_CARL_singlePoint_tZq_cpqm = []

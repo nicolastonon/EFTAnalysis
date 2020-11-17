@@ -339,7 +339,7 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
     if history is None: return
 
     if opts["strategy"] == "RASCAL": #Metrics name depend on the output (e.g. 'val_likelihood_ratio_mean_squared_error' or 'val_score_mean_squared_error')
-        metrics = "likelihood_ratio_" + metrics
+        metrics = "likelihood_ratio_" + str(metrics)
 
     # Plotting the error with the number of iterations
     fig = plt.figure('metric')
@@ -349,19 +349,23 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
 
     # plt.plot(history.history['val_'+metrics], color='cornflowerblue')
     plt.title('Accuracy VS Epoch')
-    plt.ylabel('Train '+metrics, color='darkorange')
+    plt.ylabel('Train '+str(metrics), color='darkorange')
     plt.xlabel('Epoch')
     lns1 = plt.plot(history.history[metrics], color='darkorange', label='Train') #metrics name
     # print(history.history.keys())
 
     ax2 = ax1.twinx()  # instantiate a second axis that shares the same x-axis
-    ax2.set_ylabel('Test '+metrics, color='cornflowerblue')  # we already handled the x-label with ax1
+    ax2.set_ylabel('Test '+str(metrics), color='cornflowerblue')  # we already handled the x-label with ax1
     ax2.tick_params(axis='y', color='cornflowerblue')
     lns2 = ax2.plot(history.history['val_'+metrics], color='cornflowerblue', label='Test')
 
     ax3 = ax1.twinx()  # instantiate a 3rd axis that shares the same x-axis
     ax3.get_yaxis().set_ticks([]) #invisible y axis (not important)
     lns3 = ax3.plot(history.history['lr'], color='dimgrey', linestyle='--', label='lr')
+
+    #FIXME #FIXME
+    # CalculatedAccuracy = sum(list_predictions_test_allNodes_allClasses[] == yTrue)/len(yPred)
+
 
     #Legend
     lns = lns1+lns2+lns3
@@ -1182,7 +1186,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
 # //--------------------------------------------
 
-    plot_importance_allFeatures = False #True <-> create importance plot for each single input feature (very slow !)
+    plot_importance_allFeatures = True #True <-> create importance plot for each single input feature (very slow !)
     nmax=1000 #Max nof events *per process class* #None <-> use all events #SLOW !
 
 # //--------------------------------------------

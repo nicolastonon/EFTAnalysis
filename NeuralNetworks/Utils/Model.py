@@ -92,7 +92,8 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
     X = inp #First building block of model
 
     if use_normInputLayer == True :
-        X = Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="Feature_normalization",dtype='float32')(X)
+        # print('shifts', shifts); print('scales', scales)
+        X = Lambda(normalize, arguments={'shift': shifts, 'scale': scales}, name="Feature_normalization",dtype='float64')(X)
 
 # //--------------------------------------------
 # HIDDEN LAYERS

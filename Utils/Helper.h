@@ -206,7 +206,7 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
         // TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
         TString outname_tmp = "";
 
-        if(!ibin) //ibin=0 --> Store entire histo content as single bin --> counting experiment
+        if(!ibin) //ibin==0 --> Store entire histo content as single bin --> counting experiment
         {
             Double_t integral=0, error=0;
             integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);

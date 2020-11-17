@@ -21,7 +21,7 @@ from Utils.adabound_tf import AdaBound
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Focal loss definition, taken from: https://github.com/mkocabas/focal-loss-keras/blob/master/focal_loss.py, based on paper 'Focal Loss for Dense Object Detection' (Lin et. al.)
+#-- Focal loss definition, taken from: https://github.com/mkocabas/focal-loss-keras/blob/master/focal_loss.py, based on paper 'Focal Loss for Dense Object Detection' (Lin et. al.)
 '''
 def focal_loss(gamma=2., alpha=.25):
     def focal_loss_fixed(y_true, y_pred):
@@ -31,6 +31,10 @@ def focal_loss(gamma=2., alpha=.25):
 
     return focal_loss_fixed
 '''
+
+
+def rmse(y_true, y_pred):
+    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
 
 # //--------------------------------------------
@@ -114,18 +118,21 @@ def Get_Loss_Optim_Metrics(opts):
     # metrics = 'mean_absolute_error' #Calculates the mean absolute error (mae) rate between predicted and target values.
     # metrics = 'hinge' #Calculates the hinge loss, which is defined as max(1 - y_true * y_pred, 0).
     # metrics = 'binary_crossentropy' #Calculates the cross-entropy value for binary classification problems.
-    # metrics = 'AUC' #tf.metrics.AUC #Computes the approximate AUC (Area under the curve) via a Riemann sum.
+    # metrics = 'AUC' #tf.keras.metrics.AUC() #Computes the approximate AUC (Area under the curve) via a Riemann sum.
 
     if opts["regress"]==False: #Classification
         if opts["nofOutputNodes"] == 1: #BINARY
             loss = 'binary_crossentropy'
-            metrics = 'binary_accuracy'
-            # metrics = 'AUC'
+            # loss = 'mean_squared_error'
+
+            metrics = 'binary_accuracy' #'binary_accuracy', 'acc'
+            # metrics = 'top_k_categorical_accuracy' #requires you specify a k parameter
+            # metrics = 'rmse' #Defined above
+            # metrics = 'AUC' #Can't plot... ?
 
         elif opts["nofOutputNodes"] > 1: #MULTI
             loss = 'categorical_crossentropy'
-            metrics = 'categorical_accuracy'
-            # metrics = 'AUC'
+            metrics = 'categorical_accuracy' #'categorical_accuracy', 'acc'
 
     else: #Regression
         loss = 'mean_squared_error'

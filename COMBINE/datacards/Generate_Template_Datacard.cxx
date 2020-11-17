@@ -599,23 +599,18 @@ int main()
     v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //FIXME
-    // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRm_be"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRe_norm"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRm_be"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRe_norm"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //FIXME
-    // v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); //-- next prod
-    // v_shapeSyst.push_back("Total"); v_shapeSyst_isCorrelYears.push_back(true); //Not available for PrivMC_tWZ yet
-    // v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    // v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(true); //-- next prod
-    // v_shapeSyst.push_back("UnclEn"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //-- MISSING
+    //-- Missing / Obsolete
     // v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -623,6 +618,7 @@ int main()
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
+    // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
 
 
 //  ####    ##   #      #       ####

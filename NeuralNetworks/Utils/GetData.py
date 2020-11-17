@@ -93,8 +93,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
         x_val = x_test; y_val = y_test; y_process_val = y_process_test; PhysicalWeights_val = PhysicalWeights_test; LearningWeights_val = LearningWeights_test #Take testing dataset as validation dataset
     else: x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test = Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses) #Split data into train / val / test datasets
 
+    #-- Check for presence of very large weights, remove them
     #-- NB: wrong -- biases performance on training dataset !
-    # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 30, remove_above_treshold=True)
+    # mask_largeEFTweights = Remove_LargeEFTWeight_Events(LearningWeights_train, 200, remove_above_treshold=True)
+    # print('Remove events:', mask_largeEFTweights)
     # x_train = x_train[mask_largeEFTweights]
     # y_train = y_train[mask_largeEFTweights]
     # y_process_train = y_process_train[mask_largeEFTweights]
@@ -194,8 +196,6 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 if nevents is not None: print('(---> Will consider at most ' + str(nevents) + ' entries [<-> maxEventsPerClass])')
                 if cuts_total != '': print('(---> Apply cuts : ' + str(cuts_total) + ')')
                 print('\n\n')
-
-                # list_x_proc.append(tree2array(tree, branches=list_features, selection=cuts_total)) #Store values of input features into array, append to list
 
                 #-- root_numpy 'tree2array' function returns numpy structured array : 1D array whose length equals the nof events, and each element is a structure with multiple fields (1 per feature)
                 #For manipulation, it is easier to convert structured arrays obtained in this way into regular numpy arrays (e.g. x will be 2D and have shape (n_events, n_features) )
@@ -621,7 +621,7 @@ def Get_Events_Weights(opts, list_processClasses, list_labels, list_weights_allC
         LearningWeights_allClasses[targetClass_allClasses==1] = LearningWeights_allClasses[targetClass_allClasses==1] * SF_EFT
 
     #-- Can artificially manipulate class weights here
-    # LearningWeights_allClasses[targetClass_allClasses==0]*= 10. #EFT vs SM
+    # LearningWeights_allClasses[targetClass_allClasses==1]*= 50. #EFT vs SM
 
     return LearningWeights_allClasses, PhysicalWeights_allClasses
 
@@ -826,18 +826,9 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
             y_process[::2] = 0
 
     #-- Check for presence of very large weights
-    remove_largeWeight_events = False #NB: not correct because can only remove events from training sample #NB: not correct because the mean should be computed separately for each process class... ! #Remove events with too large weights (may bias the training) -- not for training against pure-EFT samples, where weights are very imbalanced by construction
     if opts["samplesType"] is not "centralVSpureEFT" and len(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100]) > 0:
         print('Warning: very large event weights found (global mean = ',np.mean(PhysicalWeights_allClasses),') :')
         print(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100])
-
-        if remove_largeWeight_events:
-            print('---> Removing these events from all arrays...')
-            #-- Define masks to remove any event (row) containing a NaN/inf value. 'any(axis=1)' <-> look for any row containing a NaN. 'reshape' <-> convert 1D arrays to 2D arrays for convenience
-            mask = np.where(PhysicalWeights_allClasses <= np.mean(PhysicalWeights_allClasses)*100)
-            if len(TrainValTest_allClasses)==len(x): TrainValTest_allClasses = TrainValTest_allClasses[mask]
-            x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
-            # print(len(x))
 
     return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses
 
