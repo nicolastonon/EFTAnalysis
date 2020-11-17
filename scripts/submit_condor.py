@@ -7,20 +7,24 @@
 #-----
 # submit analyzer jobs
 def analyze(args):
+    print('== SUBMITTING ANALYZER JOB(S) ==\n')
+
     # process arguments
     test = args.test
     split = int(args.split)
 
     # create output directory
     from datetime import datetime
-    output = 'condor/d{}-t{}'.format(datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S'))
+    outdir = 'd{}-t{}'.format(datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S'))
+    output = 'condor/' + outdir
+
     import os
     if not os.path.exists('condor'):
         os.mkdir('condor')
     os.mkdir(output)
 
     #-- NB: may loop here to generate multiple jobs
-    i = 0 #Default: submit 1 single job    
+    i = 0 #Default: submit 1 single job
     if  True:
 
         # construct job name
@@ -45,7 +49,9 @@ def analyze(args):
     else:
         from subprocess import call
     command = './scripts/job.sh {} ./analysis_main.exe'.format(os.getcwd())
-    call('./scripts/cs.sh -n{} -a0:{} "{}"'.format(jobname, i-1, command), shell=True) #NB: use [-a0:i-1] to submit i jobs with arguments 0...i-1
+    call('./scripts/cs.sh -d{} -n{} -a0:{} "{}"'.format(outdir, jobname, i-1, command), shell=True) #NB: use [-a0:i-1] to submit i jobs with arguments 0...i-1
+
+    print('== DONE ! ==\n')
 # end: submit analyzer jobs
 #-----
 
@@ -66,7 +72,7 @@ def train(args):
     os.mkdir(output)
 
     #-- NB: may loop here to generate multiple jobs
-    i = 0 #Default: submit 1 single job    
+    i = 0 #Default: submit 1 single job
     if  True:
 
         # construct job name
@@ -286,4 +292,3 @@ if __name__ == '__main__':
     Submit()
 # end: parse command line arguments
 #-----
-

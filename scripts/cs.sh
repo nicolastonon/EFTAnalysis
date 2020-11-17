@@ -11,6 +11,7 @@
 #   -p (takes no argument) to prepare submission files but do not submit the job, just print the command (pretend, or dry run)
 #   -n for job name
 #   -o for output file names
+#   -d for output dir
 #   -g for group ('MyProject')
 #   -a for array of jobs in the format -amin:max (example: -a1:3 submits 3 jobs with arguments 1,2,3)
 #   key=value for any other option to pass to condor_q -append
@@ -89,6 +90,13 @@ for arg in ${ArgsSub}; do
     NameFileOutTxt=${NameCondorDir}'/'${NameOutPattern}'.txt'
     NameFileOutErr=${NameCondorDir}'/'${NameOutPattern}'.err'
     FlagOuputNameFileExplicit=1
+  elif [[ "${arg}"* == "-d"* ]]; then
+	echo 'NameOutDir='${arg:2}
+    NameOutDir=${arg:2}
+    NameFileOutLog=${NameCondorDir}'/'${NameOutDir}'/'${JobName}'.log'
+    NameFileOutTxt=${NameCondorDir}'/'${NameOutDir}'/'${JobName}'.txt'
+    NameFileOutErr=${NameCondorDir}'/'${NameOutDir}'/'${JobName}'.err'
+    FlagOuputNameFileExplicit=1
   elif [[ *"${arg}"* == *"="* ]]; then
     ExtraOptions+=('-append '${arg})
   # check if this is a job array (with an array of arguments)
@@ -132,6 +140,12 @@ echo '  echo "Using LD_LIBRARY_PATH_STORED"' >> ${NameScriptFile}
 echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_STORED:$LD_LIBRARY_PATH' >> ${NameScriptFile}
 echo 'fi' >> ${NameScriptFile}
 echo '' >> ${NameScriptFile}
+
+#ADDED
+#echo 'export SCRAM_ARCH='${SCRAM_ARCH} >> ${NameScriptFile}
+#echo 'export CMSSW_VERSION='${CMSSW_VERSION} >> ${NameScriptFile}
+echo 'export LD_LIBRARY_PATH='${LD_LIBRARY_PATH}':/nfs/dust/cms/user/ntonon/TopEFT/'${CMSSW_VERSION}'/lib/'{$SCRAM_ARCH} >> ${NameScriptFile}
+
 echo 'source ~/.profile' >> ${NameScriptFile} #Must source conda, packages, ... on HTCondor server
 echo 'echo "command to run: '${ArgsExe}'"' >> ${NameScriptFile}
 echo '' >> ${NameScriptFile}

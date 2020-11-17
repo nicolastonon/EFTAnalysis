@@ -353,10 +353,10 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     //-- Hard-coded: for njet-PrivMC_tZq shape systematics, need to read pre-existing histos
     for(int isyst=0; isyst<syst_list.size(); isyst++)
     {
-        if(syst_list[isyst]== "njets_tZqDown")
+        if(syst_list[isyst] == "njets_tZqDown")
         {
             v_njets_SF_tZq = Get_nJets_SF("njets", "tZq", "PrivMC_tZq", v_lumiYears);
-            if(v_njets_SF_tZq[0].size()==0) {cout<<BOLD(FMAG("Warning: Get_nJets_SF() failed (missing histogram input file ?) --> Removing this systematic from the list !"))<<endl; syst_list.erase(syst_list.begin() + isyst);}
+            if(v_njets_SF_tZq[0].size()==0) {cout<<BOLD(FMAG("Warning: Get_nJets_SF() failed (missing histogram input file ?) --> Removing this systematic from the list !"))<<endl; syst_list.erase(syst_list.begin() + isyst); syst_list.erase(syst_list.begin() + isyst+1);} //Erase down/up variations for this syst
         }
     }
 
@@ -1243,7 +1243,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 bool EFTparameterization_alreadyStored = false; //Check whether the SMEFT parameterization was already stored previously (--> only need to read it)
                 TTree* tree_EFTparameterization = NULL; //The per-event SMEFT parameterization may have been stored already (using [Split_FullSamples] code) --> If this is the case, can simply read it (much faster)
                 WCFit* eft_fit = NULL;
-                if(isPrivMC && systTree_list[itree] == nominal_tree_name)
+                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name))
                 {
                     eft_fit = new WCFit("myfit"); //Need to initialize the object for all TH1EFT objects, even if not used
 
@@ -1544,7 +1544,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                             // v3_histo_chan_syst_var[ichan][isyst][ivar] = new TH1F("", "", nbins_tmp, xmin_tmp, xmax_tmp); //Obsolete -- redundant for PrivMC
 
-                            if(isPrivMC && systTree_list[itree] == nominal_tree_name) //For private SMEFT samples, init both TH1F/TH1EFT objects; can then decide which to Fill (usually: only need more complex TH1EFT for nominal histos, but can choose to simply use TH1Fs e.g. in CRs...)
+                            if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name)) //For private SMEFT samples, init both TH1F/TH1EFT objects; can then decide which to Fill (usually: only need more complex TH1EFT for nominal histos, but can choose to simply use TH1Fs e.g. in CRs...)
                             {
                                 if(syst_list[isyst] != "") {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = NULL;} //Don't need TH1EFT objects in this case, don't reserve un-necessary memory
                                 else {v3_TH1EFT_chan_syst_var[ichan][isyst][ivar] = new TH1EFT("", "", nbins_tmp, xmin_tmp, xmax_tmp);}
@@ -1749,7 +1749,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(sample_list[isample] == "PrivMC_ttZ_TOP19001") {w_SMpoint*= 2.482*20;}
                         else if(sample_list[isample] == "PrivMC_tZq_TOP19001") {w_SMpoint*= 3.087*20;}
 
-                        if(!doNot_storeWCFit_PrivSamples && !sample_list[isample].Contains("TOP19001") && systTree_list[itree] == nominal_tree_name) //Need EFT parameterization //NB: don't compute parameterization for TOP19001 samples, way too slow
+                        if(!doNot_storeWCFit_PrivSamples && !sample_list[isample].Contains("TOP19001") && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name)) //Need EFT parameterization //NB: don't compute parameterization for TOP19001 samples, way too slow
                         {
                             if(!EFTparameterization_alreadyStored && !sample_list[isample].Contains("TOP19001")) //EFT parameterization not stored, need to determine it
                             {
@@ -1780,7 +1780,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //NB: only need to fill additional variables here in 2 cases: a) if 'use_predefined_EFT_strategy=true'; b) if 'make_fixedRegions_templates=true' --> predefined set of multiple templates ! (otherwise, considering single template, which was filled above)
                             if(!makeHisto_inputVars)
                             {
-                                if(isPrivMC && systTree_list[itree] == nominal_tree_name && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise
+                                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise
 
                                 //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
                                 if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
@@ -1937,7 +1937,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         						}
 
                                 //-- F i l l     h i s t o
-                                if(isPrivMC && systTree_list[itree] == nominal_tree_name)
+                                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name))
                                 {
                                     // if(syst_list[isyst] == "") {Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);} //Nominal --> need TH1EFT to store WCFit objects
                                     // else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);} //Weight systematics --> can use regular TH1F objects
@@ -1996,7 +1996,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						file_output->cd();
 
                             // if(isPrivMC && syst_list[isyst] == "") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
-                            if(isPrivMC && systTree_list[itree] == nominal_tree_name && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) ) //CHANGED //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
+                            if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) ) //CHANGED //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
                             {
                                 if(sample_list[isample] != "NPL_MC") {Avoid_Histogram_EmptyOrNegativeBins(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]);}
                                 // if(sample_list[isample] != "NPL_MC" && v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->Integral() <= 0) {Set_Histogram_FlatZero(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], output_histo_name, true);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway
@@ -4720,7 +4720,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         if(var_list_tmp[ivar] == "ctz" || var_list_tmp[ivar] == "ctw" || var_list_tmp[ivar] == "cpq3" || var_list_tmp[ivar] == "cpqm" || var_list_tmp[ivar] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
         tree->SetBranchStatus(var_list_tmp[ivar], 1); //Activate only necessary branches
         // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //FIXCMSSW
-        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //CHANGED -- Fill tensor directly for speed up //FIXLOCAL
+        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //Fill tensor directly for speed up //FIXLOCAL
     }
 
     //-- May cut on an 'event category flag' whose name is given as argument (<-> no need to evaluate MVA for events which do not enter the region of interest)
@@ -4746,7 +4746,6 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         {
             //-- NB: if get segfault here of type 'Incompatible shapes: [1,105] vs. [35]' <-> means that the NN info file and actual .pb model are incompatible (need to retrain NN)
             // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //Slow... ! //FIXCMSSW
-
             clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //FIXLOCAL
 
             NN_iMaxNode = -1;

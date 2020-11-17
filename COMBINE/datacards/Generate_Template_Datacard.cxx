@@ -102,7 +102,7 @@ void Choose_Arguments_From_CommandLine(TString& signal)
 {
     //Choose whether to include shape syst or not
 	cout<<endl<<FYEL("--- What is your SIGNAL ?")<<endl;
-    cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ"<<endl;
+    cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ+tWZ"<<endl;
     cout<<"* 'efttzq'   <-> Signal is SMEFT tZq only"<<endl;
     cout<<"* 'eftttz'   <-> Signal is SMEFT ttZ only"<<endl;
     cout<<"* 'efttwz'   <-> Signal is SMEFT tWZ only"<<endl;
@@ -609,6 +609,8 @@ int main()
     v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(true);
+
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //TESTING
 
     //-- Missing / Obsolete
     // v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);

@@ -363,10 +363,6 @@ def Make_Metrics_Plot(opts, list_labels, list_predictions_train_allNodes_allClas
     ax3.get_yaxis().set_ticks([]) #invisible y axis (not important)
     lns3 = ax3.plot(history.history['lr'], color='dimgrey', linestyle='--', label='lr')
 
-    #FIXME #FIXME
-    # CalculatedAccuracy = sum(list_predictions_test_allNodes_allClasses[] == yTrue)/len(yPred)
-
-
     #Legend
     lns = lns1+lns2+lns3
     labs = [l.get_label() for l in lns]

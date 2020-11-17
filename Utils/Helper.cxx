@@ -1195,12 +1195,13 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 250.;}
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
+    else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
     else if(var.Contains("CSV", TString::kIgnoreCase)) {nbins = 20; xmin = 0.; xmax = 1.1;}
     else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 7.;}
     else if(var.Contains("deta", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
+    else if(var.Contains("dphi", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
     else if(var.Contains("eta", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
-    else if(var.Contains("phi", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
-    else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
+    else if(var.Contains("phi", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
 
     else if(var == "njets" || var == "nbjets") {nbins = 6; xmin = 0.; xmax = 6;}
 
@@ -1281,8 +1282,8 @@ TString Get_Variable_Name(TString var)
     if(var == "minDelRbL") {return "min. #DeltaR(b,l)";}
     if(var == "Top_delRbl") {return "#DeltaR#left(l^{t},b^{t}#right)";}
     if(var == "Top_delRbW") {return "#DeltaR#left(W^{t},b^{t}#right)";}
-    if(var == "cosThetaStarPolTop") {return "cos#left(#theta^{* t}_{pol}#right)";}
-    if(var == "cosThetaStarPolZ") {return "cos#left(#theta^{* Z}_{pol}#right)";}
+    if(var == "cosThetaStarPolTop") {return "cos#left(#theta^{*}_{top}#right)";}
+    if(var == "cosThetaStarPolZ") {return "cos#left(#theta^{*}_{Z}#right)";}
 
     //GenPlotter variables
     if(var == "Z_pt") {return "p_{T}(Z)";}
@@ -1296,8 +1297,8 @@ TString Get_Variable_Name(TString var)
     if(var == "LeadingTop_pt") {return "p_{T}(t^{lead})";}
     if(var == "LeadingTop_eta") {return "#eta(t^{lead})";}
     if(var == "Zreco_dPhill") {return "#Delta#Phi_{ll}";}
-    if(var == "cosThetaStarPol_Z") {return "cos(#theta^{*}_{Z})";}
-    if(var == "cosThetaStarPol_Top") {return "cos(#theta^{*}_{t})";}
+    if(var == "cosThetaStarPol_Top") {return "cos#left(#theta^{*}_{top}#right)";}
+    if(var == "cosThetaStarPol_Z") {return "cos#left(#theta^{*}_{Z}#right)";}
 
     return var;
 }

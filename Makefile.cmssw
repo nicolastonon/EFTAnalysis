@@ -15,10 +15,21 @@ ROOTFLAGS = `root-config --glibs --cflags`
 LFLAGS = $(DEBUG) -lTMVA -lPyMVA
 #LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/cms/cmssw/${CMSSW_VERSION}/lib/${SCRAM_ARCH} -lFWCoreUtilities -lPhysicsToolsTensorFlow #Why does not work ? Need to create these lib manually
 LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow -lFWCoreUtilities #Libraries generated manually via scram
+
+#CMSSW_10_2_24
+#LFLAGS+= -L/cvmfs/cms.cern.ch/slc7_amd64_gcc700/external/tensorflow/1.6.0-gnimlf3/lib -ltensorflow_framework
+#LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.5.2/lib -lprotobuf
+#LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2018_U1-omkpbe2/lib -ltbbmalloc
+#INCFLAGS = -I${CMSSW_BASE}/src
+#INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/1.6.0-gnimlf3/include
+#INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.5.2/include
+#INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2018_U1-omkpbe2/include
+#INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/eigen/64060da8461a627eb25b5a7bc0616776068db58b/include/eigen3
+
+#CMSSW_11_1_2
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/2.1.0-bcolbf2/lib -ltensorflow_framework
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.11.3/lib -lprotobuf
 LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2019_U9-bcolbf/lib -ltbbmalloc
-
 INCFLAGS = -I${CMSSW_BASE}/src
 INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tensorflow/2.1.0-bcolbf2/include
 INCFLAGS+= -I/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/eigen/d812f411c3f9-bcolbf2/include/eigen3

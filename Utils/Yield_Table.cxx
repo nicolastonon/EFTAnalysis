@@ -81,7 +81,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
         // file_latex<<"\\begin{table}[]"<<endl; //Horizontal
         file_latex<<"\\begin{sidewaystable}[]"<<endl; //Vertical //Requires package rotating
         file_latex<<"\\centering"<<endl;
-        file_latex<<"\\tiny"<<endl; //normal, small, tiny
+        file_latex<<"\\small"<<endl; //normal, small, tiny
         file_latex<<"\\begin{tabular}{|c|"; //Init with 1 column (leftmost column, e.g. listing different event categories)
     	for(int isample=0; isample<v_label.size(); isample++)
     	{
@@ -98,8 +98,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
     			file_latex<<"c|"; //1 column per process (-1 already printed above)
     		}
     	}
-        file_latex<<"|c"; //also add total SM
-        if(!blind) {file_latex<<"|c|";} //also add data
+        file_latex<<"|c|"; //Total SM
+        if(!blind) {file_latex<<"|c|";} //Data
     	file_latex<<"}"<<endl;
     	file_latex<<"\\hline"<<endl;
     	file_latex<<" & "; //Leave leftmost case empty

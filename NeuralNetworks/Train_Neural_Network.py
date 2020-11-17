@@ -29,24 +29,24 @@ optsTrain = {
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
-"strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+# "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
+"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized] #NB: useless for multi-dim fits, since can't 'classify' EFT operators at mixed point; only advantage would be for 1D limits (replace N training by 1, dealing with all N operators)... #NB: may nto work if 'parameterizedNN==False'
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
 
 #=== General training/architecture settings ===#
-"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 40, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nHiddenLayers": 20, #Number of hidden layers
-"nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
+"nHiddenLayers": 3, #Number of hidden layers
+"nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
-"activInputLayer": 'prelu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
-"activHiddenLayers": 'prelu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
+"activInputLayer": 'relu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
+"activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0., #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.4, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
@@ -54,20 +54,20 @@ optsTrain = {
 "earlyStopping": False, #True <-> use Keras' early stopping
 
 #=== Settings for NN *not* trained at many different SMEFT points (parameterized or not) ===#
-"maxEventsPerClass": 5000, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
+"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
 "batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
 #=== Settings for CARL/ROLR/RASCAL strategies ===#
-# "refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
+"refPoint": "SM", #Reference point used e.g. to compute likelihood ratios. Must be "SM" for CARL_multiclass strategy (<-> separate SM from EFT). Must be != "SM" for CARL_singlePoint strategy (<-> will correspond to the single hypothesis to separate from SM). Follow naming convention from MG, e.g.: 'ctZ_-3.5_ctp_2.6'
 # "refPoint": "rwgt_cpqm_15",
 # "refPoint": "rwgt_ctw_5",
-"refPoint": "rwgt_ctw_5",
+# "refPoint": "rwgt_ctw_5",
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['cpq3'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 50, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
@@ -87,7 +87,7 @@ optsTrain = {
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== Input features ===#
-"useHardCodedListInputFeatures": False, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below
+"useHardCodedListInputFeatures": True, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below
 "useLowLevelFeatures": False, #True <-> include P4 vectors corresponding to 3 selected leptons, and up to 4 hardest jets #(+ btagging score) not for now
 
 #=== OTHERS ===#
@@ -143,22 +143,21 @@ _list_labels.append("PrivMC_tZq")
 #-- Choose input features x
 _list_features = []
 
-# _list_features.append("recoZ_Pt")
-# _list_features.append("recoZ_Eta")
-_list_features.append("recoZ_dPhill") #!
+_list_features.append("recoZ_Pt")
+_list_features.append("recoZ_Eta")
+_list_features.append("recoZ_dPhill")
 
-_list_features.append("mHT")
+# '''
+_list_features.append("lAsymmetry")
+_list_features.append("jPrimeAbsEta")
+# _list_features.append("mHT")
 # _list_features.append("mTW")
 # _list_features.append("Mass_3l")
-
-'''
-_list_features.append("lAsymmetry")
-_list_features.append("jPrimeAbsEta") #!
-_list_features.append("maxEtaJet")
-_list_features.append("maxDeepJet") #!
-_list_features.append("njets")
-_list_features.append("nbjets")
-'''
+# _list_features.append("maxEtaJet")
+# _list_features.append("maxDeepJet")
+# _list_features.append("njets")
+# _list_features.append("nbjets")
+# '''
 
 '''
 _list_features.append("cosThetaStarPolTop")
