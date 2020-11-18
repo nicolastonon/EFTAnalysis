@@ -606,6 +606,11 @@ int main()
     v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
+    v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
+
     v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);

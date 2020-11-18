@@ -318,6 +318,11 @@ int main(int argc, char **argv)
         theSystWeights.push_back("FRe_ptDown"); theSystWeights.push_back("FRe_ptUp");
         theSystWeights.push_back("FRe_beDown"); theSystWeights.push_back("FRe_beUp");
 
+        theSystWeights.push_back("LepEff_muLooseDown"); theSystWeights.push_back("LepEff_muLooseUp");
+        theSystWeights.push_back("LepEff_muTightDown"); theSystWeights.push_back("LepEff_muTightUp");
+        theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
+        theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
+
         //-- MISSING / OBSOLETE
         // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only //MISSING for PrivMC
         // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup"); //Signals only //MISSING for PrivMC

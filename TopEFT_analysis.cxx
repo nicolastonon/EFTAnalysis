@@ -271,6 +271,10 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     array_alphaS = NULL;
     array_PDFtotal = NULL;
     array_partonShower = NULL;
+    array_LepEffLoose_mu = NULL;
+    array_LepEffTight_mu = NULL;
+    array_LepEffLoose_el = NULL;
+    array_LepEffTight_el = NULL;
 
 	//Store the "cut name" that will be written as a suffix in the name of each output file
 	this->filename_suffix = "";
@@ -954,6 +958,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         array_alphaS = new double[2];
         array_PDFtotal = new double[2];
         array_partonShower = new double[4];
+        array_LepEffLoose_mu = new double[2];
+        array_LepEffTight_mu = new double[2];
+        array_LepEffLoose_el = new double[2];
+        array_LepEffTight_el = new double[2];
     }
 
     if(!makeHisto_inputVars)
@@ -2145,6 +2153,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(array_alphaS) {delete[] array_alphaS; array_alphaS = NULL;}
         if(array_PDFtotal) {delete[] array_PDFtotal; array_PDFtotal = NULL;}
         if(array_partonShower) {delete[] array_partonShower; array_partonShower = NULL;}
+        if(array_LepEffLoose_mu) {delete[] array_LepEffLoose_mu; array_LepEffLoose_mu = NULL;}
+        if(array_LepEffTight_mu) {delete[] array_LepEffTight_mu; array_LepEffTight_mu = NULL;}
+        if(array_LepEffLoose_el) {delete[] array_LepEffLoose_el; array_LepEffLoose_el = NULL;}
+        if(array_LepEffTight_el) {delete[] array_LepEffTight_el; array_LepEffTight_el = NULL;}
     }
     if(clfy1) {delete clfy1; clfy1 = NULL;}
     for(int ivar=0; ivar<var_list_pfloats.size(); ivar++) {if(var_list_pfloats[ivar]) {/*cout<<"del var "<<var_list[ivar]<<endl;*/ delete var_list_pfloats[ivar]; var_list_pfloats[ivar] = NULL;}}
@@ -4346,8 +4358,6 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
         if(systname.EndsWith("Down")) {index = 3;}
         else if(systname.EndsWith("Up")) {index = 2;}
     }
-
-    /*
     else if(systname.BeginsWith("LepEff_mu"))
     {
         if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_mu; array_name = "varWeightMuonLoose";}
@@ -4357,31 +4367,13 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
     }
     else if(systname.BeginsWith("LepEff_el"))
     {
-        if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_mu; array_name = "varWeightElectronLoose";}
-        else {address_memberArray = array_LepEffTight_mu; array_name = "varWeightElectronTight";}
+        if(systname.Contains("Loose")) {address_memberArray = array_LepEffLoose_el; array_name = "varWeightElectronLoose";}
+        else {address_memberArray = array_LepEffTight_el; array_name = "varWeightElectronTight";}
         if(systname.EndsWith("Down")) {index = 0;}
         else if(systname.EndsWith("Up")) {index = 1;}
     }
-    else if(systname.BeginsWith("LepEff_mu"))
-    {
-        address_memberArray = array_LepEff_mu;
-        array_name = "varWeightMuon";
-        if(systname.EndsWith("LooseDown")) {index = 0;}
-        else if(systname.EndsWith("LooseUp")) {index = 1;}
-        else if(systname.EndsWith("TightDown")) {index = 2;}
-        else if(systname.EndsWith("TightUp")) {index = 3;}
-    }
-    else if(systname.BeginsWith("LepEff_el"))
-    {
-        address_memberArray = array_LepEff_el;
-        array_name = "varWeightElectron";
-        if(systname.EndsWith("LooseDown")) {index = 0;}
-        else if(systname.EndsWith("LooseUp")) {index = 1;}
-        else if(systname.EndsWith("TightDown")) {index = 2;}
-        else if(systname.EndsWith("TightUp")) {index = 3;}
-    }
-    */
-    else if(systname.Contains("njets_tZq")) {return;} //Handled differently (class member SF)
+
+    else if(systname.Contains("njets_tZq")) {return;} //Handled differently (using class member SF variable)
 
     else {cout<<FRED("ERROR ! Systematic '"<<systname<<"' not included in function SetBranchAddress_SystVariation() from Helper.cxx ! Can *not* compute it !")<<endl; return;}
 

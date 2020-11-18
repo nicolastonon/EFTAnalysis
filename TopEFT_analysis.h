@@ -184,6 +184,10 @@ class TopEFT_analysis
     double* array_alphaS;
     double* array_PDFtotal;
     double* array_partonShower;
+    double* array_LepEffLoose_mu;
+    double* array_LepEffTight_mu;
+    double* array_LepEffLoose_el;
+    double* array_LepEffTight_el;
 
     //-- For parameterized NN
     bool scanOperators_paramNN; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
