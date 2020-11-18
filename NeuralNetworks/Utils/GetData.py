@@ -812,7 +812,7 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         mask_inf = ~np.isinf(x.reshape(len(x), -1)).any(axis=1) & ~np.isinf(y.reshape(len(y), -1)).any(axis=1) & ~np.isinf(y_process.reshape(len(y_process), -1)).any(axis=1) & ~np.isinf(PhysicalWeights_allClasses.reshape(len(PhysicalWeights_allClasses), -1)).any(axis=1) & ~np.isinf(LearningWeights_allClasses.reshape(len(LearningWeights_allClasses), -1)).any(axis=1)
         mask = mask_nan & mask_inf #Combine both masks
         if len(TrainValTest_allClasses)==len(x): TrainValTest_allClasses = TrainValTest_allClasses[mask]
-        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]
+        x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
         # print(len(x))
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":

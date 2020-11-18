@@ -587,7 +587,7 @@ int main()
 //--------------------------------------------
     vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
     v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true); //Hardcoded: prefire for 16/17 only
+    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);

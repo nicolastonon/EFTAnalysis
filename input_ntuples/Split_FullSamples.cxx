@@ -837,11 +837,11 @@ int main(int argc, char **argv)
 //--- Options---------------------------------
 //--------------------------------------------
     bool make_nominal_samples = false; //true <-> create sub-samples satisfying given category flags
-    bool make_FakesMC_samples = true; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
-    bool make_FakesDATA_fullSample = true; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
+    bool make_FakesMC_samples = false; //true <-> merge the MC prompt+fake contribution into a single "NPL_MC" sample (for full ntuples, and also for sub-ntuples in sub-categories if 'make_nominal_samples=true')
+    bool make_FakesDATA_fullSample = false; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
     bool hadd_subsamples_byGroup = false; //true <-> hadd the ntuples (split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
     bool hadd_fullSamples_byGroup = false; //true <-> hadd the 'full' ntuples (*not* split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
-    bool update_fullSMEFTSamples_withWCFit = true; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
+    bool update_fullSMEFTSamples_withWCFit = false; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
     TString NPL_flag = "isFake"; //Flag defining fake events
     bool store_WCFit_inSMEFTsubsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
 

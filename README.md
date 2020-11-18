@@ -83,7 +83,7 @@ Please follow the following instructions to install and interface the code with 
 
 ```
 cd PATH
-export CMSSW_VERSION=CMSSW_11_1_2 [need >=11_1_0 for Tensorflow2 compatibility ? Update: also works under 10_2_X...]
+export CMSSW_VERSION=CMSSW_11_1_2 [need >=11_1_0 for Tensorflow2 compatibility ! Else crashes at NN evaluation]
 cmsrel $CMSSW_VERSION
 cd $CMSSW_VERSION/src; cmsenv
 git-cms-addpkg PhysicsTools/TensorFlow

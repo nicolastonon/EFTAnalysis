@@ -67,9 +67,9 @@ int main(int argc, char **argv)
 //NB : years must be placed in the right order !
 
 	vector<TString> set_lumi_years;
-    set_lumi_years.push_back("2016"); //FIXME
-    // set_lumi_years.push_back("2017");
-    // set_lumi_years.push_back("2018");
+    set_lumi_years.push_back("2016");
+    set_lumi_years.push_back("2017");
+    set_lumi_years.push_back("2018");
 
 
 //-----------------------------------------------------------------------------------------
@@ -352,7 +352,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
