@@ -608,7 +608,7 @@ int main()
 
     v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
     v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //TESTING
 

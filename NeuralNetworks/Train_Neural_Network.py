@@ -25,7 +25,7 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
+"parameterizedNN": True, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
@@ -91,7 +91,7 @@ optsTrain = {
 "useLowLevelFeatures": False, #True <-> include P4 vectors corresponding to 3 selected leptons, and up to 4 hardest jets #(+ btagging score) not for now
 
 #=== OTHERS ===#
-"makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
+"makeValPlotsOnly": True, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
 "storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 "storePerOperatorSeparately": True, #True <-> when training on SM vs EFT and considering a single operator, will store all outputs in an operatgor-specific dir. (allows to then consider different trainigs for different operators)

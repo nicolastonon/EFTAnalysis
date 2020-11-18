@@ -83,8 +83,9 @@ Please follow the following instructions to install and interface the code with 
 
 ```
 cd PATH
-cmsrel CMSSW_11_1_2 [or another release; but the code is meant to work with TF2, apparently only available for >=11_1_0]
-cd CMSSW_11_1_2/src; cmsenv
+export CMSSW_VERSION=CMSSW_11_1_2 [need >=11_1_0 for Tensorflow2 compatibility ? Update: also works under 10_2_X...]
+cmsrel $CMSSW_VERSION
+cd $CMSSW_VERSION/src; cmsenv
 git-cms-addpkg PhysicsTools/TensorFlow
 git cms-addpkg FWCore/Utilities
 scram b -j 4 [slow]

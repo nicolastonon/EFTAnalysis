@@ -1,10 +1,10 @@
-Start of NN training :17-Nov-2020 (11:19:00)
+Start of NN training :18-Nov-2020 (09:20:01)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-parameterizedNN --> False
+parameterizedNN --> True
 strategy --> CARL
 nEpochs --> 40
 splitTrainValTestData --> [0.7, 0.0, 0.3]
@@ -39,7 +39,7 @@ comparVarIdx --> -1
 cuts --> is_signal_SR
 useHardCodedListInputFeatures --> True
 useLowLevelFeatures --> False
-makeValPlotsOnly --> False
+makeValPlotsOnly --> True
 testToy1D --> False
 storeInTestDirectory --> True
 storePerOperatorSeparately --> True
@@ -53,7 +53,6 @@ batchSize --> 512
 samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
-NN_strategy --> MVA_EFT
+NN_strategy --> MVA_param
 ----------------- 
 
-End of NN training and evaluation :17-nov.-2020 (11:23:08)

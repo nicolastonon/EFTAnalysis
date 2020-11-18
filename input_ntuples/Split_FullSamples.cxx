@@ -165,6 +165,8 @@ void Store_EFTparameterization(TString filepath, vector<TString> v_TTrees, TStri
 
     for(int itree=0; itree<v_TTrees.size(); itree++)
     {
+        if(v_TTrees[itree] != nominal_tree_name) {cout<<DIM("Skipping syst. tree "<<v_TTrees[itree]<<" !")<<endl; continue;} //Don't need to store parameterization (very slow) for systematics
+
         TTree* t = (TTree*) f->Get(v_TTrees[itree]);
         if(!t) {cout<<BOLD(FRED("ERROR: tree "<<v_TTrees[itree]<<" not found (filepath: "<<filepath<<") ! Skip !"))<<endl; continue;}
         int nentries = t->GetEntries();
@@ -297,7 +299,7 @@ void Create_Subsample_fromSample(TString fullsample_name, TString newsample_name
 
 		TTree* t_input = NULL; //input tree
         t_input = (TTree*) f_data->Get(v_TTrees[itree]);
-        if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;} //FIXME -- make sure it does not crash if miss tree
+        if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
         Int_t nentries = t_input->GetEntries();
 
     	f_new->cd();
@@ -584,7 +586,7 @@ void Make_Full_Merged_Ntuples(vector<TString> v_years, vector<TString> v_TTrees,
 
                 TTree* t_input = 0; //input tree
                 t_input = (TTree*) f_input->Get(v_TTrees[itree]);
-                if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;} //FIXME -- make sure it does not crash if miss tree
+                if(!t_input) {cout<<FRED("Null tree "<<v_TTrees[itree]<<" !")<<endl; return;}
 
                 f_new->cd();
                 TTree *t_new = 0; //output tree
@@ -755,6 +757,7 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
 
                 //-- Skip unwanted selection/sample combinations
                 // if(!make_nominal_samples && !v_sel[isel].Contains("Fake")) {continue;} //Only fake categories
+                if(!make_nominal_samples) {continue;}
                 if(!make_FakesMC_samples && v_sel[isel].Contains("Fake") && v_samples[isample] != "DATA") {continue;} //No fake MC
                 else if(v_sel[isel].Contains("Fake") && (v_samples[isample].Contains("PrivMC") || v_samples[isample].Contains("TTbar") || v_samples[isample].Contains("DY"))) {continue;} //Don't consider prompt fake contributions from: private samples / ttbar / DY / ...
                 else if(!make_nominal_samples && v_sel[isel].Contains("Fake") && v_samples[isample] == "DATA") {continue;} //If 'make_nominal_samples=False', dont make NPL_DATA sub-ntuples neither !
@@ -838,7 +841,7 @@ int main(int argc, char **argv)
     bool make_FakesDATA_fullSample = true; //true <-> make 'full' sample (no subcat.) for data-driven NPL contribution
     bool hadd_subsamples_byGroup = false; //true <-> hadd the ntuples (split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
     bool hadd_fullSamples_byGroup = false; //true <-> hadd the 'full' ntuples (*not* split by sub-categories) into 'sample group' ntuples (e.g. tX, ...)
-    bool update_fullSMEFTSamples_withWCFit = false; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
+    bool update_fullSMEFTSamples_withWCFit = true; //true <-> update the 'full' private SMEFT samples, compute+store the WCFit objects for all events in the files (faster to read the EFT parameterization later in the analysis) //Extremely slow when considering many TTrees (few hours!) -- but makes it all the more necessary
     TString NPL_flag = "isFake"; //Flag defining fake events
     bool store_WCFit_inSMEFTsubsamples = true; //true <-> also store per-event EFT parameterization for SMEFT samples (so that it can be then read directly when processing the sample)
 
@@ -894,7 +897,6 @@ int main(int argc, char **argv)
     v_samples.push_back("tttt"); v_sample_groups.push_back("tX");
     v_samples.push_back("ttHH"); v_sample_groups.push_back("tX");
     v_samples.push_back("ZZ4l"); v_sample_groups.push_back("VVV");
-    v_samples.push_back("ggToZZTo4l"); v_sample_groups.push_back("VVV");
     v_samples.push_back("ZZZ"); v_sample_groups.push_back("VVV");
     v_samples.push_back("WZZ"); v_sample_groups.push_back("VVV");
     v_samples.push_back("WWW"); v_sample_groups.push_back("VVV");
@@ -906,6 +908,7 @@ int main(int argc, char **argv)
 	v_samples.push_back("ZGToLLG_01J"); v_sample_groups.push_back("XG");
 
     //-- OBSOLETE
+    //v_samples.push_back("ggToZZTo4l"); v_sample_groups.push_back("VVV");
 	// v_samples.push_back("DY"); v_sample_groups.push_back("DY");
     // v_samples.push_back("TTbar_DiLep"); v_sample_groups.push_back("TTbar_DiLep");
 

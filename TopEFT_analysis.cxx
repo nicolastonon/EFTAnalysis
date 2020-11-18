@@ -68,10 +68,6 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     this->signal_process = signal_process;
     if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "tWZ") {cout<<BOLD(FRED("ERROR ! [signal_process] option not recognized ! Abort..."))<<endl; stop_program = true;}
 
-    //-- Obsolete (not compatible with use_SMdiffAnalysis_strategy use-case)
-    // if(region == "tZq" && signal_process != "tZq") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
-    // else if(region == "ttZ" && signal_process != "ttZ") {cout<<BOLD(FRED("ERROR ! [region] and [signal_process] options are not compatible ! Abort..."))<<endl; stop_program = true;}
-
     this->make_SMvsEFT_templates_plots = make_SMvsEFT_templates_plots;
 
     this->categorization_strategy = categorization_strategy;
@@ -331,8 +327,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     this->use_DD_NPL = use_DD_NPL;
     if(!Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL.root")) && !Check_File_Existence((dir_ntuples + v_lumiYears[0] + "/NPL_DATA.root")))
     {
-        cout<<endl<<FMAG("ERROR : option [use_DD_NPL=true] but could not find corresponding file (either "<<dir_ntuples + v_lumiYears[0] + "/NPL.root, or " + dir_ntuples + v_lumiYears[0] + "/NPL_DATA.root"<<" ! Please check & fix")<<endl<<endl;
-        stop_program = true;
+        cout<<endl<<BOLD(FMAG("ERROR : option [use_DD_NPL=true] but could not find corresponding file (either "<<dir_ntuples + v_lumiYears[0] + "/NPL.root, or " + dir_ntuples + v_lumiYears[0] + "/NPL_DATA.root"<<") ! Expect a crash..."))<<endl<<endl;
+        // stop_program = true;
     }
 
     this->make_fixedRegions_templates = make_fixedRegions_templates;
