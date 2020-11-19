@@ -16,7 +16,7 @@ LFLAGS = $(DEBUG) -lTMVA -lPyMVA
 #LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/cms/cmssw/${CMSSW_VERSION}/lib/${SCRAM_ARCH} -lFWCoreUtilities -lPhysicsToolsTensorFlow #Why does not work ? Need to create these lib manually
 LFLAGS+= -L${CMSSW_BASE}/lib/${SCRAM_ARCH} -lPhysicsToolsTensorFlow -lFWCoreUtilities #Libraries generated manually via scram
 
-#CMSSW_10_2_24
+#CMSSW_10_2_24 #NOT WORKING (crash NN evaluation)
 #LFLAGS+= -L/cvmfs/cms.cern.ch/slc7_amd64_gcc700/external/tensorflow/1.6.0-gnimlf3/lib -ltensorflow_framework
 #LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/protobuf/3.5.2/lib -lprotobuf
 #LFLAGS+= -L/cvmfs/cms.cern.ch/${SCRAM_ARCH}/external/tbb/2018_U1-omkpbe2/lib -ltbbmalloc

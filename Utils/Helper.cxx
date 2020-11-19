@@ -827,7 +827,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
         else if(arg1 == "ttz4l") {region_choice = "ttz4l";}
         else if(arg1 == "twz") {region_choice = "twz";}
         else if(arg1 == "signal") {region_choice = "signal";}
-        else if(arg1 == "xg") {region_choice = "xg";}
+        else if(arg1 == "xg" || arg1 == "vg") {region_choice = "xg";}
         else if(arg1 == "zz") {region_choice = "zz";}
         else if(arg1 == "tt") {region_choice = "tt";}
         else if(arg1 == "wz") {region_choice = "wz";}
@@ -863,7 +863,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
             else if(arg2 == "ttz4l") {region_choice = "ttz4l";}
             else if(arg2 == "twz") {region_choice = "twz";}
             else if(arg2 == "signal") {region_choice = "signal";}
-            else if(arg2 == "xg") {region_choice = "xg";}
+            else if(arg2 == "xg" || arg2 == "vg") {region_choice = "xg";}
             else if(arg2 == "zz") {region_choice = "zz";}
             else if(arg2 == "tt") {region_choice = "tt";}
             else if(arg2 == "wz") {region_choice = "wz";}
@@ -1190,8 +1190,8 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
 
     else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
-    else if(var == "jet1_pt") {nbins = 20; xmin = 50.; xmax = 600.;}
-    else if(var == "lep1_pt") {nbins = 20; xmin = 50.; xmax = 300.;}
+    else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 500.;}
+    else if(var == "lep1_pt") {nbins = 20; xmin = 0.; xmax = 250.;}
     else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 250.;}
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
@@ -1321,7 +1321,7 @@ TString Get_Category_Boolean_Name(TString region, bool isFake)
     else if(region=="ttz") {name = "is_ttz_SR";}
     else if(region=="ttz4l") {name = "is_ttz4l_SR";}
 
-    else if(region=="xg") {name = "is_Vg_CR";} //FIXME -- change name in next prod
+    else if(region=="xg") {name = "is_xg_CR";}
     else if(region=="zz") {name = "is_zz_CR";}
     else if(region=="tx") {name = "is_tX_CR";}
     else if(region=="tt") {name = "is_tt_CR";}

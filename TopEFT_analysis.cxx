@@ -1473,15 +1473,23 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 //-- EFT reweights
                 vector<float>* v_wgts = NULL;
                 vector<string>* v_ids = NULL;
+                float SMweight = 0; //Read SM weight directly (hardcoded in potato)
                 if(isPrivMC)
                 {
-                    v_wgts = new vector<float>;
-                    tree->SetBranchStatus("mc_EFTweights", 1);
-                    tree->SetBranchAddress("mc_EFTweights", &v_wgts);
+                    tree->SetBranchStatus("SMweight", 1);
+                    tree->SetBranchAddress("SMweight", &SMweight);
 
-                    v_ids = new vector<string>;
-                    tree->SetBranchStatus("mc_EFTweightIDs", 1);
-                    tree->SetBranchAddress("mc_EFTweightIDs", &v_ids);
+                    //CHANGED -- only need reweighting features (<-> read all reweights) for nominal TTree ! For syst TTrees, only consider SM-like TH1Fs
+                    if(systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name)
+                    {
+                        v_wgts = new vector<float>;
+                        tree->SetBranchStatus("mc_EFTweights", 1);
+                        tree->SetBranchAddress("mc_EFTweights", &v_wgts);
+
+                        v_ids = new vector<string>;
+                        tree->SetBranchStatus("mc_EFTweightIDs", 1);
+                        tree->SetBranchAddress("mc_EFTweightIDs", &v_ids);
+                    }
                 }
 
                 //-- Reserve 1 float for each systematic weight (also for nominal to keep ordering, but not used)
@@ -1493,7 +1501,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				else if(systTree_list[itree] != "") {break;} //Syst event weights only stored in nominal TTree
                     else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                     else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
-                    else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                    else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
                     else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
                     //Set proper branch address (hard-coded mapping)
@@ -1564,8 +1572,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				} //syst
     			} //chan
 
-                //For private EFT samples, get and store index of SM reweight
-                int idx_sm = -1;
+                //-- For private EFT samples, get and store index of SM reweight //FIXME
+                int idx_sm = 0; //Hardcoded: SM index = 0 !
+                //NB: obsolete, now reading SMweight directly via hardcoded variable //Keep this more generic approach
+                /*
                 int nweights = 25; //For my SMEFT samples, only need >= 21 EFT weights for parameterization
                 if(isPrivMC)
                 {
@@ -1582,7 +1592,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     if(EFTparameterization_alreadyStored) {tree->SetBranchStatus("mc_EFTweightIDs", 0);} //If simply reading EFT parameterization from file, don't need to read names of EFT points for each event; however, need to read vector of weights to get the proper SM event weights
                     if(idx_sm == -1) {cout<<BOLD(FRED("Error: SM reweight not found in private sample ! Abort ! "))<<endl; return;}
                     else {cout<<DIM("idx_sm = "<<idx_sm<<")")<<endl;}
-                }
+                }*/
 
 
 // ###### #    # ###### #    # #####    #       ####   ####  #####
@@ -1730,7 +1740,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     float w_SMpoint = 0;
                     if(isPrivMC)
                     {
-                        w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]);
+                        w_SMpoint = weight_tmp * SMweight / (weightMENominal * v_SWE[0]); //Hardcoded SM index
+                        // w_SMpoint = weight_tmp * v_wgts->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //Keep also more generic definition
 
                         // cout<<"v_wgts->at(idx_sm) "<<v_wgts->at(idx_sm)<<" / weightMENominal "<<weightMENominal<<" / v_SWE[idx_sm] "<<v_SWE[idx_sm]<<endl;
 
@@ -1757,7 +1768,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         {
                             if(!EFTparameterization_alreadyStored && !sample_list[isample].Contains("TOP19001")) //EFT parameterization not stored, need to determine it
                             {
-                                Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, idx_sm, nweights);
+                                Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, 0, nweights); //Hardcoded SM index
+                                // Get_WCFit(eft_fit, v_ids, v_wgts, v_SWE, weight_tmp, weightMENominal, w_SMpoint, idx_sm, nweights); //Keep also more generic definition
 
                                 //-- Apply ad-hoc scale factor to private sample so that SM yield matches that of central sample
                                 // if(sample_list[isample] == "PrivMC_ttZ") {eft_fit->scale(SF_SMEFT_ttZ);}
@@ -1912,7 +1924,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 else if(systTree_list[itree] != "" && syst_list[isyst] != "") {break;} //Syst event weights only stored in nominal TTree
                                 else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
-                                else if( (syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;} //Only considered for signal samples
+                                else if( (syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;} //Only considered for signal samples
                                 else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
         						// cout<<"-- sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
@@ -1979,7 +1991,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         else if(systTree_list[itree] != "" && syst_list[isyst] != "") {break;} //Syst event weights only stored in nominal TTree
                         else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                         else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
-                        else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                        else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
                         else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
@@ -2602,7 +2614,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     								//-- Protections : not all syst weights apply to all samples, etc.
     								if(syst_list[isyst] != "" && systTree_list[itree] != "") {break;} //JES,JER,... -> read first element only
                                     else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
-                                    else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                                    else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
 
     								// cout<<"sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
 
@@ -4472,7 +4484,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
                                 if(sample_list[isample] == "DATA" && (systTree_list[itree] != "" || syst_list[isyst] != "")) {continue;} //nominal data only
                                 else if(makeHisto_inputVars && sample_groups[isample] != "NPL") {continue;} //For control plots, only need to substract prompt NPL from data-driven NPL
                                 else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
-                                else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ") {continue;}
+                                else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
                                 else if(systTree_list[itree] != "" && (sample_list[isample] == "DY" || sample_list[isample].Contains("TTbar") || sample_list[isample].Contains("NPL")) ) {continue;}
                                 else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
 

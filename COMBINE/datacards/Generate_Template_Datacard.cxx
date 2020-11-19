@@ -89,10 +89,11 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
 
     else if(syst.Contains("tZq", TString::kIgnoreCase) && !sample.Contains("tZq")) {return false;}
     else if(syst.Contains("ttZ", TString::kIgnoreCase) && !sample.Contains("ttZ")) {return false;}
+    else if(syst.Contains("tWZ", TString::kIgnoreCase) && !sample.Contains("tWZ")) {return false;}
 
     else if(syst.Contains("CRWZ", TString::kIgnoreCase) && !sample.Contains("WZ")) {return false;}
-    else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV")) {return false;}
-    else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
+    else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
+    else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
 	return true;
 }
@@ -540,8 +541,8 @@ int main()
     //else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(15); //FIXME
-    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15); //FIXME
+    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     v_samples.push_back("XG"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
     v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(30);
 
@@ -571,9 +572,9 @@ int main()
     v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02");
     v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02");
 
-    v_normSyst.push_back("N_CRWZ_extrap"); v_normSystValue.push_back("1.08");
-    v_normSyst.push_back("N_CRZZ_extrap"); v_normSystValue.push_back("1.08");
-    v_normSyst.push_back("N_CRDY_extrap"); v_normSystValue.push_back("1.08");
+    v_normSyst.push_back("N_CRWZ_extrap"); v_normSystValue.push_back("1.05");
+    v_normSyst.push_back("N_CRZZ_extrap"); v_normSystValue.push_back("1.05");
+    v_normSyst.push_back("N_CRDY_extrap"); v_normSystValue.push_back("1.05");
 
 
 //  ####  #    #   ##   #####  ######     ####  #   #  ####  #####
@@ -619,11 +620,13 @@ int main()
 
     //-- Missing / Obsolete
     // v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
+    // v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
+    // v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
+    // v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
 

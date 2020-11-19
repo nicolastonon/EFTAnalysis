@@ -179,7 +179,6 @@ int main(int argc, char **argv)
 
     //VV(V)
     thesamplelist.push_back("ZZ4l"); thesamplegroups.push_back("VVV");
-    // thesamplelist.push_back("ggToZZTo4l"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("ZZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WZZ"); thesamplegroups.push_back("VVV");
     thesamplelist.push_back("WWW"); thesamplegroups.push_back("VVV");
@@ -187,9 +186,9 @@ int main(int argc, char **argv)
 
     //X+g
     thesamplelist.push_back("TTGamma_Dilep"); thesamplegroups.push_back("XG");
-    thesamplelist.push_back("tGJets"); thesamplegroups.push_back("XG");
-    thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("XG");
     thesamplelist.push_back("ZGToLLG_01J"); thesamplegroups.push_back("XG");
+    // thesamplelist.push_back("tGJets"); thesamplegroups.push_back("XG"); //Useless ?
+    // thesamplelist.push_back("WGToLNuG"); thesamplegroups.push_back("XG"); //Useless ?
 
     //NPL (Fakes)
     if(use_DD_NPL) //Data-driven
