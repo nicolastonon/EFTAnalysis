@@ -27,10 +27,10 @@ optsTrain = {
 #=== NN strategy ===#
 "parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
-# "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
+"strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized] #NB: useless for multi-dim fits, since can't 'classify' EFT operators at mixed point; only advantage would be for 1D limits (replace N training by 1, dealing with all N operators)... #NB: may nto work if 'parameterizedNN==False'
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
@@ -46,12 +46,12 @@ optsTrain = {
 "activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.4, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
 "balancedClasses": True, #True <-> apply event SFs in training to balance the total weights of all classes
-"earlyStopping": False, #True <-> use Keras' early stopping
+"earlyStopping": True, #True <-> use Keras' early stopping
 
 #=== Settings for NN *not* trained at many different SMEFT points (parameterized or not) ===#
 "maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
@@ -69,7 +69,7 @@ optsTrain = {
 "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
-"nEventsPerPoint": 1000, #FIXME #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 512, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 1, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
@@ -110,16 +110,16 @@ _list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
-# _list_processClasses.append(["tZq"])
-# _list_processClasses.append(["ttZ"])
+_list_processClasses.append(["tZq"])
+_list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
-_list_processClasses.append(["PrivMC_tZq"])
+# _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_TOP19001"])
 # _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
-# _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
+_list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
@@ -129,14 +129,14 @@ _list_processClasses.append(["PrivMC_tZq"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []
-# _list_labels.append("tZq")
-# _list_labels.append("ttZ")
-_list_labels.append("PrivMC_tZq")
+_list_labels.append("tZq")
+_list_labels.append("ttZ")
+# _list_labels.append("PrivMC_tZq")
 # _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")
 # _list_labels.append("SM")
-# _list_labels.append("Backgrounds")
+_list_labels.append("Backgrounds")
 
 # //--------------------------------------------
 

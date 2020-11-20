@@ -1839,7 +1839,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
 /**
  * Semi-hardcoded function: read 'ControlHistograms' rootfile (produced with main function 'Produce_Templates'), to extract a SF based on a given variable histogram for 2 given processes and a given year.
  * Intended use-case: easily extract njet-based SF between central/private tZq samples
- * NB: SF taken as : (proc1/proc2)
+ * NB: SF taken as : (proc1/proc2), using normalized histos (shape-only systematic)
  */
 vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc2, vector<TString> v_years)
 {
@@ -1866,6 +1866,7 @@ vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc
 
         TH1F* h1 = (TH1F*) input_histo_file->Get(h1name);
         TH1F* h2 = (TH1F*) input_histo_file->Get(h2name);
+        h1->Scale(1./h1->Integral()); h2->Scale(1./h2->Integral()); //Normalized to unity (shape-only effect)
         if(h1->GetNbinsX() != h2->GetNbinsX()) {cout<<FRED("[Get_nJets_SF] ERROR: found different binnings for h1 and h2 : ")<<h1->GetNbinsX()<<" / "<<h2->GetNbinsX()<<endl; return v_SFs_years;}
         for(int ibin=1; ibin<h1->GetNbinsX()+1; ibin++)
         {
@@ -1887,21 +1888,24 @@ vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc
  */
 float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iyear, TString systname)
 {
-    float SF = 0;
+    float SF = 1.; //Default
 
-    float sf_tmp = 1;
-    if(njet_val >= v_njets_SF_tZq[iyear].size()) {return v_njets_SF_tZq[iyear][njet_val];} //Overflow bin
-    else {sf_tmp = v_njets_SF_tZq[iyear][njet_val];}
+    if(njet_val >= v_njets_SF_tZq[iyear].size()) {SF = v_njets_SF_tZq[iyear][v_njets_SF_tZq[iyear].size()-1];} //Overflow bin
+    else
+    {
+        float sf_tmp = 1;
+        sf_tmp = v_njets_SF_tZq[iyear][njet_val];
 
-    if(systname == "njets_tZqDown") //DOWN
-    {
-        SF = 1 - (sf_tmp-1); //Example: SF=1.2 --> return 0.8 (and conversely)
+        if(systname == "njets_tZqDown") //DOWN
+        {
+            SF = 1 - (sf_tmp-1); //Example: SF=1.2 --> return 0.8 (and conversely)
+        }
+        else if(systname == "njets_tZqUp") //UP
+        {
+            SF = sf_tmp; //Example: SF=1.2 --> return 1.2
+        }
+        else {cout<<FRED("[Apply_nJets_SF] ERROR: syst not recognized :"<<systname<<"")<<endl;}
     }
-    else if(systname == "njets_tZqUp") //UP
-    {
-        SF = sf_tmp; //Example: SF=1.2 --> return 1.2
-    }
-    else {cout<<FRED("[Apply_nJets_SF] ERROR: syst not recognized :"<<systname<<"")<<endl;}
 
     // cout<<"[Apply_nJets_SF] systname "<<systname<<" / iyear "<<iyear<<" / njet_val "<<njet_val<<" / SF = "<<SF<<endl;
 

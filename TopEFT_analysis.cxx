@@ -900,7 +900,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     //-- Define category of interest
     TString cat_tmp = region;
 
-    //Hard-coded here: determine whether we are producing EFT templates using a predefined strategy (cf. definitions in main)
+    //-- Hard-coded: determine whether we are producing EFT templates using a predefined strategy (cf. definitions in main --> may apply automatic cuts)
     bool use_predefined_EFT_strategy = false;
     bool use_maxNode_events = false;
     bool apply_MVASM_cut = false;
@@ -1035,17 +1035,17 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	// cout<<endl<<ITAL("-- Ntuples directory : "<<dir_ntuples<<"")<<endl<<endl;
 
     // float tmp_compare = 0;
-    float total_nentries_toProcess = Count_Total_Nof_Entries(dir_ntuples, nominal_tree_name, sample_list, systTree_list, v_cut_name, v_cut_def, v_lumiYears, makeHisto_inputVars, noSysts_inputVars);
+    float total_nentries_toRead = Count_Total_Nof_Entries(dir_ntuples, nominal_tree_name, sample_list, systTree_list, v_cut_name, v_cut_def, v_lumiYears, makeHisto_inputVars, noSysts_inputVars);
 
     cout<<endl<<FBLU(OVERLINE("                           "))<<endl;
-    cout<<FBLU(BOLD("...Will process a total of "<<std::setprecision(12)<<total_nentries_toProcess<<" entries..."))<<endl;
+    cout<<FBLU(BOLD("...Will READ (not process) a total of "<<std::setprecision(12)<<total_nentries_toRead<<" entries..."))<<endl;
     cout<<FBLU(UNDL("                           "))<<endl<<endl<<endl;
 
     //-- Draw progress bar
     bool draw_progress_bar = true;
-    if(total_nentries_toProcess < 200000) {draw_progress_bar = false;}
+    if(total_nentries_toRead < 200000) {draw_progress_bar = false;}
     Int_t ibar = 0; //event counter
-    TMVA::Timer timer(total_nentries_toProcess, "", true);
+    TMVA::Timer timer(total_nentries_toRead, "", true);
     TMVA::gConfig().SetDrawProgressBar(1);
     TMVA::gConfig().SetUseColor(1);
 
@@ -1572,11 +1572,11 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     				} //syst
     			} //chan
 
-                //-- For private EFT samples, get and store index of SM reweight //FIXME
+                //-- For private EFT samples, get and store index of SM reweight
                 int idx_sm = 0; //Hardcoded: SM index = 0 !
+                int nweights = 25; //For my SMEFT samples, only need >= 21 EFT weights for parameterization
                 //NB: obsolete, now reading SMweight directly via hardcoded variable //Keep this more generic approach
                 /*
-                int nweights = 25; //For my SMEFT samples, only need >= 21 EFT weights for parameterization
                 if(isPrivMC)
                 {
                     // if(sample_list[isample].Contains("TOP19001")) {nweights = 160;} //For TOP19001 samples, need many more weights for parameterization (hard-coded) //Actually, don't parameterize these samples, too slow !
@@ -1613,7 +1613,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                 }
 
                 // if(!draw_progress_bar) {cout<<endl<< "--- "<<sample_list[isample]<<" : Processing: " << tree->GetEntries() << " events" << std::endl;}
-                cout<<"--- Processing " << nentries << " events" <<endl;
+                cout<<"--- Reading " << nentries << " events" <<endl;
                 // cout<< "--- "<<sample_list[isample]<<" : Processing " << nentries << " events" << std::endl;
                 cout<<DIM("(path: "<<inputfile<<")")<<endl;
 
@@ -1657,7 +1657,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 //--------------------------------------------
 
                     ibar++;
-                    if(draw_progress_bar && ibar%50000==0) {timer.DrawProgressBar(ibar, ""); cout<<ibar<<" / "<<total_nentries_toProcess<<endl; }
+                    if(draw_progress_bar && ibar%50000==0) {timer.DrawProgressBar(ibar, ""); cout<<DIM("Processed "<<ibar<<" / "<<total_nentries_toRead<<"")<<endl; }
 
                     // cout<<"//-------------------------------------------- "<<endl;
                     // cout<<"eventWeight "<<eventWeight<<endl;
@@ -1745,24 +1745,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                         // cout<<"v_wgts->at(idx_sm) "<<v_wgts->at(idx_sm)<<" / weightMENominal "<<weightMENominal<<" / v_SWE[idx_sm] "<<v_SWE[idx_sm]<<endl;
 
-                        //== Remove
-                        // if(sample_list[isample] == "PrivMC_tZq_v3")
-                        // {
-                        //     for(int ivar=0; ivar<total_var_list.size(); ivar++)
-                        //     {
-                        //         if(total_var_list[ivar] == "njets")
-                        //         {
-                        //             if(total_var_floats[ivar]==2) {w_SMpoint*= 1.17;}
-                        //             else if(total_var_floats[ivar]==3) {w_SMpoint*= 1.07;}
-                        //             else if(total_var_floats[ivar]==4) {w_SMpoint*= 0.85;}
-                        //             else if(total_var_floats[ivar]>=5) {w_SMpoint*= 0.61;}
-                        //         }
-                        //     }
-                        // }
-
-                        //Tmp fix: wrong eventMCFactor and wrong SWEs
-                        if(sample_list[isample] == "PrivMC_ttZ_TOP19001") {w_SMpoint*= 2.482*20;}
-                        else if(sample_list[isample] == "PrivMC_tZq_TOP19001") {w_SMpoint*= 3.087*20;}
+                        //-- Tmp fix: wrong eventMCFactor and wrong SWEs
+                        // if(sample_list[isample] == "PrivMC_ttZ_TOP19001") {w_SMpoint*= 2.482*20;}
+                        // else if(sample_list[isample] == "PrivMC_tZq_TOP19001") {w_SMpoint*= 3.087*20;}
 
                         if(!doNot_storeWCFit_PrivSamples && !sample_list[isample].Contains("TOP19001") && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name)) //Need EFT parameterization //NB: don't compute parameterization for TOP19001 samples, way too slow
                         {
@@ -2001,7 +1986,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						TString output_histo_name;
                             output_histo_name = total_var_list[ivar];
                             if(channel_list[ichan] != "") {output_histo_name+= "_" + channel_list[ichan];}
-                            if(region != "" && !makeHisto_inputVars && !use_predefined_EFT_strategy) {output_histo_name+= "_" + region;}
+                            if(region != "" && !makeHisto_inputVars && !use_predefined_EFT_strategy && !this->make_fixedRegions_templates) {output_histo_name+= "_" + region;}
                             output_histo_name+= "_" + v_lumiYears[iyear] + "__" + samplename;
 							if(syst_list[isyst] != "" || systTree_list[itree] != "") {output_histo_name+= "__" + Get_Modified_SystName(syst_list[isyst]+systTree_list[itree], v_lumiYears[iyear]);}
 							else if(systTree_list[itree] != "") {output_histo_name+= "__" + systTree_list[itree];}
@@ -2146,7 +2131,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 	file_output->Close(); file_output = NULL;
 
     //-- Can verify that the total nof processed entries computed from Count_Total_Nof_Entries() was effectively the nof processed entries
-    // cout<<"total_nentries_toProcess --> "<<total_nentries_toProcess<<endl;
+    // cout<<"total_nentries_toRead --> "<<total_nentries_toRead<<endl;
     // cout<<"tmp_compare --> "<<tmp_compare<<endl;
 
     //Restore potfile_outputentially modified variables
@@ -2644,10 +2629,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     									if(ibin > 0) {continue;} //cout only first bin
 
                                         //-- Debug printouts
-    									// cout<<"//--------------------------------------------"<<endl;
-    									// cout<<"Sample "<<sample_list[isample]<<" / Syst "<<syst_list[isyst]<< " / chan "<<channel_list[ichan]<< " / year "<<v_lumiYears[iyear]<<endl;
-    									// cout<<"x = "<<v_x[ibin]<<endl;    cout<<", y = "<<v_y[ibin]<<endl;    cout<<", eyl = "<<v_eyl[ibin]<<endl;    cout<<", eyh = "<<v_eyh[ibin]<<endl; //cout<<", exl = "<<v_exl[ibin]<<endl;    cout<<", exh = "<<v_exh[ibin]<<endl;
-    									// cout<<"(nominal value = "<<h_tmp->GetBinContent(ibin+1)<<" - shifted value = "<<histo_syst->GetBinContent(ibin+1)<<") = "<<h_tmp->GetBinContent(ibin+1)-histo_syst->GetBinContent(ibin+1)<<endl;
+                                        if(false)
+                                        {
+                                            cout<<"//--------------------------------------------"<<endl;
+                                            cout<<"Sample "<<sample_list[isample]<<" / Syst "<<syst_list[isyst]<< " / chan "<<channel_list[ichan]<< " / year "<<v_lumiYears[iyear]<<endl;
+                                            cout<<"x = "<<v_x[ibin]<<endl;    cout<<", y = "<<v_y[ibin]<<endl;    cout<<", eyl = "<<v_eyl[ibin]<<endl;    cout<<", eyh = "<<v_eyh[ibin]<<endl; //cout<<", exl = "<<v_exl[ibin]<<endl;    cout<<", exh = "<<v_exh[ibin]<<endl;
+                                            cout<<"(nominal value = "<<h_tmp->GetBinContent(ibin+1)<<" - shifted value = "<<histo_syst->GetBinContent(ibin+1)<<") = "<<h_tmp->GetBinContent(ibin+1)-histo_syst->GetBinContent(ibin+1)<<endl;
+                                        }
     								}
 
     								delete histo_syst;
@@ -3603,7 +3591,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
 		// if(h_sum_data->GetBinContent(h_sum_data->GetNbinsX() ) > h_sum_data->GetBinContent(1) ) {text2.DrawLatex(0.55,0.87,info_data);}
 		// else {text2.DrawLatex(0.20,0.87,info_data);}
-		if(!superimpose_EFThist && info_data != "") {text2.DrawLatex(0.23,0.86,info_data);}
+        // if(!superimpose_EFThist && info_data != "") {text2.DrawLatex(0.23,0.86,info_data);}
+        if(!superimpose_EFThist && info_data != "") {text2.DrawLatex(0.20,0.86,info_data);} //CHANGED
 
 
 // #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
@@ -4513,12 +4502,13 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
 
             					if(!f->GetListOfKeys()->Contains(histoname) && systTree_list[itree] == "" && syst_list[isyst] == "")
             					{
-            						cout<<DIM("Histo "<<histoname<<" not found in file "<<filename<<" !")<<endl;
-            					}
+            						cout<<endl<<DIM("Histo "<<histoname<<" not found in file "<<filename<<" !")<<endl;
+                                    continue;
+                                }
 
                                 //NB -- very slow for large files !
             					TH1F* h_tmp = (TH1F*) f->Get(histoname); //Get individual histograms
-            					// cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
+            					// cout<<histoname<<"->Integral() = "<<h_tmp->Integral()<<endl;
 
                                 counter++; //Increment counter of read histos
                                 if(counter % 1000 == 0) {cout<<DIM("Read "<<counter<<" histograms...")<<endl;}
@@ -4719,8 +4709,8 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
     {
         if(var_list_tmp[ivar] == "ctz" || var_list_tmp[ivar] == "ctw" || var_list_tmp[ivar] == "cpq3" || var_list_tmp[ivar] == "cpqm" || var_list_tmp[ivar] == "cpt") {continue;} //WC input values are arbitrary, there is no address to set !
         tree->SetBranchStatus(var_list_tmp[ivar], 1); //Activate only necessary branches
-        // tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //FIXCMSSW
-        tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //Fill tensor directly for speed up //FIXLOCAL
+        tree->SetBranchAddress(var_list_tmp[ivar], &var_floats_tmp[ivar]); //FIXCMSSW
+        // tree->SetBranchAddress(var_list_tmp[ivar], &input.matrix<float>()(0, ivar)); //Fill tensor directly for speed up //FIXLOCAL
     }
 
     //-- May cut on an 'event category flag' whose name is given as argument (<-> no need to evaluate MVA for events which do not enter the region of interest)
@@ -4740,21 +4730,23 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
 
         if(!is_goodCategory) {continue;}
 
+        // for(int ivar=0; ivar<var_list_tmp.size(); ivar++) {cout<<ivar<<" / "<<var_list_tmp[ivar]<<" / "<<var_floats_tmp[ivar]<<endl;} //Debug printouts
+
         float mva_output = 0.;
         if(classifier_name == "BDT") {mva_output = reader_tmp->EvaluateMVA(BDT_method_name);}
         else //NN
         {
             //-- NB: if get segfault here of type 'Incompatible shapes: [1,105] vs. [35]' <-> means that the NN info file and actual .pb model are incompatible (need to retrain NN)
-            // clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //Slow... ! //FIXCMSSW
-            clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //FIXLOCAL
+            clfy_outputs = clfy_tmp->evaluate(var_floats_tmp); //Evaluate output node(s) value(s) //Slow... ! //FIXCMSSW
+            // clfy_tmp->evaluate_fast(input, outputs); //Evaluate output node(s) value(s) //CHANGED -- overloaded function avoids un-necessary copies //FIXLOCAL
 
             NN_iMaxNode = -1;
             for(int inode=0; inode<NN_nNodes; inode++)
             {
-                // if(clfy_outputs[inode] > mva_output) {mva_output = clfy_outputs[inode]; NN_iMaxNode = inode;}
+                if(clfy_outputs[inode] > mva_output) {mva_output = clfy_outputs[inode]; NN_iMaxNode = inode;} //FIXCMSSW
                 // cout<<"clfy_outputs[inode] "<<clfy_outputs[inode]<<" / mva_output "<<mva_output<<" / NN_iMaxNode "<<NN_iMaxNode<<endl;
 
-                if(outputs[0].matrix<float>()(0,inode) > mva_output) {mva_output = outputs[0].matrix<float>()(0,inode); NN_iMaxNode = inode;}
+                // if(outputs[0].matrix<float>()(0,inode) > mva_output) {mva_output = outputs[0].matrix<float>()(0,inode); NN_iMaxNode = inode;} //FIXLOCAL
                 // cout<<"outputs[0].matrix<float>()(0,inode) "<<outputs[0].matrix<float>()(0,inode)<<" / mva_output "<<mva_output<<" / NN_iMaxNode "<<NN_iMaxNode<<endl;
             }
 
@@ -4771,9 +4763,11 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v, TString sig
         bool pass_cut = false;
         if((keep_aboveCut && mva_output >= cut_value) || (!keep_aboveCut && mva_output < cut_value)) {pass_cut = true; nevents_passingCut++;}
         v[ientry] = pass_cut;
+
+        if(isnan(mva_output)) {cout<<BOLD(FRED("ERROR: MVA = NaN ! Problem with NN evaluation ? Check it please !"))<<endl;} //Protection
 	} //loop on entries
 
-	if(v.size() != nentries) {cout<<BOLD(FRED("Wrong number of entries in BDT cut vector ! Check it please !"))<<endl; return false;}
+    if(v.size() != nentries) {cout<<BOLD(FRED("Wrong number of entries in MVA cut vector ! Check it please !"))<<endl; return false;}
 	file_input->Close();
 
 	// cout<<FMAG("---- Vector containing BDTfakeSR cut results is filled !")<<endl;

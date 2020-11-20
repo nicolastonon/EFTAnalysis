@@ -102,19 +102,21 @@ features_CARL_singlePoint_ttZ_ctw = features_CARL_singlePoint_tZq_ctw
 features_SM = []
 features_SM.append("recoZ_Pt")
 features_SM.append("recoZ_Eta")
+features_SM.append("recoZ_dPhill")
 features_SM.append("mHT")
 features_SM.append("mTW")
 features_SM.append("Mass_3l")
-features_SM.append("recoZ_dPhill")
 features_SM.append("lAsymmetry")
 features_SM.append("jPrimeAbsEta")
-features_SM.append("maxEtaJet")
 features_SM.append("maxDeepJet")
-features_SM.append("nbjets")
 features_SM.append("maxDiJet_M")
 features_SM.append("dR_blW")
 features_SM.append("dR_lWjprime")
-# features_SM.append("njets") #FIXME -- remove because of PrivMC_tZq discrepancy ?
+features_SM.append("nbjets")
+features_SM.append("cosThetaStarPolTop")
+features_SM.append("mbjMax")
+# features_SM.append("njets") #Not so well modeled in SRtZq
+# features_SM.append("maxEtaJet") #Poorly modeled ?
 
 #-- Testing
 # features_SM.append("maxDelRbL")
