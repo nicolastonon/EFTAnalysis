@@ -65,7 +65,8 @@ def train(args):
 
     # create output directory
     from datetime import datetime
-    output = 'condor/d{}-t{}'.format(datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S'))
+    outdir = 'd{}-t{}'.format(datetime.now().strftime('%Y%m%d'), datetime.now().strftime('%H%M%S'))
+    output = 'condor/' + outdir
     import os
     if not os.path.exists('condor'):
         os.mkdir('condor')
@@ -92,12 +93,14 @@ def train(args):
 
     # submit jobs
     from subprocess import call
+    call('cp ./Train_Neural_Network.py {}'.format(output), shell=True) #Copy current executable to timestamped dir (so that it won't get modified anymore)
 
     pretend=''
     if test: pretend = ' --pretend' #cs.sh won't submit
-    command = '../scripts/job.sh {} python ./Train_Neural_Network.py'.format(os.getcwd())
+    #command = '../scripts/job.sh {} python ./Train_Neural_Network.py'.format(os.getcwd())
+    command = '../scripts/job.sh {} python ./'.format(os.getcwd())+output+'/Train_Neural_Network.py' #Execute timestamped, job-dependent executable
     print('EXECUTING: ', '../scripts/cs.sh -n{}{} -a0:{} "{}"'.format(jobname, pretend, i-1, command), '\n')
-    call('../scripts/cs.sh -n{}{} -a0:{} "{}"'.format(jobname, pretend, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
+    call('../scripts/cs.sh -d{} -n{}{} -a0:{} "{}"'.format(outdir, jobname, pretend, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
 # end: submit training jobs
 #-----
 

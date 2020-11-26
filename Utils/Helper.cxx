@@ -327,9 +327,14 @@ float Round_Float_toDecimal(float x, float roundLevel, bool roundDown)
     return int(x/roundLevel + 1)*roundLevel;; //Round up
 }
 
-
-
-
+vector<TString> Break_TString(TString input, TString delimiter)
+{
+    vector<TString> output;
+    TObjArray *tx = input.Tokenize(delimiter);
+    // tx->Print();
+    for (Int_t i = 0; i < tx->GetEntries(); i++) {output.push_back( ((TObjString *)(tx->At(i)))->String() );}
+    return output;
+}
 
 
 
@@ -1243,7 +1248,7 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
         nbins=15; xmin=0; xmax=150;
         if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning for now
     }
-    if(template_name.Contains("countExp")) {nbins=1; xmax=1;}
+    if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
 
     return;
@@ -1423,6 +1428,11 @@ float Count_Total_Nof_Entries(TString dir_ntuples, TString t_name_nominal, vecto
 //-- NB: could also use the 'nuisance edit rename process channel oldname newname' directive directly in Combine datacards
 TString Get_Modified_SystName(TString systname, TString lumiYear, TString samplename)
 {
+    TString samplename_tmp = samplename; //Don't distinguish central/private signal samples
+    if(samplename_tmp.Contains("tZq")) {samplename_tmp = "tZq";}
+    else if(samplename_tmp.Contains("ttZ")) {samplename_tmp = "ttZ";}
+    else if(samplename_tmp.Contains("tWZ")) {samplename_tmp = "tWZ";}
+
     //-- Only list the systematics which are *not* to be correlated in-between years
     //Need to add year as suffix (<-> unique)
     if(systname.BeginsWith("BtagHFstats")
@@ -1455,13 +1465,13 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
         {
             int i = systname.Index("Up"); //Find position of suffix
             systname.Remove(i); //Remove suffix
-            systname+= samplename+"Up"; //Add year + suffix
+            systname+= samplename_tmp+"Up"; //Add year + suffix
         }
         else if(systname.EndsWith("Down"))
         {
             int i = systname.Index("Down"); //Find position of suffix
             systname.Remove(i); //Remove suffix
-            systname+= samplename+"Down"; //Add year + suffix
+            systname+= samplename_tmp+"Down"; //Add year + suffix
         }
     }
 
@@ -1580,12 +1590,17 @@ float Get_x_ZptCosCategory(float Zpt, float cosThetaStarPolZ)
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
 TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy)
 {
-    if(MVA_type != "BDT" && MVA_type != "NN") {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
+    TString MVA_basename = MVA_type; if(MVA_type.Contains("NN")) {MVA_basename = "NN";}
+    TString EFToperator = "";
+    if(MVA_type.Contains("NN_")) {EFToperator = Break_TString(MVA_type, "_")[1];}
+    // cout<<"EFToperator "<<EFToperator<<endl;
+
+    if(MVA_type != "BDT" && !MVA_type.Contains("NN")) {cout<<BOLD(FRED("ERROR: wrong [MVA_type] argument !"))<<endl; return "";}
     // if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<BOLD(FRED("ERROR: wrong [signal_process] argument !"))<<endl; return "";}
     if(signal_process != "tZq" && signal_process != "ttZ" && signal_process != "Multiclass") {cout<<"Argument [signal_process] not recognized... Setting it to 'Other'"<<endl; signal_process = "Other";}
 
     TString fullpath = ""; //Full input path
-    TString basepath = "./weightsMVA/" + MVA_type + "/"; //Base path
+    TString basepath = "./weightsMVA/" + MVA_basename + "/"; //Base path
     TString path_suffix = ""; //Suffix to append to base path; in-between the 2 we also need the year information, which we may want to modify if the nominal file is not found (see below)
 
     if(MVA_type == "BDT") {path_suffix = "BDT_" + signal_process + ".weights.xml";}
@@ -1600,7 +1615,11 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
                 if(categorization_strategy==1) {path_suffix+= signal_process + "/";} //Read MVA-tZq or MVA-ttZ
                 else {path_suffix+= "Multiclass/";} //Read MVA_multiclass
             }
-            else {path_suffix = "EFT/" + signal_process + "/";} //SM vs EFT
+            else //SM vs EFT
+            {
+                path_suffix = "EFT/" + signal_process + "/";
+                if(EFToperator != "") {path_suffix+= EFToperator + "/";}
+            }
         }
         if(load_NN_info) {path_suffix+= "NN_info.txt";} //Read NN info file (input features, etc.)
         else {path_suffix+= "model.pb";} //Load NN model
@@ -1767,6 +1786,7 @@ TString Get_Region_Label(TString region, TString variable)
 //Set the list of variables based on arguments
 void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy, bool make_fixedRegions_templates)
 {
+    // TString template_basename = template_name; if(template_name.Contains("NN_")) {template_basename = template_name;}
     variable_list.push_back(template_name);
 
     //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
@@ -1808,7 +1828,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
             }
         } //MVA EFT scan
     } //Predefined strategy
-    else if(!use_predefined_EFT_strategy && template_name == "NN")
+    else if(!use_predefined_EFT_strategy && template_name.Contains("NN"))
     {
         variable_list.clear();
         for(int inode=0; inode<NN_nNodes; inode++) {variable_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node

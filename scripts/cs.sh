@@ -130,8 +130,9 @@ fi
 export LD_LIBRARY_PATH_STORED=$LD_LIBRARY_PATH
 
 # create script to run on  cluster side
-NameScriptFile=${NameCondorDir}'/condor-run-'${JobName}'.sh'
-rm -f ${NameScriptFile}
+#NameScriptFile=${NameCondorDir}'/condor-run-'${JobName}'.sh'
+NameScriptFile=${NameCondorDir}'/'${NameOutDir}'/condor-run-'${JobName}'.sh'
+rm -f ${NameScriptFile} #Remove any pre-existing file with same name #-f avoids warning
 
 echo '#!/bin/bash' >> ${NameScriptFile}
 echo '' >> ${NameScriptFile}
@@ -144,7 +145,8 @@ echo '' >> ${NameScriptFile}
 #ADDED
 #echo 'export SCRAM_ARCH='${SCRAM_ARCH} >> ${NameScriptFile}
 #echo 'export CMSSW_VERSION='${CMSSW_VERSION} >> ${NameScriptFile}
-echo 'export LD_LIBRARY_PATH='${LD_LIBRARY_PATH}':/nfs/dust/cms/user/ntonon/TopEFT/'${CMSSW_VERSION}'/lib/'{$SCRAM_ARCH} >> ${NameScriptFile}
+echo 'export LD_LIBRARY_PATH='${LD_LIBRARY_PATH}':/nfs/dust/cms/user/ntonon/TopEFT/'${CMSSW_VERSION}'/lib/'${SCRAM_ARCH} >> ${NameScriptFile}
+echo 'export PYTHONPATH='${PYTHONPATH}':/nfs/dust/cms/user/ntonon/TopEFT/CMSSW_11_1_2/src/EFTAnalysis/NeuralNetworks' >> ${NameScriptFile}
 
 echo 'source ~/.profile' >> ${NameScriptFile} #Must source conda, packages, ... on HTCondor server
 echo 'echo "command to run: '${ArgsExe}'"' >> ${NameScriptFile}
@@ -154,8 +156,9 @@ echo ${ArgsExe} >> ${NameScriptFile}
 chmod +x ${NameScriptFile}
 
 # create configureation submit file to submit job to the cluster
-NameSubmitFile='condor/condor-submit-'${JobName}
-rm -f ${NameSubmitFile}
+#NameSubmitFile='condor/condor-submit-'${JobName}
+NameSubmitFile=${NameCondorDir}'/'${NameOutDir}'/condor-submit-'${JobName}
+rm -f ${NameSubmitFile} #Remove any pre-existing file with same name #-f avoids warning
 
 echo 'Executable = '`pwd`'/'${NameScriptFile} >> ${NameSubmitFile}
 echo 'log = '${NameFileOutLog} >> ${NameSubmitFile}

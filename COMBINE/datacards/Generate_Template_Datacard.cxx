@@ -95,6 +95,8 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
     else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
+    else if((syst == "PDF" || syst == "alphas") && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only
+
 	return true;
 }
 
@@ -607,27 +609,31 @@ int main()
     v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //TESTING
+
     v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
 
+    //FIXME -- TESTING
     v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
-    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //TESTING
+    v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //-- Missing / Obsolete
-    // v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
+    //-- Missing
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
     // v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
+
+    //-- Obsolete
     // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
 
 

@@ -513,17 +513,17 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
         elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==1) or opts["strategy"]=="CARL_singlePoint":
             if 'tZq' in labels_list[0]:
-                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=='ctz') or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctz
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_ctw
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpqm
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpq3
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_singlePoint_tZq_cpt
+                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=='ctz') or 'ctz' in opts["refPoint"]: list_features = features_CARL_tZq_ctz
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_tZq_ctw
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_tZq_cpqm
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_tZq_cpq3
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_tZq_cpt
             elif 'ttZ' in labels_list[0]:
-                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctz") or 'ctz' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctz
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_ctw
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpqm
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpq3
-                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_singlePoint_ttZ_cpt
+                if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctz") or 'ctz' in opts["refPoint"]: list_features = features_CARL_ttZ_ctz
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_ttZ_ctw
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpqm") or 'cpqm' in opts["refPoint"]: list_features = features_CARL_ttZ_cpqm
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_ttZ_cpq3
+                elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_ttZ_cpt
 
                 print('list_features', list_features)
 

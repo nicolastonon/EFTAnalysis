@@ -76,6 +76,11 @@ std::vector<float> TFModel::evaluate(std::vector<float>& v_inputs)
 //Overload
 std::vector<float> TFModel::evaluate(std::vector<float*>& v_inputs)
 {
+    // cout<<"input_name "<<input_name<<endl;
+    // cout<<"output_name "<<output_name<<endl;
+    // cout<<"n_inputs "<<n_inputs<<endl;
+    // for(unsigned i=0; i < n_inputs; i++) {cout<<"i "<<i <<"--> "<<(float) *v_inputs[i]<<endl;}
+
     tensorflow::Tensor input(tensorflow::DT_FLOAT, {1, n_inputs} );
     float* d = input.flat<float>().data();
 

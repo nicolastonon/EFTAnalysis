@@ -1274,7 +1274,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
             shap.dependence_plot(feature, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
             plt.savefig(weight_dir+"dependence_plot_"+feature+".png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot')
-            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot"+feature+".png")
+            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot_"+feature+".png")
 
     else: #Only plot few specific features (hard-coded names)
         feature1 = 'ctw'

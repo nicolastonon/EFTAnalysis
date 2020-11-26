@@ -33,15 +33,15 @@ from Utils.RegressorValidation import *
 
 use_xkcd_style = False #True <-> use pyplot's xkcd style for plotting
 
-nEventsStandaloneVal = 10000 #Nof events to sample/display per point
+nEventsStandaloneVal = 50000 #Nof events to sample/display per point
 
 #== CHOOSE SINGLE POINT AT WHICH TO EVALUATE EVENTS #NB: i.e. 'rwgt_ctW_3' corresponds to asking the NN 'are these events more EFT(ctW=3)-like, or more reference-like (<-> SM-like)'
 #== NB: evalPoint=='' <-> evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 #== NB: evalPoint=='' <-> ROC/... don't make sense (sig/bkg evaluated at different points)
 # evalPoint = ''
-# evalPoint = "SM"
+evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-evalPoint = "rwgt_ctz_5"
+# evalPoint = "rwgt_ctz_5"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_ctw_3"
@@ -55,23 +55,23 @@ evalPoint = "rwgt_ctz_5"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-list_points_sampling.append("rwgt_ctz_5")
+# list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
-# list_points_sampling.append("rwgt_cpqm_15")
+list_points_sampling.append("rwgt_cpqm_10")
 # list_points_sampling.append("rwgt_cpq3_15")
 # list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
 #== SCAN OPTIONS ==#
-scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
-operator_scan = 'ctz' #Operator to scan
-range_step = [-3, 3, 1] #(range,steps) with which to scan operator
+scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
+operator_scan = 'cpqm' #Operator to scan
+range_step = [-15, 15, 3] #(range,steps) with which to scan operator
 # range_step = [-1, 1, 2] #(range,steps) with which to scan operator
 # range_step = [0, 15, 3] #(range,steps) with which to scan operator
 only_SM_events = False #True <-> sample same SM events for each input WC value to test
@@ -291,7 +291,7 @@ def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, proc
     cmap = sns.color_palette('coolwarm', 7)
 
     var1 = "recoZ_Pt"
-    var2 = "recoZ_Eta" #Mass_3l, recoZ_Eta,
+    var2 = "recoZ_dPhill" #Mass_3l, recoZ_Eta,
 
 #Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
 

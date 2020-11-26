@@ -102,6 +102,7 @@ TString Split_TString_Into_Keys(TString, TString);
 int Count_nofHistos_inTFile(TString);
 int Count_nofHistos_inTFile(TFile*);
 float Round_Float_toDecimal(float, float, bool);
+vector<TString> Break_TString(TString, TString);
 
 //-- Basic analysis helper functions
 void Fill_Last_Bin_TH1F(TH1F*, double); //Increment last bin of histo by specified weight

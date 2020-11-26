@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
     //-- T E M P L A T E S --
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
+    TString template_name = "NN_ctz"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -290,10 +290,10 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        //-- Implemented as separate TTrees
-        theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
-        theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
-        theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
+        //-- Implemented as separate TTrees //FIXME
+        // theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
+        // theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
+        // theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
         //-- Implementend as event weights
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
@@ -322,12 +322,14 @@ int main(int argc, char **argv)
         theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
         theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
 
-        //-- MISSING / OBSOLETE
-        // theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only //MISSING for PrivMC
-        // theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEup"); //Signals only //MISSING for PrivMC
-        // theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only //MISSING for PrivMC  //Cross check e.g. ttZ all years...
-        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only
-        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only
+        //-- MISSING
+        theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only
+        theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only
+        theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEUp"); //Signals only
+        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only //MISSING for PrivMC
+        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only //MISSING for PrivMC
+
+        //-- OBSOLETE
         // theSystWeights.push_back("FRDown"); theSystWeights.push_back("FRUp"); //FR from David: 1 set of variations
     }
 
@@ -348,10 +350,10 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
-    bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
+    bool create_inputVar_histograms = true; //Create histograms of input variables, for plotting
 
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
