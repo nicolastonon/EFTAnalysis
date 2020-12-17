@@ -15,8 +15,8 @@ int main(int argc, char **argv)
     v_processes.push_back("SM");
     // v_processes.push_back("refPoint");
 
-    // TString lumiYear = "2016"; //'2016,'2017','2018','Run2'
-    TString lumiYear = "Run2"; //'2016,'2017','2018','Run2'
+    TString lumiYear = "2017"; //'2016,'2017','2018','Run2'
+    // TString lumiYear = "Run2"; //'2016,'2017','2018','Run2'
 
     bool superimpose_allNodes_DNN = false; //true <-> will plot 1 ROC per process class (for DNN only)
 

@@ -63,10 +63,10 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_SMweights_allClasses = Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels, list_features)
 
     #-- For private EFT samples, get the per-event fit coefficients (for later extrapolation at any EFT point) #Central samples: empty arrays
-    list_EFT_FitCoeffs_allClasses = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
+    list_EFT_FitCoeffs_allClasses, n_components, components = Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, list_EFTweights_allClasses, list_EFTweightIDs_allClasses)
 
     #-- If strategy requires EFT reweighting, need to artificially extend the dataset to train on many different points in EFT phase space
-    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName)
+    list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses = Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, n_components, components, singleThetaName)
 
     #-- Concatenate + reshape arrays, and modify them as needed
     x, list_weights_allClasses, thetas_allClasses, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, list_nentries_class, TrainValTest_allClasses = Shape_Data(opts, list_x_allClasses, list_weights_allClasses, list_thetas_allClasses, list_targetClass_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_jointLR_allClasses, list_score_allClasses_allOperators, list_TrainValTest_allClasses, singleThetaName)
@@ -81,7 +81,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     y, y_process, x = Get_Targets(opts, list_features, list_processClasses, list_nentries_class, targetClass_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, x)
 
     #-- Sanitize data
-    x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, singleThetaName)
+    x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, singleThetaName)
 
     if singleThetaName != "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
 
@@ -114,7 +114,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     print("-- Will use " + str(x_test.shape[0]) + " testing events !")
     print("===========\n", colors.reset)
 
-    return x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, list_labels, list_features
+    return x_train, x_val, x_test, y_train, y_val, y_test, y_process_train, y_process_val, y_process_test, PhysicalWeights_train, PhysicalWeights_val, PhysicalWeights_test, LearningWeights_train, LearningWeights_val, LearningWeights_test, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, shifts, scales, xTrainRescaled, list_labels, list_features, jointLR_allClasses, scores_allClasses_eachOperator
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -188,8 +188,9 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 # tree = file.Get('result')
                 tree = file.Get(opts["TTree"])
 
-                nevents = None
-                if opts["trainAtManyEFTpoints"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
+                nevents = None #Enable also for SMEFT samples ?
+                # if opts["trainAtManyEFTpoints"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
+                if opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
                 print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts_total).shape[0], 'entries)') #Dummy variable, just to read the nof entries
@@ -206,9 +207,12 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 list_x_proc.append(x_tmp) #Append features to list
 
                 #-- Store event weights into array, append to list
+                #NB: first read all entries (apply cuts), then apply max nof events if needed #This allows to select events randomly in samples (may be oredered if several ntuples hadded), and allows to decide the exact final nof events (after cuts applied)
+
                 # if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_total, start=0,stop=nevents))
                 # elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_total, start=0,stop=nevents)) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
                 # else: list_weights_proc.append(tree2array(tree, branches="eventWeight*eventMCFactor", selection=cuts_total, start=0,stop=nevents))
+
                 if opts["eventWeightName"] != '': list_weights_proc.append(tree2array(tree, branches=opts["eventWeightName"], selection=cuts_total)[:nevents])
                 elif isPureEFT is True: list_weights_proc.append(tree2array(tree, branches="eventWeight", selection=cuts_total)[:nevents]) #For pure-EFT samples, weights are non physical. Just use the baseline MG weight, don't multiply by lumi*xsec or divide by SWE... rescaled for training anyway (and validation weights are non-physical)
                 else:
@@ -270,23 +274,25 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         tree = file.Get(opts["TTree"])
         # print(colors.fg.lightgrey, '* Opened file:', colors.reset, filepath, '(', tree2array(tree, branches="eventWeight", selection=cuts).shape[0], 'entries )') #Dummy variable, just to read the nof entries
 
-        #-- NB: don't want to store EFT reweights IDs for all events (always same names)
-        #-- NB : assume that EFT reweights IDs are exactly the same, in the same order, for all considered years !
-        #-- Only read a single event, store IDs once per private MC process (<-> single process class)
-        # if iyear==0:
-        #     array_EFTweightIDs_proc = tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs", selection=cuts)
-        #     array_EFTweightIDs_proc = array_EFTweightIDs_proc[0] #Reshape array
-        # elif np.array_equal(array_EFTweightIDs_proc, tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs", selection=cuts)) == False: #If IDs are already stored, simply verify that IDs for other years match
-        #     print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
-        #     exit(1)
+        #-- Get the EFT reweights IDs
+        #NB: don't want to store EFT reweights IDs for all events (always same names)
+        #NB : assume that EFT reweights IDs are exactly the same, in the same order, for all considered years !
+        #Only read a single event, store IDs once per private MC process (<-> single process class)
+        if True: #Read EFT_weightIDs for 1 single event (much faster)
+            if iyear==0:
+                array_EFTweightIDs_proc = np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs"))
+                # array_EFTweightIDs_proc = array_EFTweightIDs_proc[0] #Reshape array
+                # print(array_EFTweightIDs_proc); print(array_EFTweightIDs_proc.shape); exit(1)
+            elif np.array_equal(array_EFTweightIDs_proc, tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs")) == False: #If IDs are already stored, simply verify that IDs for other years match
+                print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
+                exit(1)
+        else:
+            # array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array #Avoid reading events which are then discarded #Is this bias ? E.g. in merged samples, may the first events be from a single process... ?
+            array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts)[:nevents]) #stack : array of arrays -> 2d array
 
         #-- Array of reweights from MG
         if iproc == 0: weightsProc = list_weights_proc[iyear] #If single process in current class (or first element) -> elements positions in list_weights_proc only depend on year
         else: weightsProc = list_weights_proc[iproc*len(list_lumiYears) + iyear] #Else, if multiple processes in current class, must also account for previous processes in list and update index position
-
-        #-- Get the EFT reweights IDs
-        # array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array #Avoid reading events which are then discarded #Is this bias ? E.g. in merged samples, may the first events be from a single process... ?
-        array_EFTweightIDs_proc = np.stack(tree2array(tree, branches="mc_EFTweightIDs", selection=cuts)[:nevents]) #stack : array of arrays -> 2d array
 
         #-- Get the EFT reweights, and normalization factor (because will multiply by baseline weight as a trick to apply the SFs to all weights ; must then divide by baseline weight 'weightMENominal')
         # array_EFTweights_proc = np.stack(tree2array(tree, branches="mc_EFTweights", selection=cuts, start=0,stop=nevents)) #stack : array of arrays -> 2d array
@@ -303,16 +309,26 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         idx_SM = -1
         if not isPureEFT:
             for i in range(len(array_EFTweightIDs_proc[0])):
+                # print(array_EFTweightIDs_proc[0][i])
                 # if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
-                if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM": idx_SM = i; break
-                # if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM" or "EFTrwgt183_" in array_EFTweightIDs_proc[0][i]: idx_SM = i; break #TOP19001
+                if array_EFTweightIDs_proc[0][i] == "rwgt_sm" or array_EFTweightIDs_proc[0][i] == "rwgt_SM" or "EFTrwgt183_" in array_EFTweightIDs_proc[0][i]: idx_SM = i; break #TOP19001
+            print(colors.fg.lightblue, 'idx_SM = ', idx_SM, colors.reset)
 
         array_SMweights_proc = np.array([])
         if idx_SM != -1: #Get weights at SM point (and normalize them, cf. below)
-            array_SMweights_proc = array_EFTweights_proc[:,i]; #print('idx_SM = ',idx_SM)
+
+            if idx_SM==183: array_EFTweights_proc*= 3.087*20 #Tmp xsec fix for TOP19001 tZq17 sample
+
+            array_SMweights_proc = array_EFTweights_proc[:,idx_SM]
+            # print(array_SMweights_proc[:5])
             array_SMweights_proc = array_SMweights_proc * weightsProc
+            # print(array_SMweights_proc[:5])
             array_SMweights_proc = np.divide(array_SMweights_proc, normWeights_proc)
+            # print(array_SMweights_proc[:5])
             array_SMweights_proc = np.divide(array_SMweights_proc, array_EFT_SWE_proc[idx_SM])
+            # print(array_SMweights_proc[:5])
+            # print(array_SMweights_proc.shape)
+            print(colors.fg.lightblue, 'Total SM yield', np.sum(array_SMweights_proc), colors.reset)
         elif not isPureEFT: print(colors.fg.red, 'ERROR: from naming convention, infer that this is a SM+EFT sample. However, the benchmark SM point from MG was not found (needed for proper normalization since the sample xsec is expected to correspond to SM. Abort ! (If this is not the desired behaviour, adapt the code...)', colors.reset); exit(1)
 
         #-- Normalize EFT weights: rwgt = rwgt_from_MG * (centralEventWeight/weightMENominal) / SWE_SM
@@ -349,9 +365,11 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
     Once these fit coefficients are extracted for a given event, they can be used to extrapolate the event weight at any new EFT point.
     '''
 
+    # print('Get_EFT_FitCoefficients_allEvents() ...')
     # for iclass in range(len(list_EFTweights_allClasses)): list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5] #For debugging
 
     list_EFT_FitCoeffs_allClasses = []
+    n_components = 0; components = []
     for iclass in range(len(list_processClasses)): #Loop on classes of physics processes
 
         if "PrivMC" in list_processClasses[iclass][0] and "PrivMC" in list_labels[iclass] and "_c" not in list_processClasses[iclass][0]: #Check whether EFT reweights should be looked for
@@ -380,7 +398,8 @@ def Get_EFT_FitCoefficients_allEvents(opts, list_processClasses, list_labels, li
 
         else: list_EFT_FitCoeffs_allClasses.append(np.full(shape=len(list_EFTweightIDs_allClasses[iclass]), fill_value=0)) #If process is not EFT, fill with dummy value for now (maintain ordering)
 
-    return list_EFT_FitCoeffs_allClasses
+    # print('... Done !')
+    return list_EFT_FitCoeffs_allClasses, n_components, components
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -483,13 +502,16 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
         TrainValTest_allClasses = np.concatenate(list_TrainValTest_allClasses, axis=0)
 
     elif opts["trainAtManyEFTpoints"]==True:
-        thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
+        # thetas_allClasses = np.concatenate(list_thetas_allClasses, 0)
+        thetas_allClasses = np.column_stack(list_thetas_allClasses) #Use column_stack instead of concatenate, so that can stack multiple arrays even if they have different nof columns (different nof operators in samples)
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
         TrainValTest_allClasses = np.concatenate(list_TrainValTest_allClasses, 0)
 
-        if opts["strategy"] in ["ROLR", "RASCAL"]:
+        # if opts["strategy"] in ["ROLR", "RASCAL"]:
+        if len(list_jointLR_allClasses)>0:
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
-            if opts["strategy"] is "RASCAL": #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
+            # if opts["strategy"] is "RASCAL": #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
+            if len(list_score_allClasses_allOperators[0])>0:
                 scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0)
                 if len(scores_allClasses_eachOperator)==1: scores_allClasses_eachOperator = np.squeeze(scores_allClasses_eachOperator, 0) #Squeeze first dimension (<-> if there is a single proc class there was no concatenation --> remove this useless dimension)
                 scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #problems for single operator ?
@@ -504,7 +526,7 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
 
                 #-- The lines below have 1 purpose: whatever the operators considered in 'singleThetaName' (<-> validation) or 'list_EFTweightIDs_allClasses' (<-> EFT parametrization in sample), we only want to keep the operators which were included in the training phase, for which we need to provide WC values
                 #-- NB: not so sure about the correctness here... !
-                operatorNames_tmp, operatorWCs_tmp, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[0][0][0]) #Check some random EFT weight name found in sample
+                operatorNames_tmp, operatorWCs_tmp, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[0][0][0]) #Check some random EFT weight name found in sample #NB: breaks if only read weightIDs for single event ?
                 indices_opToRemove = []
                 for iOpSample, opSample in enumerate(operatorNames_tmp[0]): #NB: operatorNames_tmp is 2D --> only take first element
                     # print('opSample', opSample); print('opts[evalPoint]', opts['evalPoint']), print('opSample in opts[evalPoint]', str(opSample) in str(opts['evalPoint']))
@@ -516,8 +538,9 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
                 x = np.append(x, tmp, axis=1) #Append input WCs
 
             else: #Otherwise (regular train/test/eval), consider list user-selected operators
-                #'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
+                #NB: 'thetas_allClasses' has as many columns as there are EFT operators generated in the sample (needed for extraction of fit coefficients from benchmark weights). But from there, only want to retain EFT operators which the NN will get trained on --> Only parameterize NN on such operators, not the others (not used)
                 theta_tmp = thetas_allClasses[:, ~np.all(thetas_allClasses==0, axis=0)] #Only keep columns (operators) which were activated by the user #'~' is negation
+
                 if opts["strategy"] is "CARL_multiclass": targetClass_allClasses = targetClass_allClasses[:, ~np.all(targetClass_allClasses==0, axis=0)] #Idem (only needed for multiclass, where class is encoded in multiple columns)
                 targetClass_allClasses = np.squeeze(targetClass_allClasses) #If 2D with single column, squeeze into 1D array
                 x = np.append(x, theta_tmp, axis=1) #NB -- can remove input WC here
@@ -793,7 +816,7 @@ def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, t
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, singleThetaName=""):
+def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, singleThetaName=""):
     '''
     Sanitize the data provided as input to the NN.
     '''
@@ -813,6 +836,9 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         mask = mask_nan & mask_inf #Combine both masks
         if len(TrainValTest_allClasses)==len(x): TrainValTest_allClasses = TrainValTest_allClasses[mask]
         x = x[mask]; y = y[mask]; y_process = y_process[mask]; PhysicalWeights_allClasses = PhysicalWeights_allClasses[mask]; LearningWeights_allClasses = LearningWeights_allClasses[mask]
+
+        if len(scores_allClasses_eachOperator)>0:
+            jointLR_allClasses = jointLR_allClasses[mask]; scores_allClasses_eachOperator = scores_allClasses_eachOperator[mask]
         # print(len(x))
 
     if opts["strategy"] in ["ROLR", "RASCAL"] and singleThetaName is "":
@@ -830,7 +856,7 @@ def Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWei
         print('Warning: very large event weights found (global mean = ',np.mean(PhysicalWeights_allClasses),') :')
         print(PhysicalWeights_allClasses[PhysicalWeights_allClasses > np.mean(PhysicalWeights_allClasses)*100])
 
-    return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses
+    return x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator
 
 # //--------------------------------------------
 # //--------------------------------------------

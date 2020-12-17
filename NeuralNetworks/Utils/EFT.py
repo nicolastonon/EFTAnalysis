@@ -59,6 +59,8 @@ warnings.filterwarnings("ignore", message="in the future insert will treat boole
 
 #Adapted from madminer code (https://github.com/diana-hep/madminer/blob/080e7fefc481bd6aae16ba094af0fd6bfc301dff/madminer/utils/morphing.py#L116)
 #NB: row full of zeros (<-> not impacted by any operator) corresponds to SM (will correspond to a fix coefficient value of 0^0=1)
+#NB: function not suited to high-dimensional parameterizations, because uses itertolls function producing 'N!' values. E.g. in 16D, finding all the possible non-redundant power combinations takes forever (16! ~ 10^13)... (should then hard-code them?)
+#--> If considering > 6 operators, call a dedicated helper sub-function (more hard-coded, less automatic) to compute all valid combinations *much* more quickly...
 def Find_Components(operatorNames):
     """
     Determine the number of components necessary to compute the squared matrix element, and at what power each EFT operator enters each component.
@@ -69,36 +71,39 @@ def Find_Components(operatorNames):
 
     Returns:
     n_components (int) : number of components
-    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a component
-
-    NB: function not well-suited to high-dimensional parameterizations. E.g. in 16D, finding all the possible non-redundant power combinations takes forever... (should then hard-code them)
+    components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator scales a given component
     """
 
-    #Want to determine the components based on a single EFT point. If many points provided, assume they all follow the same convention, and only consider the first point
+    if DEBUG_: print('\n-- Find_Components()...');
+
+    #-- Want to determine the components based on a single EFT point. If many points provided, assume they all follow the same convention, and only consider the first point
     if operatorNames.ndim > 1:
         print(colors.ital, 'Warning : operatorNames has dimension', operatorNames.ndim, ', suggesting that lists of operator names have been provided for several EFT points. It is expected that all point follow the same naming convention and include the same operators. Will consider only the first row of this array.', colors.reset)
         operatorNames = operatorNames[0, :] #Restrict to first EFT point
 
+    #maxPower_perOperator <-> The maximal sum of powers of all parameters contributing to the squared matrix element # Typically, if parameters can affect the couplings at n vertices, this number is 2n. Default value: 2*1=2
     minPower_perOperator = 0; maxPower_perOperator = 2
     if len(operatorNames) == 1: minPower_perOperator = 2 #Assumption : 1 operator <-> pure EFT
 
-    #Set the min/max powers at which each operator can enter a component
+    #Set the min/max powers at which each operator can enter a component #Could also provide a tuple (1 max_power per operator) for more automation
     parameter_max_power = []
     for iter in range(len(operatorNames)): parameter_max_power.append(maxPower_perOperator)
 
     components = []
-    for i in range(len(operatorNames)):
-
+    if len(operatorNames) < 7: #cf. function description, using this nice automatic method is too long for large number of operators
         #Get all arrays corresponding to all possible combinations of operator/power
-        powers_each_component = [range(max_power+1) for max_power in parameter_max_power] #'+1' because index starts at 0
-        for powers in itertools.product(*powers_each_component): #List all possible combinations of range-arrays in 'powers_each_component' (<-> get all possible contributions for each operator satisfying the overall constraints) #itertools.product() computes the cartesian product of input iterables. It is equivalent to nested for-loops.  For example, product(A, B) returns the same as ((x,y) for x in A for y in B).
+        powers_each_component = [range(max_power+1) for max_power in parameter_max_power] #'+1' because range is [,parameter_max_power-1]
+        if DEBUG_>1: print(powers_each_component)
+        for powers in itertools.product(*powers_each_component): #List all possible combinations of range-arrays in 'powers_each_component' (<-> get all possible contributions for each operator satisfying the overall constraints) #itertools.product() computes the cartesian product of input iterables. It is equivalent to nested for-loops.  For example, product(A, B) returns the same as ((x,y) for x in A for y in B) #'*a' denotes arguments being passed to the function or method
 
             powers = np.array(powers, dtype=np.int) #Get corresponding array for given operator
 
             if np.sum(powers) < minPower_perOperator or np.sum(powers) > maxPower_perOperator: continue #Check the total EFT power
+            if DEBUG_>1: print(powers)
 
-            if not any((powers == x).all() for x in components): #Append combination if not yet included
-                components.append(np.copy(powers))
+            if not any((powers == x).all() for x in components): components.append(np.copy(powers)) #Append combination if not yet included
+
+    else: components = Find_Components_LargeNofOperators(len(operatorNames)) #See dedicated implementation
 
     components = np.array(components, dtype=np.int) #Convert list to array
     n_components = len(components)
@@ -131,14 +136,17 @@ def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
     effWC_components (ndarray of shape [n_points, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
     """
 
+    if DEBUG_: print('\n-- Get_EffectiveWC_eachComponent')
+
     if operatorWCs.size == 0: return np.array([]) #Return empty array
     operatorWCs = np.atleast_2d(operatorWCs) #Need 2D array
 
     effWC_components = np.zeros((len(operatorWCs), n_components)) #Create empty array of shape (n_points, n_components)
 
-    for y in range(len(operatorWCs)): #For each EFT point
+    for y in range(len(operatorWCs)): #For each SMEFT point
         for x in range(n_components): #For each component
             effWC_components[y,x] = np.prod(operatorWCs[y,:] ** components[x,:]) #Product of contributions of all operators to this component (e.g. if consider 2 operators, element corresponding to their interference will have value: WC1*WC2; element corresponding to squared operator1 will have value: WC1*WC1 ; etc.)
+            if DEBUG_>1: print('y', y, 'x', x, 'operatorWCs[y,:]', operatorWCs[y,:], '' 'effWC_components[y,x]', effWC_components[y,x])
 
             # factor = 1.0
             # for p in range(len(np.transpose(operatorWCs))): #For each operator (transpose so that 1st dim corresponds to operators)
@@ -147,8 +155,8 @@ def Get_EffectiveWC_eachComponent(n_components, components, operatorWCs):
                 # print(operatorWCs[y, p]); print(components[x, p]); print(factor)
 
     if DEBUG_:
-        print('\n-- Get_EffectiveWC_eachComponent'); print(effWC_components.shape)
-        if DEBUG_>1: print(effWC_components)
+        print('effWC_components.shape', effWC_components.shape)
+        if DEBUG_>1: print('effWC_components[:5]', effWC_components[:5])
     return effWC_components
 
 # //--------------------------------------------
@@ -166,6 +174,11 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
     """
     Determine the *gradients* of the 'effective WC' (see notes at b.o.f.) for each component, for all points. One gradient w.r.t. each considered operator.
 
+    # Example: for single operator, amplitude=a1+c.a2+c^2.a3, with (a1,a2,a3) the SM/interference/quadratic fit coefficients respectively.
+    Then the derivative w.r.t c ('theta') is grad=a2+2*c.a3, and the gradients of these components for a WC ('theta') value of 3 will be (0,1,2*3) respectively.
+    <-> E.g. for the SM scenario (c=0) this will correspond to the fit coefficient of the SM-EFT interference term alone; while for different EFT scenarios, also the quadratic contribution will enter.
+    <-> this represents an 'optimal observable' providing additional info. on the 'likelihood' of a given hypothesis ('theta') for a given reconstructed event.
+
     Parameters:
     n_components (int) : number of components
     components (ndarray of shape [n_components, n_operators]) : array whose elements represent the power at which an operator 'enters' (scales?) a given component
@@ -180,7 +193,7 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
 
     gradients_effWC_components = np.zeros((components.shape[1], len(operatorWCs), n_components)) #Create empty array of shape (n_operators, n_points, n_components)
 
-    for z in range(components.shape[1]): #For each operator (<-> loop on array elements. Will differentiate M^2 w.r.t. this operator)
+    for z in range(components.shape[1]): #For each operator (<-> loop on array elements. Will *differentiate* M^2 w.r.t. this operator)
 
         gradient_effWC_components_operator = np.zeros((len(operatorWCs), n_components)) #Create empty sub-array of shape (n_points, n_components)
         for y in range(len(operatorWCs)): #For each EFT point
@@ -206,9 +219,11 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
         gradients_effWC_components[z, ...] = gradient_effWC_components_operator #Fill total array with sub-arrays
 
     # print('\n-- Get_Gradients_EffectiveWC_eachComponent');
-    # print(gradients_effWC_components.shape)
-    # print('z=0,p=0', operatorWCs[0,:], '\n', components[:,:], '\n', gradients_effWC_components[0,0,:])
-    # print('z=0,p=1', operatorWCs[1,:], '\n', components[:,:], '\n', gradients_effWC_components[0,1,:])
+    # print('components :', components[:,:])
+    # print('gradients_effWC_components.shape', gradients_effWC_components.shape)
+    # print('\n\n operator z=0, point=0\n', operatorWCs[0,:], '\n', 'gradients_effWC_components[0,0,:]', gradients_effWC_components[0,0,:])
+    # print('\n\n operator z=0, point=1\n', operatorWCs[1,:], '\n', 'gradients_effWC_components[0,1,:]', gradients_effWC_components[0,1,:])
+    # print('\n\n operator z=0, point=2\n', operatorWCs[2,:], '\n', 'gradients_effWC_components[0,2,:]', gradients_effWC_components[0,2,:])
 
     # if DEBUG_:
     #     print('\n-- Get_Gradients_EffectiveWC_eachComponent'); print(gradients_effWC_components.shape)
@@ -228,7 +243,7 @@ def Get_Gradients_EffectiveWC_eachComponent(n_components, components, operatorWC
 def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, components):
     """
     Determine the 'fit coefficients', i.e. the structure constants associated with the components
-    Corresponds to matrix A, as in : T . A = w <-> A = w . T^-1 (where w are the benchmark weights, and T the 'effective WCs' for all components and all benchmark points)
+    Corresponds to matrix A, as in : T . A = w <-> A = T^-1 . w (where w are the benchmark weights, and T the 'effective WCs' for all components and all benchmark points) #(Reminder: when multiply by invert matrix, start from the left! Invert matrix has 'transposed dimensions')
 
     Parameters:
     effWC_components (ndarray of shape [n_points, n_components]) : array of 'effective WC' for all components, for all 'n_points' considered EFT points ; retain only the necessary 'n_components' first benchmark weights
@@ -248,11 +263,17 @@ def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, compo
     #  SVD ? (https://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.svd.html)
     # if effWC_components.shape[0] is not effWC_components.shape[1]:
     #     print('Error ! Need square T matrix for now...'); exit(1)
-    assert(effWC_components.shape[0] == effWC_components.shape[1]), 'Error ! Need square T matrix for now...'
-    if DEBUG_: print(benchmark_weights.shape); print(effWC_components.shape); print(np.linalg.inv(effWC_components).shape)
+    assert(effWC_components.shape[0] == effWC_components.shape[1]), 'Error ! Need square T matrix for now...' #Last 2 dimensions of the array must be square for np.inv
+    if DEBUG_: print('benchmark_weights.shape', benchmark_weights.shape); print('effWC_components.shape', effWC_components.shape); print('np.linalg.inv(effWC_components).shape', np.linalg.inv(effWC_components).shape); print('benchmark_weights[:5]', benchmark_weights[:5])
+
+    #-- Debug printout
+    # print('T-1', np.linalg.inv(effWC_components)[0])
+    # print('w', benchmark_weights[0])
+    # print('coeff = transp(T-1 . w)', np.transpose(np.dot(np.linalg.inv(effWC_components), np.transpose(benchmark_weights)))[0] )
+    # exit(1)
 
     fit_coeffs = np.dot(np.linalg.inv(effWC_components), np.transpose(benchmark_weights) ) #Matrix inversion ; A = T^-1 . w
-    fit_coeffs = np.transpose(fit_coeffs) #Transpose to get desired shape
+    fit_coeffs = np.transpose(fit_coeffs) #Transpose to get desired shape (n_events, n_components)
 
     only_keep_quadratic_components = False #True <-> only retain quadratic term in the squared amplitude (neglect interference terms)
     if only_keep_quadratic_components:
@@ -267,13 +288,13 @@ def Get_FitCoefficients(effWC_components, benchmark_weights, n_components, compo
         print('\n-- Get_FitCoefficients'); print(fit_coeffs.shape)
         if DEBUG_>1:
             # print(fit_coeffs)
-            print('fit_coeffs0', fit_coeffs[0])
-            print('benchmark_weights0', benchmark_weights[0])
             print('effWC0', effWC_components[0])
             print('inv effWC0', np.linalg.inv(effWC_components)[0])
-            print('benchweight0 : coeff*WC0=', np.dot(effWC_components[0],fit_coeffs[0]) )
-            print('benchweight1 : coeff*WC1=', np.dot(effWC_components[1],fit_coeffs[0]) )
-            print('benchweight2 : coeff*WC2=', np.dot(effWC_components[2],fit_coeffs[0]) )
+            print('benchmark_weights0', benchmark_weights[0]) #Benchmark weights of first event
+            print('fit_coeffs0', fit_coeffs[0]) #Fit coefficients of first event
+            print('benchweight0 : coeff*WC0=', np.dot(effWC_components[0],fit_coeffs[0]) ) #w = T.A --> should recover first benchmark weight for event 0
+            print('benchweight1 : coeff*WC1=', np.dot(effWC_components[1],fit_coeffs[0]) ) #Idem second benchmark weight
+            print('benchweight2 : coeff*WC2=', np.dot(effWC_components[2],fit_coeffs[0]) ) #Idem third benchmark weight
     return fit_coeffs
 
 # //--------------------------------------------
@@ -292,7 +313,7 @@ def Extrapolate_EFTweights(effWC_components, fit_coeffs):
 
     Parameters:
     effWC_components (ndarray of shape [n_points, n_components]) : 'effective WC' of given component, for all (n_points) EFT points
-    fit_coeffs (ndarray of shape [n_events, n_components]) : fit coefficients associated with the components, for all (n_points) EFT points
+    fit_coeffs (ndarray of shape [n_events, n_components]) : fit coefficients A associated with the components, for all (n_points) EFT points
 
     Returns:
     extrapolatedWeights (ndarray of shape [n_events, n_points]) : new weights extrapolated at the considered EFT points, for each considered event
@@ -304,13 +325,13 @@ def Extrapolate_EFTweights(effWC_components, fit_coeffs):
         return
 
     # print(effWC_components.shape); print(fit_coeffs.shape)
-    extrapolatedWeights = np.dot(effWC_components, np.transpose(fit_coeffs)) #w' = t . A^T
+    extrapolatedWeights = np.dot(effWC_components, np.transpose(fit_coeffs)) #w' = t . A, with A = T-1 . w (see Get_FitCoefficients) and t the vector of eff WC corresponding to the new points (for which we extrapolate/compute new weights w')
     extrapolatedWeights = np.transpose(extrapolatedWeights) #Transpose to get desired shape (n_events, n_points)
     # print(extrapolatedWeights.shape)
 
     if DEBUG_:
-        print('\n-- Extrapolate_EFTweights'); print(extrapolatedWeights.shape)
-        if DEBUG_>1: print(extrapolatedWeights)
+        print('\n-- Extrapolate_EFTweights'); print('extrapolatedWeights.shape', extrapolatedWeights.shape)
+        if DEBUG_>1: print('extrapolatedWeights', extrapolatedWeights)
     return extrapolatedWeights
 
 # //--------------------------------------------
@@ -350,8 +371,8 @@ def Extrapolate_EFTxsecs_fromWeights(extrapolatedWeights):
     extrapolatedXsecs = np.sum(extrapolatedWeights, axis=0)
 
     if DEBUG_:
-        print('\n-- Extrapolate_EFTxsecs_fromWeights'); print(extrapolatedXsecs.shape)
-        if DEBUG_>1: print(extrapolatedXsecs)
+        print('\n-- Extrapolate_EFTxsecs_fromWeights'); print('extrapolatedXsecs.shape', extrapolatedXsecs.shape)
+        if DEBUG_>1: print('extrapolatedXsecs', extrapolatedXsecs)
     return extrapolatedXsecs
 
 # //--------------------------------------------
@@ -360,15 +381,28 @@ def Extrapolate_EFTxsecs_fromWeights(extrapolatedWeights):
 def Extrapolate_SM_Weights(n_components, components, fit_coeffs, listOperatorsParam):
     """
     Extrapolate event weights at SM point.
+
+    Parameters:
+    n_components (int) : nof components, as determined in Find_Components
+    components (ndarray of shape [n_components, n_operator]) : corresponding components, as determined in Find_Components
+    fit_coeffs (ndarray of shape [n_events, n_components]) : fit coefficients associated with the components, for all (n_points) EFT points
+    listOperatorsParam : subset of operators on which to train the NN
+
+    Returns:
+    weight_SM (ndarray of shape [n_events]) : extrapolated SM weights for all events.
     """
+
+    if DEBUG_>1: print('Extrapolate_SM_Weights()')
 
     WCs_SM = np.zeros(len(listOperatorsParam)) #SM <-> All operators are set to 0
     effWC_components_SM = Get_EffectiveWC_eachComponent(n_components, components, WCs_SM) #Get corresponding matrix
     weight_SM = Extrapolate_EFTweights(effWC_components_SM, fit_coeffs) #Get corresponding event weights
     weight_SM = np.squeeze(weight_SM) #2D -> 1D
-
-
-    weight_SM = Extrapolate_EFTweights(effWC_components_SM, fit_coeffs)
+    if DEBUG_>1:
+        print('listOperatorsParam', listOperatorsParam)
+        print('WCs_SM', WCs_SM)
+        print('effWC_components_SM[:5]', effWC_components_SM[:5])
+        print('weight_SM[:5]', weight_SM[:5])
 
     return weight_SM
 
@@ -489,9 +523,7 @@ def Get_ThetaParameters(opts, operatorNames):
 
 # //--------------------------------------------
 
-    if DEBUG_:
-        print('\n-- Get_ThetaParameters'); print(thetas_allOperators)
-        if DEBUG_>1: print(thetas_allOperators)
+    if DEBUG_: print('\n-- Get_ThetaParameters'); print(thetas_allOperators)
     return thetas_allOperators, targetClasses_allOperators
 
 # //--------------------------------------------
@@ -565,7 +597,7 @@ def Compute_Score_Component(weights_thetas, xsecs_thetas, gradWeights_thetas, gr
 
     score_component = np.subtract(dw_thetas, dxs_thetas) #A - B
 
-    # print(gradWeights_thetas[0,0]); print(weights_thetas[0,0]); print(gradXsecs_thetas[0]); print(xsecs_thetas[0]); print(score_component[0,0])
+    # maxEv=2; print('gradWeights_thetas', gradWeights_thetas[:maxEv,0]); print('weights_thetas', weights_thetas[:maxEv,0]); print('gradXsecs_thetas', gradXsecs_thetas[0]); print('xsecs_thetas', xsecs_thetas[0]); print('score_component', score_component[:maxEv,0])
     return score_component
 
 # //--------------------------------------------
@@ -586,7 +618,9 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
     print(colors.fg.orange, '=========== DEBUG =========\n\n', colors.reset)
 
     print('\nComponents --> \n', components)
+    print('\ncomponents.shape --> \n', components.shape)
     print('\nFit coeffs [:5] --> \n', fit_coeffs[:5])
+    print('\nfit_coeffs.shape --> \n', fit_coeffs.shape)
 
     print("-----------")
     print('\nSM MG reweights [:5] --> \n', list_SMweights[:5])
@@ -607,16 +641,24 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
     # print('Baseline weight from extrapol [:5] --> ', weights_baseline[:5])
 
     print("-----------")
-    # idx_refPoint = EFT_weightIDs.shape[1]-1 #Last rwgt point
-    print('RefPoint ID : ', EFT_weightIDs[0,-1])
-    refPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, EFT_weightIDs[0,-1])
+    print("-----------")
+    idx_ref = -1 #Choose some random EFT benchmark point for comparison
+    nev_ref = 1 #Choose nof events for printout
+    weightID = EFT_weightIDs[0]
+    print('RefPoint ID : ', weightID[idx_ref])
     # refPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_0_ctW_0_cpQM_0_cpQ3_0_cpt_5")
     # lasPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, "rwgt_ctZ_4.07_ctW_4.43_cpQM_3.7_cpQ3_-1.16_cpt_-1.82 ")
+    refPoint_WCs = Translate_EFTpointID_to_WCvalues(operatorNames, weightID)
     effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, refPoint_WCs) #Get corresponding matrix
     weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, fit_coeffs) #Get corresponding event weights
     weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
-    print('\nLast point weight from MG [:5] --> ', EFT_weights[:5,-1])
-    print('Corresponding weight from extrapolation [:5] --> ', weights_refPoint[:5])
+    print('\nLast point weight from MG --> ', EFT_weights[:nev_ref,idx_ref])
+    print('\nrefPoint_WCs --> ', refPoint_WCs[idx_ref,:])
+    print('\nEFT_weights --> ', EFT_weights[:nev_ref])
+    print('\neffWC_components_refPoint --> ', effWC_components_refPoint[idx_ref,:])
+    print('\nfit_coeffs --> ', fit_coeffs[:nev_ref,:])
+    print('\nCorresponding weight from extrapolation --> ', weights_refPoint[:nev_ref,idx_ref])
+
     # print('Corresponding xsec from extrapolation [:5] --> ', Extrapolate_EFTxsecs_fromWeights(weights_refPoint))
 
     # for i in range(len(EFT_weights)):
@@ -628,6 +670,7 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
 
 # //--------------------------------------------
 # //--------------------------------------------
+
 
 ######## ##     ## ######## ######## ##    ## ########
 ##        ##   ##     ##    ##       ###   ## ##     ##
@@ -646,7 +689,7 @@ def CrossCheck_FewEvents(opts, n_components, components, operatorNames, fit_coef
 ########  ##     ##    ##    ##     ##  ######  ########    ##
 
 #Main EFT function, called in GetData.py. Extend the data (x, weights, ...) at all the EFT points theta at which the NN will get trained.
-def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, singleThetaName=""):
+def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_allClasses, list_EFTweights_allClasses, list_EFTweightIDs_allClasses, list_EFT_FitCoeffs_allClasses, list_SMweights_allClasses, n_components, components, singleThetaName=""):
     """
     Extend the original data so that the NN can be parameterized on WCs. Events need to be reweighted at many different EFT points for the NN to learn how to interpolate between them.
     First, define the points 'thetas' on which the NN will get trained. Then, for the same input features x, will duplicate events N times at these points, with corresponding reweights.
@@ -667,6 +710,9 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
     need_jlr = (opts["strategy"] in ["ROLR", "RASCAL"])
     need_score = (opts["strategy"] is "RASCAL")
+    if need_score==True: need_jlr = True #Necessary
+
+    # need_jlr = True; need_score = True #FIXME -- tmp
 
 # //--------------------------------------------
 # Sanity checks
@@ -675,6 +721,7 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         return list_x_allClasses, list_weights_allClasses, [], [], [], [], []
 
     if DEBUG_>1: #Debug printout
+        print(colors.fg.red, 'Warning : DEBUG_>1 <-> setting maxEvent=5...\n', colors.reset)
         for iclass in range(len(list_x_allClasses)):
             list_x_allClasses[iclass]=list_x_allClasses[iclass][:5]; list_weights_allClasses[iclass]=list_weights_allClasses[iclass][:5]; list_EFTweights_allClasses[iclass]=list_EFTweights_allClasses[iclass][:5]; list_EFTweightIDs_allClasses[iclass]=list_EFTweightIDs_allClasses[iclass][:5]; list_EFT_FitCoeffs_allClasses[iclass]=list_EFT_FitCoeffs_allClasses[iclass][:5]
 
@@ -698,20 +745,23 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
         TrainValTest_allThetas_class = np.zeros((1,1)) #Dummy default
         nEventsPerPoint_class = opts["maxEvents"]
 
+        #-- Assume that benchmark points are identical for all events in the proc sample !
+        # print('list_EFTweightIDs_allClasses[iclass][0,0]', list_EFTweightIDs_allClasses[iclass][0,0])
+        operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0])
+
         #-- Sanity checks
-        operatorNames, _, _ = Parse_EFTpoint_IDs(list_EFTweightIDs_allClasses[iclass][0,0]) #Assume that benchmark points are identical for all events in the sample
-        operatorNames = operatorNames[0] #Single-element list -> array
+        operatorNames = operatorNames[0] #Access array
         for op1 in opts["listOperatorsParam"]:
             if "PrivMC" in list_labels[iclass] and op1 not in operatorNames and op1.lower() not in operatorNames: print(colors.fg.red, 'Error : parameterized operator ', op1,' not found in class', list_labels[iclass], colors.reset, ' (Operators found : ', operatorNames, ')'); exit(1)
 
         if nEventsPerPoint_class > len(list_x_allClasses[iclass]):
-            print(colors.fg.orange, 'Warning : requiring more events per EFT point (', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...\n', colors.reset)
-            nEventsPerPoint_class = len(list_x_allClasses[iclass])
-        elif nEventsPerPoint_class ==-1: nEventsPerPoint_class = len(list_x_allClasses[iclass]) #Use entire dataset at each point
+            print(colors.fg.red, 'Warning : requiring more events per EFT point (', nEventsPerPoint_class, ') than available in this class (', len(list_x_allClasses[iclass]), ') ! Setting param. \'maxEvents\' accordingly...\n', colors.reset)
+            nEventsPerPoint_class = len(list_x_allClasses[iclass]); opts["nEventsPerPoint"] = len(list_x_allClasses[iclass])
+        elif nEventsPerPoint_class == -1: nEventsPerPoint_class = len(list_x_allClasses[iclass]) #Use entire dataset at each point
 
-        #-- Determine the components necessary to parameterize the event weights for this class
-        n_components, components = Find_Components(operatorNames) #Determine the components required to parameterize the event weight #NB: assumes that they are identical for all events in process class
-        # print(components)
+        #-- Determine the components necessary to parameterize the event weights for this class #Now passed directly as args
+        #NB: assumes that they are identical for all events in process class
+        if len(list_labels) > 1: n_components, components = Find_Components(operatorNames) #If considering a single class, components were already passed in arg; otherwise, rederive them on-the-fly here
 
         #-- Define the hypotheses theta on which the NN will get trained. Draw values uniformly in given interval for each operator, translate into array. Also define the corresponding target to train on (<-> the operator which is activated at a given point) #NB: points theta are defined according to user-defined list 'listOperatorsParam', but must be shaped according to total nof operators present in samples
         #NB: could do that before class loop (also Find_Components), since expect all classes to share exact same parametrization. But just in case different classes have different parametrizations, and we are only considering a common subset of operators, define everything separately for each class.
@@ -732,6 +782,8 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
             effWC_components_refPoint = Get_EffectiveWC_eachComponent(n_components, components, refPointWCs) #Get corresponding matrix
             weights_refPoint = Extrapolate_EFTweights(effWC_components_refPoint, list_EFT_FitCoeffs_allClasses[iclass]) #Get corresponding event weights
             weights_refPoint = np.squeeze(weights_refPoint) #2D -> 1D (single point)
+
+        weights_refPoint = weights_refPoint[:len(list_x_allClasses[iclass])] #Make sure we did not restrict the nof events (e.g. if DEBUG_>1)
 
         #-- Add here the possibility to split train/(val)/test datasets #Up to now, was splitting at the very end <-> train/test/val sets samples from exact same events, not really independent... #IDEA: set an index 0/1/2 (train/test/val) to each original event, and propagate it when an event gets reweighted/duplicated; then extend the dataset and process it as usual; at the end, define train/test/val sets depending on the value of this index attached to each extended event
         _trainsize = opts["splitTrainValTestData"][0]; _valsize = opts["splitTrainValTestData"][1]; _testsize = opts["splitTrainValTestData"][2]
@@ -799,6 +851,11 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
                         list_gradweights_operators_thetas.append(Extrapolate_EFTweights(gradEffWC_components_operators_thetas_class[iop,...], list_EFT_FitCoeffs_allClasses[iclass]))
                         list_gradNewXsecs_operators_thetas.append(Extrapolate_EFTxsecs_fromWeights(list_gradweights_operators_thetas[iop]))
                         list_score_allOperators_thetas.append(Compute_Score_Component(weights_thetas, newXsecs, list_gradweights_operators_thetas[iop], list_gradNewXsecs_operators_thetas[iop]) )
+
+                        #-- Debug printout: can verify for first event / first EFT point that a*b=c, with: a=(gradients of the effective WC, cf function description), b=(fit coefficients), c=(resulting weigth gradient)
+                        # print('gradEffWC_components_operators_thetas_class[0,0,:]', gradEffWC_components_operators_thetas_class[0,0,:])
+                        # print('list_gradweights_operators_thetas[0][0]', list_gradweights_operators_thetas[0][0][0])
+                        # print('list_EFT_FitCoeffs_allClasses[iclass][0,:]', list_EFT_FitCoeffs_allClasses[iclass][0,:])
 
                     """
                     #-- Idem for reference hypothesis #NB: not used for now, always keep same ref hypothesis at denominator
@@ -896,6 +953,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
             probas_thetas /= probas_thetas.sum(axis=0,keepdims=1); probas_refPoint /= probas_refPoint.sum() #Normalize to 1 (again)
 
         #-- Get event indices
+        # print(len(x)); print(len(probas_refPoint))
         # n_events_refPoint = nEventsPerPoint/10 if opts["strategy"] in ["ROLR", "RASCAL"] else nEventsPerPoint #Could draw less events from reference hypothesis (since gets repeated for each theta)
         if probas_thetas is None: indices_theta = rng.choice(len(x), size=nEventsPerPoint)
         else: indices_theta = rng.choice(len(x), size=nEventsPerPoint, p=probas_thetas[:,itheta])

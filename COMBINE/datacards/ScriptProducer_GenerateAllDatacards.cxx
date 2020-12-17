@@ -129,14 +129,17 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     if(scan_operator_hardcoded)
     {
         mode_histoBins = 1; //Scan on parametrized NN --> must treat each histogram bin separately
+        filename_template_suffix+= "param"; //Default identifier
 
-        operator_scan1 = "ctz";
+        operator_scan1 = "ctw";
         //v_WCs_operator_scan1 = {"-4","-2","-1","0","1","2","4"};
-        v_WCs_operator_scan1 = {"-3", "-2", "-1.5", "-1", "-0.8", "-0.6", "-0.4", "-0.2", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.5", "2", "3"};
+        // v_WCs_operator_scan1 = {"-3", "-2", "-1.5", "-1", "-0.8", "-0.6", "-0.4", "-0.2", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.5", "2", "3"};
+        v_WCs_operator_scan1 = {"-1.5", "-1", "-0.8", "-0.6", "-0.4", "-0.2", "0", "0.2", "0.4", "0.6", "0.8", "1", "1.5"};
 
         v_regions.resize(0); v_templates.resize(0);
-        v_regions.push_back("SRtZq"); v_templates.push_back("NN");
-        v_regions.push_back("SRttZ"); v_templates.push_back("NN");
+        v_regions.push_back("SRtZq"); v_templates.push_back(v_templates[0]);
+        v_regions.push_back("SRttZ"); v_templates.push_back(v_templates[0]);
+        v_regions.push_back("SRother"); v_templates.push_back("mTW");
     }
     //Add predefined additional regions (NB: corresponding templates must have been produced and merged into main template file !)
     else if(include_otherRegions == 'y')
@@ -218,7 +221,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 //--- First loop over years/regions/templates
 //===> Commands to produce individual datacards
 
-    for(int ipt_EFT=0; ipt_EFT<v_WCs_operator_scan1.size(); ipt_EFT++)
+    for(int ipt_EFT=0; ipt_EFT<v_WCs_operator_scan1.size(); ipt_EFT++) //1 datacard per EFT scan point
     {
         for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
         {
@@ -228,15 +231,17 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
                 for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
                 {
-                    if(itemplate != iregion) {continue;} //NEW -- associate templates/regions 1 to 1 for more flexibility
-
-                    // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
+                    if(itemplate != iregion) {continue;} //Associate templates/regions 1 to 1 for more flexibility
 
                     // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
+                    // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
+
+                    bool isOtherRegion = false;
+                    if(include_otherRegions && (v_regions[iregion].Contains("SRttZ4l") || v_regions[iregion].Contains("CRWZ") || v_regions[iregion].Contains("CRZZ") || v_regions[iregion].Contains("CRDY")) ) {isOtherRegion = true;}
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                    if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
-                    if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
+                    if(scan_operator_hardcoded && v_templates[itemplate].Contains("NN")) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];} //NN scan: adapt template name
+                    else if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
@@ -245,11 +250,13 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         			file_out <<"mkdir "<<dir<<endl<<endl;
                     file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
-        		    // TString file_histos = "../templates/Combine_Input.root";
-                    TString file_histos_pathFromHere = "./../templates/Templates_"+ (include_otherRegions? v_templates[0]:v_templates[itemplate]) + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
+        		    // TString file_histos = "../templates/Combine_Input.root"; //Templates_otherRegions_NN_Run2.root
+                    // TString file_histos_pathFromHere = "./../templates/Templates_"+ (include_otherRegions? v_templates[0]:v_templates[itemplate]) + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
+                    if(isOtherRegion) {file_histos_pathFromHere = "./../templates/Templates_otherRegions"+(selection != ""? "_"+selection:"")+"_";} //Read a different file for templates with 'fixed' observables (only change SR templates)
                     TString file_histos_pathFromHere_Run2 = file_histos_pathFromHere + "Run2.root"; //In case year-dependent file is not found, will look for Run2 file by default
                     file_histos_pathFromHere+= lumiName+".root";
-                    if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
+                    // if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
 
                     cout<<DIM("Trying to open input file "<<file_histos_pathFromHere<<" ... ");
                     if(Check_File_Existence(file_histos_pathFromHere)) {cout<<DIM("FOUND !")<<endl;}
@@ -264,7 +271,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
         			cout<<endl<<FMAG("---> Will use filepath : ")<<file_histos<<endl<<endl;
 
-                    if(mode_histoBins==1) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
+                    if(mode_histoBins==1 && !isOtherRegion) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
                     {
                         TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
                         TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
@@ -288,7 +295,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins==1 && nbins > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            if(mode_histoBins==1 && nbins > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                             else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
 
             				file_out<<"python Parser_Datacard_Template.py "
@@ -342,14 +349,16 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             {
         	    for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
         	    {
-                    if(itemplate != iregion) {continue;} //NEW -- associate templates/regions 1 to 1 for more flexibility
+                    if(itemplate != iregion) {continue;} //Associate templates/regions 1 to 1 for more flexibility
 
                     // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
 
-                    TString var = v_templates[itemplate] + "_" + v_regions[iregion];
-                    if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
+                    bool isOtherRegion = false;
+                    if(include_otherRegions && (v_regions[iregion].Contains("SRttZ4l") || v_regions[iregion].Contains("CRWZ") || v_regions[iregion].Contains("CRZZ") || v_regions[iregion].Contains("CRDY")) ) {isOtherRegion = true;}
 
-                    if(scan_operator_hardcoded) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
+                    TString var = v_templates[itemplate] + "_" + v_regions[iregion];
+                    if(scan_operator_hardcoded && v_templates[itemplate].Contains("NN")) {var+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
+                    else if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
@@ -357,7 +366,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
         			{
                         int nbins_tmp = 1;
-                        if(mode_histoBins==1)
+                        if(mode_histoBins==1 && !isOtherRegion)
                         {
                             // nbins_tmp = v_nbins[idx_v_nbins]; idx_v_nbins++; //Read current binning; increment index to stay in sync
                             nbins_tmp = v_nbins_EFT_year_region_template[ipt_EFT][iyear][iregion][itemplate];
@@ -368,7 +377,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins && nbins_tmp > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            if(mode_histoBins && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                             else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
 
             				file_out<<var_tmp;
@@ -439,13 +448,16 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
                     if(v_regions[iregion] == "SRother" && filename_template_suffix.Contains("EFT")) {var = "mTW_SRother";} //Use mTW for now in CR //Hard-coded
 
+                    bool isOtherRegion = false;
+                    if(include_otherRegions && (v_regions[iregion].Contains("SRttZ4l") || v_regions[iregion].Contains("CRWZ") || v_regions[iregion].Contains("CRZZ") || v_regions[iregion].Contains("CRDY")) ) {isOtherRegion = true;}
+
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
 
                     for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++) //Loop over channels
                     {
                         int nbins_tmp = 1;
-                        if(mode_histoBins==1)
+                        if(mode_histoBins==1 && !isOtherRegion)
                         {
                             // nbins_tmp = v_nbins[idx_v_nbins]; idx_v_nbins++; //Read current binning; increment index to stay in sync
                             nbins_tmp = v_nbins_EFT_year_region_template[0][iyear][iregion][itemplate];
@@ -455,7 +467,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins && nbins_tmp > 1) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            if(mode_histoBins && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                             else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
 
                             file_out<<var_tmp;
@@ -553,14 +565,21 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     // cin>>use_SM_setup;
     // if(use_SM_setup == 'y') {return;} //Overrides following options
 
-    //-- Choose whether to perform a fit following the main SM differential tZq analysis (overrides some options)
+    //-- Choose whether to include templates from 'Other regions' (ttZ4l, CRs -- not impacted by NNs)
     cout<<endl<<FYEL("=== Do you want to include 'other regions' in the fit ? (ttZ 4l SR / WZ CR / ZZ CR) ===")<<endl;
     cout<<ITAL(DIM("(NB: requires you to have produced the relevant templates and merged them with SR templates)"))<<endl;
     cout<<ITAL(DIM(<<"['y' for yes (else no)]"));
     cout<<ITAL(DIM(<<"... "));
     cin>>chartmp;
-    if(chartmp == 'y') {include_otherRegions = chartmp;}
-    else if(chartmp != '0') {include_otherRegions = 'n';}
+    while(chartmp != 'y' && chartmp != 'n' && chartmp != '0')
+    {
+        cin.clear();
+        cin.ignore(1000, '\n');
+
+        cout<<" Wrong answer ! Need to type 'y' or 'n' ! Retry :"<<endl;
+        cin>>chartmp;
+    }
+    if(chartmp == 'y' || chartmp == 'n') {include_otherRegions = chartmp;}
 
     //Choose whether to create a single datacard for entire histo, or separate datacards for each histo bin (allows to parametrize each bin independently)
     cout<<endl<<FYEL("=== Create separate datacards for each histogram bin ? ===")<<endl;
@@ -688,3 +707,4 @@ int main()
 
 	return 0;
 }
+

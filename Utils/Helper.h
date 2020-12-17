@@ -123,7 +123,7 @@ bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, double&, double&);
-void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&);
+void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&, vector<float>);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
 float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
@@ -195,7 +195,7 @@ template <class T> void Avoid_Histogram_EmptyOrNegativeBins(T*& h)
     return;
 };
 
-template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString outname, bool store_countExp=false)
+template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString outname, int& nhistos, bool store_countExp=false)
 {
     f->cd();
     if(h->GetNbinsX() == 1) {return;} //Dont need to split/merge anything if there's only 1 bin
@@ -225,6 +225,7 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
         if(!outname.Contains("NPL_MC") && h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC is negative by design
 
         h_tmp->Write(outname_tmp);
+        nhistos++;
         // cout<<"Wrote histo : "<<outname_tmp<<endl;
 
         delete h_tmp; h_tmp = NULL;

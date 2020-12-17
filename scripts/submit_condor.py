@@ -19,16 +19,15 @@ def analyze(args):
     output = 'condor/' + outdir
 
     import os
-    if not os.path.exists('condor'):
-        os.mkdir('condor')
+    if not os.path.exists('condor'): os.mkdir('condor')
     os.mkdir(output)
 
     #-- NB: may loop here to generate multiple jobs
     i = 0 #Default: submit 1 single job
-    if  True:
+    jobname = 'analyzer'
+    if True:
 
         # construct job name
-        jobname = 'test'
 
         # create jobinformation
         ji = {
@@ -37,20 +36,21 @@ def analyze(args):
         }
         i += 1
 
-    # write jobinformation
-    import json
-    with open(output+'/jobs.json', 'w') as f:
-        json.dump(ji, f, indent=4, separators=(',', ': '))
+        # write jobinformation
+        import json
+        with open(output+'/jobs.json', 'w') as f:
+            json.dump(ji, f, indent=4, separators=(',', ': '))
 
     # submit jobs
-    if test:
-        def call(text, **opts):
-            print(text)
-    else:
-        from subprocess import call
-    command = './scripts/job.sh {} ./analysis_main.exe'.format(os.getcwd())
-    call('./scripts/cs.sh -d{} -n{} -a0:{} "{}"'.format(outdir, jobname, i-1, command), shell=True) #NB: use [-a0:i-1] to submit i jobs with arguments 0...i-1
+    from subprocess import call
+    call('cp ./analysis_main.exe {}'.format(output), shell=True) #Copy current executable to timestamped dir (so that it won't get modified anymore)
 
+    pretend=''
+    if test: pretend = ' --pretend' #cs.sh won't submit
+    #command = './scripts/job.sh {} ./analysis_main.exe'.format(os.getcwd())
+    command = './scripts/job.sh {} ./'.format(os.getcwd())+output+'/analysis_main.exe' #Execute timestamped, job-dependent executable    
+    print('EXECUTING: ', './scripts/cs.sh -n{}{} "{}"'.format(jobname, pretend, command), '\n')
+    call('./scripts/cs.sh -d{} -n{} "{}"'.format(outdir, jobname, command), shell=True) #NB: use [-a0:i-1] to submit i jobs with arguments 0...i-1
     print('== DONE ! ==\n')
 # end: submit analyzer jobs
 #-----
@@ -74,10 +74,10 @@ def train(args):
 
     #-- NB: may loop here to generate multiple jobs
     i = 0 #Default: submit 1 single job
-    if  True:
+    jobname = 'trainer'
+    if True:
 
         # construct job name
-        jobname = 'test'
 
         # create jobinformation
         ji = {
@@ -86,10 +86,10 @@ def train(args):
         }
         i += 1
 
-    # write jobinformation
-    import json
-    with open(output+'/jobs.json', 'w') as f:
-        json.dump(ji, f, indent=4, separators=(',', ': '))
+        # write jobinformation
+        import json
+        with open(output+'/jobs.json', 'w') as f:
+            json.dump(ji, f, indent=4, separators=(',', ': '))
 
     # submit jobs
     from subprocess import call
@@ -99,8 +99,8 @@ def train(args):
     if test: pretend = ' --pretend' #cs.sh won't submit
     #command = '../scripts/job.sh {} python ./Train_Neural_Network.py'.format(os.getcwd())
     command = '../scripts/job.sh {} python ./'.format(os.getcwd())+output+'/Train_Neural_Network.py' #Execute timestamped, job-dependent executable
-    print('EXECUTING: ', '../scripts/cs.sh -n{}{} -a0:{} "{}"'.format(jobname, pretend, i-1, command), '\n')
-    call('../scripts/cs.sh -d{} -n{}{} -a0:{} "{}"'.format(outdir, jobname, pretend, i-1, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
+    print('EXECUTING: ', '../scripts/cs.sh -n{}{} "{}"'.format(jobname, pretend, command), '\n')
+    call('../scripts/cs.sh -d{} -n{}{} "{}"'.format(outdir, jobname, pretend, command), shell=True) #NB: hardcoding relative path from NeuralNetworks. dir.
 # end: submit training jobs
 #-----
 

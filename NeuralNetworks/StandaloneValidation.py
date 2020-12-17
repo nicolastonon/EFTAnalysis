@@ -39,14 +39,14 @@ nEventsStandaloneVal = 50000 #Nof events to sample/display per point
 #== NB: evalPoint=='' <-> evaluation point corresponds to the point to which each sample is drawn (<-> WC input values set accordingly)
 #== NB: evalPoint=='' <-> ROC/... don't make sense (sig/bkg evaluated at different points)
 # evalPoint = ''
-evalPoint = "SM"
+# evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-# evalPoint = "rwgt_ctz_5"
+evalPoint = "rwgt_ctz_2"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
 # evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_ctw_5"
-# evalPoint = "rwgt_cpqm_5"
+# evalPoint = "rwgt_cpqm_10"
 # evalPoint = "rwgt_cpq3_5"
 # evalPoint = "rwgt_cpt_15"
 # evalPoint = "rwgt_ctz_5_ctw_5"
@@ -55,21 +55,21 @@ evalPoint = "SM"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-# list_points_sampling.append("rwgt_ctz_5")
+list_points_sampling.append("rwgt_ctz_2")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
 # list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
-list_points_sampling.append("rwgt_cpqm_10")
+# list_points_sampling.append("rwgt_cpqm_10")
 # list_points_sampling.append("rwgt_cpq3_15")
 # list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
 
 #== SCAN OPTIONS ==#
-scan_singleOperator = True #True <-> plot output distributions for several values of a single operator
+scan_singleOperator = False #True <-> plot output distributions for several values of a single operator
 operator_scan = 'cpqm' #Operator to scan
 range_step = [-15, 15, 3] #(range,steps) with which to scan operator
 # range_step = [-1, 1, 2] #(range,steps) with which to scan operator
@@ -445,7 +445,10 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
         if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
 
-        nbins = 30; rmin = 0.; rmax = 1.
+        nbins = 30
+        # nbins = 70
+
+        xrange = None #Hist x-range
 
         fig = plt.figure('overtrain')
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
@@ -453,9 +456,14 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
         ax = plt.axes()
         if feature_name == "":
-            ax.set_xlim([rmin,rmax])
+            # rmin = 0.3; rmax = 0.7; xrange = (rmin,rmax)
+            rmin = 0.; rmax = 1.; xrange = (rmin,rmax)
+            # ax.set_xlim([rmin,rmax])
             myxlabel = "Classifier output"
         else:
+            if feature_name == "recoZ_Pt": #Hardcode xrange for easier comparisons b/w histos
+                rmin = 0.; rmax = 750; xrange = (rmin,rmax)
+                # ax.set_xlim([0,750])
             myxlabel = feature_name
 
         #--- COSMETICS
@@ -504,8 +512,8 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
                         tmp = predictions[y_process==ipt]
                         weights_tmp = PhysicalWeights[y_process==ipt]
 
-            if point is "SM": plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True) #range=(rmin,rmax)
-            else: plt.hist(tmp, bins=nbins, weights=weights_tmp, color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
+            if point is "SM": plt.hist(tmp, bins=nbins, range=xrange, weights=weights_tmp, color=col, alpha=0.50, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=True)
+            else: plt.hist(tmp, bins=nbins, range=xrange, weights=weights_tmp, color=col, density=True, histtype='step', log=False, label=leg, edgecolor=col,fill=False, linewidth=2.5)
 
         bottom, top = ax.get_ylim()
         ax.set_ylim([0., top*1.1])

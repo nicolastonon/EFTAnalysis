@@ -602,8 +602,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 
     #-- Overwrite previously existing file if any (then, other codes will open it in 'append' mode)
-    text_file = open(weightDir + "NN_info.txt", "w") #'w' to overwrite
-    text_file.close()
+    if opts["makeValPlotsOnly"]==False:
+        # shutil.move(weightDir + "NN_info.txt", weightDir + "NN_info_bck.txt") #First, copy previous NN_info file to bck path... can be useful if rerun code by mistake and previous file gets overwritten
+        text_file = open(weightDir + "NN_info.txt", "w") #'w' to overwrite
+        text_file.close()
 
     Write_Timestamp_toLogfile(weightDir, 0)
     Dump_NN_Options_toLogFile(opts, weightDir) #Write user-options to dedicated logfile
@@ -747,6 +749,8 @@ def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
     """
     Look for EFT weight names which do not follow the expected naming convention (of the kind 'rwgt_ctZ_5.2'), and removes coherently these elements in the arrays of EFT weights/names. Returns modified arrays.
 
+    NB: also remove SM benchmark weight, voluntarily (already stored in dedicated array anyway)
+
     Parameters:
     array_EFTweights (ndarray of shape [n_events, n_points]) : reweights for all points, for all events
     array_EFTweightIDs (ndarray of shape [n_events, n_points]) : reweight names for all points, for all events. Example name: 'rwgt_ctZ_5_ctW_3'
@@ -755,10 +759,16 @@ def Remove_Unnecessary_EFTweights(array_EFTweights, array_EFTweightIDs):
     Same arrays, but without the columns (<-> reweights) which are not necessary for the morphing procedure (e.g. SM reweight which does not follow the same naming convention)
     """
 
-    #Remove coherently the incorrect weights
+    #-- Remove coherently the incorrect weights
     indices = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'rwgt_c') #Get column indices of reweight names not following the expected naming convention, from first event; 0 <-> found ; -1 <-> not found
+    indices_TOP19001 = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'EFTrwgt') #TOP19001 convention
+    indices_TOP19001_SM = np.char.find(array_EFTweightIDs[0,:].astype('U'), 'EFTrwgt183_') #Special case: SM weight follows same conventions as other weights, but we want to remove it (it's not parsed as other benchmark weights)
+
+    indices = indices * indices_TOP19001 #If any convention found, index = 0
+    indices[indices_TOP19001_SM==0] = 1 #If TOP19001 SM weight found, we want to delete it (<-> set to non-zero)
     indices = np.asarray(indices, dtype=bool) #Convert indices to booleans (True <-> does not follow naming convention)
-    array_EFTweightIDs = np.delete(array_EFTweightIDs, indices==True, axis=1)
+
+    array_EFTweightIDs = np.delete(array_EFTweightIDs, indices==True, axis=1) #Uncomment if reading EFTweightIDs for all events (instead of single event)
     array_EFTweights = np.delete(array_EFTweights, indices==True, axis=1)
 
     #Just removes first weight if it is 'rwgt_1' (baseline weight sometimes included by default by MG)
@@ -793,9 +803,10 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
     """
 
     benchmarkIDs = np.atleast_1d(benchmarkIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
+    # print('benchmarkIDs.shape', benchmarkIDs.shape)
 
     prefix = 'rwgt_c' #Naming convention, strip this substring
-    # prefix_TOP19001 = 'EFTrwgt' #Naming convention of TOP19001
+    prefix_TOP19001 = 'EFTrwgt' #Naming convention of TOP19001
 
     idx_SM = -1 #Store SM index
     operatorNames = []
@@ -808,19 +819,20 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
         list_operatorWCs = []
         # ID = benchmarkIDs[idx]
 
-        if not ID.startswith(prefix): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
-        # if not ID.startswith(prefix) and not ID.startswith(prefix_TOP19001):
+        if not ID.startswith(prefix) and (not ID.startswith(prefix_TOP19001) or ID.startswith("EFTrwgt183_")): #Every considered EFT operator is expected to start with this substring ; for others (e.g. 'rwgt_sm'), don't parse
             if ID=="rwgt_sm" or ID=="rwgt_SM" or ID.startswith("EFTrwgt183_"): idx_SM = idx #SM point found #Hard-coded naming conventions
             continue
 
+        # print(ID)
         ID = CheckName_EFTpoint_ID(ID) #Enforce proper naming convention
 
-        if ID.startswith(prefix): list_keys = ID.split('_')[1:]
-        # if ID.startswith(prefix) or ID.startswith(prefix_TOP19001): list_keys = ID.split('_')[1:]
+        # if ID.startswith(prefix): list_keys = ID.split('_')[1:]
+        if ID.startswith(prefix) or ID.startswith(prefix_TOP19001): list_keys = ID.split('_')[1:]
         else: print('Error : naming convention in benchmark ID not recognized'); exit(1)
 
+        # print('list_keys', list_keys)
         for ikey in range(0, len(list_keys)-1, 2):
-            list_operatorNames.append(list_keys[ikey].lower()) #Operator name #Force lowercase for cross-samples compatibnility (using Madspin seems to make the reweight names lowercase)
+            list_operatorNames.append(list_keys[ikey].lower()) #Operator name #Force lowercase for cross-samples compatibility (using Madspin seems to make the reweight names lowercase)
             list_operatorWCs.append(float(list_keys[ikey+1])) #Operator WC
 
         #Append list for each EFT point
@@ -831,31 +843,42 @@ def Parse_EFTpoint_IDs(benchmarkIDs):
     operatorNames = np.array(operatorNames)
     operatorWCs = np.array(operatorWCs)
 
+    if(len(operatorNames)==0): print(colors.fg.red, 'Parse_EFTpoint_IDs() -- WARNING: len(operatorNames)==0 ! benchmarkIDs: ', benchmarkIDs, colors.reset)
     return operatorNames, operatorWCs, idx_SM
 
 # //--------------------------------------------
 # //--------------------------------------------
 
-#Translate reference points IDs (if different from SM) into the corresponding 2D array of WC values, properly ordered following same operator order as found in the sample
 def Translate_EFTpointID_to_WCvalues(operatorNames_sample, refPointIDs):
+    '''
+    Translate reference points IDs (if different from SM) into the corresponding 2D array of WC values, properly ordered following same operator order as found in the sample
+
+    NB: only works for EFT points, not SM point (because SM point discarded in Parse_EFTpoint_IDs() )
+
+    Return:
+    orderedList_WCvalues_allPoints (array of shape [npoints,n_operators]) : array of WC values corresponding to all SMEFT points passed in arg
+    '''
 
     refPointIDs = np.atleast_1d(refPointIDs) #If a single point is given in arg, make sure it is treated as an array in the function (and not as a string)
 
-    if refPointIDs[0] in ["SM", "sm"]:
-        return np.zeros(len(operatorNames_sample)) #SM point <-> all WCs are null
+    if refPointIDs[0] in ["SM", "sm"]: return np.zeros(len(operatorNames_sample)) #SM point <-> all WCs are null
 
     operatorNames_new, operatorWCs_new, _ = Parse_EFTpoint_IDs(refPointIDs)
 
-    orderedList_WCvalues_allPoints = []
+    orderedList_WCvalues_allPoints = []; n_skipped_points = 0
     for i_ID in range(len(refPointIDs)): #For each point ID
+        if any(x in refPointIDs[i_ID] for x in ['sm','SM','EFTrwgt183']): #Don't consider SM point, cf. function description
+            n_skipped_points+= 1 #Must update index accordingly
+            continue
         orderedList_WCvalues = []
         for op_sample in operatorNames_sample: #For each operator found in sample
             found = False #Check whether operator in sample (needed for EFT parameterization) is found in current point's ID
             for iop_ref in range(operatorNames_new.shape[1]): #For each operator in ID
-                if str(operatorNames_new[i_ID][iop_ref]) == str(op_sample):
+                # print('i_ID-n_skipped_points', i_ID-n_skipped_points, 'iop_ref', iop_ref)
+                if str(operatorNames_new[i_ID-n_skipped_points][iop_ref]) == str(op_sample):
                     found = True
-                    orderedList_WCvalues.append(operatorWCs_new[i_ID][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
-                elif operatorNames_new[i_ID][iop_ref] not in operatorNames_sample: print(colors.bold, colors.fg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample... (check exact naming)', colors.reset); exit(1) #Operator specified in ID not found in sample
+                    orderedList_WCvalues.append(operatorWCs_new[i_ID-n_skipped_points][iop_ref]) #Append WC to list at correct position (according to ordering in sample)
+                elif operatorNames_new[i_ID-n_skipped_points][iop_ref] not in operatorNames_sample: print(colors.bold, colors.fg.red, 'ERROR : refPoint seems not to be compatible with operators included in this sample... (check exact naming)', colors.reset); exit(1) #Operator specified in ID not found in sample
             if found is False: orderedList_WCvalues.append(0) #If current point's ID does not include an operator found in sample (needed for parameterization), include it and set to 0
 
         orderedList_WCvalues_allPoints.append(orderedList_WCvalues)
@@ -944,3 +967,32 @@ def Remove_LargeEFTWeight_Events(w_EFT, threshold, remove_above_treshold):
 
 # //--------------------------------------------
 # //--------------------------------------------
+
+def Find_Components_LargeNofOperators(n_operators):
+    '''
+    See Utils/EFT.py --> Find_Components(): method to find all valid components entering the full amplitude becomes way too CPU-intensive for large nof operators (~ N!)
+    In those cases, use this more hard-coded function: assume 'minPower_perOperator=0', 'maxPower_perOperator=2'
+    '''
+
+    #-- List to be used as template: list filled with 0, 1 entry for each operator (e.g.: 3 operators -> [0 0 0])
+    template_list = []
+    for iop in range(n_operators):
+        template_list.append(0)
+
+    components = [] #List of components to return
+    components.append(template_list) #Append template_list (only zeros <-> corresponds to SM term)
+
+    for iop in range(n_operators): #For each operator
+        # print('iop', iop)
+        tmp = template_list[:]; tmp[iop] = 2; components.append(tmp) #Append corresponding squared contribution (unique)
+        tmp = template_list[:]; tmp[iop] = 1; components.append(tmp) #Append corresponding SM-EFT interference contribution (unique)
+
+        for jop in range(iop+1,n_operators): #For all operator combinations not previously considered
+            # print('jop', jop)
+            tmp = template_list[:]; tmp[iop] = 1; tmp[jop] = 1; components.append(tmp) #Append corresponding EFT-EFT interference contribution (unique)
+
+    components = sorted(set(map(tuple, components)), reverse=True) #Remove any duplicate, order
+
+    # for i in components: print(i)
+    # print(len(tmp))
+    return components

@@ -87,8 +87,6 @@ class TopEFT_analysis
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
     bool Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
-    // void Make_ROC_fromTemplateFile(TString);
-    // void Make_ROC_fromTemplateFile(TString, TString, TString="");
 
 
 //--- MEMBERS

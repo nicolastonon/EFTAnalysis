@@ -1197,7 +1197,7 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
     else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
     else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 500.;}
     else if(var == "lep1_pt") {nbins = 20; xmin = 0.; xmax = 250.;}
-    else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 250.;}
+    else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 500.;}
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
     else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
@@ -1220,7 +1220,7 @@ bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
 
 //Return the binning of the variable passed in arg
 //NB: use Contains() function because I am passing full variable names as arguments (e.g. 'NN_SRtZq')
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds)
 {
     nbins = 15; //Default
 
@@ -1250,6 +1250,17 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     }
     if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
+
+    //NEW -- read minmax_bounds from NN_settings to auto-adjust the x-range... ?
+    if(template_name.Contains("NN"))
+    {
+        if(make_SMvsEFT_templates_plots) //Ex: min=0.253 -> 0.2 ; max = 0.856 -> 0.9
+        {
+            float min_tmp = (int) (minmax_bounds[0]*10)-0.1; if(min_tmp<0.) {min_tmp=0.;}
+            float max_tmp = (int) (minmax_bounds[1]*10)+0.1; if(max_tmp>1.) {max_tmp=1.;}
+            xmin = min_tmp; xmax = max_tmp;
+        }
+    }
 
     return;
 }
@@ -1754,7 +1765,7 @@ bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& 
     // cout<<DIM("-->  "<<NN_outputLayerName<<"")<<endl;
     // cout<<DIM("-->  "<<NN_nNodes<<" nodes")<<endl;
 
-    if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1 || !minmax_bounds.size()) {cout<<endl<<FRED("Warning : NN input/output info not found !")<<endl; return false;} //Need this info for NN
+    if(NN_inputLayerName == "" || NN_outputLayerName == "" || NN_nNodes == -1 || !minmax_bounds.size()) {cout<<endl<<FRED("ERROR : NN input/output info not found !")<<endl; return false;} //Need this info for NN
 
     return true;
 }
@@ -1798,7 +1809,6 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         {
             if(region == "signal" || region == "tZq") variable_list.push_back(var_list_tmp[ivar] + "_SRtZq"); //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
             if(region == "signal" || region == "ttZ") variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");
-            // if(region == "signal" && !scanOperators_paramNN) //Only include CR for non-parametrized MVA (simpler)
             if(region == "signal")
             {
                 if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_SRother");} //For SM vs EFT in CR, use mTW distribution for now
@@ -1806,25 +1816,29 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
             }
         }
 
-        //-- EFT scan: for parameterized NN templates, need to consider 1 set of variable *per EFT point*
+        //-- EFT scan: for parameterized NN templates, need to consider 1 set of variable *per EFT point* (only for SRtZq/SRttZ, not in SROther where we use mTW)
         if(scanOperators_paramNN)
         {
             vector<TString> var_list_tmp(variable_list); //Tmp copy of variable list
             variable_list.clear(); //Reset the actual list
             for(int ivar=0; ivar<var_list_tmp.size(); ivar++) //For each variable initially found in the list, duplicate it once for each considered EFT point
             {
-                for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
+                if(var_list_tmp[ivar].Contains("NN")) //Only consider param NN variables
                 {
-                    TString opname1 = operator_scan1 + "_" + Convert_Number_To_TString(v_WCs_operator_scan1[iop1]); //Default: scan 1 operator
-                    TString opname2 = ""; //Optional: scan 2nd operator
-                    for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                    for(int iop1=0; iop1<v_WCs_operator_scan1.size(); iop1++)
                     {
-                        if(operator_scan2=="" && iop2>0) {break;}
-                        else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + Convert_Number_To_TString(v_WCs_operator_scan2[iop2]);}
-                        variable_list.push_back(var_list_tmp[ivar] + "_" + opname1 + opname2);
-                        // cout<<"Added variable: "<<variable_list[variable_list.size()-1]<<endl;
+                        TString opname1 = operator_scan1 + "_" + Convert_Number_To_TString(v_WCs_operator_scan1[iop1]); //Default: scan 1 operator
+                        TString opname2 = ""; //Optional: scan 2nd operator
+                        for(int iop2=0; iop2<v_WCs_operator_scan2.size(); iop2++)
+                        {
+                            if(operator_scan2=="" && iop2>0) {break;}
+                            else if(operator_scan2!="") {opname2 = "_" + operator_scan2 + "_" + Convert_Number_To_TString(v_WCs_operator_scan2[iop2]);}
+                            variable_list.push_back(var_list_tmp[ivar] + "_" + opname1 + opname2);
+                            // cout<<"Added variable: "<<variable_list[variable_list.size()-1]<<endl;
+                        }
                     }
                 }
+                else {variable_list.push_back(var_list_tmp[ivar]);}
             }
         } //MVA EFT scan
     } //Predefined strategy

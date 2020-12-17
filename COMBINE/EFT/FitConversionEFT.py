@@ -11,7 +11,7 @@ from ROOT import TH1F
 import sys
 from settings import opts #Custom dictionnary of settings
 # print(colors.fg.lightblue + "Importing libraries..." + colors.reset)
-ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so')
+ROOT.gSystem.Load('../../myLib.so')
 
 #== SETTINGS
 # //--------------------------------------------

@@ -1,12 +1,12 @@
-Start of NN training :27-Nov-2020 (00:39:10)
+Start of NN training :05-Dec-2020 (17:36:41)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-parameterizedNN --> True
+parameterizedNN --> False
 strategy --> CARL
-nEpochs --> 20
+nEpochs --> 10
 splitTrainValTestData --> [0.8, 0.0, 0.2]
 nHiddenLayers --> 2
 nNeuronsAllHiddenLayers --> 50
@@ -14,10 +14,10 @@ activInputLayer --> relu
 activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.0
+dropoutRate --> 0.2
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
-learnRate --> 0.0001
+learnRate --> 0.001
 balancedClasses --> True
 earlyStopping --> True
 maxEventsPerClass --> -1
@@ -26,11 +26,11 @@ nEventsTot_val --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 1000
 refPoint --> SM
-listOperatorsParam --> ['cpqm']
+listOperatorsParam --> ['ctz']
 nPointsPerOperator --> 20
-minWC --> -10
-maxWC --> 10
-nEventsPerPoint --> 10000
+minWC --> -5
+maxWC --> 5
+nEventsPerPoint --> 5000
 batchSizeEFT --> 1000
 score_lossWeight --> 1
 regress_onLogr --> False
@@ -39,7 +39,7 @@ comparVarIdx --> -1
 cuts --> is_signal_SR
 useHardCodedListInputFeatures --> True
 useLowLevelFeatures --> False
-makeValPlotsOnly --> True
+makeValPlotsOnly --> False
 testToy1D --> False
 storeInTestDirectory --> True
 storePerOperatorSeparately --> True
@@ -48,11 +48,12 @@ displayImages --> False
 trainAtManyEFTpoints --> True
 regress --> False
 nofOutputNodes --> 1
-maxEvents --> 10000
+maxEvents --> 5000
 batchSize --> 1000
 samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
-NN_strategy --> MVA_param
+NN_strategy --> MVA_EFT
 ----------------- 
 
+End of NN training and evaluation :05-déc.-2020 (17:38:40)

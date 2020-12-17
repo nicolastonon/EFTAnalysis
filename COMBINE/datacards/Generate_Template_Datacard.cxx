@@ -95,7 +95,7 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
     else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
-    else if((syst == "PDF" || syst == "alphas") && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only
+    else if((syst == "PDF" || syst == "alphas" || syst == "ME") && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only //FIXME ME
 
 	return true;
 }
@@ -569,7 +569,7 @@ int main()
     v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1");
     v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1");
     v_normSyst.push_back("LumiXY"); v_normSystValue.push_back("-1");
-    v_normSyst.push_back("Lumi"); v_normSystValue.push_back("1.023");
+
     v_normSyst.push_back("Trigger16"); v_normSystValue.push_back("1.02");
     v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02");
     v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02");
@@ -609,17 +609,17 @@ int main()
     v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //TESTING
-
     v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
 
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
+
     //FIXME -- TESTING
-    v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+    //v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
+    //v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
     v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -651,3 +651,4 @@ int main()
 
     return 0;
 }
+

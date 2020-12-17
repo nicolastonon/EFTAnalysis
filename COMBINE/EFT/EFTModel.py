@@ -7,7 +7,7 @@ import ROOT
 import pprint
 from Utils.ColoredPrintout import colors
 from settings import opts #Custom dictionnary of settings
-ROOT.gSystem.Load('/afs/cern.ch/work/n/ntonon/private/Combine/CMSSW_10_2_13/src/EFTAnalysis/myLib.so') #Library for custom classes WCPoint, WCFit, TH1EFT
+ROOT.gSystem.Load('../../myLib.so') #Library for custom classes WCPoint, WCFit, TH1EFT
 
 #Based on 'Quadratic' model: HiggsAnalysis.CombinedLimit.QuadraticScaling
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel

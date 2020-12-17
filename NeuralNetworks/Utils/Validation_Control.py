@@ -183,7 +183,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, model, score=None, history=None):
+def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, metrics, weight_dir, scores_allClasses_eachOperator, model, score=None, history=None):
     '''
     Call all the relevant sub-functions to create validation plots.
     '''
@@ -195,6 +195,9 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
     print('\n'); print(colors.fg.lightblue, "--- Create control plots...", colors.reset); print('\n')
 
     if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
+
+    # Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
+    # exit(1) #FIXME
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
@@ -1340,6 +1343,30 @@ def Make_Test1D_Plot(opts, model):
     print(colors.fg.lightgrey, "\nSaved TEST2 plot as :", colors.reset, plotname)
     fig.clear()
     plt.close('TEST')
+
+    return
+
+# //--------------------------------------------
+# //--------------------------------------------
+
+def Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x):
+
+    fig = plt.figure('loss')
+
+    # print(x[:,-1])
+
+    nbins = 50
+    rmin = -1; rmax = 1
+    # plt.hist(scores_allClasses_eachOperator[y_process==0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
+    # plt.hist(scores_allClasses_eachOperator[y_process==1], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
+    plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==0, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
+    plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==1, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
+
+    plotname = weight_dir + 'TEST.png'
+    fig.savefig(plotname, bbox_inches='tight') #bbox_inches='tight' ensures that second y-axis is visible
+    print(colors.fg.lightgrey, "\nSaved Loss plot as :", colors.reset, plotname)
+    fig.clear()
+    plt.close('loss')
 
     return
 

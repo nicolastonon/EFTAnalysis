@@ -374,6 +374,7 @@ def Load_Canvas_Style():
     gStyle.SetOptLogz(0)
     gStyle.SetPaperSize(20.,20.)
 
+
 ######## ######## ######## ########  ##        #######  ########
 ##       ##          ##    ##     ## ##       ##     ##    ##
 ##       ##          ##    ##     ## ##       ##     ##    ##
@@ -402,21 +403,42 @@ class EFTPlot(object):
         self.logger = logging.getLogger(__name__)
         self.ContourHelper = ContourHelper()
         self.histosFileName = 'Histos.root'
-        self.texdic = {'ctw': '#it{c}_{tW}/#Lambda^{2}', 'ctz': '#it{c}_{tZ}/#Lambda^{2}', 'cpqm': '#it{c}^{-}_{#varphiQ}/#Lambda^{2}', 'cpq3': '#it{c}^{3(#it{l})}_{#varphiQ}/#Lambda^{2}', 'cpt': '#it{c}_{#varphit}/#Lambda^{2}'}
+
+        #-- Define operator names for plotting
         # self.texdic = {'ctp': '#it{c}_{t#varphi}/#Lambda^{2}', 'ctG': '#it{c}_{tG}/#Lambda^{2}', 'cbW': '#it{c}_{bW}/#Lambda^{2}', 'cptb': '#it{c}_{#varphitb}/#Lambda^{2}', 'cQl3': '#it{c}^{3(#it{l})}_{Ql}/#Lambda^{2}', 'cQlM': '#it{c}^{-(#it{l})}_{Ql}/#Lambda^{2}', 'cQe': '#it{c}^{(#it{l})}_{Qe}/#Lambda^{2}', 'ctl': '#it{c}^{(#it{l})}_{tl}/#Lambda^{2}', 'cte': '#it{c}^{(#it{l})}_{te}/#Lambda^{2}', 'ctlS': '#it{c}^{S(#it{l})}_{t}/#Lambda^{2}', 'ctlT': '#it{c}^{T(#it{l})}_{t}/#Lambda^{2}'}
+        self.texdic = {'ctw': '#it{c}_{tW}/#Lambda^{2}', 'ctz': '#it{c}_{tZ}/#Lambda^{2}', 'cpqm': '#it{c}^{-}_{#varphiQ}/#Lambda^{2}', 'cpq3': '#it{c}^{3(#it{l})}_{#varphiQ}/#Lambda^{2}', 'cpt': '#it{c}_{#varphit}/#Lambda^{2}'}
         self.texdicfrac = {'ctw': '#frac{#it{c}_{tW}}{#Lambda^{2}}', 'ctz': '#frac{#it{c}_{tZ}}{#Lambda^{2}}', 'cpqm': '#frac{#it{c}^{-}_{#varphiQ}}{#Lambda^{2}}', 'cpq3': '#frac{#it{c}^{3(#it{l})}_{#varphiQ}}{#Lambda^{2}}', 'cpt': '#frac{#it{c}_{#varphit}}{#Lambda^{2}}'}
         self.texdicrev = {v: k for k,v in self.texdic.items()}
 
         # CMS default text
         # //--------------------------------------------
-        self.CMS_text = ROOT.TLatex(0.9, 0.95, "CMS Preliminary Simulation")
-        self.CMS_text.SetNDC(1)
-        self.CMS_text.SetTextSize(0.04)
-        self.CMS_text.SetTextAlign(30)
-        self.Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.5 fb^{-1}")
-        self.Lumi_text.SetNDC(1)
-        self.Lumi_text.SetTextSize(0.04)
-        self.Lumi_text.SetTextAlign(30)
+        #self.CMS_text = ROOT.TLatex(0.9, 0.95, "CMS Preliminary")
+        #self.CMS_text.SetNDC(1)
+        #self.CMS_text.SetTextSize(0.04)
+        #self.CMS_text.SetTextAlign(30)
+        #self.Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 137 fb^{-1}")
+        #self.Lumi_text.SetNDC(1)
+        #self.Lumi_text.SetTextSize(0.04)
+        #self.Lumi_text.SetTextAlign(30)
+
+        left = 0.17
+        self.CMS_text = ROOT.TLatex(left, 0.92, "CMS") #0.1, 0.92
+        self.CMS_text.SetNDC()
+        self.CMS_text.SetTextColor(ROOT.kBlack)
+        self.CMS_text.SetTextFont(61)
+        self.CMS_text.SetTextAlign(11)
+        self.CMS_text.SetTextSize(0.06)
+
+        self.extraText = ROOT.TLatex(left+0.11, 0.92, "Preliminary") #0.9, 0.92
+        self.extraText.SetNDC()
+        self.extraText.SetTextFont(52)
+        self.extraText.SetTextSize(0.04)
+
+        self.lumiText = ROOT.TLatex(0.84, 0.92, "137 fb^{-1} (13 TeV)") #0.9, 0.92 #Luminosity = 
+        self.lumiText.SetNDC()
+        self.lumiText.SetTextFont(42)
+        self.lumiText.SetTextAlign(31)
+        self.lumiText.SetTextSize(0.04)
 
         # Logger
         # //--------------------------------------------
@@ -479,8 +501,8 @@ class EFTPlot(object):
             return
 
         logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()\n" + colors.reset)
-        print('Reading file:', filepath)
-        print('Param:', param)
+        print(colors.fg.orange + 'Reading file:', filepath + colors.reset)
+        print(colors.fg.orange + 'Param:', param + colors.reset)
 
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('','',1000,800)
@@ -502,13 +524,25 @@ class EFTPlot(object):
         plot.RemoveGraphXDuplicates(graph)
         plot.RemoveGraphYAbove(graph, 8.)
 
+        ipt = 0
+        while ipt<graph.GetN():
+            x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            graph.GetPoint(ipt, x, y)
+            #print('x,y=', x, y)
+            ipt+= 1
+
         graph.SetLineColor(ROOT.kBlack)
         graph.SetLineWidth(3)
         graph.Draw("AL") #A:axes, P: markers, L:line
 
         #-- Xmin, xmax
-        xmin = max([graph.GetXaxis().GetXmin(), self.wc_ranges[param][0]], key=abs)
-        xmax = max([graph.GetXaxis().GetXmax(), self.wc_ranges[param][1]], key=abs)
+        if SM:
+            xmin = max([graph.GetXaxis().GetXmin(), self.SMmu_ranges[param][0]], key=abs)
+            xmax = max([graph.GetXaxis().GetXmax(), self.SMmu_ranges[param][1]], key=abs)
+
+        else:
+            xmin = max([graph.GetXaxis().GetXmin(), self.wc_ranges[param][0]], key=abs)
+            xmax = max([graph.GetXaxis().GetXmax(), self.wc_ranges[param][1]], key=abs)
 
         yvals = [1., 3.84] #1sigma, 95%CL intervals
         #func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig = BuildScan(graph, ROOT.kBlack, yvals)
@@ -544,14 +578,17 @@ class EFTPlot(object):
             while ipt<fgraph68.GetN():
                 x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
                 fgraph68.GetPoint(ipt, x, y)
+                #print('x,y=', x, y)
                 if x < crossings['lo'] or x > crossings['hi']:
                     # print(ipt, x, y)
                     fgraph68.RemovePoint(ipt)
                 else: ipt+= 1
         # Trick: manually set first and last points to get the filled area properly defined
         if fgraph68 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+            fgraph68.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next            
             fgraph68.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
             fgraph68.InsertPointBefore(1, crossings['lo'], yvals[0]) #Add second point at y=Y
+            fgraph68.InsertPointBefore(2, x, y) #cf. trick
             fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], yvals[0]) #Add first-to-last point at y=Y
             fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], 0) #Add last point at y=0
             fgraph68.SetFillColorAlpha(12, 0.50)
@@ -568,14 +605,17 @@ class EFTPlot(object):
             while ipt<fgraph95.GetN():
                 x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
                 fgraph95.GetPoint(ipt, x, y)
+                #print('x,y=', x, y)
                 if x < crossings['lo'] or x > crossings['hi']:
-                    # print(ipt, x, y)
+                    #print(ipt, x, y, 'REMOVED', crossings['lo'])
                     fgraph95.RemovePoint(ipt)
                 else: ipt+= 1
         # Trick: manually set first and last points to get the filled area properly defined
         if fgraph95 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+            fgraph95.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next       
             fgraph95.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
             fgraph95.InsertPointBefore(1, crossings['lo'], yvals[1]) #Add second point at y=Y
+            fgraph95.InsertPointBefore(2, x, y) #cf. trick
             fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], yvals[1]) #Add first-to-last point at y=Y
             fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], 0) #Add last point at y=0
             fgraph95.SetFillColorAlpha(ROOT.kAzure-7, 0.30)
@@ -625,6 +665,7 @@ class EFTPlot(object):
         graph.GetYaxis().SetTitle("-2 #Delta log(L)")
         # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
 
+        '''
         cmsText = "CMS";
         latex = ROOT.TLatex()
         latex.SetNDC();
@@ -643,6 +684,10 @@ class EFTPlot(object):
         latex.SetTextAlign(31);
         latex.SetTextSize(0.04);
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
+        '''
+        self.CMS_text.Draw('same')
+        self.extraText.Draw('same')        
+        self.lumiText.Draw('same')
 
         #-- Save
         if log:
@@ -802,13 +847,15 @@ class EFTPlot(object):
 
         #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4]
         #WC_values = [-4, -2, -1, 0, 1, 2, 4]
-        WC_values = [-2, -1.5, -1, 0, 1, 2]
+        #WC_values = [-2, -1.5, -1, 0, 1, 2]
+	#WC_values = [-1.5, -1.2, -1, -0.8, -0.5, -0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.8, 1, 1.2, 1.5]
+	WC_values = [-1.5, -1, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5]
 
         list_filepaths = []
         for val in WC_values:
             filepath = './higgsCombine_'+param+'_'+str(val)+'.MultiDimFit.mH120.root'
             if not os.path.exists(filepath):
-                logging.error("File " + filepath + " does not exist!".format(mode))
+                logging.error("File " + filepath + " does not exist!")
                 return
             else:
                 list_filepaths.append(filepath)
@@ -968,7 +1015,8 @@ class EFTPlot(object):
         xmin = limitTree.GetMinimum(params[1])
         xmax = limitTree.GetMaximum(params[1])
 
-        limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,params[0],params[1],hname,xmin,xmax,ymin,ymax), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
+        #limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,params[0],params[1],hname,xmin,xmax,ymin,ymax), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
+	limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(15,{},{},15,{},{})'.format(minZ,params[0],params[1],hname,-3,3,-3,3), '2*deltaNLL<{}'.format(ceiling), 'prof colz') #Hard-code x/y ranges, binnings
 
         hist = c.GetPrimitive(hname)
 
@@ -989,25 +1037,9 @@ class EFTPlot(object):
         # hist.SetTitle("2*deltaNLL < {}".format(ceiling))
         hist.SetStats(0)
 
-        cmsText = "CMS";
-        latex = ROOT.TLatex()
-        latex.SetNDC();
-        latex.SetTextColor(ROOT.kBlack);
-        latex.SetTextFont(61);
-        latex.SetTextAlign(11);
-        latex.SetTextSize(0.06);
-        latex.DrawLatex(l+0.01, 0.92, cmsText)
-
-        extraText = "Preliminary simulation";
-        latex.SetTextFont(52);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(l+0.12, 0.92, extraText)
-
-        latex.SetTextFont(42);
-        latex.SetTextAlign(31);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(0.88, 0.92, "41.5 fb^{-1} (13 TeV)");
-        # latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
+        self.CMS_text.Draw('same')
+        self.extraText.Draw('same')        
+        self.lumiText.Draw('same')
 
         # Save plot
         c.Print(hname+".png",'png')
@@ -1134,18 +1166,10 @@ class EFTPlot(object):
         XTitle.Draw('same')
 
         # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        CMS_text.SetTextAlign(30)
         self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        Lumi_text.SetTextAlign(30)
         self.Lumi_text.Draw('same')
 
-        # Lgend
+        # Legend
         legend = ROOT.TLegend(0.1,0.85,0.45,0.945)
         legend.AddEntry(graph1,"Others Profiled (2#sigma)",'p')
         legend.AddEntry(graph2,"Others Fixed to SM (2#sigma)",'p')
@@ -1256,15 +1280,7 @@ class EFTPlot(object):
         multigraph.GetXaxis().SetTitle(wc)
 
         # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        CMS_text.SetTextAlign(30)
         self.CMS_text.Draw('same')
-        Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        Lumi_text.SetTextAlign(30)
         self.Lumi_text.Draw('same')
 
         #Check log option, then save as image
@@ -1286,32 +1302,40 @@ class EFTPlot(object):
  #    # #    # #   ##   #   #    # #    # #   #  #    #
   ####   ####  #    #   #    ####   ####  #    #  ####
 
-    def ContourPlotEFT(self, name='.test', wcs=[]):
-        if len(wcs)!=2:
-            logging.error("Function 'ContourPlot' requires exactly two wcs!")
+    def ContourPlotEFT(self, mode='EFT', params=[]):
+        '''
+        Make 2D contour plots.
+        '''
+
+        if len(params)!=2:
+            logging.error("Function 'ContourPlot' requires exactly two params!")
             return
-        if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
+        path = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+        if not os.path.exists(path):
+            logging.error("File {} does not exist!".format(path))
             return
 
         best2DeltaNLL = 1000000
         ROOT.gROOT.SetBatch(True)
         canvas = ROOT.TCanvas('c','c',800,800)
 
-        # Get Grid scan and copy to h_contour
-        # wcs[0] is y-axis variable, wcs[1] is x-axis variable
-        gridFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
+        ranges = self.wc_ranges #Default: EFT
+        if mode=='SM':
+            ranges = self.SMmu_ranges
+
+        #-- Get Grid scan and copy to h_contour
+        # params[0] is y-axis variable, params[1] is x-axis variable
+        gridFile = ROOT.TFile.Open(path)
         gridTree = gridFile.Get('limit')
-        #gridTree.Draw('2*deltaNLL:{}:{}>>grid(200,{},{},200,{},{})'.format(wcs[1],wcs[0],self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1],self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1]), '2*deltaNLL<100', 'prof colz')
         minZ = gridTree.GetMinimum('deltaNLL')
-        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,wcs[0],wcs[1],self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1],self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1]), '', 'prof colz')
-        #canvas.Print('{}{}2D.png'.format(wcs[0],wcs[1]),'png')
+        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,params[0],params[1],ranges[params[1]][0],ranges[params[1]][1],ranges[params[0]][0],ranges[params[0]][1]), '', 'prof colz')
+
         original = ROOT.TProfile2D(canvas.GetPrimitive('grid'))
-        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,self.wc_ranges[wcs[1]][0],self.wc_ranges[wcs[1]][1],150,self.wc_ranges[wcs[0]][0],self.wc_ranges[wcs[0]][1])
-        h_contour = original.Clone('h_conotour')
+        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,ranges[params[1]][0],ranges[params[1]][1],150,ranges[params[0]][0],ranges[params[0]][1])
+        h_contour = original.Clone('h_contour')
         #original.Copy(h_contour)
 
-        # Adjust scale so that the best bin has content 0
+        #-- Adjust scale so that the best bin has content 0
         best2DeltaNLL = original.GetMinimum()
         for xbin in range(original.GetNbinsX()):
             xcoord = original.GetXaxis().GetBinCenter(xbin)
@@ -1323,14 +1347,14 @@ class EFTPlot(object):
                     h_contour.Fill(xcoord,ycoord,original.GetBinContent(1+xbin,1+ybin)-best2DeltaNLL)
                 #h_contour.SetBinContent(1+xbin,1+ybin,original.GetBinContent(1+xbin,1+ybin)-best2DeltaNLL)
 
-        # Exclude data outside of the contours
+        #-- Exclude data outside of the contours
         #h_contour.SetMaximum(11.83)
         #h_contour.SetContour(200)
         #h_contour.GetZaxis().SetRangeUser(0,21);
         h_contour.GetXaxis().SetRange(1,h_contour.GetNbinsX()-3)
         h_contour.GetYaxis().SetRange(1,h_contour.GetNbinsY()-3)
 
-        # Set Contours
+        #-- Set Contours
         c68 = self.ContourHelper.GetContour(h_contour,2.30)
         c95 = self.ContourHelper.GetContour(h_contour,6.18)
         c997 = self.ContourHelper.GetContour(h_contour,11.83)
@@ -1368,18 +1392,8 @@ class EFTPlot(object):
         h_contour.SetStats(0)
         #h_contour.SetTitle("Significance Contours")
         h_contour.SetTitle("")
-        h_contour.GetYaxis().SetTitle(self.texdic[wcs[0].rstrip('i')])
-        h_contour.GetXaxis().SetTitle(self.texdic[wcs[1].rstrip('i')])
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.95, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.04)
-        CMS_text.SetTextAlign(30)
-        Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.04)
-        Lumi_text.SetTextAlign(30)
+        h_contour.GetYaxis().SetTitle(self.texdic[params[0].rstrip('i')])
+        h_contour.GetXaxis().SetTitle(self.texdic[params[1].rstrip('i')])
 
         # Draw and save plot
         h_contour.GetXaxis().SetTitleOffset(1.1)
@@ -1423,7 +1437,7 @@ class EFTPlot(object):
         self.CMS_text.Draw('same')
         self.Lumi_text.Draw('same')
         canvas.SetGrid()
-        canvas.Print('{}{}contour.png'.format(wcs[0],wcs[1]),'png')
+        canvas.Print('{}{}contour.png'.format(params[0],params[1]),'png')
 
         # Save contour to histogram file
         outfile = ROOT.TFile(self.histosFileName,'UPDATE')
@@ -1432,6 +1446,10 @@ class EFTPlot(object):
 
         ROOT.gStyle.SetPalette(57)
 
+        return
+
+
+    ''' #FIXME -- can remove ? try other func for SM first
     def ContourPlotSM(self, name='.test', params=[]):
         if len(params)!=2:
             logging.error("Function 'ContourPlot' requires exactly two parameters!")
@@ -1552,6 +1570,7 @@ class EFTPlot(object):
         outfile.Close()
 
         ROOT.gStyle.SetPalette(57)
+    '''
 
 
   ####   ####  #####  #####  ###### #        ##   ##### #  ####  #    #  ####
@@ -1876,13 +1895,12 @@ if __name__ == "__main__":
     # parser.add_argument("-m", metavar="m", help="SM or EFT")
     parser.add_argument("-scan", metavar="scan", help="Scan type (1D, 2D, manual, ...)")
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
-    parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)")
+    parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)", nargs='?', const=1)
 
     args = parser.parse_args()
-    if args.scan == '1D': scan_type = '1D'
-    elif args.scan == '2D': scan_type = '2D'
-    elif args.scan == 'manual': scan_type = 'manual'
-    elif args.scan: print('ERROR ! Wrong [type] arg !')
+    if args.scan in ['1D','2D','manual','contour']: scan_type = args.scan
+    elif args.scan: 
+        print('ERROR ! Wrong [type] arg !'); exit(1)
     if args.POI: POI = args.POI
     if args.sm: SM = True
 
@@ -1894,6 +1912,7 @@ if __name__ == "__main__":
     if SM:
         if scan_type=='1D': plotter.Plot_NLLscan_1D(mode='SM', param=opts['SM_mu'], log=False)
         elif scan_type=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False)
+        elif scan_type=='contour': plotter.ContourPlotEFT(mode='SM', params=opts['SM_mus'])
 
 # SMEFT
 # //--------------------------------------------
@@ -1904,7 +1923,10 @@ if __name__ == "__main__":
         elif scan_type=='2D':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False)
-        elif scan_type	=='manual':
+        elif scan_type=='contour':
+            param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
+            plotter.ContourPlotEFT(mode='EFT', params=param_tmp)
+        elif scan_type == 'manual':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
             plotter.Plot1DManualNLLScan(param=param_tmp[0])
 

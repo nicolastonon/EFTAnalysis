@@ -344,7 +344,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                     //-- Tmp fixes to xsec
                     // if(v_samples[isample] == "PrivMC_ttZ_TOP19001") {weight*= 2.482*20;} //wrong eventMCFactor and wrong SWEs
-                    // else if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
+                    if(v_samples[isample] == "PrivMC_tZq_TOP19001") {weight*= 3.087*20;}
                 }
 
                 if(isnan(weight*eventMCFactor) || isinf(weight*eventMCFactor))
@@ -586,7 +586,7 @@ int main(int argc, char **argv)
     //TMP
     // v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
     // v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
-    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
+    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
     // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
 
 
