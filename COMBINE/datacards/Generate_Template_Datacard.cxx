@@ -87,6 +87,8 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
     if( (syst.Contains("Fake", TString::kIgnoreCase) || syst.BeginsWith("FR") || syst.Contains("NPL")) && !sample.Contains("NPL")) {return false;}
     else if(sample.Contains("NPL") && !syst.Contains("Fake", TString::kIgnoreCase) && !syst.BeginsWith("FR") && !syst.Contains("NPL") && !syst.Contains("CRDY") ) {return false;}
 
+    else if(syst.Contains("njets_tZq", TString::kIgnoreCase) && sample != "PrivMC_tZq") {return false;}
+
     else if(syst.Contains("tZq", TString::kIgnoreCase) && !sample.Contains("tZq")) {return false;}
     else if(syst.Contains("ttZ", TString::kIgnoreCase) && !sample.Contains("ttZ")) {return false;}
     else if(syst.Contains("tWZ", TString::kIgnoreCase) && !sample.Contains("tWZ")) {return false;}
@@ -95,7 +97,10 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
     else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
-    else if((syst == "PDF" || syst == "alphas" || syst == "ME") && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only //FIXME ME
+    //else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only
+    else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ") {return false;} //Some missing for tWZ
+
+    //else if((syst=="JES" || syst.Contains("JER") || syst.Contains("MET")) && !sample.Contains("PrivMC")) {return false;}
 
 	return true;
 }
@@ -109,7 +114,7 @@ void Choose_Arguments_From_CommandLine(TString& signal)
     cout<<"* 'efttzq'   <-> Signal is SMEFT tZq only"<<endl;
     cout<<"* 'eftttz'   <-> Signal is SMEFT ttZ only"<<endl;
     cout<<"* 'efttwz'   <-> Signal is SMEFT tWZ only"<<endl;
-    cout<<"* '0'   <-> Signals are tZq + ttZ"<<endl;
+    cout<<"* '0'   <-> Signals are tZq+ttZ+tWZ"<<endl;
     // cout<<"* 'thq' <-> Signals are tHq + tHW"<<endl;
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
@@ -617,9 +622,9 @@ int main()
     v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
 
     //FIXME -- TESTING
-    //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
-    //v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    //v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
     v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -651,4 +656,3 @@ int main()
 
     return 0;
 }
-

@@ -7,7 +7,7 @@ opts = {
 #-- Different lists / associations of WCs
 "wcs": ['ctz', 'ctw', 'cpq3', 'cpqm', 'cpt'], #Full list of EFT operators #by default, include all operators in the physics model
 # "wcs": ['ctz', 'ctw'],
-# "wcs": ['ctz'],
+#"wcs": ['ctz'],
 "wc": 'ctz', #If want to float a single operator
 "wc_ranges": { #Ranges for scans, plots, etc.
                 'ctz':  [-4,4],
@@ -23,14 +23,14 @@ opts = {
 "wcs_pairs": ['ctz','ctw'], #Default pair of operators for 2D plots
 
 #-- List of SM processes
-"processes": ['tZq'],
+#"processes": ['tZq'],
 #"processes": ['PrivMC_tZq'],
-#"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
+"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
 # "processes": ['tzq'], #SM signal processes
 
 #-- Names of SM signal strengths for processes of interest
-"SM_mus": ['r_tzq'], #Names of SM signal strengths for processes of interest
-#"SM_mus": ['r_tzq','r_ttz','r_twz'], #Names of SM signal strengths for processes of interest
+#"SM_mus": ['r_tzq'], #Names of SM signal strengths for processes of interest
+"SM_mus": ['r_tzq','r_ttz','r_twz'], #Names of SM signal strengths for processes of interest
 
 #-- Name of SM signal strengths for single process
 "SM_mu": 'r_tzq',

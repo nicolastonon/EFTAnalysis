@@ -134,6 +134,11 @@ def Get_Loss_Optim_Metrics(opts):
             loss = 'categorical_crossentropy'
             metrics = 'categorical_accuracy' #'categorical_accuracy', 'acc'
 
+            if opts["strategy"] == "CASCAL": #FIXME
+                loss = ['binary_crossentropy', 'mean_squared_error']
+                metrics = 'categorical_accuracy'
+                lossWeights = [1, opts["score_lossWeight"]] # Apply scale factor to score loss weight
+
     else: #Regression
         loss = 'mean_squared_error'
         # loss = 'mean_squared_logarithmic_error'

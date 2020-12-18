@@ -343,7 +343,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     opts["trainAtManyEFTpoints"] = False
     opts["regress"] = False
-    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL"]: opts["trainAtManyEFTpoints"] = True #By construction these methods require to train the NN on a range of different hypotheses
+    if opts["strategy"] in ["CARL", "CARL_multiclass", "ROLR", "RASCAL", "CASCAL"]: opts["trainAtManyEFTpoints"] = True #By construction these methods require to train the NN on a range of different hypotheses
     if opts["strategy"] in ["regressor", "ROLR", "RASCAL"]: opts["regress"] = True #Regressor strategies
 
     #-- NB: introduced difference between 'mixed-EFT' strategy (<-> requires training over many SMEFT hypotheses, e.g. CARL) and 'parameterized' strategies (for which we choose to add EFT WCs as additional inputs) #NB: parameterized NNs must be 'mixed-EFT', but mixed-EFT NNs don't need to be parameterized
@@ -378,7 +378,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         else: opts["nofOutputNodes"] = len(opts["listOperatorsParam"])+1 #1 output node for SM and each EFT operator
         if opts["parameterizedNN"] is False: print(colors.fg.red, 'ERROR : strategy', opts["CARL_multiclass"],' requires option [parameterizedNN==True] (else need to rethink how to avoid cutting on input WCs to determine correct class, ...)', colors.reset); exit(1)
     elif opts["strategy"] is "ROLR": opts["nofOutputNodes"] = 1 #Regress on r
-    elif opts["strategy"] is "RASCAL": opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
+    elif opts["strategy"] in ["RASCAL","CASCAL"]: opts["nofOutputNodes"] = 1 + len(opts["listOperatorsParam"]) #Regress on r and t ; t has 1 component per EFT operator
 
     if opts["trainAtManyEFTpoints"] == True: #Use different data sampling options depending on case
         opts["maxEvents"] = opts["nEventsPerPoint"]
@@ -390,7 +390,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 # //--------------------------------------------
 #-- Sanity checks
 
-    if opts["strategy"] not in ["classifier", "regressor", "CARL", "CARL_multiclass", "CARL_singlePoint", "ROLR", "RASCAL"]:
+    if opts["strategy"] not in ["classifier", "regressor", "CARL", "CARL_multiclass", "CARL_singlePoint", "ROLR", "RASCAL", "CASCAL"]:
         print(colors.fg.red, 'ERROR : strategy', opts["strategy"],'not recognized', colors.reset); exit(1)
 
     if opts["strategy"] is "CARL_singlePoint" and opts["maxEvents"] != -1:
@@ -587,7 +587,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
             else: weightDir+= 'Other/'
 
-    if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
+    if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
         weightDir+= opts["listOperatorsParam"][0] + '/'
 
     #Model output name

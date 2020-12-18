@@ -83,7 +83,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
     #-- Sanitize data
     x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator = Sanitize_Data(opts, x, y, y_process, PhysicalWeights_allClasses, LearningWeights_allClasses, TrainValTest_allClasses, jointLR_allClasses, scores_allClasses_eachOperator, singleThetaName)
 
-    if singleThetaName != "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features #Only for validation, don't need to split between train/test data
+    if singleThetaName != "": return x, y, y_process, PhysicalWeights_allClasses, list_labels, list_features, jointLR_allClasses, scores_allClasses_eachOperator #Only for validation, don't need to split between train/test data
 
     # x[:,1][y==0]*=2 #Force dummy value for Zeta (debugging -- verify that additional info is used by NN)
 
@@ -189,8 +189,8 @@ def Read_Data(opts, list_lumiYears, ntuplesDir, list_processClasses, list_labels
                 tree = file.Get(opts["TTree"])
 
                 nevents = None #Enable also for SMEFT samples ?
-                # if opts["trainAtManyEFTpoints"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
-                if opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"]
+                if opts["trainAtManyEFTpoints"] == False and opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"] #Only apply this option for strategies not relying on SMEFT reweighting
+                # if opts["maxEventsPerClass"] > 0: nevents = opts["maxEventsPerClass"] #Give priority to this option
                 wname_tmp = 'eventWeight' #By default (for my ntuples), read this variable for event weight
                 if opts["TTree"] != 'result': wname_tmp = opts["eventWeightName"]
                 print(colors.fg.lightgrey, 'Opened file:', colors.reset, filepath, '(Total nof entries:', tree2array(tree, branches=wname_tmp, selection=cuts_total).shape[0], 'entries)') #Dummy variable, just to read the nof entries
@@ -283,7 +283,10 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
                 array_EFTweightIDs_proc = np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs"))
                 # array_EFTweightIDs_proc = array_EFTweightIDs_proc[0] #Reshape array
                 # print(array_EFTweightIDs_proc); print(array_EFTweightIDs_proc.shape); exit(1)
-            elif np.array_equal(array_EFTweightIDs_proc, tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs")) == False: #If IDs are already stored, simply verify that IDs for other years match
+            elif np.array_equal(array_EFTweightIDs_proc, np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs")) ) == False: #If IDs are already stored, simply verify that IDs for other years match
+                # print(array_EFTweightIDs_proc.shape, np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs")).shape)
+                # print('array_EFTweightIDs_proc', array_EFTweightIDs_proc)
+                # print('np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs"))', np.stack(tree2array(tree, start=0, stop=1, branches="mc_EFTweightIDs")))
                 print('\n', colors.fg.red, 'Error : EFT reweight IDs do not seem to match between the different years for sample:', colors.reset, process)
                 exit(1)
         else:
@@ -340,10 +343,10 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         array_EFTweights_proc = np.divide(array_EFTweights_proc, SWE_SM)
 
         #-- Manually find and remove all weights with unproper naming conventions (for example 'rwgt_1' nominal weight is included by default by MG)
-        array_EFTweights_proc, array_EFTweightIDs_proc = Remove_Unnecessary_EFTweights(array_EFTweights_proc, array_EFTweightIDs_proc)
+        array_EFTweights_proc, array_EFTweightIDs_proc_modif = Remove_Unnecessary_EFTweights(array_EFTweights_proc, array_EFTweightIDs_proc[:]) #Copy ids because need to keep original array for comparisons between years
 
         list_EFTweights_proc.append(array_EFTweights_proc) #Append array of EFT reweights (for given year) to list
-        list_EFTweightIDs_proc.append(array_EFTweightIDs_proc) #Append array of EFT reweights IDs (for given year) to list
+        list_EFTweightIDs_proc.append(array_EFTweightIDs_proc_modif) #Append array of EFT reweights IDs (for given year) to list
         list_SMweights_proc.append(array_SMweights_proc) #Append array of SM reweights (for given year) to list
 
     # return list_EFTweights_proc, list_EFTweightIDs_proc, list_SMweights_proc
@@ -507,14 +510,15 @@ def Shape_Data(opts, list_x_arrays_allClasses, list_weights_allClasses, list_the
         targetClass_allClasses = np.concatenate(list_targetClass_allClasses, 0)
         TrainValTest_allClasses = np.concatenate(list_TrainValTest_allClasses, 0)
 
-        # if opts["strategy"] in ["ROLR", "RASCAL"]:
+        # if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"]:
         if len(list_jointLR_allClasses)>0:
             jointLR_allClasses = np.concatenate(list_jointLR_allClasses, 0)
-            # if opts["strategy"] is "RASCAL": #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
+            # if opts["strategy"] in ["RASCAL","CASCAL"]: #Concatenate different classes (first dim) together ! But retain the ordering ot the operator components (second dim) and events (third dim)
             if len(list_score_allClasses_allOperators[0])>0:
                 scores_allClasses_eachOperator = np.concatenate(np.array(list_score_allClasses_allOperators), 0)
                 if len(scores_allClasses_eachOperator)==1: scores_allClasses_eachOperator = np.squeeze(scores_allClasses_eachOperator, 0) #Squeeze first dimension (<-> if there is a single proc class there was no concatenation --> remove this useless dimension)
-                scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #problems for single operator ?
+                # scores_allClasses_eachOperator = scores_allClasses_eachOperator.T #problems for single operator ? #FIXME -- useless ?
+                # print('scores_allClasses_eachOperator.shape', scores_allClasses_eachOperator.shape)
 
         #-- Append WC values to input features, etc.
         if opts["parameterizedNN"] is True and opts["strategy"] is not "classifier": #NB: in case we run StandaloneValidation code on classifier (not parameterized), want to evaluate on SMEFT sample but without including WCs as inputs !
@@ -672,7 +676,7 @@ def Update_Lists(opts, list_labels, list_features):
         refName = "SM"
         if opts["refPoint"] is not "SM": refName = "refPoint"
 
-        if opts["strategy"] in ["CARL", "ROLR", "RASCAL"]: list_labels = []; list_labels.append("EFT"); list_labels.append(refName) #1=EFT, 0=SM
+        if opts["strategy"] in ["CARL", "ROLR", "RASCAL", "CASCAL"]: list_labels = []; list_labels.append("EFT"); list_labels.append(refName) #1=EFT, 0=SM
         elif opts["strategy"] is "CARL_multiclass": list_labels = opts["listOperatorsParam"][:]; list_labels.insert(0, refName) #SM vs op1 vs op2 vs ... #NB: must specify '[:]' to create a copy, not a reference
 
     elif opts["strategy"] is "CARL_singlePoint":
@@ -801,9 +805,14 @@ def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, t
     #-- For NNs separating SM from EFT, already defined target in dedicated function (not based on 'process class' like for regular classification)
     else:
 
-        if "CARL" in opts["strategy"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach.
-        # if opts["strategy"] in ["CARL", "CARL_multiclass"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach.
+        if opts["strategy"] in ["CARL", "CASCAL"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach.
+        # if opts["strategy"] in ["CARL", "CARL_multiclass"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach #Incorrect ?
             y = targetClass_allClasses; y_process = y #Info already stored when defining EFT points to train on
+
+            if opts["strategy"] == "CASCAL": #First target is regular binary classification (=CARL); other targets are the different components of the score t (1 per operator, =RASCAL)
+                # print('y.shape', y.shape, 'np.atleast_2d(y).shape', np.atleast_2d(y).T.shape, 'scores_allClasses_eachOperator.shape', scores_allClasses_eachOperator.shape)
+                y = np.column_stack((y, scores_allClasses_eachOperator))
+                # y = np.concatenate((np.atleast_2d(y).T, scores_allClasses_eachOperator), axis=1)
 
         elif opts["strategy"] == "ROLR": #Target is joint likelihood ratio r
             y = jointLR_allClasses; y_process = targetClass_allClasses

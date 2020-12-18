@@ -215,104 +215,6 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFitSM(self, datacard='./SMWorkspace.root', name='.SM', params_POI=[], freeze=[], autoMaxPOIs=True, other=[], exp=False, verbosity=0, mask=[], antimask=[]):
-        '''
-        Perform a MLF to find the best fit value of the POI(s).
-        '''
-
-        ### Multidimensional fit ###
-        logging.info(colors.fg.lightblue + "Enter function bestFitSM()\n" + colors.reset)
-
-        if len(params_POI) == 0: params_POI = self.SM_mus
-
-        #-- #Define channel masking regexp pattern, if any
-        maskPattern = []; antimaskPattern = []
-        if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-        #if len(antimask)>0: antimaskPattern=[','.join('rgx{{^mask_(?!.*{}).*$}}=1'.format(chan) for chan in antimask)]
-        if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
-
-        args=['combine', '-d',datacard, '-v','2', '-M','MultiDimFit', '--saveFitResult','--cminPoiOnlyFit','--do95','1','--robustFit','1']
-
-        for mu in params_POI: args.extend(['-P', '{}'.format(mu)]) #Define signal strengths as POIs
-        #args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in self.SM_mus)]) 
-        args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
-        if freeze:
-            frozen_pois = [wc for wc in self.wcs if wc not in params_POI] #Define which WCs are frozen
-            args.extend(['--freezeParameters',','.join('{}'.format(mu) for mu in self.SM_mus if mu not in params_POI and len(frozen_pois)>0)]) #Freeze other parameters
-        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if name: args.extend(['-n','{}'.format(name)])
-        if verbosity>0: args.extend(['-v', str(verbosity)])
-        if exp: args.extend(['-t', '-1'])
-        if other:args.extend(other)
-
-        if debug: print('args --> ', args)
-        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-        logging.info(colors.fg.lightblue + "Done with SM best fit !" + colors.reset)
-        self.printBestFit(name=name, params=params_POI)
-    
-        return
-
-
-    def bestFitEFT(self, datacard='./EFTWorkspace.root', name='.EFT', params_POI=[], freeze=False, startValue='', autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[]):
-        '''
-        Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
-
-        NB: the error 'Looks like the last fit did not float this parameter' could arise e.g. if the bin names differ between file/datacard/EFT parametrization file.
-        '''
-
-        logging.info(colors.fg.lightblue + "Enter function bestFitEFT()\n" + colors.reset)
-
-        if params_POI == []: params_POI = self.wcs
-        if name == '': name = '.EFT'
-
-        #-- #Define channel masking regexp pattern, if any
-        maskPattern = []; antimaskPattern = []
-        if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-        #if len(antimask)>0: antimaskPattern=[','.join('rgx{{^mask_(?!.*{}).*$}}=1'.format(chan) for chan in antimask)]
-        if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
-
-        # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        # args=['combine','-d',datacard,'-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
-        args=['combine','-d',datacard,'-M','MultiDimFit','--saveNLL','--saveFitResult','--do95','1','--robustFit','1']
-
-        args.extend(['-n','{}'.format(name)])
-        if fixedPointNLL:
-            #args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Access absolute NLL #Necessary/useful ?
-            args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
-        if params_POI:
-            for wc in params_POI: args.extend(['-P','{}'.format(wc)])
-        args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
-        if freeze: #Freeze other parameters 
-            frozen_pois = [wc for wc in self.wcs if wc not in params_POI] #Define which WCs are frozen
-            if SM: args.extend(['--freezeParameters',','.join('{}'.format(mu) for mu in self.SM_mus if mu not in params_POI and len(frozen_pois)>0)])
-            else: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI and len(frozen_pois)>0)])
-        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
-        if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
-        if verbosity>0:           args.extend(['-v', str(verbosity)])
-        if other:               args.extend(other)
-        check = True in (wc not in params_POI for wc in self.wcs)
-        if check: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
-        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
-
-        if debug: print('args --> ', args)
-        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-        logging.info(colors.fg.lightblue + "Done with bestFitEFT." + colors.reset)
-
-        if not fixedPointNLL: self.printBestFit(name=name, params=params_POI)
-
-
-
     def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValue='', autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[]):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
@@ -345,12 +247,14 @@ class EFTFit(object):
             if SM: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['SM_mu'],startValue)])
             else: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
         if params_POI:
-            for wc in params_POI: args.extend(['-P','{}'.format(wc)])
+            for param in params_POI: args.extend(['-P','{}'.format(param)])
         if SM: args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1         
         else: args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
         if freeze:
-            frozen_pois = [wc for wc in self.wcs if wc not in params_POI] #Define which WCs are frozen
-            args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in params_POI and len(frozen_pois)>0)]) #Freeze other parameters
+            frozen_pois = []
+            if SM: frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
+            else: frozen_pois = [wc for wc in self.wcs if wc not in params_POI]
+            if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
         if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
@@ -402,9 +306,17 @@ class EFTFit(object):
         args.extend(['--points','{}'.format(points)])
         if name: args.extend(['-n','{}'.format(name)])
         check = True in (wc not in self.wcs for wc in self.wcs_tracked)
-        if check: args.extend(['--trackParameters',','.join([wc for wc in self.wcs_tracked if wc not in self.wcs])]) #Save values of additional parameters (e.g. profiled nuisances)
+        if check: 
+            tracked_pois = []
+            if SM: tracked_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
+            else: tracked_pois = [par for par in self.wcs if par not in scan_params] 
+            if len(tracked_pois)>0: args.extend(['--trackParameters',','.join([par for par in tracked_pois if par not in scan_params])]) #Save values of additional parameters (e.g. profiled nuisances)
         # if startValuesString:   args.extend(['--setParameters',startValuesString])
-        if freeze: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in opts['wcs'] if poi not in scan_params)]) #Freeze other parameters
+        if freeze: 
+            frozen_pois = []
+            if SM: frozen_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
+            else: frozen_pois = [par for par in self.wcs if par not in scan_params]
+            if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters        
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if exp:               args.extend(['-t -1'])
         if verbosity>0:           args.extend(['-v', str(verbosity)])
@@ -1207,8 +1119,8 @@ if __name__ == "__main__":
             exit(1)
 
         if mode in ['','grid','scan']:
-            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=100, exp=exp, verbosity=verb, batch=batch) #1D
-            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=1000, exp=exp, verbosity=verb, batch=batch) #2D
+            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch) #1D
+            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=40*40, exp=exp, verbosity=verb, batch=batch) #2D
 
 # SMEFT fit
 # //--------------------------------------------
@@ -1234,7 +1146,7 @@ if __name__ == "__main__":
                 # fitter.batchRetrieve1DScansEFT(basename=name, batch=batch, scan_wcs=param_tmp)
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-                points = points if points != -1 else 500
+                points = points if points != -1 else 40*40 #1600
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,])
                 # fitter.batchRetrieve2DScansEFT(basename=name, batch=batch, wc_pair=param_tmp, allPairs=False)
 

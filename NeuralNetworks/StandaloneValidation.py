@@ -123,7 +123,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
         #     print('evalPoint = ', point)
 
         if not scan_singleOperator or not only_SM_events or idx == 0: #-- Special case: may only need to reuse SM distribution at different EFT points (<-> only need to sample events at SM point)
-            x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, ntuplesDir, _lumiName, singleThetaName=point)
+            x_tmp, y_tmp, y_process_tmp, PhysicalWeights_tmp, list_labels, list_features, jointLR_allClasses, scores_allClasses_eachOperator = Get_Data(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features, _weightDir, ntuplesDir, _lumiName, singleThetaName=point)
             # list_labels = list_labels[::-1] #Trick: in main code, EFT is first (sig=1) and SM second (bkg=0); but in this code the first default sample is SM --> Reverse order
             y_process_tmp = np.squeeze(y_process_tmp)
             pred_tmp = np.squeeze(model.predict(x_tmp))
@@ -131,6 +131,8 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
             # (Need to keep that for multiclass ?)
             y_process_tmp = np.zeros(len(y_process_tmp)) #1D
             y_process_tmp[:] = idx #Set to arbitrary identifier
+
+            if optsTrain["strategy"] in ["RASCAL","CASCAL"]: pred_tmp = pred_tmp.T
 
             x_all.append(x_tmp); y_all.append(y_tmp); y_process_all.append(y_process_tmp); PhysicalWeights_all.append(PhysicalWeights_tmp); pred_all.append(pred_tmp)
             # print(x_tmp[:5]); print(y_tmp[:5]); print(y_process_tmp[:5]); print(model.predict(x_tmp[:5]))
@@ -152,7 +154,6 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
-                # ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, np.concatenate((pred_tmp,pred_SM)), np.concatenate((y_process_tmp,y_process_SM)), np.concatenate((PhysicalWeights_tmp,PhysicalWeights_SM)), [point,'SM'], True, operator_scan, WCs, idx, ymax)
                 ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), ['SM',point], True, operator_scan, WCs, idx, ymax)
                 Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), list_points_sampling, True, operator_scan, str(WCs[idx]).replace('.0',''), feature_name='recoZ_Pt') #recoZ_Pt/dEta_tjprime
 
@@ -167,8 +168,6 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     PhysicalWeights=np.concatenate(PhysicalWeights_all)
     predictions=np.concatenate(pred_all)
 
-    if optsTrain["strategy"] is "RASCAL": predictions = predictions.T #why needed ?
-
     #-- Alter data for testing/debugging
     # x[y_process==0][:,-len(optsTrain["listOperatorsParam"]):] = 0.5
     # print(y[-10:]); print(y_process[-10:]); print(model.predict(x[-10:]))
@@ -182,7 +181,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     #For classifiers
     Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling)
     Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, feature_name="recoZ_Pt")
-    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling)
+    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling, scores_allClasses_eachOperator)
     Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, x, y, predictions, PhysicalWeights, list_points_sampling)
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, list_labels, [pred_all], PhysicalWeights_all, x_all)
 
@@ -278,7 +277,7 @@ def Make_ScatterPlot_TrueVSPred(opts, standaloneValDir, truth, pred, procClass, 
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, procClass, PhysicalWeights, list_points_sampling):
+def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, procClass, PhysicalWeights, list_points_sampling, scores_allClasses_eachOperator):
 #See https://seaborn.ppred_data.org/tutorial/distributions.html
     """
     2D scatterplot representing 2 input features in XY, and the DNN response as the z-axis colorbar.
@@ -293,9 +292,10 @@ def Make_ScatterPlot_2Dvars(opts, list_features, standaloneValDir, x, pred, proc
     var1 = "recoZ_Pt"
     var2 = "recoZ_dPhill" #Mass_3l, recoZ_Eta,
 
-#Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
+    #Mass_3l, maxDelPhiLL, recoZ_Pt, mTW, recoTop_Eta, recoTop_Pt, ...
 
-    if opts["strategy"] is "CARL_multiclass": return
+    if opts["strategy"] == "CARL_multiclass": return #Not supported anymore
+    elif opts["strategy"] == "CASCAL": pred = pred[:,1] #First score component
 
     idx1=-1; idx2=-1
     for i, feature in enumerate(list_features):
@@ -443,7 +443,9 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
     for inode in range(nofOutputNodes): #For each output node
 
-        if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: continue #Only for r node
+        # print('inode', inode)
+
+        if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"] and inode > 0: continue #Only for r node
 
         nbins = 30
         # nbins = 70
@@ -494,7 +496,9 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
             #-- Plot normalized TEST sig/bkg histos (no errors displayed -> don't need TH1Fs)
             if nofOutputNodes == 1:
-                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
+                if opts["strategy"] in ["ROLR", "RASCAL"] and feature_name == "":
+                    tmp = 1./(predictions[y_process==ipt]+1) #Transform r -> s
+                    weights_tmp = np.ones(len(tmp)) #Unweighted events
                 else:
                     if scan and ipt>0:
                         tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT
@@ -503,7 +507,13 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
                         tmp = predictions[y_process==ipt]
                         weights_tmp = PhysicalWeights[y_process==ipt]
             else:
-                if opts["strategy"] in ["ROLR", "RASCAL"]: tmp = 1./(predictions[y_process==ipt][:,inode]+1) #Transform r -> s
+                if opts["strategy"] in ["ROLR", "RASCAL"] and feature_name == "":
+                    tmp = 1./(predictions[y_process==ipt][:,inode]+1) #Transform r -> s
+                    weights_tmp = np.ones(len(tmp)) #Unweighted events
+                elif opts["strategy"] == 'CASCAL' and feature_name == "":
+                    # print('predictions[y_process==ipt].shape', predictions[y_process==ipt].shape)
+                    tmp = predictions[y_process==ipt][:,inode]
+                    weights_tmp = np.ones(len(tmp)) #Unweighted events
                 else:
                     if scan and ipt>0:
                         tmp = predictions[y_process>0] #Scan single point at a time: no relation between ipt and y_process, only care about SM/EFT

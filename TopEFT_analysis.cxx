@@ -2262,6 +2262,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 	}
     if(EFTpoint != "") {cout<<DIM("EFTpoint =  "<<EFTpoint<<"")<<endl;}
 
+    if(make_SMvsEFT_templates_plots) {cout<<FBLU("[make_SMvsEFT_templates_plots==true] <-> will plot the private signal MC samples (not central)")<<endl;}
+
 
 //  ####  ###### ##### #    # #####
 // #      #        #   #    # #    #
@@ -2448,13 +2450,14 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				if(use_combine_file)
     				{
     					if(isample > 0 && sample_groups[isample] == sample_groups[isample-1]) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //if same group as previous sample, skip it
-                        else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
+                        else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ" || sample_groups[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
                         else {samplename = sample_groups[isample];}
     				}
 
     				//-- Protections, special cases
     				if(sample_list[isample] == "DATA") {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
-                    else if(sample_list[isample].Contains("PrivMC") && (!use_combine_file || !make_SMvsEFT_templates_plots))  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //Only central samples get stacked, not private samples
+                    else if(!make_SMvsEFT_templates_plots && sample_list[isample].Contains("PrivMC")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM configuration --> only stack central samples (not private samples)
+                    else if(make_SMvsEFT_templates_plots && (sample_list[isample] == "tZq" || sample_list[isample] == "ttZ" || sample_list[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //EFT configuration --> only stack private samples (at SM point), not central samples
                     else if(sample_list[isample] == "NPL_DATA")  {samplename = "NPL";} //Instead of 'NPL_DATA' and 'NPL_MC', we only want to read the merged histo 'NPL'
                     else if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element //Remove ?
 
@@ -2570,7 +2573,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     								if(syst_list[isyst] != "" && systTree_list[itree] != "") {break;} //JES,JER,... -> read first element only
                                     else if(v_lumiYears[iyear] == "2018" && syst_list[isyst].BeginsWith("prefir") ) {continue;} //no prefire in 2018
                                     else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
-                                    else if(syst_list[isyst].BeginsWith("alpha") && sample_list[isample] == "tWZ") {continue;} //Bugged for now //FIXME
+                                    // else if(syst_list[isyst].BeginsWith("alpha") && sample_list[isample] == "tWZ") {continue;} //Was bugged -- can remove ?
 
     								// cout<<"sample "<<sample_list[isample]<<" / channel "<<channel_list[ichan]<<" / syst "<<syst_list[isyst]<<endl;
 
@@ -4611,11 +4614,12 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
 
                                     //-- Special case: for control histograms/plots, want to substract NPL_MC from (data-driven) NPL --> then overwrite "NPL" and delete "NPL_MC" (to avoid ambiguities)
                                     //-- Necessary ? Slow ? Could also delete NPL_DATA... ?
-                                    // if(sample_list[isample] == "NPL_MC") //FIXME
+                                    // if(sample_list[isample] == "NPL_MC")
                                     // {
                                     //     f->Delete(histoname+";1"); //Delete (first cycle of) histogram
                                     //     cout<<DIM("Merged and deleted histogram "<<histoname+";1"<<"")<<endl;
                                     // }
+
                                 } //write histo
                             } //sample loop
                         } //bin loop

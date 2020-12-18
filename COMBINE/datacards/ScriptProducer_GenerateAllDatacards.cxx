@@ -296,7 +296,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
                             TString var_tmp = var;
                             if(mode_histoBins==1 && nbins > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
-                            else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
+                            else if(mode_histoBins==3 && !isOtherRegion) {var_tmp = "countExp_" + var;} //Counting experiments
 
             				file_out<<"python Parser_Datacard_Template.py "
                             + var_tmp + " "
@@ -377,8 +377,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
-                            else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
+                            if(mode_histoBins==1 && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            else if(mode_histoBins==3 && !isOtherRegion) {var_tmp = "countExp_" + var;}
 
             				file_out<<var_tmp;
             				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
@@ -467,8 +467,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
 
                             TString var_tmp = var;
-                            if(mode_histoBins && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
-                            else if(mode_histoBins==2) {var_tmp = "countExp_" + var;}
+                            if(mode_histoBins==1 && nbins_tmp > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
+                            else if(mode_histoBins==3 && !isOtherRegion) {var_tmp = "countExp_" + var;}
 
                             file_out<<var_tmp;
                             if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
@@ -583,8 +583,8 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
 
     //Choose whether to create a single datacard for entire histo, or separate datacards for each histo bin (allows to parametrize each bin independently)
     cout<<endl<<FYEL("=== Create separate datacards for each histogram bin ? ===")<<endl;
-    cout<<ITAL(DIM("1 <-> use full MVA distribution (default)"))<<endl;
-    cout<<ITAL(DIM("2 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations"))<<endl;
+    cout<<ITAL(DIM("1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations [EFT default]"))<<endl;
+    cout<<ITAL(DIM("2 <-> use full MVA distribution [SM default]"))<<endl;
     cout<<ITAL(DIM("3 <-> entire histogram treated as single bin (counting experiment)"))<<endl;
     cout<<ITAL(DIM(<<"... "));
     cin>>inttmp;
@@ -596,7 +596,7 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cout<<" Wrong answer ! Need to type '1' / '2' / '3' or '0' ! Retry :"<<endl;
         cin>>inttmp;
     }
-    if(inttmp == '1' || inttmp == '2' || inttmp == '3') {mode_histoBins = inttmp;}
+    if(inttmp == 1 || inttmp == 2 || inttmp == 3) {mode_histoBins = inttmp;}
 
 	//Choose the luminosity
     cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
@@ -697,7 +697,7 @@ int main()
 
 //Automated
 //--------------------------------------------
-    int mode_histoBins = 1; //0 <-> use full MVA distribution (default); 1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations; 2 <-> entire histogram treated as single bin (counting experiment)
+    int mode_histoBins = 1; //1 <-> treat each histogram bin individually (separate datacards & histos) for individual parametrizations (default); 2 <-> use full MVA distribution; 3 <-> entire histogram treated as single bin (counting experiment)
     char use_SM_setup = 'n'; //'y' <-> overrides some option to perform a fit following the setup of the main SM tZq differential analysis
     TString template_name = "0", region = "0";
     char include_otherRegions = 'n'; //'y' <-> expect to find merged template files containing both SR templates and templates from other regions (hardcoded: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
@@ -707,4 +707,3 @@ int main()
 
 	return 0;
 }
-

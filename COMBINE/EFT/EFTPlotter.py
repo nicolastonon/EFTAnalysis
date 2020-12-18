@@ -410,31 +410,21 @@ class EFTPlot(object):
         self.texdicfrac = {'ctw': '#frac{#it{c}_{tW}}{#Lambda^{2}}', 'ctz': '#frac{#it{c}_{tZ}}{#Lambda^{2}}', 'cpqm': '#frac{#it{c}^{-}_{#varphiQ}}{#Lambda^{2}}', 'cpq3': '#frac{#it{c}^{3(#it{l})}_{#varphiQ}}{#Lambda^{2}}', 'cpt': '#frac{#it{c}_{#varphit}}{#Lambda^{2}}'}
         self.texdicrev = {v: k for k,v in self.texdic.items()}
 
-        # CMS default text
-        # //--------------------------------------------
-        #self.CMS_text = ROOT.TLatex(0.9, 0.95, "CMS Preliminary")
-        #self.CMS_text.SetNDC(1)
-        #self.CMS_text.SetTextSize(0.04)
-        #self.CMS_text.SetTextAlign(30)
-        #self.Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 137 fb^{-1}")
-        #self.Lumi_text.SetNDC(1)
-        #self.Lumi_text.SetTextSize(0.04)
-        #self.Lumi_text.SetTextAlign(30)
-
         left = 0.17
-        self.CMS_text = ROOT.TLatex(left, 0.92, "CMS") #0.1, 0.92
+        top = 0.91
+        self.CMS_text = ROOT.TLatex(left, top, "CMS")
         self.CMS_text.SetNDC()
         self.CMS_text.SetTextColor(ROOT.kBlack)
         self.CMS_text.SetTextFont(61)
         self.CMS_text.SetTextAlign(11)
         self.CMS_text.SetTextSize(0.06)
 
-        self.extraText = ROOT.TLatex(left+0.11, 0.92, "Preliminary") #0.9, 0.92
+        self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
         self.extraText.SetNDC()
         self.extraText.SetTextFont(52)
         self.extraText.SetTextSize(0.04)
 
-        self.lumiText = ROOT.TLatex(0.84, 0.92, "137 fb^{-1} (13 TeV)") #0.9, 0.92 #Luminosity = 
+        self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
         self.lumiText.SetNDC()
         self.lumiText.SetTextFont(42)
         self.lumiText.SetTextAlign(31)
@@ -585,7 +575,7 @@ class EFTPlot(object):
                 else: ipt+= 1
         # Trick: manually set first and last points to get the filled area properly defined
         if fgraph68 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-            fgraph68.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next            
+            fgraph68.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
             fgraph68.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
             fgraph68.InsertPointBefore(1, crossings['lo'], yvals[0]) #Add second point at y=Y
             fgraph68.InsertPointBefore(2, x, y) #cf. trick
@@ -612,7 +602,7 @@ class EFTPlot(object):
                 else: ipt+= 1
         # Trick: manually set first and last points to get the filled area properly defined
         if fgraph95 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-            fgraph95.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next       
+            fgraph95.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
             fgraph95.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
             fgraph95.InsertPointBefore(1, crossings['lo'], yvals[1]) #Add second point at y=Y
             fgraph95.InsertPointBefore(2, x, y) #cf. trick
@@ -686,7 +676,7 @@ class EFTPlot(object):
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
         '''
         self.CMS_text.Draw('same')
-        self.extraText.Draw('same')        
+        self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
         #-- Save
@@ -985,11 +975,13 @@ class EFTPlot(object):
         ceiling: maximum NLL value
         '''
 
+        path = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
+
         if len(params)!=2:
             logging.error("Function 'Plot_NLLscan_2D' requires exactly two parameters!")
             return
-        if not os.path.exists('./higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)):
-            logging.error("File higgsCombine.{}.MultiDimFit.mH120.root does not exist!".format(mode))
+        if not os.path.exists(path):
+            logging.error("File path does not exist!")
             return
 
         logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_2D()\n" + colors.reset)
@@ -1003,11 +995,13 @@ class EFTPlot(object):
         c.SetRightMargin(0.17);
         l = c.GetLeftMargin()
 
-        hname = 'scan2D_' + mode
+        hname = 'scan2D_' + mode #Name of TH2 object
         if log: hname += "_log"
 
         # Open file and draw 2D histogram
-        rootFile = ROOT.TFile.Open('./higgsCombine.{}.MultiDimFit.mH120.root'.format(mode))
+        logging.info(colors.fg.orange + "Open file : " + colors.reset)
+        logging.info(path)
+        rootFile = ROOT.TFile.Open(path)
         limitTree = rootFile.Get('limit')
         minZ = limitTree.GetMinimum('deltaNLL')
         ymin = limitTree.GetMinimum(params[0])
@@ -1015,8 +1009,11 @@ class EFTPlot(object):
         xmin = limitTree.GetMinimum(params[1])
         xmax = limitTree.GetMaximum(params[1])
 
-        #limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(200,{},{},200,{},{})'.format(minZ,params[0],params[1],hname,xmin,xmax,ymin,ymax), '2*deltaNLL<{}'.format(ceiling), 'prof colz')
-	limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}(15,{},{},15,{},{})'.format(minZ,params[0],params[1],hname,-3,3,-3,3), '2*deltaNLL<{}'.format(ceiling), 'prof colz') #Hard-code x/y ranges, binnings
+        maxZ = 20 #Max z-axis threshold
+        nbins = 15
+
+        limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ,params[0],params[1],hname,nbins,xmin,xmax,nbins,ymin,ymax), '2*deltaNLL<{}'.format(maxZ), 'prof colz')
+        # limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ,params[0],params[1],hname,nbins,-3,3,nbins,-3,3), '2*deltaNLL<{}'.format(maxZ), 'prof colz') #Hard-code x/y ranges, binnings
 
         hist = c.GetPrimitive(hname)
 
@@ -1038,7 +1035,7 @@ class EFTPlot(object):
         hist.SetStats(0)
 
         self.CMS_text.Draw('same')
-        self.extraText.Draw('same')        
+        self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
         # Save plot
@@ -1899,7 +1896,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.scan in ['1D','2D','manual','contour']: scan_type = args.scan
-    elif args.scan: 
+    elif args.scan:
         print('ERROR ! Wrong [type] arg !'); exit(1)
     if args.POI: POI = args.POI
     if args.sm: SM = True

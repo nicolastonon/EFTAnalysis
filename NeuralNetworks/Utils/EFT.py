@@ -708,11 +708,9 @@ def Extend_Augment_Dataset(opts, list_labels, list_x_allClasses, list_weights_al
 
     trainAtManyEFTpoints = opts["trainAtManyEFTpoints"]
 
-    need_jlr = (opts["strategy"] in ["ROLR", "RASCAL"])
-    need_score = (opts["strategy"] is "RASCAL")
+    need_jlr = (opts["strategy"] in ["ROLR", "RASCAL","CASCAL"])
+    need_score = (opts["strategy"] in ["RASCAL","CASCAL"])
     if need_score==True: need_jlr = True #Necessary
-
-    # need_jlr = True; need_score = True #FIXME -- tmp
 
 # //--------------------------------------------
 # Sanity checks
@@ -926,7 +924,7 @@ def Get_Quantities_ForAllThetas(opts, thetas, targetClasses, probas_thetas, prob
     """
 
     sampleEventsAlsoAtSMpoint = True #True (default) <-> sample N events according to SM pdf (in addition to sampling N events according to the pdf of the EFT point theta) -> twice more events, but found in ref. papers to improve performance (increase sensitivity in SM-enriched region) #This is the necessary default for classifier strategies, but not for regressors for instance
-    if "CARL" in opts["strategy"]: sampleEventsAlsoAtSMpoint = True #This is required for classifier strategies, but not for regressors for instance
+    if opts["strategy"] in ["CARL", "CASCAL"]: sampleEventsAlsoAtSMpoint = True #This is required for classifier strategies, but not for regressors for instance
 
     rng = np.random.default_rng() #Init random generator
 

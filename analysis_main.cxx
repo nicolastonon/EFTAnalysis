@@ -232,22 +232,6 @@ int main(int argc, char **argv)
     thevarlist.push_back("jPrimeAbsEta");
     thevarlist.push_back("maxEtaJet");
     thevarlist.push_back("maxDeepJet");
-    thevarlist.push_back("njets");
-    thevarlist.push_back("nbjets");
-    thevarlist.push_back("recoLepTop_Pt");
-    thevarlist.push_back("recoLepTop_Eta");
-    thevarlist.push_back("TopZsystem_M");
-    thevarlist.push_back("recoLepTopLep_Pt");
-    thevarlist.push_back("mbjMax"); //Some diagreement with NLO central sample
-    thevarlist.push_back("maxDiJet_Pt");
-    thevarlist.push_back("maxDelRbL");
-    thevarlist.push_back("minDelRbL");
-    thevarlist.push_back("dR_ZlW");
-    thevarlist.push_back("dR_blW");
-    thevarlist.push_back("dR_tClosestJet");
-    thevarlist.push_back("dR_bW");
-    thevarlist.push_back("dEta_jprimeClosestLep");
-
 
 //---------------------------------------------------------------------------
 //  #######  ######## ##     ## ######## ########       ##     ##    ###    ########   ######
@@ -275,6 +259,16 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("cosThetaStarPolZ");
     set_v_add_var_names.push_back("dEta_tjprime");
     set_v_add_var_names.push_back("dR_tZ");
+    set_v_add_var_names.push_back("recoLepTop_Pt");
+    set_v_add_var_names.push_back("recoLepTop_Eta");
+    set_v_add_var_names.push_back("recoLepTopLep_Pt");
+    set_v_add_var_names.push_back("TopZsystem_M");
+    set_v_add_var_names.push_back("mbjMax");
+    set_v_add_var_names.push_back("dR_ZlW");
+    set_v_add_var_names.push_back("dR_blW");
+    set_v_add_var_names.push_back("maxDiJet_Pt");
+    set_v_add_var_names.push_back("maxDiJet_M");
+    set_v_add_var_names.push_back("dR_lWjprime");
 
 
 //---------------------------------------------------------------------------
@@ -363,14 +357,14 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
 
-    bool compare_template_shapes = true;
+    bool compare_template_shapes = false;
 
 //-----------------    OTHER
 

@@ -55,6 +55,8 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
     NB: normalize to avoid effect from different nof entries, ... ?
     '''
 
+    if opts["strategy"] in ["CASCAL"]: return #Not supported yet
+
     print(colors.fg.lightblue, "\n--- Create & store ROC histos...", colors.reset)
 
     compare_ROC_inputFeature = 'recoZ_Pt' #If not '', will also store histogram of corresponding feature, so that its ROC curve can be compareed (will only work if the feature displays a left/right separation)
@@ -112,7 +114,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
     #-- For each NN output node, fill+write train/test histos for each class
     # print('nodes_labels', nodes_labels); print('list_labels', list_labels)
     for inode in range(nofOutputNodes):
-        if len(list_predictions_test_allNodes_allClasses)==1 and inode>0: break
+        if (len(list_predictions_test_allNodes_allClasses)==1 or opts["strategy"] in ["CASCAL"]) and inode>0: break
 
         fout.cd()
         outname = 'hist_train_NODE_'+nodes_labels[inode]+'_allClasses'
@@ -196,7 +198,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
 
-    # Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
+    Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
     # exit(1) #FIXME
 
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
@@ -429,7 +431,9 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
             fpr_train, tpr_train, _ = roc_curve(np.concatenate(list_truth_Train_allClasses), 1./(np.concatenate(list_predictions_train_allNodes_allClasses[inode])+1))
             roc_auc_train = auc(fpr_train, tpr_train)
 
-        elif opts["nofOutputNodes"] == 1:
+        elif opts["nofOutputNodes"] == 1 or opts["strategy"] == "CASCAL": #Special case: CASCAL strategy has >1 outputs, but truth is binary (0/1)
+
+            if opts["strategy"] == "CASCAL" and inode > 0: break #Only consider the classification node ?
 
             if opts["trainAtManyEFTpoints"] is False:
                 fpr, tpr, _ = roc_curve(np.concatenate(list_truth_Test_allClasses), np.concatenate(list_predictions_test_allNodes_allClasses[inode]), sample_weight=np.concatenate(list_PhysicalWeightsTest_allClasses_abs) )
@@ -474,7 +478,7 @@ def Make_ROC_plots(opts, list_labels, list_predictions_train_allNodes_allClasses
         timer = fig.canvas.new_timer(interval = 1000) #creating a timer object and setting an interval of N milliseconds
         timer.add_callback(close_event)
 
-        if opts["nofOutputNodes"] == 1 or opts["strategy"] in ["ROLR", "RASCAL"]: #single node
+        if opts["nofOutputNodes"] == 1 or opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"]: #Consider single node
             if opts["makeValPlotsOnly"] is False: plt.plot(tpr_train, 1-fpr_train, color='darkorange', lw=lw, label='ROC NN (train) (AUC = {1:0.2f})' ''.format(0, roc_auc_train)) #If making validation plots only --> No 'training data'
             plt.plot(tpr, 1-fpr, color='cornflowerblue', lw=lw, label='ROC NN (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
         else: #for each node
@@ -583,7 +587,7 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
         for iter in [0,1]: #Dummy loop: 0 <-> plot node vs all process classes; 1 <-> plot node vs each process class
 
             if iter > 0 and (nofOutputNodes == 1 or opts["strategy"] != "classifier"): break #Only makes sense for multiclassifier
-            if opts["strategy"] in ["ROLR", "RASCAL"] and inode > 0: break #Only for r node
+            if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"] and inode > 0: break #Only for r node
 
             nbins = 30
             rmin = 0.; rmax = 1.
@@ -1357,10 +1361,10 @@ def Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, 
 
     nbins = 50
     rmin = -1; rmax = 1
-    # plt.hist(scores_allClasses_eachOperator[y_process==0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
-    # plt.hist(scores_allClasses_eachOperator[y_process==1], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
-    plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==0, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
-    plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==1, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
+    plt.hist(scores_allClasses_eachOperator[y_process==0], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
+    plt.hist(scores_allClasses_eachOperator[y_process==1], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
+    # plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==0, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'cornflowerblue', alpha=0.50, density=True, histtype='step')
+    # plt.hist(scores_allClasses_eachOperator[np.logical_and(y_process==1, x[:,-1]==5)], bins=nbins, range=(rmin,rmax), color= 'darkorange', alpha=0.50, density=True, histtype='step')
 
     plotname = weight_dir + 'TEST.png'
     fig.savefig(plotname, bbox_inches='tight') #bbox_inches='tight' ensures that second y-axis is visible

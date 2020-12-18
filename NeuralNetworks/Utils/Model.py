@@ -133,8 +133,19 @@ def Create_Model(opts, outdir, list_features, shifts, scales, NN_name="NN"):
         if nof_outputs == 1: activOutput = "sigmoid" #Binary
         else: activOutput = "softmax" #Multiclass
 
-        out = Dense(nof_outputs, kernel_initializer=kernInit, activation=activOutput, name="MYOUTPUT")(X)
-        model = Model(inputs=[inp], outputs=[out])
+        if opts["strategy"] == "CASCAL": #CASCAL: first output is regular binary classification (sigmoid, same as CARL); other nodes regress the different components of the score t (1 per operator, same as RASCAL)
+            out = Dense(len(opts["listOperatorsParam"]), kernel_initializer=kernInit, activation="sigmoid", name="MYOUTPUT")(X)
+            r = Dense(1, activation="linear", name="likelihood_ratio")(X)
+            logr = Lambda(lambda v: K.log(v), name="log")(r)
+            t = Lambda(lambda_layer_score, arguments={"theta_dim": len(opts["listOperatorsParam"])}, name="score")([logr, inp])
+            model = Model(inputs=[inp], outputs=[out, t])
+
+        else: #Default
+            out = Dense(nof_outputs, kernel_initializer=kernInit, activation=activOutput, name="MYOUTPUT")(X)
+            model = Model(inputs=[inp], outputs=[out])
+
+        # out = Dense(nof_outputs, kernel_initializer=kernInit, activation=activOutput, name="MYOUTPUT")(X)
+        # model = Model(inputs=[inp], outputs=[out])
 
     else: #Regression
 

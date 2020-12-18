@@ -25,25 +25,26 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"parameterizedNN": True, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
+"parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
 # "strategy": "CARL_singlePoint", # <-> Calibrated Classifier: separates SM from single EFT point [EFT samples only]
-"strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
+# "strategy": "CARL", # <-> Calibrated Classifier: separates points in EFT phase space via classification, single output node [EFT samples only, parameterized]
 # "strategy": "CARL_multiclass", # <-> Calibrated Classifier: separates points in EFT phase space via classification, 1 output node per EFT operator [EFT samples only, parameterized] #NB: useless for multi-dim fits, since can't 'classify' EFT operators at mixed point; only advantage would be for 1D limits (replace N training by 1, dealing with all N operators)... #NB: may nto work if 'parameterizedNN==False'
 # "strategy": "ROLR", # <-> Ratio Regression: regresses likelihood ratio between ref point and any EFT point [EFT samples only, parameterized]
 # "strategy": "RASCAL", # <-> Ratio+Score Regression: same as ROLR, but also include score info in training [EFT samples only, parameterized]
+"strategy": "CASCAL", #FIXME
 
 #=== General training/architecture settings ===#
-"nEpochs": 10, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
-"nHiddenLayers": 2, #Number of hidden layers
+"nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
-"activInputLayer": 'relu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
-"activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
+"activInputLayer": 'tanh', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
+"activHiddenLayers": 'tanh', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
 "dropoutRate": 0.2, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
@@ -54,7 +55,7 @@ optsTrain = {
 "earlyStopping": True, #True <-> use Keras' early stopping
 
 #=== Settings for NN *not* trained at many different SMEFT points (parameterized or not) ===#
-"maxEventsPerClass": -1, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
+"maxEventsPerClass": 50000, #Max. nof events to be used for each process class (non-parameterized NN only) ; -1 <-> use all available events #NB: setting a max nof events may bias the training ? Since it may correspond to ~full stat for some samples and to very partial stat for others <-> normalization yields get biased !
 "nEventsTot_train": -1, "nEventsTot_val": -1, "nEventsTot_test": -1, #total nof events to be used for train / val / test; -1 <-> use _maxEvents & splitTrainValTestData params instead
 "batchSizeClass": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 
@@ -67,11 +68,11 @@ optsTrain = {
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
 "listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 10, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
+"nPointsPerOperator": 20, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-2,2,-2,2,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
 "nEventsPerPoint": 5000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
-"score_lossWeight": 1, #Apply scale factor to score term in loss function
+"score_lossWeight": 0.3, #FIXME #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
 
 #=== Settings for regressor strategy ===#
@@ -81,9 +82,6 @@ optsTrain = {
 #=== Event preselection ===#
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 "cuts": "is_signal_SR",
-# "cuts": "is_tZq_3l_SR",
-# "cuts": "is_tzq_SR",
-# "cuts": "is_ttz_SR",
 # "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== Input features ===#
@@ -104,9 +102,9 @@ optsTrain = {
 
 # -- Choose the data to consider #NB: same convention as for main analysis code. Naming convention enforced : 2016+2017 <-> "201617" ; etc.; 2016+2017+2018 <-> "Run2" #NB: years must be placed in the right order !
 _list_lumiYears = []
-# _list_lumiYears.append("2016") #FIXME
+_list_lumiYears.append("2016")
 _list_lumiYears.append("2017")
-# _list_lumiYears.append("2018")
+_list_lumiYears.append("2018")
 
 #-- Choose the classes of processes to consider #NB: can group several physics processes in same process class #NB: place main signal in first position
 _list_processClasses = []
@@ -117,15 +115,11 @@ _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_TOP19001"])
 # _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
-# _list_processClasses.append(["PrivMC_ttZ_ctz"])
-# _list_processClasses.append(["PrivMC_tZq_ctz", "PrivMC_ttZ_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep", "DY"]) #WARNING: too low statistics for DY/ZGToLLG_01J, degrades performance
-# _list_processClasses.append(["ttbar_Alessia"])
-# _list_processClasses.append(["tt1j_2016_Sebastian"])
 
 #-- Define labels associated with each process class #NB: keyword 'PrivMC' is used to denote private EFT samples
 _list_labels = []

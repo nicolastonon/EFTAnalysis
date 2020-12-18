@@ -52,7 +52,7 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
     list_yTrain_allClasses = []; list_yTest_allClasses = []
     list_truth_Train_allClasses = []; list_truth_Test_allClasses = []
     list_PhysicalWeightsTrain_allClasses = []; list_PhysicalWeightsTest_allClasses = []
-    if opts["nofOutputNodes"] == 1 or opts["regress"] == True: #Binary class label
+    if opts["nofOutputNodes"] == 1 or opts["regress"] == True or opts["strategy"] == "CASCAL": #Binary class label
 
         if useMostExtremeWCvaluesOnly is False: #Get predictions for all events
             list_xTrain_allClasses.append(x_train[y_process_train==1][:maxEvents]); list_yTrain_allClasses.append(y_train[y_process_train==1][:maxEvents]); list_truth_Train_allClasses.append(y_process_train[y_process_train==1][:maxEvents]); list_PhysicalWeightsTrain_allClasses.append(PhysicalWeights_train[y_process_train==1][:maxEvents])
@@ -148,11 +148,11 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
                 list_predictions_test_class.append(np.squeeze(model.predict(list_xTest_allClasses[iclass])) )
 
             else: #Multinode
-                if opts["strategy"] is "RASCAL": #For RASCAL there are 2 asymmetric outputs : 1 single output for r, and 1 output with N sub-outputs for t
-                    if inode == 0:
+                if opts["strategy"] in ["RASCAL","CASCAL"]: #For RASCAL there are 2 asymmetric outputs : 1 single output for r, and 1 output with N sub-outputs for t
+                    if inode == 0: #First 'node' -> single element
                         list_predictions_train_class.append(np.squeeze(model.predict(list_xTrain_allClasses[iclass])[0]))
                         list_predictions_test_class.append(np.squeeze(model.predict(list_xTest_allClasses[iclass])[0]))
-                    else:
+                    else: #Second 'node' -> 1 element per score component
                         list_predictions_train_class.append(model.predict(list_xTrain_allClasses[iclass])[1][:,inode-1])
                         list_predictions_test_class.append(model.predict(list_xTest_allClasses[iclass])[1][:,inode-1])
                 else:
@@ -187,6 +187,7 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
     #-- NEW: also append to NN info file the min/max output values of the NN based on the train+test evaluation datasets (--> Can later adapt accordingly the template histogram boundaries to avoid empty bins)
     text_file = open(weightDir + "NN_info.txt", "a+") #Append mode
     for inode in range(opts["nofOutputNodes"]):
+        # print(len(list_predictions_test_allNodes_allClasses), len(list_predictions_test_allNodes_allClasses[0]), list_predictions_test_allNodes_allClasses[0][0].shape )
         # print(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode])).shape)
         min_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
         max_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
