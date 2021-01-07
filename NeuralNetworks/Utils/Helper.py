@@ -512,6 +512,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             list_features = features_SM
 
         elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==1) or opts["strategy"]=="CARL_singlePoint":
+            print(len(opts["listOperatorsParam"]))
             if 'tZq' in labels_list[0]:
                 if (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=='ctz') or 'ctz' in opts["refPoint"]: list_features = features_CARL_tZq_ctz
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="ctw") or 'ctw' in opts["refPoint"]: list_features = features_CARL_tZq_ctw
@@ -525,7 +526,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_ttZ_cpq3
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_ttZ_cpt
 
-                print('list_features', list_features)
+        elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==5):
+            if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_all
+            elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_all
 
         if len(list_features)==0: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
 

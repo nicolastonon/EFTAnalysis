@@ -1445,13 +1445,23 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
     else if(samplename_tmp.Contains("tWZ")) {samplename_tmp = "tWZ";}
 
     //-- Only list the systematics which are *not* to be correlated in-between years
-    //Need to add year as suffix (<-> unique)
+    //--> Need to add year as suffix (<-> unique)
     if(systname.BeginsWith("BtagHFstats")
     || systname.BeginsWith("BtagLFstats")
     || systname.BeginsWith("BtagCF")
+
     || systname.BeginsWith("JER")
-    || systname.BeginsWith("UnclEn")
     || systname.BeginsWith("MET")
+    || systname.BeginsWith("RelativeStatFSR")
+    || systname.BeginsWith("RelativeStatEC")
+    || systname.BeginsWith("RelativeStatHF")
+    || systname.BeginsWith("RelativeSample")
+    || systname.BeginsWith("RelativePtEC1")
+    || systname.BeginsWith("RelativePtEC2")
+    || systname.BeginsWith("TimePtEta")
+    || systname.BeginsWith("RelativeJEREC1")
+    || systname.BeginsWith("RelativeJEREC2")
+    || systname.BeginsWith("AbsoluteStat")
     )
     {
         if(systname.EndsWith("Up"))

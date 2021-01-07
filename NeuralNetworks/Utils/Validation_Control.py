@@ -198,9 +198,6 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
 
     if opts["testToy1D"]: Make_Test1D_Plot(opts, model)
 
-    Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
-    # exit(1) #FIXME
-
     Control_Printouts(opts, list_labels, y_test, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, score)
 
     Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, weight_dir, history)
@@ -223,6 +220,8 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
         doEvaluationPlots(list_yTest_allClasses[0], list_predictions_test_allNodes_allClasses[0][0], list_PhysicalWeightsTest_allClasses[0], weight_dir)
 
     Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features)
+
+    if opts["strategy"] in ["RASCAL", "CASCAL"]:Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
 
     return
 
@@ -281,7 +280,9 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
     NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
     '''
 
-    if history is None: return
+    if history == None: 
+        print('history == None')
+        return
 
     matplotlib.rc_file_defaults() #Restore matplotlib default settings
 
@@ -1353,6 +1354,7 @@ def Make_Test1D_Plot(opts, model):
 # //--------------------------------------------
 # //--------------------------------------------
 
+# Plot the score... testing
 def Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x):
 
     fig = plt.figure('loss')

@@ -74,7 +74,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -195,6 +195,8 @@ class TopEFT_analysis
     vector<float> v_WCs_operator_scan1, v_WCs_operator_scan2; //Grid points for first and second scanned EFT operators
 
     vector<vector<float>> v_njets_SF_tZq; //May be filled with helper func 'Get_nJets_SF' to apply a shape uncertainty to PrivMC_tZq based on jet multiplicity disagreements w.r.t. central sample
+
+    bool process_samples_byGroup; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 };
 
 #endif

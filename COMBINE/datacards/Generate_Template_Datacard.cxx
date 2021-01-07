@@ -621,16 +621,45 @@ int main()
 
     v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //FIXME -- TESTING
-    v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
-
     v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
+
+    //FIXME -- TESTING
+    // v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
+
+    //JEC split sources //FIXME
+    v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
 
     //-- Missing
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);

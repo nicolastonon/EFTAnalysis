@@ -21,7 +21,7 @@ TString Get_Category_LatexName(TString cat)
 
 //--------------------------------------------
 // ##    ## #### ######## ##       ########     ########    ###    ########  ##       ########
-//  ##  ##   ##  ##       ##       ##     3##       ##      ## ##   ##     ## ##       ##
+//  ##  ##   ##  ##       ##       ##     ##       ##      ## ##   ##     ## ##       ##
 //   ####    ##  ##       ##       ##     ##       ##     ##   ##  ##     ## ##       ##
 //    ##     ##  ######   ##       ##     ##       ##    ##     ## ########  ##       ######
 //    ##     ##  ##       ##       ##     ##       ##    ######### ##     ## ##       ##
@@ -29,7 +29,7 @@ TString Get_Category_LatexName(TString cat)
 //    ##    #### ######## ######## ########        ##    ##     ## ########  ######## ########
 //--------------------------------------------
 
-void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TString category, TString signal, TString lumi, bool group_samples_together, bool remove_totalSF, TString channel)
+void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TString category, TString signal, TString lumi, bool group_samples_together, bool remove_totalSF, TString channel, bool use_privSamples_asSignal)
 {
     bool create_latex_table = true; //true <-> also output latex-format yield tables
         bool blind = false; //true <-> don't include DATA in latex tables (but still include in printouts)
@@ -89,7 +89,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             if(v_label[isample].Contains("TTbar") || v_label[isample].Contains("DY")) {continue;} //Consider DD NPL, not MC
             else if(v_samples[isample] == "DATA") {continue;} //Data appended manually
-            else if(v_samples[isample].Contains("PrivMC")) {continue;} //Yield tables: consider central samples
+            else if(!use_privSamples_asSignal && v_samples[isample].Contains("PrivMC")) {continue;} //Yield tables: consider central samples
+            else if(use_privSamples_asSignal && (v_samples[isample]=="tZq" || v_samples[isample]=="ttZ" || v_samples[isample]=="tWZ")) {continue;} //Yield tables: consider private samples
 
             // cout<<"Pass "<<(isample == v_label.size()-1 || v_label[isample] != v_label[isample+1])<<endl; //Debug
 
@@ -368,13 +369,13 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 {
                     yield_tmp+= weight; statErr_tmp+= weight*weight;
 
-                    if(v_label[isample] == signal || v_label[isample] == "signal" || (signal=="signal" && (v_label[isample]=="tZq" || v_label[isample]=="ttZ" || v_label[isample]=="tWZ"))) //Signals, group together
+                    if(v_label[isample] == signal || v_label[isample] == "signal" || (signal=="signal" && ( (use_privSamples_asSignal && v_label[isample].Contains("PrivMC")) || (!use_privSamples_asSignal && (v_label[isample]=="tZq" || v_label[isample]=="ttZ" || v_label[isample]=="tWZ")) ) ) ) //Signals, group together
                     {
                         yield_signals+= weight;
                         statErr_signals+= weight*weight;
                         // cout<<"yield_signals "<<yield_signals<<endl;
                     }
-                    else if(v_samples[isample] != "DATA" && !v_samples[isample].Contains("Priv") && !v_samples[isample].Contains("TTbar") && !v_samples[isample].Contains("DY")) //Backgrounds //Don't consider: signals / private samples / MC fakes / ...
+                    else if(v_samples[isample] != "DATA" && !v_samples[isample].Contains("tZq") && !v_samples[isample].Contains("ttZ") && !v_samples[isample].Contains("tWZ") && !v_samples[isample].Contains("TTbar") && !v_samples[isample].Contains("DY")) //Backgrounds //Don't consider: signals / private samples / MC fakes / ...
                     {
                         yield_bkg+= weight;
                     }
@@ -524,6 +525,7 @@ int main(int argc, char **argv)
     TString channel = ""; //'',uuu,uue,eeu,eee
     bool group_samples_together = true; //true <-> group similar samples together
     bool remove_totalSF = false; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
+    bool use_privSamples_asSignal = true; //true <-> signals yields in the latex table correspond to private samples (else central)
 
 //--------------------------------------------
 
@@ -608,12 +610,12 @@ int main(int argc, char **argv)
 
     if(lumi == "all")
     {
-        Compute_Write_Yields(v_samples, v_label, category, signal, "2016", group_samples_together, remove_totalSF, channel);
-        Compute_Write_Yields(v_samples, v_label, category, signal, "2017", group_samples_together, remove_totalSF, channel);
-        Compute_Write_Yields(v_samples, v_label, category, signal, "2018", group_samples_together, remove_totalSF, channel);
-        Compute_Write_Yields(v_samples, v_label, category, signal, "Run2", group_samples_together, remove_totalSF, channel); //should sum all years
+        Compute_Write_Yields(v_samples, v_label, category, signal, "2016", group_samples_together, remove_totalSF, channel, use_privSamples_asSignal);
+        Compute_Write_Yields(v_samples, v_label, category, signal, "2017", group_samples_together, remove_totalSF, channel, use_privSamples_asSignal);
+        Compute_Write_Yields(v_samples, v_label, category, signal, "2018", group_samples_together, remove_totalSF, channel, use_privSamples_asSignal);
+        Compute_Write_Yields(v_samples, v_label, category, signal, "Run2", group_samples_together, remove_totalSF, channel, use_privSamples_asSignal); //should sum all years
     }
-    else {Compute_Write_Yields(v_samples, v_label, category, signal, lumi, group_samples_together, remove_totalSF, channel);}
+    else {Compute_Write_Yields(v_samples, v_label, category, signal, lumi, group_samples_together, remove_totalSF, channel, use_privSamples_asSignal);}
 
 	return 0;
 }

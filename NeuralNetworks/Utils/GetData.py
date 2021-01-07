@@ -805,7 +805,7 @@ def Get_Targets(opts, list_features, list_processClasses, list_nentries_class, t
     #-- For NNs separating SM from EFT, already defined target in dedicated function (not based on 'process class' like for regular classification)
     else:
 
-        if opts["strategy"] in ["CARL", "CASCAL"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach.
+        if opts["strategy"] in ["CARL", "CARL_singlePoint", "CASCAL"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach.
         # if opts["strategy"] in ["CARL", "CARL_multiclass"]: #For CARL, binary label 0/1 indicates whether event was generated at reference point (SM) or not. For CARL_multiclass, there as (1+n_operators) labels: 0=refpoint, 1=operator1 activated, 2=operator2 activated, etc.; i.e. only 1 EFT operator can be non-zero at once for the CARL_multiclass approach #Incorrect ?
             y = targetClass_allClasses; y_process = y #Info already stored when defining EFT points to train on
 

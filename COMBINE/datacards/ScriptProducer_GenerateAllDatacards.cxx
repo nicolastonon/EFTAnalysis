@@ -128,7 +128,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     TString operator_scan1 = "";
     if(scan_operator_hardcoded)
     {
-        mode_histoBins = 1; //Scan on parametrized NN --> must treat each histogram bin separately
+        mode_histoBins = 1; //Scan on parameterized NN --> must treat each histogram bin separately
         filename_template_suffix+= "param"; //Default identifier
 
         operator_scan1 = "ctw";
@@ -236,7 +236,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
                     // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
 
-                    bool isOtherRegion = false;
+                    bool isOtherRegion = false; //'Other regions' = SRttZ4l + CRs ; contrary to SRs, don't need to split per bin (no EFT parameterization apart from SRttZ4l where with single bin)
                     if(include_otherRegions && (v_regions[iregion].Contains("SRttZ4l") || v_regions[iregion].Contains("CRWZ") || v_regions[iregion].Contains("CRZZ") || v_regions[iregion].Contains("CRDY")) ) {isOtherRegion = true;}
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];

@@ -19,11 +19,14 @@ int main(int argc, char **argv)
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
-    bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
     bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
+
+    //-- N T U P L E S --
+    bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
     bool include_PrivMC_samples = true; //true <-> process private SMEFT signal samples (necessary e.g. for limit-setting, but much slower)
     bool include_central_samples = true; //true <-> process central signal samples
+    bool process_samples_byGroup = false; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
@@ -289,12 +292,45 @@ int main(int argc, char **argv)
 
     if(use_systematics) //Define here the list of syst to run //Missing: JERC, leptonID, ME, PDFs, ...
     {
-        //-- Implemented as separate TTrees //FIXME
+        //-- Implemented as separate TTrees
+
+        //* Total JEV //FIXME
         theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
+        //* Split JEC sources //FIXME
+        theSystTree.push_back("AbsoluteStatDown"); theSystTree.push_back("AbsoluteStatUp");
+        theSystTree.push_back("AbsoluteScaleDown"); theSystTree.push_back("AbsoluteScaleUp");
+        theSystTree.push_back("AbsoluteMPFBiasDown"); theSystTree.push_back("AbsoluteMPFBiasUp");
+        theSystTree.push_back("FragmentationDown"); theSystTree.push_back("FragmentationUp");
+        theSystTree.push_back("SinglePionECALDown"); theSystTree.push_back("SinglePionECALUp");
+        theSystTree.push_back("SinglePionHCALDown"); theSystTree.push_back("SinglePionHCALUp");
+        theSystTree.push_back("FlavorQCDDown"); theSystTree.push_back("FlavorQCDUp");
+        theSystTree.push_back("TimePtEtaDown"); theSystTree.push_back("TimePtEtaUp");
+        theSystTree.push_back("RelativeJEREC1Down"); theSystTree.push_back("RelativeJEREC1Up");
+        theSystTree.push_back("RelativeJEREC2Down"); theSystTree.push_back("RelativeJEREC2Up");
+        theSystTree.push_back("RelativeJERHFDown"); theSystTree.push_back("RelativeJERHFUp");
+        theSystTree.push_back("RelativePtBBDown"); theSystTree.push_back("RelativePtBBUp");
+        theSystTree.push_back("RelativePtEC1Down"); theSystTree.push_back("RelativePtEC1Up");
+        theSystTree.push_back("RelativePtEC2Down"); theSystTree.push_back("RelativePtEC2Up");
+        theSystTree.push_back("RelativePtHFDown"); theSystTree.push_back("RelativePtHFUp");
+        theSystTree.push_back("RelativeBalDown"); theSystTree.push_back("RelativeBalUp");
+        theSystTree.push_back("RelativeSampleDown"); theSystTree.push_back("RelativeSampleUp");
+        theSystTree.push_back("RelativeFSRDown"); theSystTree.push_back("RelativeFSRUp");
+        theSystTree.push_back("RelativeStatFSRDown"); theSystTree.push_back("RelativeStatFSRUp");
+        theSystTree.push_back("RelativeStatECDown"); theSystTree.push_back("RelativeStatECUp");
+        theSystTree.push_back("RelativeStatHFDown"); theSystTree.push_back("RelativeStatHFUp");
+        theSystTree.push_back("PileUpDataMCDown"); theSystTree.push_back("PileUpDataMCUp");
+        theSystTree.push_back("PileUpPtRefDown"); theSystTree.push_back("PileUpPtRefUp");
+        theSystTree.push_back("PileUpPtBBDown"); theSystTree.push_back("PileUpPtBBUp");
+        theSystTree.push_back("PileUpPtEC1Down"); theSystTree.push_back("PileUpPtEC1Up");
+        theSystTree.push_back("PileUpPtEC2Down"); theSystTree.push_back("PileUpPtEC2Up");
+        theSystTree.push_back("PileUpPtHFDown"); theSystTree.push_back("PileUpPtHFUp");
+
         //-- Implementend as event weights
+
+        //* EXP
         theSystWeights.push_back("PUDown"); theSystWeights.push_back("PUUp");
         theSystWeights.push_back("prefireDown"); theSystWeights.push_back("prefireUp");
         theSystWeights.push_back("BtagHFDown"); theSystWeights.push_back("BtagHFUp");
@@ -321,15 +357,14 @@ int main(int argc, char **argv)
         theSystWeights.push_back("LepEff_elLooseDown"); theSystWeights.push_back("LepEff_elLooseUp");
         theSystWeights.push_back("LepEff_elTightDown"); theSystWeights.push_back("LepEff_elTightUp");
 
-        //-- MISSING
+        //* THEORY
         theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only
         theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only
         theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEUp"); //Signals only
+
+        //-- MISSING
         // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only //MISSING for PrivMC
         // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only //MISSING for PrivMC
-
-        //-- OBSOLETE
-        // theSystWeights.push_back("FRDown"); theSystWeights.push_back("FRUp"); //FR from David: 1 set of variations
     }
 
 
@@ -357,7 +392,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
@@ -407,7 +442,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

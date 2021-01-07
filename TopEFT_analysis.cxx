@@ -36,7 +36,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool use_SMdiffAnalysis_strategy, bool make_fixedRegions_templates)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool use_SMdiffAnalysis_strategy, bool make_fixedRegions_templates, bool process_samples_byGroup)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -118,6 +118,8 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     Set_Luminosity(lumiName); //Compute the corresponding integrated luminosity
 
+//-------------
+
     dir_ntuples = NTUPLEDIR; //Defined in Utils/Helper
     TString dir_ntuples_tmp = dir_ntuples;
 
@@ -150,6 +152,25 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
         sample_groups = sample_list;
     }
     */
+
+   if(process_samples_byGroup) //Run on group ntuples to reduce the number of files to read
+   {
+       bool found_allGroupNtuples = true;
+       for(int igroup=0; igroup<sample_groups.size(); igroup++)
+       {
+           if(igroup > 0 && sample_groups[igroup] == sample_groups[igroup-1]) {continue;}
+           if(!Check_File_Existence(dir_ntuples + sample_groups[igroup])) //If some group ntuple is missing, will read all individual ntuples instead (default)
+           {
+               cout<<BOLD(FRED("WARNING: you hav set [process_samples_byGroup=true] but I could not find group ntuple ["<<dir_ntuples + sample_groups[igroup]<<"]... Setting [process_samples_byGroup=false] and processing individual ntuples instead !"))<<endl;
+               found_allGroupNtuples = false;
+           }
+       }
+       if(found_allGroupNtuples)
+       {
+           sample_groups.erase( unique( sample_groups.begin(), sample_groups.end() ), sample_groups.end() ); //Remove all duplicates in 'sample_groups' (<-> only keep 1 occurence for each group)
+           sample_list = sample_groups; //Samples will now refer to sample groups
+       }
+   }
 
 	//-- Get colors
     int color_scheme = 0; //Check color scheme definitions directly in Get_Samples_Colors()
@@ -1769,7 +1790,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //NB: only need to fill additional variables here in 2 cases: a) if 'use_predefined_EFT_strategy=true'; b) if 'make_fixedRegions_templates=true' --> predefined set of multiple templates ! (otherwise, considering single template, which was filled above)
                             if(!makeHisto_inputVars)
                             {
-                                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise
+                                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise //Also ignore central signal samples in these regions?
 
                                 //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
                                 if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
@@ -4461,6 +4482,9 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
  */
 void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString filename, vector<TString> total_var_list, TString template_name, TString category, bool force_normTemplate_positive)
 {
+    bool store_countExp_SMvsEFT = false; //true <-> store full histograms as single bins for later comparison with counting experiment in Combine
+//--------------------------------------------
+
     cout<<endl<<FYEL("==> Merging/splitting histograms in TFile : ")<<filename<<endl;
 
 	if(!Check_File_Existence(filename) ) {cout<<endl<<FRED("File "<<filename<<" not found! Abort merging procedure !")<<endl; return;}
@@ -4500,9 +4524,10 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
                         {
                             // cout<<"ibin "<<ibin<<" ("<<"n_singleBins "<<n_singleBins<<")"<<endl;
 
-                            if(!make_SMvsEFT_templates_plots && ibin >= 0) {break;} //SM vs SM templates: don't need per-bin (and single-bin) histograms
+                            if(!store_countExp_SMvsEFT && ibin==0) {continue;} //Choose not to store histograms as single bin (countExp, for comparisons) for speed
+                            else if(!make_SMvsEFT_templates_plots && ibin == 0) {break;} //SM vs SM templates: don't need per-bin nor single-bin (countExp) histograms
                             else if(ibin==0 && (this->make_fixedRegions_templates || total_var_list[ivar].Contains("countExp"))) {break;} //countExp: no need to split per bin !
-                            else if(n_singleBins == 1 && ibin>0) {break;} //If the full template has only 1 bin, no need to split per bin !
+                            else if(ibin==0 && (n_singleBins == 1 || total_var_list[ivar].Contains("countExp")) ) {break;} //Idem if the full template has only 1 bin
                             else if(makeHisto_inputVars && ibin==0) {break;} //Input features: don't need to split per bin (?)
 
             				for(int isample=0; isample<sample_list.size(); isample++)
@@ -4572,7 +4597,7 @@ void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString fil
             					// cout<<"h_merging->Integral() = "<<h_merging->Integral()<<endl;
 
             					delete h_tmp; h_tmp = NULL;
-            					if(!h_merging) {cout<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl; cout<<"h_merging is null ! Fix this first"<<endl; return;}
+            					if(!h_merging) {cout<<"Syst "<<syst_list[isyst]<<systTree_list[itree]<<" / chan "<<channel_list[ichan]<<" / sample "<<sample_list[isample]<<endl; cout<<"h_merging is null ! Latest histo read "<<histoname<<"... You should check this !"<<endl; continue;}
 
             					//Check if next sample will be merged with this one, or else if must write the histogram
             					if(isample < sample_list.size()-1 && sample_groups[isample+1] == sample_groups[isample]) {continue;}

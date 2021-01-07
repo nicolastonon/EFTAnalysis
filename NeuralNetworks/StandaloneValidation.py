@@ -41,10 +41,10 @@ nEventsStandaloneVal = 50000 #Nof events to sample/display per point
 # evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-evalPoint = "rwgt_ctz_2"
+# evalPoint = "rwgt_ctz_2"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
-# evalPoint = "rwgt_ctw_3"
+evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_ctw_5"
 # evalPoint = "rwgt_cpqm_10"
 # evalPoint = "rwgt_cpq3_5"
@@ -55,15 +55,15 @@ evalPoint = "rwgt_ctz_2"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-list_points_sampling.append("rwgt_ctz_2")
+# list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-# list_points_sampling.append("rwgt_ctw_3")
+list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
-# list_points_sampling.append("rwgt_cpqm_10")
-# list_points_sampling.append("rwgt_cpq3_15")
+# list_points_sampling.append("rwgt_cpqm_5")
+# list_points_sampling.append("rwgt_cpq3_5")
 # list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
@@ -85,9 +85,11 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     _lumiName, _weightDir, _h5modelName, _batchSize, _list_features = Initialization_And_SanityChecks(optsTrain, _list_lumiYears, _list_processClasses, _list_labels, _list_features)
 
     if optsTrain["trainAtManyEFTpoints"] is False: #Trick: standalone val. code works with SMEFT samples; if applying it on classifier training, need to update lists; also change some options so that data is sampled properly
-        optsTrain["trainAtManyEFTpoints"] = True; _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"]
-        print(colors.fg.orange, "Warning: code [StandaloneValidation] only works for parameterized SMEFT samples. Setting [_list_processClasses = PrivMC_tZq] by default !", colors.reset)
-        # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
+        optsTrain["trainAtManyEFTpoints"] = True;
+        if optsTrain["strategy"] != "CARL_singlePoint":
+            _list_processClasses = [["PrivMC_tZq"]]; _list_labels = ["PrivMC_tZq"]
+            print(colors.fg.orange, "Warning: code [StandaloneValidation] only works for parameterized SMEFT samples. Setting [_list_processClasses = PrivMC_tZq] by default !", colors.reset)
+            # print(colors.fg.red, "Error: strategy =", optsTrain["strategy"], ". Standalone validation not available for non-parameterized strategies (check validation plots produced by main training code)", colors.reset); return
 
     if scan_singleOperator:
         evalPoint = '' #Evaluate each sample at corresponding point (<-> set input WCs accordingly)
