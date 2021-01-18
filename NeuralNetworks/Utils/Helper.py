@@ -458,7 +458,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 
-    if "listMinMaxWC" in opts and len(opts["listMinMaxWC"] != 2*len(opts["listOperatorsParam"])): print(colors.bold, colors.fg.red, 'ERROR : List [listMinMaxWC] must have exactly twice the length of [listOperatorsParam] !', colors.reset); exit(1)
+    if "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) != 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'ERROR : Length of list [listMinMaxWC] (', len(opts["listMinMaxWC"]), ') must be exactly twice that of [listOperatorsParam] (', len(opts["listOperatorsParam"]), ') !', colors.reset); exit(1)
 
     opts["loss"], _, opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
 
@@ -590,8 +590,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             elif "ttZ" in labels_list[0]: weightDir+= 'ttZ/'
             else: weightDir+= 'Other/'
 
-    if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"] and len(opts["listOperatorsParam"])==1: #Train on single operator, store in dedicated output dir.
-        weightDir+= opts["listOperatorsParam"][0] + '/'
+    if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"]: #Store in dedicated operator-dependent output dir.
+        if len(opts["listOperatorsParam"])==1: weightDir+= opts["listOperatorsParam"][0] + '/'
+        elif len(opts["listOperatorsParam"])==5: weightDir+= 'all' + '/'
 
     #Model output name
     h5modelName = weightDir + 'model.h5'

@@ -1,4 +1,4 @@
-Start of NN training :07-Jan-2021 (14:41:06)
+Start of NN training :11-Jan-2021 (18:36:47)
 
 OPTIONS
 ----------------- 
@@ -6,18 +6,18 @@ TTree --> result
 eventWeightName --> 
 parameterizedNN --> False
 strategy --> CARL
-nEpochs --> 20
+nEpochs --> 40
 splitTrainValTestData --> [0.7, 0.0, 0.3]
 nHiddenLayers --> 3
-nNeuronsAllHiddenLayers --> 100
-activInputLayer --> lrelu
-activHiddenLayers --> lrelu
+nNeuronsAllHiddenLayers --> 50
+activInputLayer --> relu
+activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.2
+dropoutRate --> 0.4
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
-learnRate --> 0.001
+learnRate --> 0.0001
 balancedClasses --> True
 earlyStopping --> True
 maxEventsPerClass --> -1
@@ -26,10 +26,10 @@ nEventsTot_val --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 1000
 refPoint --> SM
-listOperatorsParam --> ['ctz', 'ctw', 'cpqm', 'cpq3', 'cpt']
-nPointsPerOperator --> 20
-minWC --> -10
-maxWC --> 10
+listOperatorsParam --> ['ctz']
+nPointsPerOperator --> 40
+minWC --> -5
+maxWC --> 5
 nEventsPerPoint --> 10000
 batchSizeEFT --> 1000
 score_lossWeight --> 0.5

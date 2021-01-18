@@ -13,7 +13,7 @@ ROOT.gSystem.Load('../../myLib.so') #Library for custom classes WCPoint, WCFit, 
 from HiggsAnalysis.CombinedLimit.PhysicsModel import PhysicsModel
 
 verbose = 0 #(Dis)activate printouts for this code
-min_threshold = 0.001 #Don't store coefficients below this threshold
+min_threshold = 0.0001 #Don't store coefficients below this threshold
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -120,7 +120,7 @@ class EFTModel(PhysicsModel):
                         # print('wc1', wc1, 'wc2', wc2)
                         if (wc1,wc2) not in fits[procbin]:
                             print(colors.fg.red + "ERROR: WCs " + str((wc1,wc2)) + " not found in EFT parameterization... Did you run [DumpEFTParametrization.py] on the proper template file ?" + colors.reset); exit(1)
-                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= min_threshold):
+                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= min_threshold): #(idy >= idx) <-> if term (wc1,wc2) already included, don't include (wc2,wc1)
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
 

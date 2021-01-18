@@ -185,17 +185,18 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
     # print("--------------\n")
 
     #-- NEW: also append to NN info file the min/max output values of the NN based on the train+test evaluation datasets (--> Can later adapt accordingly the template histogram boundaries to avoid empty bins)
-    text_file = open(weightDir + "NN_info.txt", "a+") #Append mode
-    for inode in range(opts["nofOutputNodes"]):
-        # print(len(list_predictions_test_allNodes_allClasses), len(list_predictions_test_allNodes_allClasses[0]), list_predictions_test_allNodes_allClasses[0][0].shape )
-        # print(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode])).shape)
-        min_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
-        max_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
-        # min_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
-        # max_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
-        # print('min_prediction =', min_prediction)
-        # print('max_prediction =', max_prediction)
-        text_file.write('bounds'); text_file.write(' ' + str(min_prediction)); text_file.write(' ' + str(max_prediction)+'\n');
-    text_file.close()
+    if opts["makeValPlotsOnly"]==False:
+        text_file = open(weightDir + "NN_info.txt", "a+") #Append mode
+        for inode in range(opts["nofOutputNodes"]):
+            # print(len(list_predictions_test_allNodes_allClasses), len(list_predictions_test_allNodes_allClasses[0]), list_predictions_test_allNodes_allClasses[0][0].shape )
+            # print(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode])).shape)
+            min_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
+            max_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
+            # min_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
+            # max_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
+            # print('min_prediction =', min_prediction)
+            # print('max_prediction =', max_prediction)
+            text_file.write('bounds'); text_file.write(' ' + str(min_prediction)); text_file.write(' ' + str(max_prediction)+'\n');
+        text_file.close()
 
     return list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses

@@ -1256,8 +1256,8 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     {
         if(make_SMvsEFT_templates_plots) //Ex: min=0.253 -> 0.2 ; max = 0.856 -> 0.9
         {
-            float min_tmp = (int) (minmax_bounds[0]*10)-0.1; if(min_tmp<0.) {min_tmp=0.;}
-            float max_tmp = (int) (minmax_bounds[1]*10)+0.1; if(max_tmp>1.) {max_tmp=1.;}
+            float min_tmp = ((int) (minmax_bounds[0]*10))/10.; if(min_tmp<0.) {min_tmp=0.;}
+            float max_tmp = ((int) (minmax_bounds[1]*10)+1)/10.; if(max_tmp>1.) {max_tmp=1.;}
             xmin = min_tmp; xmax = max_tmp;
         }
     }

@@ -1,0 +1,11 @@
+\begin{sidewaystable}[]
+\centering
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c||c||c|}
+\hline
+ & tZq & $t\bar{t}Z$ & tWZ & $t(\bar{t})X$ & WZ & $VV(V)$ & $X\gamma$ & NPL & Total SM & Data\\ \hline
+is_ttz4l_SR & 0.0 (+/-0.0) & 36.3 (+/-0.4) & 3.9 (+/-0.1) & 2.2 (+/-0.1) & 0.0 (+/-0.0) & 6.9 (+/-0.4) & 0.0 (+/-0.0) & 0.4 (+/-0.2) & 52.8 & 45.0 \\ \hline
+\end{tabular}
+\caption{Event yields for the Run2 data-taking period.}
+\label{tab:yields}
+\end{sidewaystable}

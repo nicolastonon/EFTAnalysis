@@ -39,6 +39,8 @@
 #include "TFile.h"
 #include "TH1F.h"
 #include <sys/stat.h> // to be able to check file existence
+#include <sstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -59,6 +61,18 @@ bool Check_File_Existence(const TString& name)
     bool found = (stat (name.Data(), &buffer) == 0); //true if file exists
     return found;
 }
+
+
+//Convert a double into a TString
+// precision --> can choose if TString how many digits the TString should display
+TString Convert_Number_To_TString(double number, int precision=3)
+{
+	stringstream ss;
+	ss << std::setprecision(precision) << number;
+	TString ts = ss.str();
+	return ts;
+}
+
 
 //--------------------------------------------
 //  ######  ########  ########    ###    ######## ########
@@ -89,7 +103,7 @@ bool Check_File_Existence(const TString& name)
 /**
  * Produce script containing the commands to produce the datacards (single and combination) automatically
  */
-void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded, char use_SM_setup, TString selection, TString filename_template_suffix, char include_otherRegions)
+void Script_Datacards_TemplateFit(char include_systematics, char include_statistical, TString template_name, TString region, vector<TString> v_templates, vector<TString> v_channel, vector<TString> v_regions, TString lumiName, int mode_histoBins, bool scan_operator_hardcoded, char use_SM_setup, TString selection, TString filename_template_suffix, char include_otherRegions, bool use_rph, TString path_tmp_workspace, TString scriptname)
 {
 //  ####  ###### ##### #    # #####
 // #      #        #   #    # #    #
@@ -123,12 +137,12 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         }
     }
 
-    //FIXME -- HARDCODED
+    //-- HARDCODED
     vector<TString> v_WCs_operator_scan1 = {"-999"}; //HARDCODED
     TString operator_scan1 = "";
     if(scan_operator_hardcoded)
     {
-        mode_histoBins = 1; //Scan on parameterized NN --> must treat each histogram bin separately
+        mode_histoBins = 1; //Scan on parametrized NN --> must treat each histogram bin separately
         filename_template_suffix+= "param"; //Default identifier
 
         operator_scan1 = "ctw";
@@ -170,8 +184,10 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     else if(lumiName == "201718") {v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
     else if(lumiName == "Run2") {v_lumiYears.push_back("2016"); v_lumiYears.push_back("2017"); v_lumiYears.push_back("2018");}
 
+	ofstream file_out; //output script
 
-	ofstream file_out("makeDatacardsForTemplateFit.sh"); //output script
+    if(use_rph) {file_out.open(scriptname.Data(), std::ios_base::app);} //Append
+    else {file_out.open(scriptname.Data(), std::ofstream::out);} //Overwrite
 
 	TString dir = "./datacards_TemplateFit/";
 
@@ -192,6 +208,12 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                 }
             }
         }
+    }
+
+    file_out <<"mkdir "<<dir<<endl<<endl;
+    for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+    {
+        file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
     }
 
 
@@ -236,7 +258,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     // cout<<"v_templates[itemplate] "<<v_templates[itemplate]<<endl;
                     // if((use_SM_setup == 'y' || include_otherRegions == 'y') && !Is_Template_Matching_Region(v_templates[itemplate], v_regions[iregion], use_SM_setup, include_otherRegions)) {continue;}
 
-                    bool isOtherRegion = false; //'Other regions' = SRttZ4l + CRs ; contrary to SRs, don't need to split per bin (no EFT parameterization apart from SRttZ4l where with single bin)
+                    bool isOtherRegion = false;
                     if(include_otherRegions && (v_regions[iregion].Contains("SRttZ4l") || v_regions[iregion].Contains("CRWZ") || v_regions[iregion].Contains("CRZZ") || v_regions[iregion].Contains("CRDY")) ) {isOtherRegion = true;}
 
                     TString var = v_templates[itemplate] + "_" + v_regions[iregion];
@@ -245,10 +267,6 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
                     //-- Protection: replace '-' (hyphen) with 'm' character (hyphen in histo name causes errors at reading)
                     var.ReplaceAll('-', 'm');
-
-        			//Make subdir for single datacards
-        			file_out <<"mkdir "<<dir<<endl<<endl;
-                    file_out <<"mkdir "<<dir+v_lumiYears[iyear]<<endl<<endl;
 
         		    // TString file_histos = "../templates/Combine_Input.root"; //Templates_otherRegions_NN_Run2.root
                     // TString file_histos_pathFromHere = "./../templates/Templates_"+ (include_otherRegions? v_templates[0]:v_templates[itemplate]) + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
@@ -271,7 +289,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
         			cout<<endl<<FMAG("---> Will use filepath : ")<<file_histos<<endl<<endl;
 
-                    if(mode_histoBins==1 && !isOtherRegion) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
+                    // if(mode_histoBins==1 && !isOtherRegion) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
+                    if(true) //FIXME -- also needed for RPH
                     {
                         TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
                         TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
@@ -286,17 +305,21 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                         delete h_tmp; h_tmp = NULL; f_tmp->Close();
                         if(nbins == -1) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
                     }
+                    else {nbins = 1;} //Default: run next loop only once
 
                     if(nbins<0) {nbins=1;} //Need to loop at least once by default
         			for(int ilepchan=0; ilepchan<v_channel.size(); ilepchan++)
         			{
                         for(int ibin=1; ibin<nbins+1; ibin++)
                         {
-                            // if(v_templates[itemplate]=="categ" and ibin==6) {continue;} //HARDCODED TMP FIX (empty bin)
+                            if(mode_histoBins != 1 && ibin>1) {break;}
 
                             TString var_tmp = var;
                             if(mode_histoBins==1 && nbins > 1 && !isOtherRegion) {var_tmp = (TString) "bin" + Form("%d",ibin) + "_" + var;} //Also include bin number in naming scheme (--> will read single bin histos instead of full histos)
                             else if(mode_histoBins==3 && !isOtherRegion) {var_tmp = "countExp_" + var;} //Counting experiments
+
+                            TString template_path = "Template_Datacard.txt";
+                            if(use_rph) {template_path = "Template_Datacard_RPH.txt";}
 
             				file_out<<"python Parser_Datacard_Template.py "
                             + var_tmp + " "
@@ -306,6 +329,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             				+ systChoice + " "
             				+ statChoice + " "
                             + dir + v_lumiYears[iyear] + " "
+                            + path_tmp_workspace + " "
+                            + template_path + " "
+                            <<nbins<<" "
             				<<endl;
                         } //bin loop
         			} //channel loop
@@ -385,7 +411,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                             file_out<<"_"+v_lumiYears[iyear];
                             file_out<<"=" + dir + v_lumiYears[iyear] + "/"
             				+ "datacard_"+var_tmp;
-            				if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+                            if(v_channel[ilepchan] != "all") {file_out<<"_" + v_channel[ilepchan];}
+                            if(use_rph) {file_out<<"_rph";}
             				file_out<<".txt ";
                         } //bin loop
         			} //channel loop
@@ -398,9 +425,15 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         if(systChoice == "noShape") output_name+= "_noShape";
         if(statChoice == "noStat") output_name+= "_noStat";
         if(scan_operator_hardcoded) {output_name+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
-    	output_name+= "_" + lumiName + ".txt";
+        output_name+= "_" + lumiName;
+        if(use_rph) {output_name+= "_rph";}
+        if(mode_histoBins==1) {output_name+= "_splitBin";}
+        output_name+= ".txt";
 
     	file_out<<"> "<<output_name<<endl<<endl;
+
+        file_out<<"echo \"\""<<endl;
+        file_out<<"echo \"\e[33m===> Created combined datacard: \e[0m"<<output_name<<"\""<<endl<<endl<<endl;
     } //EFT loop
 
 
@@ -492,16 +525,18 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     } //create_datacards_indivRegions
 
 	file_out.close();
+}
 
-	system("chmod 755 makeDatacardsForTemplateFit.sh");
 
-	cout<<FGRN("... Created script ./makeDatacardsForTemplateFit.sh !")<<endl;
+void Run_Commands(TString scriptname)
+{
+    system(("chmod 755 "+scriptname).Data());
 
-	cout<<endl<<endl<<FGRN("-- Executing script ./makeDatacardsForTemplateFit.sh !")<<endl;
+    cout<<FGRN("... Created script ./"<<scriptname<<" !")<<endl;
 
-	system("./makeDatacardsForTemplateFit.sh");
+    cout<<endl<<endl<<FGRN("-- Executing script ./"<<scriptname<<" !")<<endl;
 
-	return;
+    system(("./"+scriptname).Data());
 }
 
 
@@ -660,7 +695,7 @@ int main()
 {
 // Can set options here
 //--------------------------------------------
-    vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee'
+    vector<TString> v_channel; //'all', 'uuu', 'eeu', 'uue', 'eee' //Used only for leptonic channels (use v_regions for 'regions')
     v_channel.push_back("all");
     // v_channel.push_back("uuu");
     // v_channel.push_back("eeu");
@@ -686,7 +721,12 @@ int main()
     TString filename_template_suffix = "EFT2"; //Specify extension in histo filename
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
-// Modified at command-line
+    bool use_rph = true;
+    TString path_tmp_workspace = "../../../EFT/WS.root"; //Hard-coded path to the temporary workspace potentially containing RooParametricHists, etc. //Must be provided to card parser so that the WS contents get read
+
+    TString scriptname = "makeDatacardsForTemplateFit.sh"; //Name of output script to create and run
+
+//-- Modified at command-line
 //--------------------------------------------
     TString lumiName = "Run2"; //'2016','2017','2018','201617','201618','201718','Run2'
 
@@ -702,8 +742,13 @@ int main()
     TString template_name = "0", region = "0";
     char include_otherRegions = 'n'; //'y' <-> expect to find merged template files containing both SR templates and templates from other regions (hardcoded: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     Choose_Arguments_From_CommandLine(include_systematics, include_statistical, template_name, region, lumiName, mode_histoBins, use_SM_setup, selection, filename_template_suffix, include_otherRegions);
+    if(mode_histoBins==1) {use_rph = false;} //Don't split per bin if using RPHs
 
-	Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup, selection, filename_template_suffix, include_otherRegions);
+    Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup, selection, filename_template_suffix, include_otherRegions, false, path_tmp_workspace, scriptname);
+
+    if(use_rph && mode_histoBins==2) {Script_Datacards_TemplateFit(include_systematics, include_statistical, template_name, region, v_templates, v_channel, v_regions, lumiName, mode_histoBins, scan_operator_hardcoded, use_SM_setup, selection, filename_template_suffix, include_otherRegions, true, path_tmp_workspace, scriptname);}
+
+    Run_Commands(scriptname);
 
 	return 0;
 }

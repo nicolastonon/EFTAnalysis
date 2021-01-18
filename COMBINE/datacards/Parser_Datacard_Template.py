@@ -14,15 +14,23 @@ cmdargs = str(sys.argv)
 theVar = str(sys.argv[1])
 channel = str(sys.argv[2])
 year = str(sys.argv[3])
-theFiletoRead= sys.argv[4]
+theFiletoRead = sys.argv[4]
 systChoice = str(sys.argv[5])
 statChoice = str(sys.argv[6])
 datacard_dir = str(sys.argv[7])
+theWorkspaceToRead = str(sys.argv[8])
+fileToSearch = str(sys.argv[9])
+nbins = str(sys.argv[10])
+
 # region = str(sys.argv[8]) #'SR', 'ttZ' (CR), etc.
 
 print('\n * Creating datacard for year : '+year+' / channel : '+channel+' / variable : '+theVar)
 
-fileToSearch = "Template_Datacard.txt" #TEMPLATE to parse
+# fileToSearch = "Template_Datacard.txt" #TEMPLATE card to parse
+file = open(fileToSearch).read()
+
+use_rph = False
+if "#RPH" in file: use_rph = True #Detect keyword at b.o.f.
 
 #if any(x in theVar for x in ['_CR']): fileToSearch = "Template_Datacard_noSig.txt" #Special case: don't consider any signal in CRs (approximation)
 
@@ -32,13 +40,14 @@ fileToSearch = "Template_Datacard.txt" #TEMPLATE to parse
 #     print("channel should be '', 'all', 'uuu', 'uue', 'eeu' or 'uuu' or 'ee' or 'uu' or 'ue'")
 #     exit()
 
+#-- Channels
 if channel=="all": #Use the channel='all' keyword because parser needs to read some arg ! But don't want to appear in datacards. Also remove the "_" in front
     channel=""
 else:
     channel = "_" + channel #Keep the "_" in front
     # varchan="varchan" #if no subcategorization, want to remove the "_" between 'var' and 'chan' !
 
-#If don't want shape systematics, will comment them out
+#-- Shape systs
 if systChoice=="withShape":
     shape = ""
 elif systChoice == "noShape":
@@ -47,7 +56,7 @@ else:
     print("Wrong systChoice value ! should be 'withShape' or 'noShape'")
     exit()
 
-#If don't want statistical uncertainties, will comment them out
+#-- MC stat uncertainty
 if statChoice=="withStat":
     stat = ""
 elif statChoice == "noStat":
@@ -56,7 +65,22 @@ else:
     print("Wrong statChoice value ! should be 'withStat' or 'noStat'")
     exit()
 
-#Deal with all possible year correlations
+#-- SR/CR differences (when using RooParametricHist)
+SR = '#'
+CR = '#'
+PrivMC_CR = '1' #Default: activate systs also for PrivMC EFT samples
+rate_sig = '-1'
+if 'SR' in theVar:
+    SR = ''
+    rate_sig = '1' #Applied only to EFT signals in SR (must multiply PDF_norm by 1)
+elif 'CR' in theVar:
+    CR = ''
+    PrivMC_CR = '-' #Choose to ignore shape systs for PrivMC samples in CRs (since nominals are dummies anyway)
+
+njets_tZq = '#njets_tZq'
+if use_rph and 'SRtZq' in theVar: njets_tZq = 'njets_tZq'
+
+#-- Year-to-year correlations
 is2016="#"
 is2017="#"
 is2018="#"
@@ -73,7 +97,7 @@ elif year=="2018":
     is2018=""
     is201718=""
 
-#Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
+#-- Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
 Lumi1617 = "-"
 Lumi1718 = "-"
 LumiXY = "-"
@@ -88,7 +112,7 @@ elif year=="2018":
     Lumi1718 = "1.003"
     LumiXY = "1.02"
 
-#Region-specific flags
+#-- Region-specific flags
 isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#' #Disactive these systematics by default
 if 'CRWZ' in theVar: isCRWZ = ''
 elif 'CRZZ' in theVar: isCRZZ = ''
@@ -108,51 +132,91 @@ rateVal = "1" #or '2' to double the rate of the process ? (verify)
 
 
 #--------------------------------------------
-s = open(fileToSearch).read()
 
 #-- REPLACE KEYWORDS
-s = s.replace("[YEAR]", year)
-s = s.replace("[2016]", is2016)
-s = s.replace("[2017]", is2017)
-s = s.replace("[2018]", is2018)
-s = s.replace("[201617]", is201617)
-s = s.replace("[201718]", is201718)
-s = s.replace("[Lumi1617]", Lumi1617)
-s = s.replace("[Lumi1718]", Lumi1718)
-s = s.replace("[LumiXY]", LumiXY)
-s = s.replace("[SHAPE]", shape)
-s = s.replace("[STAT]", stat)
-s = s.replace("filetoread", theFiletoRead)
-s = s.replace("[VAR]",theVar)
-s = s.replace("_[CHAN]", channel)
+file = file.replace("[YEAR]", year)
+file = file.replace("[2016]", is2016)
+file = file.replace("[2017]", is2017)
+file = file.replace("[2018]", is2018)
+file = file.replace("[201617]", is201617)
+file = file.replace("[201718]", is201718)
+file = file.replace("[Lumi1617]", Lumi1617)
+file = file.replace("[Lumi1718]", Lumi1718)
+file = file.replace("[LumiXY]", LumiXY)
+file = file.replace("[SHAPE]", shape)
+file = file.replace("[STAT]", stat)
+file = file.replace("filetoread", theFiletoRead)
+file = file.replace("workspacetoread", theWorkspaceToRead)
+file = file.replace("[VAR]",theVar)
+file = file.replace("_[CHAN]", channel)
+file = file.replace("[SR]", SR)
+file = file.replace("[CR]", CR)
+file = file.replace("[RATE_SIG]", rate_sig)
+file = file.replace("[PrivMC_CR]", PrivMC_CR)
 
 #For region-specific uncertainties (e.g. CR extrapolation uncertainties)
-s = s.replace("[CRWZ]", isCRWZ)
-s = s.replace("[CRZZ]", isCRZZ)
-s = s.replace("[CRDY]", isCRDY)
+file = file.replace("[CRWZ]", isCRWZ)
+file = file.replace("[CRZZ]", isCRZZ)
+file = file.replace("[CRDY]", isCRDY)
 
-# //--------------------------------------------
-#Replace some predefined markers with relevant values
-
-#-- QFlip markers
-# if nLep == "3l" or (nLep == "2l" and (channel == "uu" or "mm" in channel) ):
-#     s = re.sub(r'\[qflip\].*?\[qflip\]', r'', s) #Erase stuff signaled by markers => Remove QFlip
-    # print(s)
-# s = s.replace("[qflip]", "") #Remove the remaining markers
-
-# s = s.replace("[ele_sys]",ele_sys)
-# s = s.replace("sigPar", sigPar)
-# s = s.replace("[ratePar]", ratePar)
-# s = s.replace("rateVal", rateVal)
+file = file.replace("njets_tZq", njets_tZq)
 
 #--------------------------------------------
-print('==> Datacard created...')
 
 outname = datacard_dir+"/datacard_"+theVar;
-if channel != "":
-    outname=outname+channel;
-outname=outname+".txt"
+if channel != "": outname+= channel;
+if use_rph: outname+= '_rph';
+outname+= ".txt"
+
+print('==> Datacard ', outname, ' created...')
 
 f = open(outname, 'w')
-f.write(s)
+f.write(file)
 f.close()
+
+
+# //--------------------------------------------
+#-- If using RPH/RDH (in SR regions), can't use autoMCstats. Effect of MC stat error is incorporated directly in RPHs (EFT signals); for RDHs, must create RDH corresponding to up/down variation of each bin. Below we duplicate/rename all the corresponding shape nuisance parameters
+
+if use_rph==True and 'SR' in theVar:
+
+    f = open(outname, "r")
+    contents = f.readlines()
+    f.close()
+
+    f = open(outname, "w") #Or f.read().splitlines(), which does remove newlines?
+
+    idx_line_orig = 0
+    counter_newlines = 0
+    skip_newline = False
+    tmp = {}
+    for line in contents:
+
+        if 'MCstat' in line:
+            # print('idx_line_orig', idx_line_orig, 'line', line)
+
+            idx_tmp = idx_line_orig+counter_newlines
+
+            if 'countExp' in theVar: #Special case: single bin
+                line_tmp = line #Duplicate line
+                line_tmp = line_tmp.replace("_[BIN]", "")
+                line_tmp = line_tmp.replace("#MCstat", "MCstat") #Original template line is commented out and will be ignored ; but modified line must be activated
+                tmp[idx_tmp+1] = line_tmp
+
+            else: #Default: 1 MCstat nuisance per process --> Duplicate lines to have 1 nuisance per histo bin
+                for ibin in range(1, int(nbins)+1): #Loop on histobins
+                    line_tmp = line #Duplicate line
+                    line_tmp = line_tmp.replace("[BIN]", "bin{}".format(ibin))
+                    line_tmp = line_tmp.replace("#MCstat", "MCstat") #Original template line is commented out and will be ignored ; but modified line must be activated
+                    tmp[idx_tmp+ibin] = line_tmp
+                    # print('Inserted key', idx_tmp+ibin, ' / value', line_tmp, ' in dict...')
+                    counter_newlines+= 1
+        idx_line_orig+= 1
+
+    for idx_line in tmp:
+        contents.insert(idx_line, tmp[idx_line]) #Duplicate line, for each bin
+        # print('... Inserted new line:', tmp[idx_line])
+
+    f.writelines(contents)
+
+    f.close()

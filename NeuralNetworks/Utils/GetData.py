@@ -105,7 +105,7 @@ def Get_Data(opts, list_lumiYears, list_processClasses, list_labels, list_featur
 
     #-- Get rescaling parameters for each input feature, given to first NN layer to normalize features -- derived from train data alone
     transfType='quantile' #'quantile', 'range', 'gauss'. Defines the transformation applied to normalize input data.
-    xTrainRescaled, shifts, scales = Transform_Inputs(weightDir, x_train, list_features, lumiName, transfType=transfType)
+    xTrainRescaled, shifts, scales = Transform_Inputs(opts, weightDir, x_train, list_features, lumiName, transfType=transfType)
 
     print(colors.fg.lightblue, "\n===========")
     print("-- Total nof events : " + str(x.shape[0]))
@@ -320,17 +320,22 @@ def Read_Data_EFT_File(opts, list_lumiYears, list_weights_proc, ntuplesDir, proc
         array_SMweights_proc = np.array([])
         if idx_SM != -1: #Get weights at SM point (and normalize them, cf. below)
 
-            if idx_SM==183: array_EFTweights_proc*= 3.087*20 #Tmp xsec fix for TOP19001 tZq17 sample
+            if idx_SM==183 and 'tZq_TOP19001' in process: array_EFTweights_proc*= 3.087*20 #Tmp xsec fix for TOP19001 tZq17 sample
 
             array_SMweights_proc = array_EFTweights_proc[:,idx_SM]
             # print(array_SMweights_proc[:5])
+            # print('np.mean(array_SMweights_proc)', np.mean(array_SMweights_proc))
             array_SMweights_proc = array_SMweights_proc * weightsProc
             # print(array_SMweights_proc[:5])
+            # print('np.mean(array_SMweights_proc)', np.mean(array_SMweights_proc))
             array_SMweights_proc = np.divide(array_SMweights_proc, normWeights_proc)
             # print(array_SMweights_proc[:5])
+            # print('np.mean(normWeights_proc)', np.mean(normWeights_proc))
             array_SMweights_proc = np.divide(array_SMweights_proc, array_EFT_SWE_proc[idx_SM])
             # print(array_SMweights_proc[:5])
+            # print('array_EFT_SWE_proc[idx_SM]', array_EFT_SWE_proc[idx_SM])
             # print(array_SMweights_proc.shape)
+            # print('mean', np.mean(array_SMweights_proc))
             print(colors.fg.lightblue, 'Total SM yield', np.sum(array_SMweights_proc), colors.reset)
         elif not isPureEFT: print(colors.fg.red, 'ERROR: from naming convention, infer that this is a SM+EFT sample. However, the benchmark SM point from MG was not found (needed for proper normalization since the sample xsec is expected to correspond to SM. Abort ! (If this is not the desired behaviour, adapt the code...)', colors.reset); exit(1)
 
@@ -957,7 +962,7 @@ def Train_Val_Test_Split(opts, x, y, y_process, PhysicalWeights_allClasses, Lear
  # #   ## #      #    #   #   #    #
  # #    # #       ####    #    ####
 
-def Transform_Inputs(weightDir, x_train, list_features, lumiName, transfType='quantile'):
+def Transform_Inputs(opts, weightDir, x_train, list_features, lumiName, transfType='quantile'):
     '''
     Get normalization parameters from training data. Give these parameters to NN input layers to directly normalize all inputs.
 
@@ -998,17 +1003,18 @@ def Transform_Inputs(weightDir, x_train, list_features, lumiName, transfType='qu
         scale_ = scaler.scale_
         xTrainRescaled = scaler.transform(x_train)
 
-    text_file = open(weightDir + "NN_info.txt", "a+") #'w' to overwrite
+    if opts["makeValPlotsOnly"]==False:
+        text_file = open(weightDir + "NN_info.txt", "a+") #'w' to overwrite
 
-    #Dump shift_ and scale_ params into txtfile
-    for ivar in range(len(list_features)):
-        # print('Variable', list_features[ivar])
-        text_file.write(list_features[ivar]); text_file.write(' ')
-        text_file.write(str(shift_[ivar])); text_file.write(' ')
-        text_file.write(str(scale_[ivar])); text_file.write('\n')
+        #Dump shift_ and scale_ params into txtfile
+        for ivar in range(len(list_features)):
+            # print('Variable', list_features[ivar])
+            text_file.write(list_features[ivar]); text_file.write(' ')
+            text_file.write(str(shift_[ivar])); text_file.write(' ')
+            text_file.write(str(scale_[ivar])); text_file.write('\n')
 
-    text_file.close()
-    # print(colors.fg.lightgrey, '\n===> Saved NN infos (input/output nodes names, rescaling values, etc.) in : ', weightDir + "NN_infos.txt \n", colors.reset)
+        text_file.close()
+        # print(colors.fg.lightgrey, '\n===> Saved NN infos (input/output nodes names, rescaling values, etc.) in : ', weightDir + "NN_infos.txt \n", colors.reset)
 
     # print('shift_', shift_); print('scale_', scale_)
     # print('After transformation :', xTrainRescaled[0:5,:])

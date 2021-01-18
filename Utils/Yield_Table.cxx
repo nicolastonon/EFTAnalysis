@@ -313,6 +313,8 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 //--- Cut on category value
                 if(category != "" && !is_goodCategory) {continue;}
 
+                // if(v_samples[isample] == "PrivMC_tWZ" && weight>10) {continue;}
+
                 //Divide event weight by SF (<-> remove SFs), equivalent to using the MENominal weight instead of eventWeight
                 if(v_years[iyear] == "2018") {weightPrefire=1;} //no prefire in 2018
                 if(!weightPU) {weightPU=1;}
@@ -519,7 +521,7 @@ int main(int argc, char **argv)
 
     //-- Category: '' <-> all events ; 'xxx' <-> only include events satisfying condition xxx //E.g.: 'is_signal_SR'
     TString category = "is_signal_SR";
-    // TString category = "is_dy_CR";
+    // TString category = "is_ttz4l_SR";
 
     TString lumi = "all"; //'2016','2017','2018','Run2,'all''
     TString channel = ""; //'',uuu,uue,eeu,eee
@@ -589,7 +591,7 @@ int main(int argc, char **argv)
     // v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
     // v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
     v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
-    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
+    v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
 
 
 //-- Read ntuples merged by sample groups (for cross checks)

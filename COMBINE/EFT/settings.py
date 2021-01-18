@@ -17,14 +17,14 @@ opts = {
                 'cpt':  [-8,8],
               },
 "wcs_tracked": ['ctz', 'ctw', 'cpq3', 'cpqm', 'cpt'], #WCs to track *when not considered as POIs* (all by default)
-# "wcs_tracked": ['ctz','ctw'], 
+# "wcs_tracked": ['ctz','ctw'],
 # "wcs_tracked": ['ctz'],
 "scan_wcs": ['ctz','ctw'], #Default pair of wcs for 2D scans
 "wcs_pairs": ['ctz','ctw'], #Default pair of operators for 2D plots
 
 #-- List of SM processes
-#"processes": ['tZq'],
-#"processes": ['PrivMC_tZq'],
+"processes": ['tZq'],
+#"processes": ['PrivMC_tWZ'],
 "processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
 # "processes": ['tzq'], #SM signal processes
 
@@ -39,6 +39,6 @@ opts = {
 "SMmu_ranges": { #Ranges for scans, plots, etc.
                 'r_tzq':  [0,3],
                 'r_ttz':  [0,3],
-                'r_twz':  [0,3],
+                'r_twz':  [-5,15],
               },
 }

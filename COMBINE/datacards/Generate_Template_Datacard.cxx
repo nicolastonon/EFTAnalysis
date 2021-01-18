@@ -79,10 +79,14 @@ double Convert_TString_To_Number(TString ts)
 }
 
 //Can set here protections : return false if a given syst does not apply to a given sample
-bool Is_Syst_Match_Sample(TString syst, TString sample)
+bool Is_Syst_Match_Sample(TString syst, TString sample, bool use_rph)
 {
 	// cout<<"syst "<<syst<<endl;
 	// cout<<"sample "<<sample<<endl;
+
+    //FIXME -- testing
+    // if(sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations
+    if(use_rph && sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations
 
     if( (syst.Contains("Fake", TString::kIgnoreCase) || syst.BeginsWith("FR") || syst.Contains("NPL")) && !sample.Contains("NPL")) {return false;}
     else if(sample.Contains("NPL") && !syst.Contains("Fake", TString::kIgnoreCase) && !syst.BeginsWith("FR") && !syst.Contains("NPL") && !syst.Contains("CRDY") ) {return false;}
@@ -106,9 +110,9 @@ bool Is_Syst_Match_Sample(TString syst, TString sample)
 }
 
 //Ask user to choose options at command line for script generation
-void Choose_Arguments_From_CommandLine(TString& signal)
+void Choose_Arguments_From_CommandLine(TString& signal, bool& use_rph)
 {
-    //Choose whether to include shape syst or not
+    //-- Choose whether to include shape syst or not
 	cout<<endl<<FYEL("--- What is your SIGNAL ?")<<endl;
     cout<<"* 'eft'   \t<-> Signals are SMEFT tZq+ttZ+tWZ"<<endl;
     cout<<"* 'efttzq'   <-> Signal is SMEFT tZq only"<<endl;
@@ -128,6 +132,24 @@ void Choose_Arguments_From_CommandLine(TString& signal)
 		cout<<" Wrong answer ! Retry :"<<endl;
 		cin>>signal;
 	}
+
+    //-- Choose whether to treat EFT signals as RooParametricHists
+    /*
+    char chartmp = 'a';
+	cout<<endl<<FYEL("--- Use RooParametricHists instead of TH1s for EFT signals ? (<-> else need to split each hist bin)")<<endl;
+    cout<<"* y/n, 0 <-> keep default value in code"<<endl;
+	cin>>chartmp;
+	while(chartmp != 'y' && chartmp != 'n' && chartmp != '0')
+	{
+		cin.clear();
+		cin.ignore(1000, '\n');
+
+		cout<<" Wrong answer ! Retry :"<<endl;
+		cin>>chartmp;
+	}
+    if(chartmp == 'y') {use_rph = true;}
+    else if(chartmp == 'n') {use_rph = false;}
+    */
 
 	return;
 }
@@ -156,25 +178,11 @@ void Choose_Arguments_From_CommandLine(TString& signal)
  * @param v_normSystValue    value of these systematics
  * @param v_shapeSyst    list of shape systematics
  */
-void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, TString outfile_name="Template_Datacard.txt")
+void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, bool use_rph, TString outfile_name="Template_Datacard.txt")
 {
     //TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
-
-    //OBSOLETE //-- Make template datacard without any signal (to be used specifically in CRs where signal is negligible)
-    /*if(outfile_name != "Template_Datacard.txt")
-    {
-        for(int isample=0; isample<v_samples.size(); isample++)
-		{
-			if(v_isSignal[isample]) //Remove signals from sample lists
-			{
-				v_samples.erase(v_samples.begin() + isample);
-				v_isSignal.erase(v_isSignal.begin() + isample);
-				v_sampleUncert.erase(v_sampleUncert.begin() + isample);
-				isample--; //Modify index accordingly
-			}
-		}
-    } */
+    // bool include_njets_syst = false; //Obsolete
 
 	//-- Protections
 	if(v_shapeSyst.size() != v_shapeSyst_isCorrelYears.size()) {cout<<"ERROR: incorrect size for vector 'v_shapeSyst_isCorrelYears' !"<<endl; return;}
@@ -188,6 +196,12 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
  // #    # ###### #    # #####  ###### #    #
 //--------------------------------------------
 
+    //-- Add keyword at b.o.f. to indicate whether this template corresponds to the use of RooParametricHists, or only regular TH1s
+    if (use_rph && signal.Contains("eft"))
+    {
+        outfile<<"#RPH"<<endl;
+    }
+
     //--- Nof observables, bkgs, nuisance params
     outfile<<"imax"<<"\t"<<1<<"\t"<<"number of categories"<<endl;
     outfile<<"jmax"<<"\t"<<"*"<<"\t"<<"number of backgrounds"<<endl;
@@ -196,7 +210,21 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 //--------------------------------------------
     //--- Filepath, naming convention
     outfile<<"---------------------------------------------------"<<endl;
-    outfile<<"shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC"<<endl;
+
+    if(use_rph && signal.Contains("eft"))
+    {
+        outfile<<"[SR] shapes * [VAR]_[CHAN]_[YEAR] workspacetoread w:rdh_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC"<<endl; //RDH
+
+        outfile<<"[SR]shapes PrivMC_tZq [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
+        outfile<<"[SR]shapes PrivMC_ttZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
+        outfile<<"[SR]shapes PrivMC_tWZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
+
+        outfile<<"[CR]shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC"<<endl;
+    }
+    else
+    {
+        outfile<<"shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC"<<endl;
+    }
 
 //--------------------------------------------
     //--- Var name, get yields from templates
@@ -244,7 +272,8 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         else if(v_isSignal[isample] != 0 && v_isSignal[isample] != 1) {cout<<"Error ! Wrong value of v_isSignal !"<<endl; return;}
 
         outfile<<"\t";
-        outfile<<-1;
+        if(use_rph && v_isSignal[isample] == 1 && v_samples[isample].Contains("PrivMC")) {outfile<<"[RATE_SIG]";} //NEW -- if using RooParametricHist, must use 'rate 1' (multiplies norm)
+        else {outfile<<-1;}
     }
     outfile<<endl;
 
@@ -294,7 +323,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
             outfile<<"\t";
 
-            if(Is_Syst_Match_Sample(v_normSyst[isyst], v_samples[isample])) //Other syst : check if applies to current samples (from name)
+            if(Is_Syst_Match_Sample(v_normSyst[isyst], v_samples[isample], false)) //Other syst : check if applies to current samples (from name) //Set 'use_rph' arg to false because we want to apply lnN systs to EFT signals even if using RPHs (supported)
 			{
                 //-- Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
                 if(v_normSyst[isyst] == "Lumi1617") {outfile<<"[Lumi1617]";}
@@ -365,9 +394,12 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
     for(int isyst=0; isyst<v_shapeSyst.size(); isyst++)
     {
-		//Markers at beginning of line :
-        //-- the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
-        //-- idem, [201617] can be used to disactivate the prefiring syst for 2018 !
+        //FIXME
+        // if(v_shapeSyst[isyst]=="MET" || v_shapeSyst[isyst]=="JES" || v_shapeSyst[isyst]=="JER") outfile<<"[SR]";
+
+		//-- Markers at beginning of line :
+        //[SHAPE] can be used later to easily disactivate all shape systs, at parsing
+        //[201617] can be used to disactivate the prefiring syst for 2018, etc.
         outfile<<"[SHAPE]";
         if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";} //Hardcoded: prefire for 16/17 only
         else if(v_shapeSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
@@ -376,7 +408,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         else if(v_shapeSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
         else if(v_shapeSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
 
-        outfile<<v_shapeSyst[isyst]; //the [SHAPE] symbol can be used later to easily disactivate all shape systs, at parsing
+        outfile<<v_shapeSyst[isyst];
         if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
         outfile<<"\t"<<"shape";
 
@@ -384,10 +416,38 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         {
             outfile<<"\t";
 
-            if (Is_Syst_Match_Sample(v_shapeSyst[isyst], v_samples[isample])) {outfile<<"1";} //in %
+            if (Is_Syst_Match_Sample(v_shapeSyst[isyst], v_samples[isample], use_rph))
+            {
+                if(v_samples[isample].Contains("PrivMC")) {outfile<<"[PrivMC_CR]";} //Special case: we want to disactivate systs for PrivMC samples in CRs (since nominal is dummy anyway) //in %
+                else {outfile<<"1";} //in %
+            }
 			else {outfile<<"-";}
         }
         outfile<<endl;
+
+        // if(v_shapeSyst[isyst] == "njets_tZq") {include_njets_syst = true;} //Obsolete
+    }
+
+    //-- If using RooDataHists (and RooParametricHists), can't use autoMCstats --> Declare 1 shape systematic for each histobin and process
+    if(use_rph && signal.Contains("eft"))
+    {
+        for(int isample=0; isample<v_samples.size(); isample++)
+        {
+            if(v_samples[isample].Contains("PrivMC")) {continue;} //MC stat directly embeded in RPH parmeterizations
+
+            TString nuis_mcstat_name = "#MCstat_[BIN]_[VAR]_[YEAR]_" + v_samples[isample]; //Ex: 'MCstat_countExp_SRttZ4l_2018_data_obs'
+
+            outfile<<"[STAT]"<<nuis_mcstat_name<<"\t"<<"shape";
+            for(int jsample=0; jsample<v_samples.size(); jsample++)
+            {
+                outfile<<"\t";
+
+                //-- MCstat for given process only applies to this process
+                if(isample==jsample) {outfile<<"1";}
+                else {outfile<<"-";}
+            }
+            outfile<<endl;
+        }
     }
 
 
@@ -411,7 +471,6 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     }
 
 
-
  //  ####  #####   ##   #####
  // #        #    #  #    #
  //  ####    #   #    #   #
@@ -420,7 +479,6 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
  //  ####    #   #    #   #   ###
 
 //--------------------------------------------
-
 //--- MC statistical uncert.
 //See : https://cms-hcomb.gitbooks.io/combine/content/part2/bin-wise-stats.html#usage-instructions
 // Usage : [channel] autoMCStats [threshold] [include-signal = 0] [hist-mode = 1]
@@ -428,13 +486,70 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
     outfile<<"---------------------------------------------------"<<endl;
 
-	//The [STAT] symbol can be used later to easily disactivate all shape systs, at parsing
-	if(signal == "0") {outfile<<"[STAT]"<<"\t"<<"*"<<"\t"<<"autoMCStats"<<"\t"<<"0 0 1"<<endl;} //do as THQ for now...
-	else {outfile<<"[STAT]"<<"\t"<<"*"<<"\t"<<"autoMCStats"<<"\t"<<"10"<<endl;}
+    if(!use_rph || !signal.Contains("eft")) //Default : use autoMCstats
+    {
+        outfile<<"[STAT]"<<"\t"<<"*"<<"\t"<<"autoMCStats"<<"\t"<<"10"<<endl;
+    }
+    else if(use_rph) //Can't use autoMCstats in regions wirh rph/rdh
+    {
+        outfile<<"[CR][STAT]"<<"\t"<<"*"<<"\t"<<"autoMCStats"<<"\t"<<"10"<<endl;
+    }
+
+
+ //  ####  ##### #    # ###### #####
+ // #    #   #   #    # #      #    #
+ // #    #   #   ###### #####  #    #
+ // #    #   #   #    # #      #####
+ // #    #   #   #    # #      #   #
+ //  ####    #   #    # ###### #    #
+
+//--------------------------------------------
+//-- Additional parameters
+
+    outfile<<"---------------------------------------------------"<<endl;
+
+    //-- If using RPHs (whose bins are directly parameterized on WCs), better to declare the WCs explicitely in the card
+    if(use_rph && signal.Contains("eft"))
+    {
+        // if(include_njets_syst) {outfile<<"njets_tZq"<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;} //Only impacts RPHs
+
+        //-- Add explicit gaussian constraints with mean=0 and sigma=1 (this is the default constraint used for shape systematics)
+        for(int isyst=0; isyst<v_shapeSyst.size(); isyst++)
+        {
+            outfile<<"[SHAPE]";
+            if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";} //Hardcoded: prefire for 16/17 only
+            else if(v_shapeSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
+            else if(v_shapeSyst[isyst].EndsWith("1618")) {outfile<<"[201618]";}
+            else if(v_shapeSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
+            else if(v_shapeSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
+            else if(v_shapeSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
+            outfile<<v_shapeSyst[isyst];
+            if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
+            outfile<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
+        }
+
+        for(int isample=0; isample<v_samples.size(); isample++)
+        {
+            if(!v_samples[isample].Contains("PrivMC")) {continue;}
+
+            TString nuis_mcstat_name = "#MCstat_[BIN]_[VAR]_[YEAR]_" + v_samples[isample]; //Ex: 'MCstat_countExp_SRttZ4l_2018_PrivMC_tZq'
+            outfile<<"[STAT]"<<nuis_mcstat_name<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
+        }
+
+        outfile<<"---------------------------------------------------"<<endl;
+
+        outfile<<"ctz"<<"\t"<<"flatParam"<<endl;
+        outfile<<"ctw"<<"\t"<<"flatParam"<<endl;
+        outfile<<"cpqm"<<"\t"<<"flatParam"<<endl;
+        outfile<<"cpq3"<<"\t"<<"flatParam"<<endl;
+        outfile<<"cpt"<<"\t"<<"flatParam"<<endl;
+    }
+
+    outfile<<"---------------------------------------------------"<<endl;
 
 //--------------------------------------------
 
-    cout<<endl<<endl<<"---> File ./Template_Datacard.txt created..."<<endl<<endl<<endl;
+    cout<<endl<<endl<<"---> File ./"<<outfile_name<<" created..."<<endl<<endl<<endl;
 
     return;
 }
@@ -480,11 +595,12 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 //Define all arguments needed by generator function (see function description for details about args)
 int main()
 {
+    bool use_rph = true; //true <-> new, use RooParametricHist //Still debugging
 
 //-- Read command line arguments
 //--------------------------------------------
     TString signal = "";
-    Choose_Arguments_From_CommandLine(signal);
+    Choose_Arguments_From_CommandLine(signal, use_rph);
 
 
 //  ####    ##   #    # #####  #      ######  ####
@@ -632,34 +748,34 @@ int main()
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
-    //JEC split sources //FIXME
-    v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    //-- JEC split sources //FIXME -- TESTING
+    v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(true); //false
+    v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
 
     //-- Missing
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -681,7 +797,9 @@ int main()
 //Function calls
 //--------------------------------------------
     //Generate the template datacard
-    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears);
+    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, false);
+
+    if(use_rph) {Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, true, "Template_Datacard_RPH.txt");}
 
     return 0;
 }

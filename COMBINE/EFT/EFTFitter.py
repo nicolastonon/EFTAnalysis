@@ -129,55 +129,6 @@ class EFTFit(object):
  ##  ## #    # #   #  #   #  #    # #      #    # #    # #
  #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-    def makeWorkspaceSM(self, datacard='datacard.txt', verbosity=0):
-        ### Generates a workspace from a datacard ###
-        logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
-        if not os.path.isfile(datacard):
-            logging.error("Datacard does not exist!")
-            return
-        # CMSSW_BASE = os.getenv('CMSSW_BASE')
-
-        args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o','SMWorkspace.root']
-
-        # Map signal strengths to processes in all bins
-        for iproc,proc in enumerate(opts["processes"]):
-            args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
-        if verbosity>0:
-            args.extend(['-v', str(verbosity)])
-        args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
-
-	# Remove pre-existing WS
-	sp.call(['rm','SMWorkspace.root'])
-
-        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-
-
-    def makeWorkspaceEFT(self, datacard='datacard.txt', verbosity=0):
-        ### Generates a workspace from a datacard and fit parameterization file ###
-        logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
-        if not os.path.isfile(datacard):
-            logging.error("Datacard does not exist!")
-            sys.exit()
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
-        if verbosity>0: args.extend(['-v', str(verbosity)])
-        args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
-
-	# Remove pre-existing WS
-	sp.call(['rm','EFTWorkspace.root'])
-
-        logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
-
     def makeWorkspace(self, SM=False, datacard='datacard.txt', verbosity=0):
         ### Generates a workspace from a datacard and fit parameterization file ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
@@ -186,13 +137,13 @@ class EFTFit(object):
             sys.exit()
         CMSSW_BASE = os.getenv('CMSSW_BASE')
 
-        if SM: 
+        if SM:
             args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o','SMWorkspace.root']
             # Map signal strengths to processes in all bins
             for iproc,proc in enumerate(opts["processes"]):
                 args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
         else: args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
-        
+
         if verbosity>0: args.extend(['-v', str(verbosity)])
         args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
 
@@ -224,18 +175,19 @@ class EFTFit(object):
 
         logging.info(colors.fg.lightblue + "Enter function bestFit()\n" + colors.reset)
 
-        if params_POI == []: 
+        if params_POI == []:
             if SM: params_POI = self.SM_mus
             else: params_POI = self.wcs
-        if name == '': 
+        if name == '':
             if SM: name = '.SM'
             else: name = '.EFT'
 
         #-- #Define channel masking regexp pattern, if any
         maskPattern = []; antimaskPattern = []
-        if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-        #if len(antimask)>0: antimaskPattern=[','.join('rgx{{^mask_(?!.*{}).*$}}=1'.format(chan) for chan in antimask)]
+        if len(mask)>0: maskPattern=[','.join('rgx{{mask_.*{}.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
         if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+        # if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
+        # if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
         # args=['combine','-d',datacard,'-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
@@ -248,7 +200,7 @@ class EFTFit(object):
             else: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
         if params_POI:
             for param in params_POI: args.extend(['-P','{}'.format(param)])
-        if SM: args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1         
+        if SM: args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
         else: args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
         if freeze:
             frozen_pois = []
@@ -294,29 +246,37 @@ class EFTFit(object):
         args = ['combineTool.py','-d',datacard,'-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
 
         for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
-	
+
         if SM:
             args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in scan_params)]) #Set default values to 1
             args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,opts["SMmu_ranges"][mu][0],opts["SMmu_ranges"][mu][1]) for mu in opts["SM_mus"])])
         else:
             args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
-            args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
+
+            #CHANGED -- want to restrict 1D ranges for grid scans, else loosing too many points !
+            if freeze:
+                min = -1; max = 1 #For ctz, ctw
+                if scan_params[0] in ['cpqm','cpq3']: min = -2; max = 2 #For cpqm,cpq3
+                if scan_params[0] in ['cpt']: min = -3; max = 3 #For cpt
+                args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[0],min,max)])
+            else:
+                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
 
 
         args.extend(['--points','{}'.format(points)])
         if name: args.extend(['-n','{}'.format(name)])
         check = True in (wc not in self.wcs for wc in self.wcs_tracked)
-        if check: 
+        if check:
             tracked_pois = []
             if SM: tracked_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
-            else: tracked_pois = [par for par in self.wcs if par not in scan_params] 
+            else: tracked_pois = [par for par in self.wcs if par not in scan_params]
             if len(tracked_pois)>0: args.extend(['--trackParameters',','.join([par for par in tracked_pois if par not in scan_params])]) #Save values of additional parameters (e.g. profiled nuisances)
         # if startValuesString:   args.extend(['--setParameters',startValuesString])
-        if freeze: 
+        if freeze:
             frozen_pois = []
             if SM: frozen_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
             else: frozen_pois = [par for par in self.wcs if par not in scan_params]
-            if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters        
+            if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
         if exp:               args.extend(['-t -1'])
         if verbosity>0:           args.extend(['-v', str(verbosity)])
@@ -357,7 +317,7 @@ class EFTFit(object):
         if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
         else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-        if batch=='': 
+        if batch=='':
             fitter.printIntervalFits(basename=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
 
         return
@@ -819,11 +779,10 @@ class EFTFit(object):
 
         Example to inspect file via command line:
         root multidimfit.EFT.root
-        a = fit_mdf->floatParsFinal().find("ctz")
-        b = (RooAbsReal*) a
-        b->Print()
+        a = fit_mdf->floatParsFinal().find("ctz") #POI
+        b = (RooAbsReal*) a; b->Print() #Printout
         rf = dynamic_cast<RooRealVar*>(a)
-        rf->getMin("err68") #...
+        rf->getMin("err68"); rf->getMax("err68"); #...
 
         Example in python:
         import ROOT
@@ -836,7 +795,7 @@ class EFTFit(object):
 
         logging.info(colors.fg.lightblue + "\nEnter function printBestFit()" + colors.reset)
 
-        if len(params)==0: 
+        if len(params)==0:
             print('params is empty... Return !')
 
         fit_array = []
@@ -854,7 +813,7 @@ class EFTFit(object):
             err_low = round(roorealvar.getErrorLo(),3)
             err_high = round(roorealvar.getErrorHi(),3)
             err_low_95 = -9; err_high_95 = -9
-            if roorealvar.hasRange('err95'): #If 95% CL errors available (using --do95 --robustFit 1 options)
+            if roorealvar.hasRange('err95'): #If 95% CL errors available (using --do95 1 --robustFit 1 options)
                 err_low_95 = round(roorealvar.getMin('err95'),3)
                 err_high_95 = round(roorealvar.getMax('err95'),3)
 
@@ -865,7 +824,7 @@ class EFTFit(object):
         for row in fit_array:
             logging.info(colors.fg.orange + row[0] + ' | ' + str(row[1]) + ' | ' + "[" + str(row[2]) + ";" + str(row[3]) + "] | [" + str(row[4]) + ';' + str(row[5]) + ']' + colors.reset + '\n')
             #logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
-                        
+
         return
 
 
@@ -908,7 +867,7 @@ class EFTFit(object):
         ### Use 1D scans instead of regular MultiDimFit ###
         logging.info(colors.fg.lightblue + "Enter function printIntervalFits()\n" + colors.reset)
 
-        if not scan_params: 
+        if not scan_params:
             if SM: scan_params = [self.wc]
             else: scan_params = [self.SM_mu]
 
@@ -1002,9 +961,9 @@ class EFTFit(object):
 
         for line in fit_array:
             print line
-        
+
         return
-    ''' 
+    '''
 
 
 
@@ -1110,7 +1069,7 @@ if __name__ == "__main__":
     if SM:
         if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb)
         if createWS==1: exit(1)
-        if name == '': name = '.SM' #Default	    
+        if name == '': name = '.SM' #Default
         if '.txt' in datacard_path: datacard_path = './SMWorkspace.root' #If WS was created, make sure to update path
 
         if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)

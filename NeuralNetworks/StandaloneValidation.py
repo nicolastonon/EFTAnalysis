@@ -41,10 +41,10 @@ nEventsStandaloneVal = 50000 #Nof events to sample/display per point
 # evalPoint = ''
 # evalPoint = "SM"
 # evalPoint = "rwgt_ctz_1"
-# evalPoint = "rwgt_ctz_2"
+evalPoint = "rwgt_ctz_3"
 # evalPoint = "rwgt_ctw_1"
 # evalPoint = "rwgt_ctw_2"
-evalPoint = "rwgt_ctw_3"
+# evalPoint = "rwgt_ctw_3"
 # evalPoint = "rwgt_ctw_5"
 # evalPoint = "rwgt_cpqm_10"
 # evalPoint = "rwgt_cpq3_5"
@@ -55,11 +55,11 @@ evalPoint = "rwgt_ctw_3"
 #== LIST OF POINTS FROM WHICH TO SAMPLE EVENTS  #NB: order of operators should be the same as used for training #NB: for CARL_multiclass, only 1 operator can be activated per point !
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
-# list_points_sampling.append("rwgt_ctz_3")
+list_points_sampling.append("rwgt_ctz_3")
 # list_points_sampling.append("rwgt_ctw_0.5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-list_points_sampling.append("rwgt_ctw_3")
+# list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 # list_points_sampling.append("rwgt_ctw_5")
 # list_points_sampling.append("rwgt_cpqm_5")

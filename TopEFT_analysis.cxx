@@ -1242,7 +1242,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     		//NB : only nominal TTree contains systematic weights ; others only contain the nominal weight (but variables have different values)
     		for(int itree=0; itree<systTree_list.size(); itree++)
     		{
-                if(systTree_list[itree] != "" && (sample_list[isample] == "DATA" || sample_list[isample] == "DY" || sample_list[isample].Contains("NPL") || sample_list[isample].Contains("TTbar")) ) {continue;}
+                if(systTree_list[itree] != "" && systTree_list[itree] != nominal_tree_name && (sample_list[isample] == "DATA" || sample_list[isample] == "DY" || sample_list[isample].Contains("NPL") || sample_list[isample].Contains("TTbar") || (isPrivMC && !makeHisto_inputVars && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l")) ) ) {continue;} //Special cases for which only nominal tree must be considered //FIXME ok ?
 
     			tree = NULL;
                 TString treename_tmp = systTree_list[itree];
@@ -1383,8 +1383,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                     } //MVA templates
                     else if(template_name=="categ") //Need to read jet/bjet multiplicities of each event
                     {
-                        tree->SetBranchStatus("njets", 1);
-                        tree->SetBranchAddress("njets", &njets);
+                        //NB: njets branch read by default
                         tree->SetBranchStatus("nbjets", 1);
                         tree->SetBranchAddress("nbjets", &nbjets);
                     }
@@ -1790,7 +1789,9 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             //NB: only need to fill additional variables here in 2 cases: a) if 'use_predefined_EFT_strategy=true'; b) if 'make_fixedRegions_templates=true' --> predefined set of multiple templates ! (otherwise, considering single template, which was filled above)
                             if(!makeHisto_inputVars)
                             {
-                                if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise //Also ignore central signal samples in these regions?
+                                if(isPrivMC && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: for simplicity and speedup, choose to neglect completely EFT signals in CRs (negligible)
+                                //FIXME -- make sure this bug was fixed
+                                // if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l") ) {continue;} //Special case: if producing 'fixed region templates' (CRs+SRttZ4l), only need TH1EFT for ttZ4l SR (neglect SMEFT in CRs) --> Don't fill SMEFT template otherwise //Also ignore central signal samples in these regions?
 
                                 //NB: case [template_name == "NN/BDT" && !use_predefined_EFT_strategy] already taken care of above
                                 if(use_predefined_EFT_strategy) //If event does not pass the required cut, don't fill the corresponding template
@@ -1987,6 +1988,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         else if((sample_list[isample].Contains("NPL") && syst_list[isyst] != "" && !syst_list[isyst].BeginsWith("FR")) || (!sample_list[isample].Contains("NPL") && syst_list[isyst].BeginsWith("FR"))) {continue;} //NPL <-> only fakes sytematics; all others <-> no fakes systematics
                         else if((syst_list[isyst].BeginsWith("PDF") || syst_list[isyst].BeginsWith("ME") || syst_list[isyst].BeginsWith("alpha") || syst_list[isyst].BeginsWith("ISR") || syst_list[isyst].BeginsWith("FSR")) && !sample_list[isample].Contains("PrivMC") && sample_list[isample] != "tZq" && sample_list[isample] != "ttZ" && sample_list[isample] != "tWZ") {continue;}
                         else if(syst_list[isyst].Contains("njets_tZq") && sample_list[isample] != "PrivMC_tZq") {continue;} //Only applies to LO tZq
+                        else if(isPrivMC && syst_list[isyst] != "" && !makeHisto_inputVars && this->make_fixedRegions_templates && !total_var_list[ivar].Contains("ttZ4l")) {continue;} //FIXME -- ok ?
 
     					for(int ivar=0; ivar<total_var_list.size(); ivar++)
     					{
@@ -2006,7 +2008,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						file_output->cd();
 
                             // if(isPrivMC && syst_list[isyst] == "") //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
-                            if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) ) //CHANGED //Private SMEFT samples, nominal -- Only used in Combine to extract yield parametrizations; also used in this code to plot SMEFT samples, etc. --> Use custom TH1EFT objects
+                            if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) ) //Only fill/store TH1EFTs for private SMEFT samples, nominal //For all the rest, can use regular TH1s
                             {
                                 if(sample_list[isample] != "NPL_MC") {Avoid_Histogram_EmptyOrNegativeBins(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]);}
 
@@ -3408,7 +3410,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             else if(total_var_list[ivar] == "NN2" && NN_nNodes == 3) {histo_ratio_data->GetXaxis()->SetTitle("NN (Bkgs node)");}
             else if(total_var_list[ivar].Contains("NN")) {histo_ratio_data->GetXaxis()->SetTitle("NN output");}
 
-			if(template_name == "categ") //Vertical text X labels (categories names)
+			if(total_var_list[ivar].Contains("categ")) //Vertical text X labels (categories names)
 			{
                 //Hard-coded -- should automate labels
                 {
@@ -3554,12 +3556,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		latex.SetTextFont(61);
 		latex.SetTextAlign(11);
 		latex.SetTextSize(0.06);
-		if(draw_cms_prelim_label) {latex.DrawLatex(l + 0.01, 0.92, cmsText);}
+		if(draw_cms_prelim_label) {latex.DrawLatex(l + 0.01, 0.91, cmsText);}
 
 		TString extraText = "Preliminary";
 		latex.SetTextFont(52);
 		latex.SetTextSize(0.05);
-		if(draw_cms_prelim_label) {latex.DrawLatex(l + 0.12, 0.92, extraText);}
+		if(draw_cms_prelim_label) {latex.DrawLatex(l + 0.12, 0.91, extraText);}
 
 		float lumi = lumiValue;
 		TString lumi_ts = Convert_Number_To_TString(lumi);
@@ -3567,7 +3569,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		latex.SetTextFont(42);
 		latex.SetTextAlign(31);
 		latex.SetTextSize(0.04);
-        latex.DrawLatex(0.96, 0.92,lumi_ts);
+        latex.DrawLatex(0.96, 0.91,lumi_ts);
 
 		//------------------
 		//-- channel info
@@ -3721,27 +3723,32 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 {
 //--- OPTIONS --------------------------------
 //--------------------------------------------
-	bool drawInputVars = false;
+	bool drawInputVars = true;
 
 	bool normalize = false; //Ratio plot incorrect if false, why ?
 
-    TString type = ""; //'' / 'tZq' / 'ttZ' / 'tWZ' --> Compare corresponding private/central samples
+    TString type = "tWZ"; //'' / 'tZq' / 'ttZ' / 'tWZ' --> Compare corresponding private/central samples
+
+    vector<TString> v_years; float lumi = 0.; TString luminame_tmp = ""; //Select 1 or multiple years
+    v_years.push_back("2016"); lumi+= 35.92; luminame_tmp = "2016";
+    v_years.push_back("2017"); lumi+= 41.53; luminame_tmp = luminame_tmp=="2016"? "201617":"2017";
+    v_years.push_back("2018"); lumi+= 59.74; luminame_tmp = (luminame_tmp=="2016"? "201618":(luminame_tmp=="201617"? "Run2":(luminame_tmp=="2017"? "201718":"2018")) );
 
     vector<TString> total_var_list;
-    // total_var_list.push_back("mTW");
-    // total_var_list.push_back("mHT");
-    // total_var_list.push_back("Mass_3l");
-    // total_var_list.push_back("maxEtaJet");
-    // total_var_list.push_back("jPrimeAbsEta");
-    // total_var_list.push_back("channel");
-    // total_var_list.push_back("njets");
-    // total_var_list.push_back("nbjets");
-    // total_var_list.push_back("metEt");
-
+    //* Default input vars
     for(int i=0; i<var_list.size(); i++) {total_var_list.push_back(var_list[i]);}
     for(int i=0; i<v_add_var_names.size(); i++) {total_var_list.push_back(v_add_var_names[i]);}
+    //* Additional input vars
+    total_var_list.push_back("mTW");
+    total_var_list.push_back("mHT");
+    total_var_list.push_back("Mass_3l");
+    total_var_list.push_back("maxEtaJet");
+    total_var_list.push_back("jPrimeAbsEta");
+    total_var_list.push_back("channel");
+    total_var_list.push_back("njets");
+    total_var_list.push_back("nbjets");
+    total_var_list.push_back("metEt");
 
-    TString theyear = "2017"; //2016,2017,2018
 
     //-- Hardcode samples here... or could filter the main sample list
 	vector<TString> v_samples; vector<TString> v_groups; vector<int> v_colors;
@@ -3756,7 +3763,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     // v_samples.push_back("PrivMC_tWZ"); v_groups.push_back("PrivMC_tWZ"); v_colors.push_back(kMagenta);
     // v_samples.push_back("tX"); v_groups.push_back("tX"); v_colors.push_back(kRed);
     // v_samples.push_back("VVV"); v_groups.push_back("VVV"); v_colors.push_back(kBlue);
-    v_samples.push_back("XG"); v_groups.push_back("XG"); v_colors.push_back(kMagenta);
+    // v_samples.push_back("XG"); v_groups.push_back("XG"); v_colors.push_back(kMagenta);
 
     if(type == "tZq")
     {
@@ -3764,7 +3771,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         v_samples.push_back("tZq"); v_groups.push_back("tZq (Central)"); v_colors.push_back(kBlack);
         // v_samples.push_back("PrivMC_tZq_v3"); v_groups.push_back("tZq (Private v3)"); v_colors.push_back(kBlue);
         v_samples.push_back("PrivMC_tZq"); v_groups.push_back("tZq (Private)"); v_colors.push_back(kRed);
-        // v_samples.push_back("PrivMC_tZq_TOP19001"); v_groups.push_back("tZq (TOP19001)"); v_colors.push_back(kOrange);
+        // v_samples.puESUp");
+    // v_syst.push_back("Jsh_back("PrivMC_tZq_TOP19001"); v_groups.push_back("tZq (TOP19001)"); v_colors.push_back(kOrange);
     }
     else if(type == "ttZ")
     {
@@ -3782,8 +3790,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     vector<TString> v_syst;
     v_syst.push_back("");
-    v_syst.push_back("JESUp");
-    v_syst.push_back("JESDown");
+    // v_syst.push_back("JESUp");
+    // v_syst.push_back("JESDown");
     // v_syst.push_back("JER2017Up");
     // v_syst.push_back("JER2017Down");
     // v_syst.push_back("MET2017Up");
@@ -3826,12 +3834,12 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     // TString cat_tmp = (region=="") ? "SR" : region+"Cat";
     TString cat_tmp = region;
-    if(cat_tmp=="") {cat_tmp = region;}
+    if(cat_tmp=="") {cat_tmp = "signal";} //Default -> SR3l
 
     //-- Read input file (may be year-dependent)
     TString input_name;
     TString template_type = this->make_fixedRegions_templates? "otherRegions":template_name;
-    input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, lumiName, false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);
+    input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, luminame_tmp, false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);
     if(input_name == "") {cat_tmp = "signal"; input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, "Run2", false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);} //Retry with 'signal_process' as 'region' argument
     // if(input_name == "") {cat_tmp = signal_process; input_name = Get_HistoFile_InputPath(!drawInputVars, template_type, cat_tmp, "Run2", false, this->filename_suffix, make_SMvsEFT_templates_plots, categorization_strategy, this->make_fixedRegions_templates, false);} //Retry with 'signal_process' as 'region' argument
     if(input_name == "") {return;}
@@ -3872,55 +3880,56 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                 {
     				// cout<<"syst "<<v_syst[isyst]<<endl;
 
-                    h_tmp = NULL;
+                    v3_histos_var_sample_syst[ivar][isample][isyst] = NULL; //Init
 
-                    TString histo_name = total_var_list[ivar];
-                    if(channel_list[ichan] != "") {histo_name+= "_" + channel_list[ichan];}
-                    // histo_name+= "_" + v_lumiYears[iyear];
-                    histo_name+= "_" + theyear;
-                    histo_name+= "__" + samplename;
-                    if(v_syst[isyst] != "") {histo_name+= "__" + v_syst[isyst];}
+                    for(int iyear=0; iyear<v_years.size(); iyear++)
+                    {
+                        TString histo_name = total_var_list[ivar];
+                        if(channel_list[ichan] != "") {histo_name+= "_" + channel_list[ichan];}
+                        histo_name+= "_" + v_years[iyear];
+                        histo_name+= "__" + samplename;
+                        if(v_syst[isyst] != "") {histo_name+= "__" + v_syst[isyst];}
 
-        			if(!file_input->GetListOfKeys()->Contains(histo_name)) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
+            			if(!file_input->GetListOfKeys()->Contains(histo_name)) {cout<<ITAL("Histogram '"<<histo_name<<"' : not found ! Skip...")<<endl; continue;}
 
-        			h_tmp = (TH1F*) file_input->Get(histo_name);
-    				h_tmp->SetDirectory(0); //Dis-associate from TFile
-        			// cout<<"histo_name "<<histo_name<<endl;
-                    // cout<<"h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
+            			h_tmp = (TH1F*) file_input->Get(histo_name);
+        				h_tmp->SetDirectory(0); //Dis-associate from TFile
+            			// cout<<"histo_name "<<histo_name<<" / h_tmp->Integral() = "<<h_tmp->Integral()<<endl;
 
 
-     //  ####   ####  #       ####  #####   ####
-     // #    # #    # #      #    # #    # #
-     // #      #    # #      #    # #    #  ####
-     // #      #    # #      #    # #####       #
-     // #    # #    # #      #    # #   #  #    #
-     //  ####   ####  ######  ####  #    #  ####
+         //  ####   ####  #       ####  #####   ####
+         // #    # #    # #      #    # #    # #
+         // #      #    # #      #    # #    #  ####
+         // #      #    # #      #    # #####       #
+         // #    # #    # #      #    # #   #  #    #
+         //  ####   ####  ######  ####  #    #  ####
 
-        			//Use color vector filled in main()
-        			// h_tmp->SetFillStyle(1001);
-    				h_tmp->SetFillColor(kWhite);
+            			//Use color vector filled in main()
+            			// h_tmp->SetFillStyle(1001);
+        				h_tmp->SetFillColor(kWhite);
 
-    				h_tmp->SetLineColor(v_colors[isample]);
-                    // if(samplename.Contains("PrivMC")) {h_tmp->SetLineStyle(2);}
+        				h_tmp->SetLineColor(v_colors[isample]);
+                        // if(samplename.Contains("PrivMC")) {h_tmp->SetLineStyle(2);}
 
-    				//HARDCODED
-    				// if(v_syst[isyst] == "JESUp") {h_tmp->SetLineColor(kRed);}
-    				// else if(v_syst[isyst] == "JESDown") {h_tmp->SetLineColor(kBlue);}
-                    // h_tmp->SetLineColor(v_colors[isample]+isyst);
-                    h_tmp->SetLineColor(2+isyst);
-    				// cout<<"v_colors[isample] "<<v_colors[isample]<<endl;
+        				//HARDCODED
+        				// if(v_syst[isyst] == "JESUp") {h_tmp->SetLineColor(kRed);}
+        				// else if(v_syst[isyst] == "JESDown") {h_tmp->SetLineColor(kBlue);}
+                        // h_tmp->SetLineColor(v_colors[isample]+isyst);
+                        if(v_syst[isyst] != "") {h_tmp->SetLineColor(2+isyst);}
+        				// cout<<"v_colors[isample] "<<v_colors[isample]<<endl;
 
-        			h_tmp->SetLineWidth(3);
+            			h_tmp->SetLineWidth(3);
 
-                    if(v_syst[isyst] != "") {h_tmp->SetLineStyle(2);}
+                        if(v_syst[isyst] != "") {h_tmp->SetLineStyle(2);}
 
-        			if(normalize) {h_tmp->Scale(1./h_tmp->Integral() );}
+            			if(normalize) {h_tmp->Scale(1./h_tmp->Integral() );}
 
-                    v3_histos_var_sample_syst[ivar][isample][isyst] = (TH1F*) h_tmp->Clone();
+                        if(v3_histos_var_sample_syst[ivar][isample][isyst]==NULL) {v3_histos_var_sample_syst[ivar][isample][isyst] = (TH1F*) h_tmp->Clone();}
+                        else {v3_histos_var_sample_syst[ivar][isample][isyst]->TH1::Add((TH1F*) h_tmp);} //Sum years
+        				// cout<<"v3_histos_var_sample_syst[ivar]["<<isample<<"]["<<isyst<<"]->Integral() "<<v3_histos_var_sample_syst[ivar][isample][isyst]->Integral()<<endl;
 
-    				// cout<<"v3_histos_var_sample_syst[ivar]["<<isample<<"]["<<isyst<<"]->Integral() "<<v3_histos_var_sample_syst[ivar][isample][isyst]->Integral()<<endl;
-
-        			delete h_tmp; h_tmp = 0;
+            			delete h_tmp; h_tmp = NULL;
+                    } //end year loop
                 } //end syst loop
     		} //end sample loop
     	} //subcat loop
@@ -3936,6 +3945,8 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     for(int ivar=0; ivar<v3_histos_var_sample_syst.size(); ivar++)
     {
+        if(v3_histos_var_sample_syst[ivar][0][0] == NULL) {continue;} //In case this variable was not found
+
         //Canvas definition
         Load_Canvas_Style();
         gStyle->SetOptTitle(1);
@@ -3949,6 +3960,18 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
         TLegend* qw = new TLegend(0.75,.70,1.,1.);
 
+        //-- Find y-axis max threshold
+        float ymax = 0.;
+        for(int isample=0; isample<v3_histos_var_sample_syst[ivar].size(); isample++)
+    	{
+    		for(int isyst=0; isyst<v_syst.size(); isyst++)
+    		{
+                // cout<<"var "<<total_var_list[ivar]<<" / isample "<<isample<<" / isyst "<<isyst<<endl;
+                if(v3_histos_var_sample_syst[ivar][isample][isyst]->GetMaximum() > ymax) {ymax = v3_histos_var_sample_syst[ivar][isample][isyst]->GetMaximum();}
+            }
+        }
+
+        //-- Draw
     	for(int isample=0; isample<v3_histos_var_sample_syst[ivar].size(); isample++)
     	{
     		for(int isyst=0; isyst<v_syst.size(); isyst++)
@@ -3974,10 +3997,11 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
                 else {v3_histos_var_sample_syst[ivar][isample][isyst]->GetYaxis()->SetTitle("Events");}
 
                 //-- CHANGED
-                v3_histos_var_sample_syst[ivar][isample][isyst]->SetMaximum(v3_histos_var_sample_syst[ivar][isample][isyst]->GetMaximum()*1.4);
+                v3_histos_var_sample_syst[ivar][isample][isyst]->SetMaximum(ymax*1.4);
+                // v3_histos_var_sample_syst[ivar][isample][isyst]->SetMaximum(v3_histos_var_sample_syst[ivar][isample][isyst]->GetMaximum()*1.4);
                 // if(normalize) {v3_histos_var_sample_syst[ivar][isample][isyst]->SetMaximum(0.5);}
                 if(normalize) {v3_histos_var_sample_syst[ivar][isample][isyst]->SetMaximum(v3_histos_var_sample_syst[ivar][isample][isyst]->GetMaximum()*1.2);}
-                v3_histos_var_sample_syst[ivar][isample][isyst]->SetMinimum(0.00001);
+                v3_histos_var_sample_syst[ivar][isample][isyst]->SetMinimum(0.001);
 
     			v3_histos_var_sample_syst[ivar][isample][isyst]->Draw("hist E same");
 
@@ -4170,23 +4194,22 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     	latex.SetTextFont(61);
     	latex.SetTextAlign(11);
     	latex.SetTextSize(0.06);
-    	latex.DrawLatex(l + 0.01, 0.92, cmsText);
+    	latex.DrawLatex(l + 0.01, 0.91, cmsText);
 
     	TString extraText = "Preliminary";
     	latex.SetTextFont(52);
     	latex.SetTextSize(0.05);
     	// if(draw_preliminary_label)
     	{
-    		latex.DrawLatex(l + 0.12, 0.92, extraText);
+    		latex.DrawLatex(l + 0.12, 0.91, extraText);
     	}
 
-        float lumi = lumiValue;
 		TString lumi_ts = Convert_Number_To_TString(lumi);
 		lumi_ts += " fb^{-1} (13 TeV)";
 		latex.SetTextFont(42);
 		latex.SetTextAlign(31);
 		latex.SetTextSize(0.04);
-        latex.DrawLatex(0.72, 0.92,lumi_ts);
+        latex.DrawLatex(0.72, 0.91,lumi_ts);
 
     	//------------------
     	//-- channel info
@@ -4217,7 +4240,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         TString outdir = "plots/templates_shapes/";
         mkdir(outdir.Data(), 0777);
         if(type != "") {outdir+=  type + "/"; mkdir(outdir.Data(), 0777);}
-        outdir+= lumiName + "/";
+        outdir+= luminame_tmp + "/";
         mkdir(outdir.Data(), 0777);
         if(cat_tmp != "")
         {
@@ -4248,6 +4271,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 
     for(int ivar=0; ivar<v3_histos_var_sample_syst.size(); ivar++)
     {
+        if(v3_histos_var_sample_syst[ivar][0][0] == NULL) {continue;} //In case this variable was not found
     	for(int isample=0; isample<v3_histos_var_sample_syst[ivar].size(); isample++)
     	{
     		for(int isyst=0; isyst<v_syst.size(); isyst++) {delete v3_histos_var_sample_syst[ivar][isample][isyst];}
@@ -4482,7 +4506,7 @@ void TopEFT_analysis::SetBranchAddress_SystVariationArray(TTree* t, TString syst
  */
 void TopEFT_analysis::MergeSplit_Templates(bool makeHisto_inputVars, TString filename, vector<TString> total_var_list, TString template_name, TString category, bool force_normTemplate_positive)
 {
-    bool store_countExp_SMvsEFT = false; //true <-> store full histograms as single bins for later comparison with counting experiment in Combine
+    bool store_countExp_SMvsEFT = true; //true <-> store full histograms as single bins for later comparison with counting experiment in Combine
 //--------------------------------------------
 
     cout<<endl<<FYEL("==> Merging/splitting histograms in TFile : ")<<filename<<endl;

@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
-    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
+    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- N T U P L E S --
@@ -299,6 +299,7 @@ int main(int argc, char **argv)
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
+        /*
         //* Split JEC sources //FIXME
         theSystTree.push_back("AbsoluteStatDown"); theSystTree.push_back("AbsoluteStatUp");
         theSystTree.push_back("AbsoluteScaleDown"); theSystTree.push_back("AbsoluteScaleUp");
@@ -327,6 +328,7 @@ int main(int argc, char **argv)
         theSystTree.push_back("PileUpPtEC1Down"); theSystTree.push_back("PileUpPtEC1Up");
         theSystTree.push_back("PileUpPtEC2Down"); theSystTree.push_back("PileUpPtEC2Up");
         theSystTree.push_back("PileUpPtHFDown"); theSystTree.push_back("PileUpPtHFUp");
+        */
 
         //-- Implementend as event weights
 
@@ -384,7 +386,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = false; //Create MVA templates
+    bool create_templates = true; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
