@@ -84,8 +84,6 @@ bool Is_Syst_Match_Sample(TString syst, TString sample, bool use_rph)
 	// cout<<"syst "<<syst<<endl;
 	// cout<<"sample "<<sample<<endl;
 
-    //FIXME -- testing
-    // if(sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations
     if(use_rph && sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations
 
     if( (syst.Contains("Fake", TString::kIgnoreCase) || syst.BeginsWith("FR") || syst.Contains("NPL")) && !sample.Contains("NPL")) {return false;}
@@ -394,12 +392,9 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
     for(int isyst=0; isyst<v_shapeSyst.size(); isyst++)
     {
-        //FIXME
-        // if(v_shapeSyst[isyst]=="MET" || v_shapeSyst[isyst]=="JES" || v_shapeSyst[isyst]=="JER") outfile<<"[SR]";
-
 		//-- Markers at beginning of line :
-        //[SHAPE] can be used later to easily disactivate all shape systs, at parsing
-        //[201617] can be used to disactivate the prefiring syst for 2018, etc.
+        //- [SHAPE] can be used later to easily disactivate all shape systs, at parsing
+        //- [201617] can be used to disactivate the prefiring syst for 2018, etc.
         outfile<<"[SHAPE]";
         if(v_shapeSyst[isyst].EndsWith("1617") || v_shapeSyst[isyst].BeginsWith("prefir")) {outfile<<"[201617]";} //Hardcoded: prefire for 16/17 only
         else if(v_shapeSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
@@ -718,8 +713,8 @@ int main()
     v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
 
@@ -743,39 +738,45 @@ int main()
     v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    //FIXME -- TESTING
-    // v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
-    //-- JEC split sources //FIXME -- TESTING
-    v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(true); //false
-    v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true); //true
-    v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true); //true
+    //-- JEC
+    bool use_split_JEC = false;
+    if(!use_split_JEC) //Total JEC
+    {
+        v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+    }
+    else //Split JEC
+    {
+        v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false);
+        v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
+    }
 
     //-- Missing
     // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);

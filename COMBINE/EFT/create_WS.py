@@ -10,9 +10,7 @@ Store RooParametricHist (for EFT signal histos) and RooDataHist (for all other h
 Written by Nicolas Tonon (DESY), 2021
 '''
 
-#- What range for RRVs ?? #FIXME
-#- ShapeSyst parameterization ok ?
-#-
+#- test 'useless' removal ?
 
 import os
 import stat
@@ -37,7 +35,7 @@ from settings import opts #Custom dictionnary of settings
 # //--------------------------------------------
 
 min_threshold_EFTcoeff = 0.0001 #Don't consider EFT terms whose coefficients are below this threshold (negligible)
-min_threshold_MCstat = 0.01 #Don't consider MCstat error if less than this relative threshold
+min_threshold_MCstat = 0.01 #Don't include MCstat nuisance in RPH bin parameterization if relError is less than this relative threshold
 
 
 # //--------------------------------------------
@@ -112,7 +110,7 @@ class EFTWorkspace(object):
 # //--------------------------------------------
 # //--------------------------------------------
 
-    #FIXME valid ?
+    #-- Gives invalid fit results...
     def Get_PolyCoeffs_FromUpDownVariations(self, binc_nom, binc_up, binc_down):
         '''
         Combine can't interpolate from up/down variations automatically as for TH1s --> Need to parameterize the bins of the RPHs also on all shape nuisances.
@@ -359,7 +357,7 @@ class EFTWorkspace(object):
                 #-- NOMINAL
                 hname = '{}__{}'.format(chan,proc) #Hard-coded histo naming convention
                 if hname not in file_in.GetListOfKeys():
-                    print(colors.fg.red + 'Histo ' + hname + ' not found in rootfile ' + rootfile_path + ' ! Abort !' + colors.reset)
+                    print(colors.fg.red + 'Histo ' + hname + ' not found in rootfile ' + rootfile_path + ' ! Did you store the correct EFT parameterization (with DumEFTParameterization.py) ? Abort !' + colors.reset)
                     exit(1)
 
                 h_tmp = file_in.Get(hname)
@@ -471,10 +469,18 @@ class EFTWorkspace(object):
                             # print('hup.GetNbinsX()', hup.GetNbinsX())
                             # print('hdown.GetNbinsX()', hdown.GetNbinsX())
 
-                            a, b = self.Get_PolyCoeffs_FromUpDownVariations(bin_content, hup.GetBinContent(ibin), hdown.GetBinContent(ibin))
+                            # a, b = self.Get_PolyCoeffs_FromUpDownVariations(bin_content, hup.GetBinContent(ibin), hdown.GetBinContent(ibin))
+                            # rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
+                            # rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+{}*@0+{}*@0*@0".format(a,b), RooArgList(rrv_shapeSyst)) #NB: having '+-xxx' in expression is not a problem ?
+                            # list_shapeSyst_expr_bin.append(rfv_shapesyst)
+                            # self.allVars.append(rfv_shapesyst) #Useless ?
 
+                            #-- See: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/settinguptheanalysis/#rates-for-shape-analysis
+                            #-- See: https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/blob/102x/src/AsymQuad.cc#L94-L126
                             rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
-                            rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+{}*@0+{}*@0*@0".format(a,b), RooArgList(rrv_shapeSyst)) #NB: having '+-xxx' in expression is not a problem ?
+                            shapesyst_expr = "( @0<=-1 )? ( @0*({0}-{2})/{0} ):( ( @0>=1 )? ( @0*({1}-{0})/{0} ):( (@0/2.)*(({1}-{2})+(0.125*@0*(TMath::Power(@0,2)*(3.*TMath::Power(@0,2)-1.)+15.))*({1}+{2}-2.*{0}))/{0} ) )".format(bin_content,hup.GetBinContent(ibin),hdown.GetBinContent(ibin))
+                            rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+({})".format(shapesyst_expr), RooArgList(rrv_shapeSyst))
+                            # print('rfv_shapesyst.evaluate', rfv_shapesyst.evaluate()) #Evaluate RDV at initial RRV value
                             list_shapeSyst_expr_bin.append(rfv_shapesyst)
                             self.allVars.append(rfv_shapesyst) #Useless ?
 

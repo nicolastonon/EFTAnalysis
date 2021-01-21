@@ -176,18 +176,24 @@ f.close()
 
 
 # //--------------------------------------------
-#-- If using RPH/RDH (in SR regions), can't use autoMCstats. Effect of MC stat error is incorporated directly in RPHs (EFT signals); for RDHs, must create RDH corresponding to up/down variation of each bin. Below we duplicate/rename all the corresponding shape nuisance parameters
+#-- If using RPH/RDH (in SR regions), can't use autoMCstats
+# --> Effect of MC stat error incorporated directly into RooParametricHists (for EFT signals)
+# --> For RooDataHists (RDHs), must also create RDH corresponding to up/down MCstat variations in each bin for each chan/proc (treated as shape systematics)
+# But the template datacard does not know about histo bins, etc. Below we duplicate/rename all the corresponding shape nuisance parameters for all histo bins, etc.
 
-if use_rph==True and 'SR' in theVar:
+if use_rph==True and 'SR' in theVar: #Only need this in SRs, if using RPH/RDH objects
 
+    #-- Read contents of the card we just produced
     f = open(outname, "r")
     contents = f.readlines()
     f.close()
 
-    f = open(outname, "w") #Or f.read().splitlines(), which does remove newlines?
+    #-- Reopen card in write mode
+    f = open(outname, "w")
 
-    idx_line_orig = 0
-    counter_newlines = 0
+    #-- Look for the 'MCstat' shape nuisances (attached to RDHs)
+    idx_line_orig = 0 #Keep track of the number of the line we read in the original card
+    counter_newlines = 0 #Keep track of the positions of the new lines (in the modified card)
     skip_newline = False
     tmp = {}
     for line in contents:
@@ -198,25 +204,25 @@ if use_rph==True and 'SR' in theVar:
             idx_tmp = idx_line_orig+counter_newlines
 
             if 'countExp' in theVar: #Special case: single bin
-                line_tmp = line #Duplicate line
-                line_tmp = line_tmp.replace("_[BIN]", "")
+                line_tmp = line #Duplicate template line
+                line_tmp = line_tmp.replace("_[BIN]", "") #No bin number
                 line_tmp = line_tmp.replace("#MCstat", "MCstat") #Original template line is commented out and will be ignored ; but modified line must be activated
-                tmp[idx_tmp+1] = line_tmp
+                tmp[idx_tmp+1] = line_tmp #Will insert new line
 
             else: #Default: 1 MCstat nuisance per process --> Duplicate lines to have 1 nuisance per histo bin
                 for ibin in range(1, int(nbins)+1): #Loop on histobins
                     line_tmp = line #Duplicate line
-                    line_tmp = line_tmp.replace("[BIN]", "bin{}".format(ibin))
+                    line_tmp = line_tmp.replace("[BIN]", "bin{}".format(ibin)) #Bin number info
                     line_tmp = line_tmp.replace("#MCstat", "MCstat") #Original template line is commented out and will be ignored ; but modified line must be activated
-                    tmp[idx_tmp+ibin] = line_tmp
+                    tmp[idx_tmp+ibin] = line_tmp #Will insert new line
                     # print('Inserted key', idx_tmp+ibin, ' / value', line_tmp, ' in dict...')
                     counter_newlines+= 1
         idx_line_orig+= 1
 
+    #-- Insert all new lines in card
     for idx_line in tmp:
         contents.insert(idx_line, tmp[idx_line]) #Duplicate line, for each bin
         # print('... Inserted new line:', tmp[idx_line])
 
-    f.writelines(contents)
-
+    f.writelines(contents) #Write modified card
     f.close()

@@ -1955,3 +1955,39 @@ float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iy
 
     return SF;
 }
+
+/**
+ * For theory systematics (only applied to signal samples), only want to consider the acceptance effect on normalization
+ * <-> We apply a SF corresponding to (variation_beforeSel/nominal_beforeSel) <-> the normalization difference after selection should be purely due to differences in acceptance
+ * NB: there is a small approximation, before the SFs were still obtained after some minimal preselection (TopAnalysis level)
+ */
+void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
+{
+	if(!h || !h_sumWeights_beforeSel) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: Null histogram !"))<<endl; return;}
+
+    int ibin_syst = -1;
+
+    if(systname == "MEUp") {ibin_syst = 2;}
+    else if(systname == "MEDown") {ibin_syst = 3;}
+
+    else if(systname == "PDFUp") {ibin_syst = 9;}
+    else if(systname == "PDFDown") {ibin_syst = 10;}
+
+    else if(systname == "alphasUp") {ibin_syst = 11;}
+    else if(systname == "alphasDown") {ibin_syst = 12;}
+
+    else if(systname == "ISRUp") {ibin_syst = 13;}
+    else if(systname == "ISRDown") {ibin_syst = 14;}
+
+    else if(systname == "FSRUp") {ibin_syst = 15;}
+    else if(systname == "FSRDown") {ibin_syst = 16;}
+
+    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst))
+    {
+        cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: incorrect systematics / incorrect process / empty histo bin / ... !"))<<endl; return;
+    }
+
+    h->Scale(1. / h_sumWeights_beforeSel->GetBinContent(ibin_syst));
+
+    return;
+}

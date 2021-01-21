@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
     bool include_PrivMC_samples = true; //true <-> process private SMEFT signal samples (necessary e.g. for limit-setting, but much slower)
     bool include_central_samples = true; //true <-> process central signal samples
-    bool process_samples_byGroup = false; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
+    bool process_samples_byGroup = true; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 
     //-- M V A    S T R A T E G Y --
     TString classifier_name = "NN"; //'BDT' or 'NN'
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
-    bool scanOperators_paramNN = false; //true <-> if considering a parametrized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
+    bool scanOperators_paramNN = false; //true <-> if considering a parameterized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctw"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
         // vector<float> v_WCs_operator_scan1 = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
@@ -46,6 +46,7 @@ int main(int argc, char **argv)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
+    bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
     TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
 
@@ -54,7 +55,7 @@ int main(int argc, char **argv)
     TString plot_extension = ".png"; //extension of plots
     bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only (EFT strategy 2): true <-> only include events if they have their max output value in the corresponding node
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
-    bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parametrized NN, will make 1 plot per considered EFT point (if histograms are found)
+    bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
 
 
@@ -294,13 +295,13 @@ int main(int argc, char **argv)
     {
         //-- Implemented as separate TTrees
 
-        //* Total JEV //FIXME
+        //* Total JEV
         theSystTree.push_back("JESDown"); theSystTree.push_back("JESUp");
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
         /*
-        //* Split JEC sources //FIXME
+        //* Split JEC sources
         theSystTree.push_back("AbsoluteStatDown"); theSystTree.push_back("AbsoluteStatUp");
         theSystTree.push_back("AbsoluteScaleDown"); theSystTree.push_back("AbsoluteScaleUp");
         theSystTree.push_back("AbsoluteMPFBiasDown"); theSystTree.push_back("AbsoluteMPFBiasUp");
@@ -444,7 +445,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

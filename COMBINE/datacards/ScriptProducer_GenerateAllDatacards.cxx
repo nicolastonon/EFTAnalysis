@@ -289,8 +289,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString file_histos = "../." + file_histos_pathFromHere; //Path to write into datacard
         			cout<<endl<<FMAG("---> Will use filepath : ")<<file_histos<<endl<<endl;
 
+                    if(true) //NEW -- also needed for RPHs
                     // if(mode_histoBins==1 && !isOtherRegion) //Need to infer the number of bins of the considered histograms, in order to create 1 card per bin
-                    if(true) //FIXME -- also needed for RPH
                     {
                         TFile* f_tmp = TFile::Open(file_histos_pathFromHere);
                         TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
