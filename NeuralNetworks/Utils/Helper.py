@@ -458,7 +458,8 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if totalSamples < 2 and opts["strategy"] is "classifier": print(colors.bold, colors.fg.red, 'Classifier strategy requires at least 2 samples !', colors.reset); exit(1)
     if opts["nPointsPerOperator"] < 2: print(colors.bold, colors.fg.red, 'Parameter nPointsPerOperator must be >= 2 !', colors.reset); exit(1)
 
-    if "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) != 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'ERROR : Length of list [listMinMaxWC] (', len(opts["listMinMaxWC"]), ') must be exactly twice that of [listOperatorsParam] (', len(opts["listOperatorsParam"]), ') !', colors.reset); exit(1)
+    # if "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) != 2*len(opts["listOperatorsParam"]): print(colors.bold, colors.fg.red, 'ERROR : Length of list [listMinMaxWC] (', len(opts["listMinMaxWC"]), ') must be exactly twice that of [listOperatorsParam] (', len(opts["listOperatorsParam"]), ') !', colors.reset); exit(1)
+    if "listMinMaxWC" in opts and len(opts["listMinMaxWC"]) != 10: print(colors.bold, colors.fg.red, 'ERROR : Length of list [listMinMaxWC] (', len(opts["listMinMaxWC"]), ') must be exactly 2*5operators=10 (even if you consider only a subset of operators -- cf. logic in EFT.py) !', colors.reset); exit(1)
 
     opts["loss"], _, opts["metrics"], _ = Get_Loss_Optim_Metrics(opts) #NB: these options are not used anywhere (will be obtained again in main function) ! Only read here so that they can be dumped into the logfile
 
@@ -526,6 +527,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_ttZ_cpq3
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_ttZ_cpt
 
+        elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==3):
+            if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_3D
+            elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_3D
+
         elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==5):
             if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_all
             elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_all
@@ -592,6 +597,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"]: #Store in dedicated operator-dependent output dir.
         if len(opts["listOperatorsParam"])==1: weightDir+= opts["listOperatorsParam"][0] + '/'
+        elif len(opts["listOperatorsParam"])==3: weightDir+= '3D' + '/'
         elif len(opts["listOperatorsParam"])==5: weightDir+= 'all' + '/'
 
     #Model output name
@@ -612,7 +618,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         text_file.close()
 
     Write_Timestamp_toLogfile(weightDir, 0)
-    Dump_NN_Options_toLogFile(opts, weightDir) #Write user-options to dedicated logfile
+    Dump_NN_Options_toLogFile(opts, weightDir, processClasses_list) #Write user-options to dedicated logfile
 
     return lumiName, weightDir, h5modelName, opts["batchSize"], list_features
 
@@ -621,15 +627,21 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
 #Write information related to this NN training
 #NB: also append the names of the input/output nodes in separate output file "NN_info.txt" containing names of input features, etc. (for later use in C++ code)
-def Dump_NN_Options_toLogFile(opts, weightDir):
+def Dump_NN_Options_toLogFile(opts, weightDir, processClasses_list):
 
     text_file = open(weightDir + "NN_settings.txt", "a+") #Overwrite file
 
     text_file.write("\nOPTIONS\n")
     text_file.write("----------------- \n")
 
-    for key in opts:
+    for key in opts: #Dump all options
         text_file.write(str(key) + " --> " + str(opts[key]) + "\n")
+
+    text_file.write("----------------- \n\n")
+
+    for proclist in processClasses_list: #Dump all processes (samples) names
+        for iproc, proc in enumerate(proclist): #Dump all processes (samples) names
+            text_file.write("Process " + str(iproc) + " --> " + proc + "\n")
 
     text_file.write("----------------- \n\n")
     text_file.close()

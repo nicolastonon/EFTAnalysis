@@ -184,16 +184,31 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
     #         print("===> Outputs nodes predictions for ", true_label, " event :", (list_predictions_test_allClasses[0])[i] )
     # print("--------------\n")
 
-    #-- NEW: also append to NN info file the min/max output values of the NN based on the train+test evaluation datasets (--> Can later adapt accordingly the template histogram boundaries to avoid empty bins)
+    #-- Append to NN info file the min/max output values of the NN --> Can later adapt accordingly the template histogram boundaries to avoid empty bins
     if opts["makeValPlotsOnly"]==False:
         text_file = open(weightDir + "NN_info.txt", "a+") #Append mode
         for inode in range(opts["nofOutputNodes"]):
             # print(len(list_predictions_test_allNodes_allClasses), len(list_predictions_test_allNodes_allClasses[0]), list_predictions_test_allNodes_allClasses[0][0].shape )
             # print(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode])).shape)
+
+            #-- Default: look for the min/max predictions, for any class, within the (train+test) dataset
             min_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
             max_prediction = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
-            # min_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).min(axis=0)
-            # max_prediction = np.concatenate(np.concatenate((list_predictions_train_allNodes_allClasses[inode],list_predictions_test_allNodes_allClasses[inode]))).max(axis=0)
+            # print('max_prediction =', max_prediction)
+
+            #FIXME -- verify
+            #-- For NN-EFT: only consider the EFT class in the test dataset. Choose a maximum boundary such that at least X% of this dataset is above the boundary (avoid very empty bins)
+            if opts["trainAtManyEFTpoints"] == True:
+                prop_above_threshold = 0.
+                tmp = list_predictions_test_allNodes_allClasses[0][0]
+                # tmp = np.concatenate((np.concatenate(list_predictions_train_allNodes_allClasses[inode]),np.concatenate(list_predictions_test_allNodes_allClasses[inode])))
+                while prop_above_threshold < 0.05:
+                    max_prediction-= 0.01
+                    # print('=== max_prediction', max_prediction)
+                    # print('count', np.count_nonzero(tmp[tmp>max_prediction]))
+                    prop_above_threshold = np.count_nonzero(tmp[tmp>max_prediction]) / len(tmp)
+                    # print('prop_above_threshold', prop_above_threshold)
+
             # print('min_prediction =', min_prediction)
             # print('max_prediction =', max_prediction)
             text_file.write('bounds'); text_file.write(' ' + str(min_prediction)); text_file.write(' ' + str(max_prediction)+'\n');

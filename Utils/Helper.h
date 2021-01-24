@@ -122,7 +122,7 @@ void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
-bool Get_Variable_Range(TString, int&, double&, double&);
+bool Get_Variable_Range(TString, int&, float&, float&);
 void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&, vector<float>);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
@@ -140,6 +140,8 @@ void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bo
 vector<vector<float>> Get_nJets_SF(TString, TString, TString, vector<TString>);
 float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
 void Scale_THSyst_toBeforeSelection(TH1F*&, TH1F*&, TString);
+TString Get_Template_XaxisTitle(TString);
+TString Get_EFToperator_label(TString);
 //--------------------------------------------
 
 //--------------------------------------------
@@ -190,7 +192,7 @@ template <class T> void Avoid_Histogram_EmptyOrNegativeBins(T*& h)
 {
     for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
-    	if(h->GetBinContent(ibin) <= 0) {h->SetBinContent(ibin, pow(10, -5)); h->SetBinError(ibin, pow(10, -5));}
+    	if(h->GetBinContent(ibin) <= 0) {h->SetBinContent(ibin, pow(10, -5)); h->SetBinError(ibin, pow(10, -6));}
     }
 
     return;

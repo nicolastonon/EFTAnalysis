@@ -494,7 +494,7 @@ def Get_ThetaParameters(opts, operatorNames):
         thetas_allOperators = np.concatenate(list_thetas_allOperators)
         targetClasses_allOperators = np.concatenate(list_targetClass)
 
-#-- Sample thetas randomly betweem [min;max] in multi-dimensional EFT phase space. Include points corresponding to the min/max boundaries for all operators at once
+#-- Sample thetas randomly between [min;max] in multi-dimensional EFT phase space. Include points corresponding to the min/max boundaries for all operators at once
     else:
 
         rng = np.random.default_rng() #Init random generator
@@ -513,13 +513,16 @@ def Get_ThetaParameters(opts, operatorNames):
                 thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
                 thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
                 thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
-            if samplingMode == 'linear': thetas_allOperators = np.linspace(minWC_tmp, maxWC_tmp, nPointsPerOperator*len(listOperatorsParam))
+            if samplingMode == 'linear':
+                thetas_allOperators = np.linspace(minWC_tmp, maxWC_tmp, nPointsPerOperator*len(listOperatorsParam))
             else: print('Wrong sampling mode ! Abort !'); exit(1)
 
         targetClasses_allOperators = np.ones(len(thetas_allOperators)) #Binary label: 0=reference point (SM, not filled here), 1=EFT points
 
-        for i_opInSample in range(len(operatorNames)): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parametrization
-            if operatorNames[i_opInSample] not in listOperatorsParam: thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
+        for i_opInSample,opInSample in enumerate(operatorNames): #There is 1 column per operator found in sample (not only operators selected by user), as needed for weight parameterization
+            if opInSample not in listOperatorsParam:
+                # print(opInSample, 'not in sample ! ( operatorNames:', operatorNames, '/ thetas_allOperators.shape:', thetas_allOperators.shape, ')')
+                thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
 
 # //--------------------------------------------
 

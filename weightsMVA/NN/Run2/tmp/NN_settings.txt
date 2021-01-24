@@ -1,4 +1,4 @@
-Start of NN training :11-Jan-2021 (18:36:47)
+Start of NN training :24-Jan-2021 (22:39:42)
 
 OPTIONS
 ----------------- 
@@ -6,18 +6,18 @@ TTree --> result
 eventWeightName --> 
 parameterizedNN --> False
 strategy --> CARL
-nEpochs --> 40
+nEpochs --> 20
 splitTrainValTestData --> [0.7, 0.0, 0.3]
 nHiddenLayers --> 3
-nNeuronsAllHiddenLayers --> 50
+nNeuronsAllHiddenLayers --> 100
 activInputLayer --> relu
 activHiddenLayers --> relu
 use_normInputLayer --> True
 use_batchNorm --> True
-dropoutRate --> 0.4
+dropoutRate --> 0.5
 regularizer --> ['l2', 0.0001]
 optimizer --> Adam
-learnRate --> 0.0001
+learnRate --> 0.001
 balancedClasses --> True
 earlyStopping --> True
 maxEventsPerClass --> -1
@@ -26,10 +26,11 @@ nEventsTot_val --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 1000
 refPoint --> SM
-listOperatorsParam --> ['ctz']
-nPointsPerOperator --> 40
-minWC --> -5
-maxWC --> 5
+listOperatorsParam --> ['ctz', 'ctw', 'cpq3']
+nPointsPerOperator --> 20
+minWC --> -10
+maxWC --> 10
+listMinMaxWC --> [-5, 5, -5, 5, -15, 15, -10, 10, -15, 15]
 nEventsPerPoint --> 10000
 batchSizeEFT --> 1000
 score_lossWeight --> 0.5
@@ -45,6 +46,7 @@ storeInTestDirectory --> True
 storePerOperatorSeparately --> True
 useFakeableNPL --> True
 displayImages --> False
+shapPlots --> False
 trainAtManyEFTpoints --> True
 regress --> False
 nofOutputNodes --> 1
@@ -54,5 +56,8 @@ samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
 NN_strategy --> MVA_EFT
+----------------- 
+
+Process 0 --> PrivMC_tZq
 ----------------- 
 

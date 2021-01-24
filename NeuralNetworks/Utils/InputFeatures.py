@@ -68,8 +68,8 @@ features_CARL_tZq_cpt.append("recoZ_Pt")
 features_CARL_tZq_cpt.append("dR_Zjprime")
 features_CARL_tZq_cpt.append("TopZsystem_M")
 
-#-- All 5 operators
-features_CARL_tZq_all = [] #FIXME
+#-- All 5 operators -- not optimized
+features_CARL_tZq_all = []
 features_CARL_tZq_all.append("recoZ_Pt")
 features_CARL_tZq_all.append("recoZ_Eta")
 features_CARL_tZq_all.append("recoZ_dPhill")
@@ -82,6 +82,24 @@ features_CARL_tZq_all.append("mTW")
 features_CARL_tZq_all.append("cosThetaStarPolZ")
 features_CARL_tZq_all.append("cosThetaStarPolTop")
 features_CARL_tZq_all.append("lAsymmetry")
+
+features_CARL_tZq_3D = [] #FIXME
+features_CARL_tZq_3D.append("recoZ_Pt")
+features_CARL_tZq_3D.append("recoZ_Eta")
+features_CARL_tZq_3D.append("recoZ_dPhill")
+features_CARL_tZq_3D.append("dR_blW")
+features_CARL_tZq_3D.append("dR_tZ")
+features_CARL_tZq_3D.append("recoLepTop_Pt")
+features_CARL_tZq_3D.append("dR_tClosestLep")
+features_CARL_tZq_3D.append("cosThetaStarPolZ")
+features_CARL_tZq_3D.append("cosThetaStarPolTop")
+features_CARL_tZq_3D.append("Mass_3l")
+features_CARL_tZq_3D.append("dEta_Zjprime")
+features_CARL_tZq_3D.append("jPrimeAbsEta")
+features_CARL_tZq_3D.append("dEta_bjprime")
+features_CARL_tZq_3D.append("maxDiJet_Pt")
+features_CARL_tZq_3D.append("TopZsystem_M")
+
 
 
 # //--------------------------------------------
@@ -96,7 +114,7 @@ features_CARL_tZq_all.append("lAsymmetry")
 features_CARL_ttZ_ctz = []
 features_CARL_ttZ_ctz.append("recoZ_Pt")
 features_CARL_ttZ_ctz.append("recoZ_Eta")
-# features_CARL_ttZ_ctz.append("recoZ_dPhill") #FIXME -- too correlated ?
+# features_CARL_ttZ_ctz.append("recoZ_dPhill") #-- too correlated ?
 # features_CARL_ttZ_ctz.append("Mass_3l")
 # features_CARL_ttZ_ctz.append("mHT")
 features_CARL_ttZ_ctz.append("dR_tZ")
@@ -153,11 +171,27 @@ features_CARL_ttZ_all.append("Mass_3l")
 features_CARL_ttZ_all.append("dR_tZ")
 features_CARL_ttZ_all.append("mTW")
 features_CARL_ttZ_all.append("cosThetaStarPolZ")
-features_CARL_ttZ_all.append("recoLepTop_Eta")
 features_CARL_ttZ_all.append("recoLepTop_Pt")
+features_CARL_ttZ_all.append("recoLepTop_Eta")
 features_CARL_ttZ_all.append("lAsymmetry")
 
+features_CARL_ttZ_3D = []
+features_CARL_ttZ_3D.append("recoZ_Pt")
+features_CARL_ttZ_3D.append("recoZ_Eta")
+features_CARL_ttZ_3D.append("recoZ_dPhill")
+features_CARL_ttZ_3D.append("Mass_3l")
+features_CARL_ttZ_3D.append("dR_tZ")
+features_CARL_ttZ_3D.append("mTW")
+features_CARL_ttZ_3D.append("cosThetaStarPolZ")
+# features_CARL_ttZ_3D.append("recoLepTop_Pt")
+features_CARL_ttZ_3D.append("recoLepTop_Eta")
+features_CARL_ttZ_3D.append("maxDiJet_Pt")
+
+
 # //--------------------------------------------
+# //--------------------------------------------
+# //--------------------------------------------
+
 
 # NN-SM: tZq vs ttZ vs Others
 features_SM = []

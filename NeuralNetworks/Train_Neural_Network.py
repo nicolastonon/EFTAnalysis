@@ -37,20 +37,20 @@ optsTrain = {
 # "strategy": "CASCAL", # <-> Calibrated Classifier (CARL) + score regression; still in test phase
 
 #=== General training/architecture settings ===#
-"nEpochs": 40, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
-"nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
+"nNeuronsAllHiddenLayers": 100, #Number of neurons per same-size hidden layer
 # "nNeuronsPerHiddenLayer": [128,64,32,16], #Number of neurons per same-size hidden layer
 "activInputLayer": 'relu', #Activation function for 1st hidden layer (connected to input layer) # '' <-> use same as for activHiddenLayers #NB: don't use lrelu/prelu/... for first layer (neglect info. ?) !
 "activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.4, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
-"learnRate": 0.0001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
+"learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
 "balancedClasses": True, #True <-> apply event SFs in training to balance the total weights of all classes
 "earlyStopping": True, #True <-> use Keras' early stopping
 
@@ -65,12 +65,13 @@ optsTrain = {
 # "refPoint": "rwgt_ctw_2",
 # "refPoint": "rwgt_ctw_5",
 # "refPoint": "rwgt_ctz_5",
-#"listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 40, "minWC": -5, "maxWC": 5, #Interval [min,max,step] in which EFT points get sampled uniformly to train the NN on
-#"listMinMaxWC": [-5,5,-5,5,-15,15,-15,15,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values)
+# "listOperatorsParam": ['cpq3'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 20, #Number of EFT points from which to sample events (times the number of selected operators)
+"minWC": -10, "maxWC": 10, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
+"listMinMaxWC": [-5,5,-5,5,-15,15,-10,10,-15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values) #NB: must keep ranges for all operators (found in samples), even if considering only a subset of operators !
 "nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 0.5, #Apply scale factor to score term in loss function
@@ -96,6 +97,7 @@ optsTrain = {
 "storePerOperatorSeparately": True, #True <-> when training on SM vs EFT and considering a single operator, will store all outputs in an operatgor-specific dir. (allows to then consider different trainigs for different operators)
 "useFakeableNPL": True, #True <-> if running on MC NPL samples (hardcoded names), will consider events from both SR+sideband (i.e. events with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, use that of ==3 tight lepton events only (otherwise need FR weights)
 "displayImages": False, #True <-> will display (pop-up) some output figures (metrics, loss, ROC, ...)
+"shapPlots": False, #True <-> create SHAP validation plots
 }
 
 # Analysis options
@@ -112,12 +114,13 @@ _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
-# _list_processClasses.append(["PrivMC_tZq"])
+_list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_TOP19001"])
-_list_processClasses.append(["PrivMC_ttZ"])
+# _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_ttZ_TOP19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
+# _list_processClasses.append(["tX", "WZ", "VVV"]) #Bkg -- grouped
 # _list_processClasses.append(["TTbar_DiLep", "DY"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
 # _list_processClasses.append(["ttZ", "ttW", "ttH", "WZ", "ZZ4l", "TTbar_DiLep"])
@@ -127,9 +130,9 @@ _list_processClasses.append(["PrivMC_ttZ"])
 _list_labels = []
 # _list_labels.append("tZq")
 # _list_labels.append("ttZ")
-# _list_labels.append("PrivMC_tZq")
+_list_labels.append("PrivMC_tZq")
 # _list_labels.append("PrivMC_tZq_TOP19001")
-_list_labels.append("PrivMC_ttZ")
+# _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_TOP19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")
@@ -409,7 +412,7 @@ def Train_Test_Eval_NN(optsTrain, _list_lumiYears, _list_processClasses, _list_l
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, _list_labels, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses, list_predictions_train_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, list_xTrain_allClasses)
 
     #-- Create several validation plots automatically
-    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, _metrics, _weightDir, scores_allClasses_eachOperator, model, score)
+    Make_Default_Validation_Plots(optsTrain, _list_features, _list_labels, list_predictions_train_allNodes_allClasses, list_predictions_test_allNodes_allClasses, list_PhysicalWeightsTrain_allClasses, PhysicalWeights_allClasses, list_PhysicalWeightsTest_allClasses, list_truth_Train_allClasses, list_truth_Test_allClasses, x, y_train, y_test, y_process, y_process_train, y_process_test, list_yTrain_allClasses, list_yTest_allClasses, list_xTrain_allClasses, list_xTest_allClasses, _metrics, _weightDir, scores_allClasses_eachOperator, model, score, history)
 
     Write_Timestamp_toLogfile(_weightDir, 1) #Write final timestamp before exit
 

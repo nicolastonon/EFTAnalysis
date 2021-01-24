@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
-    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
+    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- N T U P L E S --
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     TString classifier_name = "NN"; //'BDT' or 'NN'
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
-    bool make_SMvsEFT_templates_plots = true; //true <-> templates & plots are produced for SM scenario only (separate SM processes); else, consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
+    bool make_SMvsEFT_templates_plots = true; //false <-> templates & plots are produced for SM scenario only (separate SM processes); true <-> consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
         int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers (events passing the cut fall into SRtZq/SRttZ, others into SRother); 2 <-> apply multi-classifier in merged SR (events fall into SRtZq/SRttZ/CR based on max node); 0 <-> testing: read tmp MVA, no categ. (retain all events, can't use multiple nodes simultaneously)
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     //-- T E M P L A T E S --
     bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "Zpt"; //'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', ...
+    TString template_name = "NN_SM"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -395,7 +395,7 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 

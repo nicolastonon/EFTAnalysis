@@ -112,28 +112,37 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 // #    # #        #   #    # #
 //  ####  ######   #    ####  #
 
-    //Check if use shape syst or not
+    //-- Check if use shape syst or not
 	TString systChoice;
 	if(include_systematics == 'y') {systChoice = "withShape";}
 	else if(include_systematics == 'n') {systChoice = "noShape";}
     else {cout<<"Wrong arguments ! Abort !"<<endl; return;}
 
-    //Check if use stat. uncert. or not
+    //-- Check if use stat. uncert. or not
 	TString statChoice;
 	if(include_statistical == 'y') {statChoice = "withStat";}
 	else if(include_statistical == 'n') {statChoice = "noStat";}
     else {cout<<"Wrong arguments ! Abort !"<<endl; return;}
 
-    // If specific arguments were chosen at command line, modify the vectors defined in the main
+    //-- If specific arguments were chosen at command line, modify the vectors defined in the main
     if(template_name != "0") {v_templates.resize(0); v_templates.push_back(template_name);}
     else if(!v_templates.size()) {cout<<"Template name not set ! Abort !"<<endl; return;}
 
-    // Trick: in case there is ==1 template and >=1 regions defined, we want to use this template for all the regions; but to allow to then add additional pairs of regions/templates, expand the current lists so that they match 1 to 1
+    //-- Trick: in case there is ==1 template and >=1 regions defined, we want to use this template for all the regions; but to allow to then add additional pairs of regions/templates, expand the current lists so that they match 1 to 1
     if(v_templates.size() == 1 && v_regions.size() >= 1)
     {
         for(int iregion=1; iregion<v_regions.size(); iregion++)
         {
             v_templates.push_back(v_templates[0]); //Duplicate first element for each additional region
+        }
+    }
+
+    //-- Special case: for cpq3, we use NN_cpq in SRtZq *but* NN_SM in SRttZ --> Hardcode it here
+    for(int itemplate=0; itemplate<v_templates.size(); itemplate++)
+    {
+        for(int iregion=0; iregion<v_regions.size(); iregion++)
+        {
+            if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "NN_SM";}
         }
     }
 
@@ -270,8 +279,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
         		    // TString file_histos = "../templates/Combine_Input.root"; //Templates_otherRegions_NN_Run2.root
                     // TString file_histos_pathFromHere = "./../templates/Templates_"+ (include_otherRegions? v_templates[0]:v_templates[itemplate]) + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
-                    TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_"; //For use within this code
                     if(isOtherRegion) {file_histos_pathFromHere = "./../templates/Templates_otherRegions"+(selection != ""? "_"+selection:"")+"_";} //Read a different file for templates with 'fixed' observables (only change SR templates)
+                    else if(v_templates[itemplate] == "NN_SM") {file_histos_pathFromHere = "./../templates/Templates_NN_SM" + (filename_template_suffix? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Trick: when reading NN_cpq3 file (for SRtZq), we need to read the NN_SM file for SRttZ (<-> NN_SM template) and SRother (<-> mTW template) !
                     TString file_histos_pathFromHere_Run2 = file_histos_pathFromHere + "Run2.root"; //In case year-dependent file is not found, will look for Run2 file by default
                     file_histos_pathFromHere+= lumiName+".root";
                     // if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
@@ -296,7 +306,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                         TString hname_tmp = var + "_" + v_lumiYears[iyear ] + "__data_obs"; //Hard-coded: look for data histo to infer binning
 						// cout<<"Reading histogram: "<<hname_tmp<<endl;
 
-                        if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found ! Can not infer histogram binning !"))<<endl; return;}
+                        if(!f_tmp->GetListOfKeys()->Contains(hname_tmp) ) {cout<<BOLD(FRED("ERROR: histogram "<<hname_tmp<<" not found in file "<<file_histos_pathFromHere<<" ! Can not infer histogram binning !"))<<endl; return;}
                         // cout<<"hname_tmp "<<hname_tmp<<endl;
                         TH1F* h_tmp = (TH1F*) f_tmp->Get(hname_tmp);
                         nbins = h_tmp->GetNbinsX();
@@ -633,6 +643,14 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     }
     if(inttmp == 1 || inttmp == 2 || inttmp == 3) {mode_histoBins = inttmp;}
 
+    //Set the template name (e.g.'NN') to be looked for in the rootfiles //If ignored, use the value set in the main
+    cout<<endl<<FYEL("=== Set the template name (to read corresponding histograms in SRs) ===")<<endl;
+    cout<<ITAL(DIM("'Zpt' / 'NN' / 'BDT' / ..."))<<endl;
+    cout<<ITAL(DIM("(NB: if you set a template name, it will be used for all regions defined in the main')"))<<endl;
+    cout<<ITAL(DIM(<<"..."));
+    cin>>tstringtmp;
+    if(tstringtmp != "0") {template_name = tstringtmp;}
+
 	//Choose the luminosity
     cout<<endl<<FYEL("=== Choose the luminosity ===")<<endl;
     cout<<ITAL(DIM(<<"['Run2'/'2016'/'2017'/'2018'/'201617'/'201618'/'201718'] ... "));
@@ -646,14 +664,6 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
         cin>>tstringtmp;
     }
     if(tstringtmp == "Run2" || tstringtmp == "2016" || tstringtmp == "2017" || tstringtmp == "2018" || tstringtmp == "201617" || tstringtmp == "201618" || tstringtmp == "201718") {lumiName = tstringtmp;}
-
-    //Set the template name (e.g.'NN') to be looked for in the rootfiles //If ignored, use the value set in the main
-    cout<<endl<<FYEL("=== Set the template name (to read corresponding histograms in SRs) ===")<<endl;
-    cout<<ITAL(DIM("'Zpt' / 'NN' / 'BDT' / ..."))<<endl;
-    cout<<ITAL(DIM("(NB: if you set a template name, it will be used for all regions defined in the main')"))<<endl;
-    cout<<ITAL(DIM(<<"..."));
-    cin>>tstringtmp;
-    if(tstringtmp != "0") {template_name = tstringtmp;}
 
     //Set a 'filename suffix' if needed (if present in the filename)
     cout<<endl<<FYEL("=== Set the template name suffix for the filename ===")<<endl;

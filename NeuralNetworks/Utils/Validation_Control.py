@@ -219,7 +219,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
         Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses)
         doEvaluationPlots(list_yTest_allClasses[0], list_predictions_test_allNodes_allClasses[0][0], list_PhysicalWeightsTest_allClasses[0], weight_dir)
 
-    Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features)
+    if opts["shapPlots"]: Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features)
 
     if opts["strategy"] in ["RASCAL", "CASCAL"]:Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
 
@@ -280,7 +280,7 @@ def Make_Loss_Plot(opts, list_labels, list_predictions_train_allNodes_allClasses
     NB : Possible solution to show 3 y-axes (train, test, lr) : https://stackoverflow.com/questions/48618992/matplotlib-graph-with-more-than-2-y-axes
     '''
 
-    if history == None: 
+    if history == None:
         print('history == None')
         return
 

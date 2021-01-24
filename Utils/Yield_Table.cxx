@@ -3,16 +3,17 @@
 using namespace std;
 
 //Hardcode nicer latex-compatible category names //Can use '\\mathbf{}' for bold, but does not work with greek letters ?
+//NB: makes use of local definitions from AN/paper
 TString Get_Category_LatexName(TString cat)
 {
     TString name = cat;
 
-    if(cat.Contains("signal")) {name = "SR";}
+    if(cat.Contains("signal")) {name = "\\sr";}
     else if(cat.Contains("ttZ4l")) {name = "SR $t\\bar{t}Z 4l$";}
-    if(cat.Contains("wz")) {name = "CR WZ";}
-    if(cat.Contains("zz")) {name = "CR ZZ";}
+    if(cat.Contains("wz")) {name = "CR \\WZ";}
+    if(cat.Contains("zz")) {name = "CR \\ZZ";}
     if(cat.Contains("xg")) {name = "CR $X\\gamma$";}
-    if(cat.Contains("dy")) {name = "CR DY";}
+    if(cat.Contains("dy")) {name = "CR $\\dy$";}
     if(cat.Contains("ttbar")) {name = "CR $t\\bar{t}}$";}
 
     return name;
@@ -198,15 +199,15 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             TString treename = "result";
     		TFile* f = new TFile(filepath);
-    		TTree* t = 0;
+    		TTree* t = NULL;
             t = (TTree*) f->Get(treename);
             if(!t) {cout<<FRED("Tree '"<<treename<<"' not found ! Skip !")<<endl; continue;}
             t->SetBranchStatus("*", 0); //disable all branches, speed up reading
 
-            TH1F* h_SWE = 0;
+            TH1F* h_SWE = NULL;
             vector<float> v_SWE;
-            vector<float>* v_reweights_floats = 0;
-            vector<string>* v_reweights_ids = 0;
+            vector<float>* v_reweights_floats = NULL;
+            vector<string>* v_reweights_ids = NULL;
             int idx_sm = -1;
             //For private MC samples, read and store sums of weights (SWE), and read rese
             if(v_samples[isample].Contains("Priv"))
@@ -339,6 +340,9 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                 //Private MC sample : need to do some rescaling
                 if(v_samples[isample].Contains("Priv") && idx_sm != -1)
                 {
+                    if(v_reweights_floats->size()==0) {cout<<"v_reweights_floats->size()==0 "<<endl; continue;} //Protection (should never happen)
+                    // cout<<"v_reweights_floats.size() "<<v_reweights_floats.size()<<endl;
+
                     //--- SM reweight
                     //Factor (weight / weightMENominal) should account for the central systematics (applied to 'eventWeight')
                     weight*= v_reweights_floats->at(idx_sm) / (weightMENominal * v_SWE[idx_sm]); //with SFs
@@ -401,7 +405,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                     if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
                     {
-                        file_latex<<fixed<<setprecision(precision)<<yield_tmp<<" (+/-"<<fixed<<setprecision(precision)<<sqrt(statErr_tmp)<<") & "; //Single process
+                        file_latex<<fixed<<setprecision(precision)<<yield_tmp<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_tmp)<<") & "; //Single process
                     }
 
                     yield_tmp = 0; //Reset after writing to file
@@ -442,7 +446,7 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
             if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
             {
-                file_latex<<fixed<<setprecision(precision)<<yield_currentGroup<<" (+/-"<<fixed<<setprecision(precision)<<sqrt(statErr_currentGroup)<<") & "; //Single process
+                file_latex<<fixed<<setprecision(precision)<<yield_currentGroup<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_currentGroup)<<") & "; //Single process
             }
 
             yield_currentGroup = 0; statErr_currentGroup = 0; //Reset
@@ -528,6 +532,7 @@ int main(int argc, char **argv)
     bool group_samples_together = true; //true <-> group similar samples together
     bool remove_totalSF = false; //SFs are applied to default weights ; can divide weight by total SF again to get nominal weight
     bool use_privSamples_asSignal = true; //true <-> signals yields in the latex table correspond to private samples (else central)
+    bool process_samples_byGroup = true; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 
 //--------------------------------------------
 
@@ -542,71 +547,76 @@ int main(int argc, char **argv)
 	//Sample names and labels //NB : labels must be latex-compatible
 	vector<TString> v_samples; vector<TString> v_label;
 
-    v_samples.push_back("DATA"); v_label.push_back("DATA");
+    //-- Read ntuples merged by sample groups
+    if(process_samples_byGroup)
+    {
+        v_samples.push_back("DATA"); v_label.push_back("DATA");
+        v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
+        v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+        v_samples.push_back("PrivMC_tWZ"); v_label.push_back("PrivMC_tWZ");
+        v_samples.push_back("tZq"); v_label.push_back("tZq");
+        v_samples.push_back("ttZ"); v_label.push_back("ttZ");
+        v_samples.push_back("tWZ"); v_label.push_back("tWZ");
+        v_samples.push_back("WZ"); v_label.push_back("WZ");
+        v_samples.push_back("tX"); v_label.push_back("tX");
+        v_samples.push_back("VVV"); v_label.push_back("VVV");
+        v_samples.push_back("XG"); v_label.push_back("XG");
+        v_samples.push_back("NPL"); v_label.push_back("NPL");
+    }
+    //-- Read individual ntuples
+    else
+    {
+        v_samples.push_back("DATA"); v_label.push_back("DATA");
 
-    v_samples.push_back("tZq"); v_label.push_back("tZq");
-    v_samples.push_back("ttZ"); v_label.push_back("ttZ");
-    v_samples.push_back("tWZ"); v_label.push_back("tWZ");
+        v_samples.push_back("tZq"); v_label.push_back("tZq");
+        v_samples.push_back("ttZ"); v_label.push_back("ttZ");
+        v_samples.push_back("tWZ"); v_label.push_back("tWZ");
 
-    v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
-    v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
-    v_samples.push_back("PrivMC_tWZ"); v_label.push_back("PrivMC_tWZ");
+        v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
+        v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
+        v_samples.push_back("PrivMC_tWZ"); v_label.push_back("PrivMC_tWZ");
 
-    v_samples.push_back("ttZ_M1to10"); v_label.push_back("tX");
-    v_samples.push_back("tHq"); v_label.push_back("tX");
-    v_samples.push_back("tHW"); v_label.push_back("tX");
-    v_samples.push_back("ttH"); v_label.push_back("tX");
-    v_samples.push_back("ttW"); v_label.push_back("tX");
-    v_samples.push_back("ttZZ"); v_label.push_back("tX");
-    v_samples.push_back("ttHH"); v_label.push_back("tX");
-    v_samples.push_back("ttWW"); v_label.push_back("tX");
-    v_samples.push_back("ttWZ"); v_label.push_back("tX");
-    v_samples.push_back("ttZH"); v_label.push_back("tX");
-    v_samples.push_back("ttWH"); v_label.push_back("tX");
-    v_samples.push_back("tttt"); v_label.push_back("tX");
+        v_samples.push_back("ttZ_M1to10"); v_label.push_back("tX");
+        v_samples.push_back("tHq"); v_label.push_back("tX");
+        v_samples.push_back("tHW"); v_label.push_back("tX");
+        v_samples.push_back("ttH"); v_label.push_back("tX");
+        v_samples.push_back("ttW"); v_label.push_back("tX");
+        v_samples.push_back("ttZZ"); v_label.push_back("tX");
+        v_samples.push_back("ttHH"); v_label.push_back("tX");
+        v_samples.push_back("ttWW"); v_label.push_back("tX");
+        v_samples.push_back("ttWZ"); v_label.push_back("tX");
+        v_samples.push_back("ttZH"); v_label.push_back("tX");
+        v_samples.push_back("ttWH"); v_label.push_back("tX");
+        v_samples.push_back("tttt"); v_label.push_back("tX");
 
-    v_samples.push_back("WZ"); v_label.push_back("WZ");
+        v_samples.push_back("WZ"); v_label.push_back("WZ");
 
-    v_samples.push_back("ZZ4l"); v_label.push_back("VVV");
-    v_samples.push_back("ZZZ"); v_label.push_back("VVV");
-    v_samples.push_back("WZZ"); v_label.push_back("VVV");
-    v_samples.push_back("WWW"); v_label.push_back("VVV");
-    v_samples.push_back("WWZ"); v_label.push_back("VVV");
+        v_samples.push_back("ZZ4l"); v_label.push_back("VVV");
+        v_samples.push_back("ZZZ"); v_label.push_back("VVV");
+        v_samples.push_back("WZZ"); v_label.push_back("VVV");
+        v_samples.push_back("WWW"); v_label.push_back("VVV");
+        v_samples.push_back("WWZ"); v_label.push_back("VVV");
 
-    v_samples.push_back("TTGamma_Dilep"); v_label.push_back("XG");
-    v_samples.push_back("tGJets"); v_label.push_back("XG");
-    v_samples.push_back("WGToLNuG"); v_label.push_back("XG");
-    v_samples.push_back("ZGToLLG_01J"); v_label.push_back("XG");
+        v_samples.push_back("TTGamma_Dilep"); v_label.push_back("XG");
+        v_samples.push_back("tGJets"); v_label.push_back("XG");
+        v_samples.push_back("WGToLNuG"); v_label.push_back("XG");
+        v_samples.push_back("ZGToLLG_01J"); v_label.push_back("XG");
 
-    //MC nonprompt fakes
-    v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");
-    v_samples.push_back("TTbar_SemiLep"); v_label.push_back("TTbar_SemiLep");
-    v_samples.push_back("DY"); v_label.push_back("DY");
+        //MC nonprompt fakes
+        v_samples.push_back("TTbar_DiLep"); v_label.push_back("TTbar_DiLep");
+        v_samples.push_back("TTbar_SemiLep"); v_label.push_back("TTbar_SemiLep");
+        v_samples.push_back("DY"); v_label.push_back("DY");
 
-    //DD NPL (substract MC prompt contribution)
-    v_samples.push_back("NPL_DATA"); v_label.push_back("NPL");
-    v_samples.push_back("NPL_MC"); v_label.push_back("NPL");
+        //DD NPL (substract MC prompt contribution)
+        v_samples.push_back("NPL_DATA"); v_label.push_back("NPL");
+        v_samples.push_back("NPL_MC"); v_label.push_back("NPL");
+    }
 
     //TMP
-    // v_samples.push_back("PrivMC_tZq_v2"); v_label.push_back("PrivMC_tZq_v2");
-    // v_samples.push_back("PrivMC_tZq_v3"); v_label.push_back("PrivMC_tZq_v3");
-    v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
-    v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
-
-
-//-- Read ntuples merged by sample groups (for cross checks)
-    /*
-    v_samples.push_back("DATA"); v_label.push_back("DATA");
-    v_samples.push_back("PrivMC_tZq"); v_label.push_back("PrivMC_tZq");
-    v_samples.push_back("PrivMC_ttZ"); v_label.push_back("PrivMC_ttZ");
-    v_samples.push_back("tZq"); v_label.push_back("tZq");
-    v_samples.push_back("ttZ"); v_label.push_back("ttZ");
-    v_samples.push_back("WZ"); v_label.push_back("WZ");
-    v_samples.push_back("tX"); v_label.push_back("tX");
-    v_samples.push_back("VVV"); v_label.push_back("VVV");
-    v_samples.push_back("Xg"); v_label.push_back("Xg");
-    v_samples.push_back("NPL"); v_label.push_back("NPL");
-    */
+    // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
+    // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
+    // v_samples.push_back("PrivMC_tWZ_PSweights"); v_label.push_back("PrivMC_tWZ_PSweights");
+    // v_samples.push_back("PrivMC_ttZ_PSweights"); v_label.push_back("PrivMC_ttZ_PSweights");
 
 //--------------------------------------------
 

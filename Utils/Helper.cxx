@@ -1151,7 +1151,7 @@ void Set_Custom_ColorPalette(vector<TColor*> &v_custom_colors, vector<int> &v, v
 */
 
 //Store here the binnings and ranges of all the variables to be plotted via ControlHistograms files
-bool Get_Variable_Range(TString var, int& nbins, double& xmin, double& xmax)
+bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
 {
     // {nbins = 20; xmin = -1; xmax = 1; return true;}
 
@@ -1226,23 +1226,34 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
 
     xmin = -1; xmax = 1; //BDT: [-1,1]
 
+    if(template_name.Contains("NN") || template_name.Contains("BDT")) {nbins = 10;} //MVA default
+
     if(template_name.Contains("NN")) //NN: [0,1]
     {
         xmin = 0;
-        if(!make_SMvsEFT_templates_plots && categorization_strategy==2 && plot_onlyMaxNodeEvents) {xmin = 0.3; nbins = 14;} //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
+        if((!make_SMvsEFT_templates_plots || template_name.Contains("NN_SM") || template_name.Contains("NN_cpq3_SRttZ")) && categorization_strategy==2 && plot_onlyMaxNodeEvents)  //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
+        {
+            xmin = 0.3; nbins = 7; //Default
+
+            //-- Testing
+            if(template_name.Contains("tZq")) {xmin = 0.4; nbins = 8;}
+            if(template_name.Contains("ttZ")) {xmin = 0.4; xmax = 0.9; nbins = 10;}
+        }
     }
     else if(template_name.Contains("categ")) {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
     else if(template_name.Contains("ZptCos")) {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
     else if(template_name.Contains("Zpt")) //1D Zpt
     {
-        nbins = 5;
-        xmin = 0; xmax = 450;
-        if(template_name.Contains("SRtZq")) {xmax = 350;}
+        // //DEFAULT
+        // nbins = 5;
+        // xmin = 0; xmax = 450;
+        // if(template_name.Contains("SRtZq")) {xmax = 350;}
+
+        nbins = 10;
+        xmin = 0; xmax = 500;
+        if(template_name.Contains("SRtZq")) {xmax = 300;}
     }
 
-    if(use_SManalysis_strategy) {xmin = 0;}
-
-    if(template_name.Contains("NN") || template_name.Contains("BDT")) {nbins = 10;}
     if(template_name.Contains("mTW"))
     {
         nbins=15; xmin=0; xmax=150;
@@ -1250,14 +1261,39 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     }
     if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
+    if(use_SManalysis_strategy) {xmin = 0;}
 
-    //NEW -- read minmax_bounds from NN_settings to auto-adjust the x-range... ?
-    if(template_name.Contains("NN"))
+    //-- NN-EFT: read minmax_bounds from NN_settings to auto-adjust the x-range //To be improved
+    if(template_name.Contains("NN") && !template_name.Contains("NN_SM") && !template_name.Contains("NN_cpq3_SRttZ"))
     {
         if(make_SMvsEFT_templates_plots) //Ex: min=0.253 -> 0.2 ; max = 0.856 -> 0.9
         {
-            float min_tmp = ((int) (minmax_bounds[0]*10))/10.; if(min_tmp<0.) {min_tmp=0.;}
-            float max_tmp = ((int) (minmax_bounds[1]*10)+1)/10.; if(max_tmp>1.) {max_tmp=1.;}
+            //-- Round to 0.1 below and above //Ex: min=0.253 -> 0.2 ; max = 0.856 -> 0.9
+            // float min_tmp = ((int) (minmax_bounds[0]*10))/10.; if(min_tmp<0.) {min_tmp=0.;}
+            // float max_tmp = ((int) (minmax_bounds[1]*10)+1)/10.; if(max_tmp>1.) {max_tmp=1.;}
+
+            //-- Round to 0.05 below and above //Ex: min=0.263 -> 0.25 ; max = 0.826 -> 0.85
+            float min_tmp = ((int) (minmax_bounds[0]*100)); min_tmp-= ((int) min_tmp%5); min_tmp/= 100.; if(min_tmp<0.) {min_tmp=0.;}
+            float max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
+
+            //-- Hard-coded ranges (training-dependent !) //FIXME
+            nbins = 8;
+
+            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.70;}
+            else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.40; max_tmp = 0.80;}
+
+            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 1.00;}
+            else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;}
+
+            else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
+            // else if(template_name.Contains("NN_cpq3_SRttZ")) {min_tmp = 0.50; max_tmp = 0.55;} //Not used ! (NN_SM -> [0,1])
+
+            else if(template_name.Contains("NN_3D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
+            else if(template_name.Contains("NN_3D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
+
+            // cout<<"minmax_bounds[0] "<<minmax_bounds[0]<<" / minmax_bounds[1] "<<minmax_bounds[1]<<endl;
+            // cout<<"min_tmp "<<min_tmp<<" / max_tmp "<<max_tmp<<endl;
+
             xmin = min_tmp; xmax = max_tmp;
         }
     }
@@ -1448,7 +1484,6 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
     //--> Need to add year as suffix (<-> unique)
     if(systname.BeginsWith("BtagHFstats")
     || systname.BeginsWith("BtagLFstats")
-    || systname.BeginsWith("BtagCF")
 
     || systname.BeginsWith("JER")
     || systname.BeginsWith("MET")
@@ -1630,7 +1665,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
         if(categorization_strategy==0) {path_suffix = "tmp/";} //TEST dir.
         else //SM or EFT
         {
-            if(!MVA_EFT) //SM vs SM
+            if(!MVA_EFT || MVA_type == "NN_SM" || (MVA_type=="NN_cpq3" && signal_process=="ttZ")) //SM vs SM //Also used for cpqm/cpt ('NN_SM') and cpq3/ttZ
             {
                 path_suffix = "SM/";
                 if(categorization_strategy==1) {path_suffix+= signal_process + "/";} //Read MVA-tZq or MVA-ttZ
@@ -1785,10 +1820,10 @@ TString Get_Region_Label(TString region, TString variable)
     TString label = "";
 
     region.ToLower();
-    if(region=="signal") {label = "SR";}
+    if(region=="signal") {label = "SR-3#ell";}
     else if(region=="tzq") {label = "tZq SR";}
     else if(region=="ttz") {label = "ttZ SR";}
-    else if(region=="ttz4l") {label = "ttZ 4l SR";}
+    else if(region=="ttz4l") {label = "SR-ttZ-4#ell";}
 
     else if(region=="xg") {label = "V#gamma CR";}
     else if(region=="zz") {label = "ZZ CR";}
@@ -1817,8 +1852,8 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         variable_list.clear();
         for(int ivar=0; ivar<var_list_tmp.size(); ivar++)
         {
-            if(region == "signal" || region == "tZq") variable_list.push_back(var_list_tmp[ivar] + "_SRtZq"); //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
-            if(region == "signal" || region == "ttZ") variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");
+            if(region == "signal" || region == "tZq") {variable_list.push_back(var_list_tmp[ivar] + "_SRtZq");} //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
+            if(region == "signal" || region == "ttZ") {variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");}
             if(region == "signal")
             {
                 if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_SRother");} //For SM vs EFT in CR, use mTW distribution for now
@@ -1966,6 +2001,7 @@ void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TSt
 	if(!h || !h_sumWeights_beforeSel) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: Null histogram !"))<<endl; return;}
 
     int ibin_syst = -1;
+    double nomYield_beforeSel = h_sumWeights_beforeSel->GetBinContent(1); //First bin <-> nominal yield before event selection
 
     if(systname == "MEUp") {ibin_syst = 2;}
     else if(systname == "MEDown") {ibin_syst = 3;}
@@ -1982,12 +2018,68 @@ void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TSt
     else if(systname == "FSRUp") {ibin_syst = 15;}
     else if(systname == "FSRDown") {ibin_syst = 16;}
 
-    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst))
+    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0)
     {
-        cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: incorrect systematics / incorrect process / empty histo bin / ... !"))<<endl; return;
+        if(ibin_syst <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: ibin_syst <= 0 !"))<<endl;}
+        if(h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0 !"))<<endl;}
+        return;
     }
 
-    h->Scale(1. / h_sumWeights_beforeSel->GetBinContent(ibin_syst));
+    double SF = nomYield_beforeSel / h_sumWeights_beforeSel->GetBinContent(ibin_syst);
+    h->Scale(SF);
+
+    // cout<<"[Scale_THSyst_toBeforeSelection] h->Scale("<<SF<<")"<<endl;
 
     return;
+}
+
+//-- Hardcode template naming conventions for plot's X-axis
+TString Get_Template_XaxisTitle(TString variable)
+{
+    TString title = variable;
+
+    //-- Previous conventions
+    if(variable == "NN0") {title = "NN (tZq node)";}
+    else if(variable == "NN1") {title = "NN (ttZ node)";}
+    else if(variable == "NN2") {title = "NN (Bkgs node)";}
+    else if(variable.Contains("NN")) {title = "NN output";}
+
+    if(variable.Contains("NN_SM"))
+    {
+        title = "NN-SM";
+        if(variable.Contains("SRtZq")) {title+= " (tZq node)";}
+        else if(variable.Contains("SRttZ")) {title+= " (ttZ node)";}
+        else if(variable.Contains("SRother")) {title+= " (Bkg node)";}
+    }
+    else if(variable.Contains("NN_ctz"))
+    {
+        title = "NN-C_{tZ}";
+        // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
+        // else if(variable.Contains("SRttZ")) {title+= "^{ttZ}";}
+    }
+    else if(variable.Contains("NN_ctw"))
+    {
+        title = "NN-C_{tW}";
+    }
+    else if(variable.Contains("NN_cpq3"))
+    {
+        title = "NN-C^{3}_{#phiQ}";
+        if(variable.Contains("SRttZ")) {title = "NN-SM (ttZ node)";} //Actually using NN-sM for cpq3/ttZ
+    }
+
+    return title;
+}
+
+//Get label (naming convention) for a given EFT point
+TString Get_EFToperator_label(TString operator_name)
+{
+    TString label = operator_name;
+
+    if(operator_name == "ctz") {label = "C_{tZ}";}
+    else if(operator_name == "ctw") {label = "C_{tW}";}
+    else if(operator_name == "cpqm") {label = "C^{-}_{#phiQ}";}
+    else if(operator_name == "cpq3") {label = "C^{3}_{#phiQ}";}
+    else if(operator_name == "cpt") {label = "C_{#phit}";}
+
+    return label;
 }
