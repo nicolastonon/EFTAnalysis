@@ -40,8 +40,8 @@ def Apply_Model_toTrainTestData(opts, weightDir, list_processClasses, list_label
 
 # //--------------------------------------------
 
-    minWC = opts["minWC"]
-    maxWC = opts["maxWC"]
+    if "minWC" in opts: minWC = opts["minWC"]
+    if "maxWC" in opts: maxWC = opts["maxWC"]
 
     if opts["parameterizedNN"] == False or "listMinMaxWC" in opts: useMostExtremeWCvaluesOnly = False #Can only choose to consider 'extreme' (min/max) WC values for parameterized NN (since we cut on the corresponding input features)
 

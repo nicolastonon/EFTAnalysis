@@ -448,15 +448,15 @@ def Get_ThetaParameters(opts, operatorNames):
 
     samplingMode = 'linear' #'linear' <-> sample theta points linearly from min to max; 'uniform' <-> randomly sample theta points according to uniform PDF from min to max
 
-    # if opts["strategy"] == "CARL_singlePoint": return np.array([]), np.array([]) #Remove -- need this for StandaloneValidation code (even if applied on CARL_singlePoint)
-
     #Read options
     listOperatorsParam = opts["listOperatorsParam"]
     nPointsPerOperator = opts["nPointsPerOperator"]
-    minWC = opts["minWC"]
-    maxWC = opts["maxWC"]
+    if "minWC" in opts: minWC = opts["minWC"]
+    if "maxWC" in opts: maxWC = opts["maxWC"]
     listMinMaxWC = []
     if "listMinMaxWC" in opts: listMinMaxWC = opts["listMinMaxWC"]
+
+    if len(listOperatorsParam) > 1: samplingMode = 'uniform' #If training on multiple operators, we want to select points randomly in n-D space
 
     list_thetas_allOperators = []
     list_targetClass = []
@@ -513,7 +513,7 @@ def Get_ThetaParameters(opts, operatorNames):
                 thetas_allOperators = np.random.uniform(low=minWC_tmp, high=maxWC_tmp, size=(nPointsPerOperator*len(listOperatorsParam) - 2, len(operatorNames) ) ) #'-2' because also include by default 2 points corresopnding to min and max boundaries of all operators
                 thetas_allOperators = np.vstack([thetas_allOperators, minWC_tmp]) # Add point corresponding to min boundaries
                 thetas_allOperators = np.vstack([thetas_allOperators, maxWC_tmp]) # Add point corresponding to max boundaries
-            if samplingMode == 'linear':
+            elif samplingMode == 'linear':
                 thetas_allOperators = np.linspace(minWC_tmp, maxWC_tmp, nPointsPerOperator*len(listOperatorsParam))
             else: print('Wrong sampling mode ! Abort !'); exit(1)
 
@@ -523,6 +523,8 @@ def Get_ThetaParameters(opts, operatorNames):
             if opInSample not in listOperatorsParam:
                 # print(opInSample, 'not in sample ! ( operatorNames:', operatorNames, '/ thetas_allOperators.shape:', thetas_allOperators.shape, ')')
                 thetas_allOperators[:,i_opInSample] = 0 #Set columns corresponding to operators present in sample but not selected by user to 0
+
+        # print('thetas_allOperators', thetas_allOperators); exit(1)
 
 # //--------------------------------------------
 

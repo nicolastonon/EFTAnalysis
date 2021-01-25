@@ -27,6 +27,8 @@ from Utils.Validation_Control import *
 from Utils.Predictions import *
 from Utils.RegressorValidation import *
 # from ann_visualizer.visualize import ann_viz
+from pathlib import Path
+
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -63,7 +65,7 @@ list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctw_4")
 list_points_sampling.append("rwgt_ctw_5")
 # list_points_sampling.append("rwgt_cpqm_5")
-list_points_sampling.append("rwgt_cpq3_10")
+# list_points_sampling.append("rwgt_cpq3_10")
 # list_points_sampling.append("rwgt_cpt_15")
 # list_points_sampling.append("rwgt_ctz_5_ctw_5")
 # list_points_sampling.append("rwgt_ctW_2_cpQ3_4.5")
@@ -156,7 +158,7 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
                     pred_SM=np.squeeze(model.predict(x_SM)) #Also need to set the WC input value for SM events according to current EFT point #Update prediction
 
                 Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, ['EFT','SM'], [[pred_tmp,pred_SM]], [PhysicalWeights_tmp,PhysicalWeights_SM], [x_tmp,x_SM], [],[],[], True, operator_scan, str(WCs[idx]).replace('.0',''))
-                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), ['SM',point], True, operator_scan, WCs, idx, ymax)
+                ymax = Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), ['SM',point], True, operator_scan, WCs, idx, ymax, weightDir=_weightDir)
                 Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, np.concatenate((x_SM,x_tmp)), np.concatenate((y_process_SM,y_process_tmp)), np.concatenate((pred_SM,pred_tmp)), np.concatenate((PhysicalWeights_SM,PhysicalWeights_tmp)), list_points_sampling, True, operator_scan, str(WCs[idx]).replace('.0',''), feature_name='recoZ_Pt') #recoZ_Pt/dEta_tjprime
 
     if scan_singleOperator:
@@ -181,11 +183,12 @@ def Standalone_Validation(optsTrain, _list_lumiYears, _list_labels, _list_featur
     Make_Pull_Plot(optsTrain, standaloneValDir, y, predictions, list_points_sampling)
 
     #For classifiers
-    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling)
-    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, feature_name="recoZ_Pt")
-    Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling, scores_allClasses_eachOperator)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, weightDir=_weightDir)
+    Make_OvertrainingPlot_SinglePoints(optsTrain, standaloneValDir, list_labels,_list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, feature_name="recoZ_Pt", weightDir=_weightDir)
     Make_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, x, y, predictions, PhysicalWeights, list_points_sampling)
     Store_TrainTestPrediction_Histograms(optsTrain, _lumiName, _list_features, list_labels, [pred_all], PhysicalWeights_all, x_all)
+    Make_Multiple_ROCs(optsTrain, standaloneValDir, list_labels, _list_features, x, y, predictions, PhysicalWeights, list_points_sampling, y_process)
+    # Make_ScatterPlot_2Dvars(optsTrain, _list_features, standaloneValDir, x, predictions, y_process, PhysicalWeights, list_points_sampling, scores_allClasses_eachOperator)
 
     return
 
@@ -417,7 +420,7 @@ def Make_Pull_Plot(opts, standaloneValDir, truth, pred, list_points_sampling):
  #    #  #  #  #      #   #    #   #   #  #    # # #   ##
   ####    ##   ###### #    #   #   #    # #    # # #    #
 
-def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, scan=False, operator_scan='', WCs=[], idx_WC=-1, ymax=-1, feature_name=""):
+def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list_features, x, predictions, y_process, PhysicalWeights, list_points_sampling, scan=False, operator_scan='', WCs=[], idx_WC=-1, ymax=-1, feature_name="", weightDir=""):
     '''
     Plot output distributions for points in 'list_points_sampling'.
 
@@ -432,9 +435,13 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
     #-- Define colors for all validation points
     #See: https://matplotlib.org/3.2.1/gallery/color/colormap_reference.html
     cols = cm.rainbow(np.linspace(0, 1, len(list_points_sampling))) #Rainbow
+    # cols = cm.Set1(np.linspace(0, 1, 10)) #Qualitative
+
+    # cols = cm.viridis(np.linspace(0, 1, len(list_points_sampling))) #Perceptually uniform 1
+    # cols = cm.plasma(np.linspace(0, 1, len(list_points_sampling))) #Perceptually uniform 2
+    # cols = cm.cividis(np.linspace(0, 1, len(list_points_sampling))) #Perceptually uniform 3
     # cols = cm.Oranges(np.linspace(0, 1, len(list_points_sampling))) #Nuances of orange
-    # cols = cm.Pastel1(np.linspace(0, 1, len(list_points_sampling))) #Pastel
-    # cols = cm.Set1(np.linspace(0, 1, len(list_points_sampling))) #Qualitative
+    # cols = cm.Dark2(np.linspace(0, 1, len(list_points_sampling))) #Qualitative
 
     #-- Define legend names for all validation points
     legendNames = GetLegendNameEFTpoint(list_points_sampling)
@@ -449,7 +456,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
 
         if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"] and inode > 0: continue #Only for r node
 
-        nbins = 30
+        nbins = 20
         # nbins = 70
 
         xrange = None #Hist x-range
@@ -464,11 +471,29 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
             rmin = 0.; rmax = 1.; xrange = (rmin,rmax)
             # ax.set_xlim([rmin,rmax])
             myxlabel = "Classifier output"
+
+            #-- Read contents of the card we just produced #Set automatic bounds
+            if Path(weightDir+"NN_info.txt").is_file():
+                f = open(weightDir+"NN_info.txt", "r")
+                contents = f.readlines()
+                f.close()
+                for line in contents:
+                    if 'bounds' in line:
+                        rmin = float(line.split()[1]); rmax = float(line.split()[2])
+
+                        #-- Adjust to 0.05 below/above
+                        rmin = int(rmin*100); rmin-= int(rmin%5); rmin/= 100.; rmin=0. if rmin < 0 else rmin
+                        rmax = int(rmax*100)+5; rmax-= int(rmax%5); rmax/= 100.; rmax=1. if rmax > 1 else rmax
+
+                        print('-- Set auto bounds: rmin = ', rmin, ' / rmax = ', rmax)
+
         else:
             if feature_name == "recoZ_Pt": #Hardcode xrange for easier comparisons b/w histos
-                rmin = 0.; rmax = 750; xrange = (rmin,rmax)
+                rmin = 0.; rmax = 750
                 # ax.set_xlim([0,750])
             myxlabel = feature_name
+
+        xrange = (rmin,rmax)
 
         #--- COSMETICS
         ax.patch.set_edgecolor('black')
@@ -566,6 +591,7 @@ def Make_OvertrainingPlot_SinglePoints(opts, standaloneValDir, list_labels, list
  #   #  #    # #    # #    #
  #    #  ####   ####   ####
 
+#-- Make single '1vs all' ROC curve plot
 def Make_ROCs(opts, standaloneValDir, list_labels, list_features, x, truth, predictions, PhysicalWeights, list_points_sampling, scan=False, op='', WC='', feature_name=''):
 
     if "CARL" not in opts["strategy"]: return
@@ -615,6 +641,78 @@ def Make_ROCs(opts, standaloneValDir, list_labels, list_features, x, truth, pred
     print(colors.fg.lightgrey, "\nSaved ROC plot as :", colors.reset, plotname)
     fig.clear()
     plt.close('roc')
+
+    return
+
+
+#-- Make ROC for 1 vs 1 (as many ROC curves as competing hypotheses)
+def Make_Multiple_ROCs(opts, standaloneValDir, list_labels, list_features, x, truth, predictions, PhysicalWeights, list_points_sampling, y_process, scan=False, op='', WC='', feature_name=''):
+
+    if "CARL" not in opts["strategy"]: return
+    if "sm" not in list_points_sampling and "SM" not in list_points_sampling: return #Compare EFT to SM
+    lw = 2 #linewidth
+
+    fig = plt.figure('multiroc')
+
+    nofOutputNodes = opts["nofOutputNodes"]
+
+    truth_tmp = truth[:]
+    truth_tmp[truth_tmp>0] = 1 #Positive integers --> Set to 0 or 1
+
+    legendNames = GetLegendNameEFTpoint(list_points_sampling)
+
+    #-- Define colors for all validation points
+    #See: https://matplotlib.org/3.2.1/gallery/color/colormap_reference.html
+    cols = cm.rainbow(np.linspace(0, 1, len(list_points_sampling))) #Rainbow
+
+    for ipt, point in enumerate(list_points_sampling): #For each validation point
+        # print('Point: ', point)
+
+        if ipt == 0: continue #Don't plot SM vs SM...!
+
+        #For each point, get corresponding color and legend name
+        col = cols[ipt]
+        if(point is "SM"): col = 'dimgrey'
+        leg = legendNames[ipt]
+
+        fpr, tpr, _ = roc_curve(np.concatenate((truth[y_process==0],truth[y_process==ipt])), np.concatenate((predictions[y_process==0],predictions[y_process==ipt])))
+        roc_auc = auc(fpr, tpr)
+        plt.plot(1-fpr, tpr, color=col, lw=lw, label=leg+' (AUC = {1:0.2f})' ''.format(0, roc_auc))
+
+        #-- Option: instead of NN prediction, make ROC for some input feature
+        if feature_name != '':
+            idx_feature = -1
+            for idx_feature, feature in enumerate(list_features):
+                if feature_name == feature: predictions = x[:,idx_feature]
+            if idx_feature != -1:
+                fpr, tpr, _ = roc_curve(truth, predictions)
+                roc_auc = auc(fpr, tpr)
+                plt.plot(1-fpr, tpr, color='darkorange', lw=lw, label='ROC '+ feature_name +' (test) (AUC = {1:0.2f})' ''.format(0, roc_auc))
+
+
+    ax = fig.gca()
+    ax.set_xticks(np.arange(0, 1, 0.1))
+    ax.set_yticks(np.arange(0, 1., 0.1))
+    plt.grid()
+    plt.plot([1, 0], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('Signal efficiency')
+    plt.ylabel('Background rejection')
+    if scan:
+        plt.title(op + '=' + WC + ' vs SM', fontsize=20)
+        plt.legend(loc='lower left')
+    else:
+        plt.title('')
+        plt.legend(loc='best')
+
+    plotname = standaloneValDir + 'MultiROC'
+    if scan: plotname+= "_"+op+'_'+WC
+    plotname+= ".png"
+    fig.savefig(plotname)
+    print(colors.fg.lightgrey, "\nSaved multiROC plot as :", colors.reset, plotname)
+    fig.clear()
+    plt.close('multiroc')
 
     return
 

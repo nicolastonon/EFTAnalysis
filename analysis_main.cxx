@@ -19,8 +19,8 @@ int main(int argc, char **argv)
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
-    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
-    bool use_SMdiffAnalysis_strategy = false; //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
+    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
+    bool use_SMdiffAnalysis_strategy = false; //Obsolete //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- N T U P L E S --
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     //-- T E M P L A T E S --
     bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "NN_SM"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
+    TString template_name = "NN_ctz"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-
+    bool draw_prelim_label = true; //true <-> Add 'preliminary' label on plots
 
 //-----------------------------------------------------------------------------------------
 // ##       ##     ## ##     ## #### ##    ##  #######   ######  #### ######## ##    ##
@@ -387,7 +387,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -397,7 +397,7 @@ int main(int argc, char **argv)
 
     bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
-        bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
+        bool use_combine_file = true; //FIXME //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
@@ -445,7 +445,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, draw_prelim_label);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

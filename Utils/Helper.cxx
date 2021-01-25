@@ -1273,8 +1273,14 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             // float max_tmp = ((int) (minmax_bounds[1]*10)+1)/10.; if(max_tmp>1.) {max_tmp=1.;}
 
             //-- Round to 0.05 below and above //Ex: min=0.263 -> 0.25 ; max = 0.826 -> 0.85
-            float min_tmp = ((int) (minmax_bounds[0]*100)); min_tmp-= ((int) min_tmp%5); min_tmp/= 100.; if(min_tmp<0.) {min_tmp=0.;}
-            float max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
+            float min_tmp = 0.;
+            float max_tmp = 0.;
+
+            if(minmax_bounds.size() > 0)
+            {
+                min_tmp = ((int) (minmax_bounds[0]*100)); min_tmp-= ((int) min_tmp%5); min_tmp/= 100.; if(min_tmp<0.) {min_tmp=0.;}
+                max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
+            }
 
             //-- Hard-coded ranges (training-dependent !) //FIXME
             nbins = 8;
@@ -1290,6 +1296,9 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
 
             else if(template_name.Contains("NN_3D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
             else if(template_name.Contains("NN_3D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
+
+            else if(template_name.Contains("NN_5D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
+            else if(template_name.Contains("NN_5D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
 
             // cout<<"minmax_bounds[0] "<<minmax_bounds[0]<<" / minmax_bounds[1] "<<minmax_bounds[1]<<endl;
             // cout<<"min_tmp "<<min_tmp<<" / max_tmp "<<max_tmp<<endl;
@@ -1724,7 +1733,7 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         {
             fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
 
-            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
+            cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
             if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
             else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
         }

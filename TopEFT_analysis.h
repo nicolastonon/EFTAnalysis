@@ -74,7 +74,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool split_EFTtemplates_perBin);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -199,6 +199,8 @@ class TopEFT_analysis
     bool process_samples_byGroup; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 
     bool split_EFTtemplates_perBin; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
+
+    bool draw_prelim_label;
 };
 
 #endif

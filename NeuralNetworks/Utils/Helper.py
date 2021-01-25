@@ -527,13 +527,13 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpq3") or 'cpq3' in opts["refPoint"]: list_features = features_CARL_ttZ_cpq3
                 elif (opts["refPoint"]=="SM" and opts["listOperatorsParam"][0]=="cpt") or 'cpt' in opts["refPoint"]: list_features = features_CARL_ttZ_cpt
 
-        elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==3):
-            if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_3D
-            elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_3D
+        # elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==5):
+        #     if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_all
+        #     elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_all
 
-        elif (opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])==5):
-            if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_all
-            elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_all
+        elif opts["trainAtManyEFTpoints"] == True and len(opts["listOperatorsParam"])>1:
+            if 'tZq' in labels_list[0]: list_features = features_CARL_tZq_5D
+            elif 'ttZ' in labels_list[0]: list_features = features_CARL_ttZ_5D
 
         if len(list_features)==0: print(colors.fg.red, 'ERROR : option [useHardCodedListInputFeatures=False], but can not find a dedicated list of input features for the particular use-case you are currently considering (cf. user-options). Set to True to use the list defined in the main code, or define the use-case in [InputFeatures.py and Helper.py] !', colors.reset); exit(1)
 
@@ -597,8 +597,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
     if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"]: #Store in dedicated operator-dependent output dir.
         if len(opts["listOperatorsParam"])==1: weightDir+= opts["listOperatorsParam"][0] + '/'
-        elif len(opts["listOperatorsParam"])==3: weightDir+= '3D' + '/'
-        elif len(opts["listOperatorsParam"])==5: weightDir+= 'all' + '/'
+        # elif len(opts["listOperatorsParam"])==3: weightDir+= '3D' + '/'
+        # elif len(opts["listOperatorsParam"])==5: weightDir+= 'all' + '/'
+        elif len(opts["listOperatorsParam"]) >= 2: weightDir+= '5D' + '/'
 
     #Model output name
     h5modelName = weightDir + 'model.h5'
@@ -617,8 +618,10 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
         text_file = open(weightDir + "NN_info.txt", "w") #'w' to overwrite
         text_file.close()
 
-    Write_Timestamp_toLogfile(weightDir, 0)
-    Dump_NN_Options_toLogFile(opts, weightDir, processClasses_list) #Write user-options to dedicated logfile
+        #-- Write NN's settings
+        NN_settings_filepath = "{}NN_settings.txt".format(weightDir)
+        Write_Timestamp_toLogfile(NN_settings_filepath, 0)
+        Dump_NN_Options_toLogFile(opts, NN_settings_filepath, processClasses_list) #Write user-options to dedicated logfile
 
     return lumiName, weightDir, h5modelName, opts["batchSize"], list_features
 
@@ -627,9 +630,9 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
 
 #Write information related to this NN training
 #NB: also append the names of the input/output nodes in separate output file "NN_info.txt" containing names of input features, etc. (for later use in C++ code)
-def Dump_NN_Options_toLogFile(opts, weightDir, processClasses_list):
+def Dump_NN_Options_toLogFile(opts, filepath, processClasses_list):
 
-    text_file = open(weightDir + "NN_settings.txt", "a+") #Overwrite file
+    text_file = open(filepath, "a+") #Overwrite file
 
     text_file.write("\nOPTIONS\n")
     text_file.write("----------------- \n")
@@ -653,7 +656,7 @@ def Dump_NN_Options_toLogFile(opts, weightDir, processClasses_list):
 
 #Write timestamp to NN logfile
 #status: 0=start, 1=end
-def Write_Timestamp_toLogfile(weightDir, status):
+def Write_Timestamp_toLogfile(filepath, status):
 
     if status == 0: mode = "w"
     else: mode = "a+"
@@ -662,7 +665,8 @@ def Write_Timestamp_toLogfile(weightDir, status):
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
     # print('Current Timestamp : ', timestampStr)
 
-    text_file = open(weightDir + "NN_settings.txt", mode) #Overwrite file
+    print('filepath', filepath)
+    text_file = open(filepath, mode) #Overwrite file
     if status == 0: text_file.write("Start of NN training :" + str(timestampStr) + "\n")
     elif status == 1: text_file.write("End of NN training and evaluation :" + str(timestampStr) + "\n")
     text_file.close()
