@@ -596,10 +596,15 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
             else: weightDir+= 'Other/'
 
     if opts["storeInTestDirectory"] == False and opts["storePerOperatorSeparately"] == True and opts["strategy"] in ["CARL","CARL_singlePoint","CARL_multiclass","ROLR","RASCAL","CASCAL"]: #Store in dedicated operator-dependent output dir.
-        if len(opts["listOperatorsParam"])==1: weightDir+= opts["listOperatorsParam"][0] + '/'
-        # elif len(opts["listOperatorsParam"])==3: weightDir+= '3D' + '/'
-        # elif len(opts["listOperatorsParam"])==5: weightDir+= 'all' + '/'
-        elif len(opts["listOperatorsParam"]) >= 2: weightDir+= '5D' + '/'
+        if len(opts["listOperatorsParam"])==1: weightDir+= opts["listOperatorsParam"][0]
+        # elif len(opts["listOperatorsParam"])==3: weightDir+= '3D'
+        # elif len(opts["listOperatorsParam"])==5: weightDir+= 'all'
+        elif len(opts["listOperatorsParam"]) >= 2: weightDir+= '5D'
+
+        if opts["parameterizedNN"] == True:
+            weightDir+= '_param'
+
+        weightDir+= '/'
 
     #Model output name
     h5modelName = weightDir + 'model.h5'

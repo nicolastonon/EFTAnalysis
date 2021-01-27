@@ -1579,7 +1579,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     						if(makeHisto_inputVars) //Kinematic variables
                             {
                                 if(!Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax)) {cout<<FRED("Unknown variable name : "<<total_var_list[ivar]<<"! (include it in function Get_Variable_Range() in Helper.cxx)")<<endl; continue;} //Get binning for this input variable
-                                if(region.Contains("ttz4l", TString::kIgnoreCase)) {nbins = (int) (nbins / 2);} //Need tighter binning in low-stat regions
+                                if(region.Contains("ttz4l", TString::kIgnoreCase) && !total_var_list[ivar].Contains("njets") && !total_var_list[ivar].Contains("nbjets") && !total_var_list[ivar].Contains("channel")) {nbins = (int) (nbins / 2);} //Need tighter binning in low-stat regions
                             }
                             else //Templates
                             {
@@ -3895,6 +3895,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         else if(!drawInputVars && categorization_strategy == 1 && (make_SMvsEFT_templates_plots || (!make_SMvsEFT_templates_plots && plot_onlyMVACutEvents)) ) {output_plot_name+= "_MVAcut";}
 		output_plot_name+= this->filename_suffix;
 		if(draw_logarithm) {output_plot_name+= "_log";}
+        if(this->is_blind) {output_plot_name+= "_blind";}
 		output_plot_name+= this->plot_extension;
 
 		c1->SaveAs(output_plot_name);

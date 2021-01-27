@@ -58,10 +58,10 @@ evalPoint = ''
 list_points_sampling = ["SM"] #Keep this !
 # list_points_sampling.append("rwgt_ctz_1")
 # list_points_sampling.append("rwgt_ctz_3")
-list_points_sampling.append("rwgt_ctz_5")
+# list_points_sampling.append("rwgt_ctz_5")
 # list_points_sampling.append("rwgt_ctw_1")
 # list_points_sampling.append("rwgt_ctw_2")
-# list_points_sampling.append("rwgt_ctw_3")
+list_points_sampling.append("rwgt_ctw_3")
 # list_points_sampling.append("rwgt_ctw_4")
 list_points_sampling.append("rwgt_ctw_5")
 # list_points_sampling.append("rwgt_cpqm_5")

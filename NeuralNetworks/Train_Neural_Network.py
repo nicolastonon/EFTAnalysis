@@ -37,7 +37,7 @@ optsTrain = {
 # "strategy": "CASCAL", # <-> Calibrated Classifier (CARL) + score regression; still in test phase
 
 #=== General training/architecture settings ===#
-"nEpochs": 20, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 100, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
@@ -67,12 +67,12 @@ optsTrain = {
 # "refPoint": "rwgt_ctz_5",
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-# "listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
-"nPointsPerOperator": 20, #Number of EFT points from which to sample events (times the number of selected operators)
-"minWC": -5, "maxWC": 5, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
-"listMinMaxWC": [-5,5, -5,5, -15,15, -10,10, -15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values) #NB: must keep ranges for all operators (found in samples), even if considering only a subset of operators !
-"nEventsPerPoint": 1000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
+# "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
+"nPointsPerOperator": 50, #Number of EFT points from which to sample events (times the number of selected operators)
+"minWC": -2, "maxWC": 2, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
+# "listMinMaxWC": [-5,5, -5,5, -15,15, -10,10, -15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values) #NB: must keep ranges for all operators (found in samples), even if considering only a subset of operators !
+"nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
 "score_lossWeight": 0.5, #Apply scale factor to score term in loss function
 "regress_onLogr": False, #True <-> NN will regress on log(r) instead of r
@@ -93,7 +93,7 @@ optsTrain = {
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
-"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"storeInTestDirectory": False, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 "storePerOperatorSeparately": True, #True <-> when training on SM vs EFT and considering a single operator, will store all outputs in an operatgor-specific dir. (allows to then consider different trainigs for different operators)
 "useFakeableNPL": True, #True <-> if running on MC NPL samples (hardcoded names), will consider events from both SR+sideband (i.e. events with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, use that of ==3 tight lepton events only (otherwise need FR weights)
 "displayImages": False, #True <-> will display (pop-up) some output figures (metrics, loss, ROC, ...)

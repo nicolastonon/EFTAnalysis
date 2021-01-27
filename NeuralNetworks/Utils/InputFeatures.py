@@ -100,9 +100,9 @@ features_CARL_tZq_5D.append("TopZsystem_M")
 features_CARL_ttZ_ctz = []
 features_CARL_ttZ_ctz.append("recoZ_Pt")
 features_CARL_ttZ_ctz.append("recoZ_Eta")
-# features_CARL_ttZ_ctz.append("recoZ_dPhill") #-- too correlated ?
-# features_CARL_ttZ_ctz.append("Mass_3l")
-# features_CARL_ttZ_ctz.append("mHT")
+features_CARL_ttZ_ctz.append("recoZ_dPhill") #REMOVE IN NEXT TRAINING? #FIXME
+features_CARL_ttZ_ctz.append("Mass_3l") #REMOVE IN NEXT TRAINING?
+features_CARL_ttZ_ctz.append("mHT") #REMOVE IN NEXT TRAINING?
 features_CARL_ttZ_ctz.append("dR_tZ")
 features_CARL_ttZ_ctz.append("mTW")
 features_CARL_ttZ_ctz.append("cosThetaStarPolZ")

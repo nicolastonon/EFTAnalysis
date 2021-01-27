@@ -9,12 +9,12 @@ TString Get_Category_LatexName(TString cat)
     TString name = cat;
 
     if(cat.Contains("signal")) {name = "\\sr";}
-    else if(cat.Contains("ttZ4l")) {name = "SR $t\\bar{t}Z 4l$";}
-    if(cat.Contains("wz")) {name = "CR \\WZ";}
-    if(cat.Contains("zz")) {name = "CR \\ZZ";}
-    if(cat.Contains("xg")) {name = "CR $X\\gamma$";}
-    if(cat.Contains("dy")) {name = "CR $\\dy$";}
-    if(cat.Contains("ttbar")) {name = "CR $t\\bar{t}}$";}
+    else if(cat.Contains("ttZ4l")) {name = "\\srttzfour";}
+    if(cat.Contains("wz")) {name = "\\WZ CR";}
+    if(cat.Contains("zz")) {name = "\\ZZ CR";}
+    if(cat.Contains("xg")) {name = "$X\\gamma$ CR";}
+    if(cat.Contains("dy")) {name = "$\\dy$ CR";}
+    if(cat.Contains("ttbar")) {name = "$t\\bar{t}}$ CR";}
 
     return name;
 }
@@ -109,16 +109,21 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
     	{
             if(v_label[isample].Contains("TTbar") || v_label[isample].Contains("DY")) {continue;}
             else if(v_samples[isample] == "DATA") {continue;}
-            else if(v_samples[isample].Contains("PrivMC")) {continue;}
+            else if(!use_privSamples_asSignal && v_samples[isample].Contains("PrivMC")) {continue;} //Yield tables: consider central samples
+            else if(use_privSamples_asSignal && (v_samples[isample]=="tZq" || v_samples[isample]=="ttZ" || v_samples[isample]=="tWZ")) {continue;} //Yield tables: consider private samples
 
             if(isample == v_label.size()-1 || v_label[isample] != v_label[isample+1])
     		{
-    			if(v_label[isample] == "ttZ") {file_latex<<"$t\\bar{t}Z$ & ";}
-                else if(v_label[isample] == "ttW") {file_latex<<"$t\\bar{t}W$ & ";}
-                else if(v_label[isample] == "ttH") {file_latex<<"$t\\bar{t}H$ & ";}
-                else if(v_label[isample] == "tX") {file_latex<<"$t(\\bar{t})X$ & ";}
-                else if(v_label[isample] == "VVV") {file_latex<<"$VV(V)$ & ";}
-                else if(v_label[isample] == "XG") {file_latex<<"$X\\gamma$ & ";}
+                // if(v_label[isample] == "ttZ") {file_latex<<"$t\\bar{t}Z$ & ";}
+                if(v_label[isample].Contains("tZq")) {file_latex<<"$\\tZq$ & ";}
+                else if(v_label[isample].Contains("ttZ")) {file_latex<<"$\\ttZ$ & ";}
+                else if(v_label[isample].Contains("tWZ")) {file_latex<<"$\\tWZ$ & ";}
+                else if(v_label[isample] == "ttW") {file_latex<<"$t\\ttW$ & ";}
+                else if(v_label[isample] == "ttH") {file_latex<<"$t\\ttH$ & ";}
+                else if(v_label[isample] == "tX") {file_latex<<"$t(\\tX$ & ";}
+                else if(v_label[isample] == "WZ") {file_latex<<"$\\WZ$ & ";}
+                else if(v_label[isample] == "VVV") {file_latex<<"$\\VVV$ & ";}
+                else if(v_label[isample] == "XG") {file_latex<<"$\\Xg$ & ";}
     			else {file_latex<<""<<v_label[isample]<<" & ";}
     		}
     	}
@@ -403,9 +408,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
                     file_out<<" (+/- "<<sqrt(statErr_tmp)<<" stat.)"<<endl;
                     // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
 
-                    if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
+                    if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA") && v_label[isample]!="tZq" && v_label[isample]!="ttZ" && v_label[isample]!="tWZ")
+                    // if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
                     {
-                        file_latex<<fixed<<setprecision(precision)<<yield_tmp<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_tmp)<<") & "; //Single process
+                        file_latex<<fixed<<setprecision(precision)<<abs(yield_tmp)<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_tmp)<<") & "; //Single process
                     }
 
                     yield_tmp = 0; //Reset after writing to file
@@ -444,9 +450,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             file_out<<" (+/- "<<sqrt(statErr_currentGroup)<<" stat.)"<<endl;
             // cout<<left<<setw(25)<<v_label[isample]<<yield_tmp<<endl;
 
-            if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
+            if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA") && v_label[isample]!="tZq" && v_label[isample]!="ttZ" && v_label[isample]!="tWZ")
+            // if(create_latex_table && !v_label[isample].Contains("TTbar") && !v_label[isample].Contains("DY") && !v_label[isample].Contains("DATA")  && !v_label[isample].Contains("PrivMC"))
             {
-                file_latex<<fixed<<setprecision(precision)<<yield_currentGroup<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_currentGroup)<<") & "; //Single process
+                file_latex<<fixed<<setprecision(precision)<<abs(yield_currentGroup)<<" ($\\pm$"<<fixed<<setprecision(precision)<<sqrt(statErr_currentGroup)<<") & "; //Single process
             }
 
             yield_currentGroup = 0; statErr_currentGroup = 0; //Reset
