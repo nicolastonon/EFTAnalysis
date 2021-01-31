@@ -7,6 +7,9 @@ Store RooParametricHist (for EFT signal histos) and RooDataHist (for all other h
 
 - Naming conventions: rrv=RooRealVar, rph=RooParametricHist, rdh=RooDataHist, ...
 
+- Example running command:
+[[ python create_WS.py -d ../datacards/COMBINED_Datacard_TemplateFit_Run2.txt -f ./Parameterization_EFT.npy -t ../templates/Templates_Zpt_EFT2_Run2.root -o ../templates/Templates_otherRegions_Run2.root ]]
+
 Written by Nicolas Tonon (DESY), 2021
 '''
 
@@ -284,7 +287,7 @@ class EFTWorkspace(object):
    #   #    #    #  #  # #     #
    #    ####      ## ##   #####
 
-    def Import_RooParametricHists_ToWorkspace(self, datacard_path, template_file, template_file_otherRegions, verb=0):
+    def Import_RooParametricHists_ToWorkspace(self, datacard_path, template_file, template_file_otherRegions, read_UpDownShiftedHist_forRPH=False, verb=0):
         '''
         Create a rootfile containing a temporary workspace including all the necessary RooParametricHist objects (1 per EFT signal process and channel).
 
@@ -296,14 +299,14 @@ class EFTWorkspace(object):
         wspace = RooWorkspace("w","w")
 
         #-- Create RooRealVar for each WC #Store the list of WCs contributing to the formula --> Will provide this same list of args for all EFT parameterizations formulas
-        ral_tmp = RooArgList()
+        ral_wcs = RooArgList()
         for wc in self.wcs:
             rrv_wc = RooRealVar(wc, wc, 0., self.wc_ranges[wc][0], self.wc_ranges[wc][1])
             # print('rrv_wc', rrv_wc)
             getattr(wspace,'import')(rrv_wc, RooFit.RecycleConflictNodes(), RooFit.Silence())
             self.allVars.append(rrv_wc) #Trick (memory-management)
-            ral_tmp.add(rrv_wc)
-        self.allVars.append(ral_tmp) #Trick (memory-management)
+            ral_wcs.add(rrv_wc)
+        self.allVars.append(ral_wcs) #Trick (memory-management)
 
         #-- For each shapeSyst, create a corresponding RRV (nuisance par) once, which we could reuse later as needed
         for isyst, syst in enumerate(self.shape_systs): #Loop on shape systematics
@@ -390,50 +393,55 @@ class EFTWorkspace(object):
  #      #        #      #      #    # #   #  #    # #    # ###
  ###### #        #      #      #    # #    # #    # #    # ###
 
-                        if (proc,bin_name) not in self.fits:
-                            print(colors.fg.red + 'Key ' + '({},{})'.format(proc,bin_name) + ' not found in parameterization dict ' + self.fit_file + ' ! Abort !' + colors.reset)
-                            exit(1)
-
-                        fitCoeffs_procchan = self.fits[proc,bin_name] #Read all fit coefficients for this chan/proc
-                        # print('fitCoeffs_procchan', fitCoeffs_procchan)
-
                         eft_analytical_expr = '1' #Default bin parameterization = '1' (<-> 1*SM)
 
-                        for icoeff, coeff1 in enumerate(self.wcs): #First loop on WCs
-                            # print('icoeff', icoeff, 'coeff1', coeff1)
+                        ral_tmp = RooArgList() #By default, EFT expression will depend on 0 parameters (e.g. if parameterization not found in dict)
 
-                            #-- Get fit coefficient for interference term (SM-EFT)
-                            coeff = 0.
-                            if ('SM',coeff1) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[('SM',coeff1)]
-                            elif (coeff1,'SM') in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff1,'SM')]
-                            else:
-                                print(colors.fg.red + 'Key ' + ('SM',coeff1) + ' not found in  fitCoeffs_procchan ! Abort !' + colors.reset)
-                                exit(1)
+                        if (proc,bin_name) in self.fits: #EFT parameterization found
 
-                            #-- Update full formula for the current histo bin
-                            if abs(coeff) < min_threshold_EFTcoeff: coeff=0 #If coefficient is below min threshold, neglect it, but still write the corresponding (null) term because we always want to give the full list of WCs as args (so even if a WC is actually neglected, we include it in the rfv)
-                            eft_analytical_expr+= '+{}*@{}'.format(coeff,icoeff) if coeff>=0 else '{}*@{}'.format(coeff,icoeff) #NB: Negative coefficient already contains the minus sign
+                            ral_tmp = ral_wcs #Parameterization found --> Make expression depend on all WCs
 
-                            for jcoeff, coeff2 in enumerate(self.wcs): #Second loop on WCs
-                                # print('jcoeff', jcoeff, 'coeff2', coeff2)
+                            fitCoeffs_procchan = self.fits[proc,bin_name] #Read all fit coefficients for this chan/proc
+                            # print('fitCoeffs_procchan', fitCoeffs_procchan)
 
-                                if jcoeff < icoeff: continue #<-> if term (wc1,wc2) already included, don't include equivalent term (wc2,wc1)
+                            for icoeff, coeff1 in enumerate(self.wcs): #First loop on WCs
+                                # print('icoeff', icoeff, 'coeff1', coeff1)
 
-                                #-- Get fit coefficient for quadratic term (EFT-EFT)
+                                #-- Get fit coefficient for interference term (SM-EFT)
                                 coeff = 0.
-                                if (coeff1,coeff2) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff1,coeff2)]
-                                elif (coeff2,coeff1) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff2,coeff1)]
+                                if ('SM',coeff1) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[('SM',coeff1)]
+                                elif (coeff1,'SM') in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff1,'SM')]
                                 else:
-                                    print(colors.fg.red + 'Key ' + (coeff1,coeff2) + ' not found in  fitCoeffs_procchan ! Abort !' + colors.reset)
+                                    print(colors.fg.red + 'Key ' + ('SM',coeff1) + ' not found in  fitCoeffs_procchan ! Abort !' + colors.reset)
                                     exit(1)
 
-                                #-- Update full formula for the current histo bin (if above given threshold)
+                                #-- Update full formula for the current histo bin
                                 if abs(coeff) < min_threshold_EFTcoeff: coeff=0 #If coefficient is below min threshold, neglect it, but still write the corresponding (null) term because we always want to give the full list of WCs as args (so even if a WC is actually neglected, we include it in the rfv)
-                                eft_analytical_expr+= '+{}*@{}*@{}'.format(coeff,icoeff,jcoeff) if coeff>=0 else '{}*@{}*@{}'.format(coeff,icoeff,jcoeff) #NB: Negative coefficient already contains the minus sign
+                                eft_analytical_expr+= '+{}*@{}'.format(coeff,icoeff) if coeff>=0 else '{}*@{}'.format(coeff,icoeff) #NB: Negative coefficient already contains the minus sign
 
-                        # print('eft_analytical_expr', eft_analytical_expr)
+                                for jcoeff, coeff2 in enumerate(self.wcs): #Second loop on WCs
+                                    # print('jcoeff', jcoeff, 'coeff2', coeff2)
+
+                                    if jcoeff < icoeff: continue #<-> if term (wc1,wc2) already included, don't include equivalent term (wc2,wc1)
+
+                                    #-- Get fit coefficient for quadratic term (EFT-EFT)
+                                    coeff = 0.
+                                    if (coeff1,coeff2) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff1,coeff2)]
+                                    elif (coeff2,coeff1) in fitCoeffs_procchan: coeff = fitCoeffs_procchan[(coeff2,coeff1)]
+                                    else:
+                                        print(colors.fg.red + 'Key ' + (coeff1,coeff2) + ' not found in  fitCoeffs_procchan ! Abort !' + colors.reset)
+                                        exit(1)
+
+                                    #-- Update full formula for the current histo bin (if above given threshold)
+                                    if abs(coeff) < min_threshold_EFTcoeff: coeff=0 #If coefficient is below min threshold, neglect it, but still write the corresponding (null) term because we always want to give the full list of WCs as args (so even if a WC is actually neglected, we include it in the rfv)
+                                    eft_analytical_expr+= '+{}*@{}*@{}'.format(coeff,icoeff,jcoeff) if coeff>=0 else '{}*@{}*@{}'.format(coeff,icoeff,jcoeff) #NB: Negative coefficient already contains the minus sign
+
+
+                        else: #EFT parameterization not found (this is not necessarily an error: it will happen e.g. if a given EFT signal does not populate a given bin at all) #Just define a constant expression '1'
+                            print(colors.fg.red + 'Key ' + '({},{})'.format(proc,bin_name) + ' not found in parameterization dict ' + self.fit_file + ' ! Abort !' + colors.reset)
 
                         #-- Define the formulas defining the bin content
+                        # print('eft_analytical_expr', eft_analytical_expr)
                         eft_expr_bin_name = 'eft_expr_{}_{}'.format(bin_name,proc)
                         eft_expr_bin = RooFormulaVar('eft_expr_{}_{}'.format(bin_name,proc), 'EFT parameterization in {}_{}'.format(bin_name,proc), eft_analytical_expr, ral_tmp)
                         self.allVars.append(eft_expr_bin) #Trick (memory-management)
@@ -446,7 +454,6 @@ class EFTWorkspace(object):
  #    # #    # #    # #      #         #    #   #   #    #   #
   ####  #    # #    # #      ######     ####    #    ####    #
 
-                        #For each relevant syst, store the corresponding RooFormulaVar (and associated RooRealVar) for the current bin; 1 RFV <-> 1 RRV
                         list_shapeSyst_expr_bin = [] #Contains the RooFormulaVars describing the shape syst parameterization in the bin
 
                         #-- Shape systs (also convert TH1s to RDHs)
@@ -461,7 +468,7 @@ class EFTWorkspace(object):
                             hnameup = '{}__{}__{}Up'.format(chan,proc,syst)
                             hnamedown = '{}__{}__{}Down'.format(chan,proc,syst)
                             if hnameup not in file_in.GetListOfKeys() or hnamedown not in file_in.GetListOfKeys():
-                                print(colors.fg.red + 'Histo ' + hname + '(Up/Down) not found in rootfile ' + rootfile_path + ' ! Abort !' + colors.reset)
+                                print(colors.fg.red + 'Histo [' + hnameup + '] or [' + hnamedown + '] not found in rootfile ' + rootfile_path + ' ! Abort !' + colors.reset)
                                 exit(1)
 
                             hup = file_in.Get(hnameup)
@@ -469,20 +476,32 @@ class EFTWorkspace(object):
                             # print('hup.GetNbinsX()', hup.GetNbinsX())
                             # print('hdown.GetNbinsX()', hdown.GetNbinsX())
 
-                            # a, b = self.Get_PolyCoeffs_FromUpDownVariations(bin_content, hup.GetBinContent(ibin), hdown.GetBinContent(ibin))
-                            # rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
-                            # rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+{}*@0+{}*@0*@0".format(a,b), RooArgList(rrv_shapeSyst)) #NB: having '+-xxx' in expression is not a problem ?
-                            # list_shapeSyst_expr_bin.append(rfv_shapesyst)
-                            # self.allVars.append(rfv_shapesyst) #Useless ?
+                            #For each relevant syst, store the corresponding RooFormulaVar (and associated RooRealVar) for the current bin; 1 RFV <-> 1 RRV
+                            if read_UpDownShiftedHist_forRPH == False:
 
-                            #-- See: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/settinguptheanalysis/#rates-for-shape-analysis
-                            #-- See: https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/blob/102x/src/AsymQuad.cc#L94-L126
-                            rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
-                            shapesyst_expr = "( @0<=-1 )? ( @0*({0}-{2})/{0} ):( ( @0>=1 )? ( @0*({1}-{0})/{0} ):( (@0/2.)*(({1}-{2})+(0.125*@0*(TMath::Power(@0,2)*(3.*TMath::Power(@0,2)-1.)+15.))*({1}+{2}-2.*{0}))/{0} ) )".format(bin_content,hup.GetBinContent(ibin),hdown.GetBinContent(ibin))
-                            rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+({})".format(shapesyst_expr), RooArgList(rrv_shapeSyst))
-                            # print('rfv_shapesyst.evaluate', rfv_shapesyst.evaluate()) #Evaluate RDV at initial RRV value
-                            list_shapeSyst_expr_bin.append(rfv_shapesyst)
-                            self.allVars.append(rfv_shapesyst) #Useless ?
+                                # a, b = self.Get_PolyCoeffs_FromUpDownVariations(bin_content, hup.GetBinContent(ibin), hdown.GetBinContent(ibin))
+                                # rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
+                                # rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+{}*@0+{}*@0*@0".format(a,b), RooArgList(rrv_shapeSyst)) #NB: having '+-xxx' in expression is not a problem ?
+                                # list_shapeSyst_expr_bin.append(rfv_shapesyst)
+                                # self.allVars.append(rfv_shapesyst) #Useless ?
+
+                                #-- See: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/settinguptheanalysis/#rates-for-shape-analysis
+                                #-- See: https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/blob/102x/src/AsymQuad.cc#L94-L126
+                                rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
+                                shapesyst_expr = "( @0<=-1 )? ( @0*({0}-{2})/{0} ):( ( @0>=1 )? ( @0*({1}-{0})/{0} ):( (@0/2.)*(({1}-{2})+(0.125*@0*(TMath::Power(@0,2)*(3.*TMath::Power(@0,2)-1.)+15.))*({1}+{2}-2.*{0}))/{0} ) )".format(bin_content,hup.GetBinContent(ibin),hdown.GetBinContent(ibin))
+                                rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+({})".format(shapesyst_expr), RooArgList(rrv_shapeSyst))
+                                # print('rfv_shapesyst.evaluate', rfv_shapesyst.evaluate()) #Evaluate RDV at initial RRV value
+                                list_shapeSyst_expr_bin.append(rfv_shapesyst)
+                                self.allVars.append(rfv_shapesyst) #Useless ?
+
+                            elif ibin==1: #Convert up/down (shape syst) histograms for RPHs, just like for RDHs (uses PR #634) #Do that only once !
+
+                                rdh = RooDataHist('rdh_{}'.format(hnameup), 'rdh_{}'.format(hnameup), RooArgList(rrv_xaxis), hup)
+                                #print(colors.fg.lightblue + 'Import rdh_{}'.format(hnameup) + colors.reset)
+                                getattr(wspace,'import')(rdh)
+                                rdh = RooDataHist('rdh_{}'.format(hnamedown), 'rdh_{}'.format(hnamedown), RooArgList(rrv_xaxis), hdown)
+                                #print(colors.fg.lightblue + 'Import rdh_{}'.format(hnamedown) + colors.reset)
+                                getattr(wspace,'import')(rdh) #getattr(wspace,'import', [RooFit.RecycleConflictNodes(), RooFit.Silence()])(rdh)?
 
                         #-- End shapeSyst loop
 
@@ -515,7 +534,7 @@ class EFTWorkspace(object):
                                 self.allVars.append(rfv_stat) #Trick (memory-management)
 
                                 #-- Need to import these rrv manually, because in the end the RPH will take the rfv as argument (not the rrv itself)
-                                getattr(wspace,'import')(rrv_stat, RooFit.RecycleConflictNodes()) # Add 'RooFit.Silence()' arrg to remove printout
+                                getattr(wspace,'import')(rrv_stat, RooFit.RecycleConflictNodes(), RooFit.Silence())
 
 
  #####  # #    #    #####  ###### ###### # #    # # ##### #  ####  #    #
@@ -535,10 +554,11 @@ class EFTWorkspace(object):
                         counter_args+= 1
 
                         #-- Shape
-                        for shape_expr in list_shapeSyst_expr_bin:
-                            total_bin_expr+= '*@{}'.format(counter_args)
-                            total_list_args_bin.add(shape_expr)
-                            counter_args+= 1
+                        if read_UpDownShiftedHist_forRPH == False:
+                            for shape_expr in list_shapeSyst_expr_bin:
+                                total_bin_expr+= '*@{}'.format(counter_args)
+                                total_list_args_bin.add(shape_expr)
+                                counter_args+= 1
 
                         #-- MC stat
                         if include_MCstatError_rph:
@@ -575,7 +595,7 @@ class EFTWorkspace(object):
 
                     #-- Import objects to workspace
                     # print(colors.fg.lightblue + 'Import {}'.format(rph_name_tmp) + colors.reset)
-                    getattr(wspace,'import')(rph, RooFit.RecycleConflictNodes()) # Add 'RooFit.Silence()' arrg to remove printout
+                    getattr(wspace,'import')(rph, RooFit.RecycleConflictNodes(), RooFit.Silence())
                     getattr(wspace,'import')(rph_norm, RooFit.RecycleConflictNodes(), RooFit.Silence())
                     # print('... done !')
 # //--------------------------------------------
@@ -620,7 +640,7 @@ class EFTWorkspace(object):
                             rdh_name = "rdh_{}__{}__{}".format(chan,proc,systname_tmp) #Hard-coded naming convention
                             rdh = RooDataHist(rdh_name, rdh_name, RooArgList(rrv_xaxis), h_tmp)
                             # print(colors.fg.lightblue + 'Import {}'.format(rdh_name) + colors.reset)
-                            getattr(wspace,'import')(rdh) #commands 'RooFit.RecycleConflictNodes()' and 'RooFit.Silence()' only available for datasets starting from ROOT6.18 ?
+                            getattr(wspace,'import')(rdh)
 
                     #-- End shape syst loop
 
@@ -643,8 +663,8 @@ class EFTWorkspace(object):
                             rdh_statUp = RooDataHist(rdh_name, rdh_name, RooArgList(rrv_xaxis), h_statUp_ibin)
                             rdh_name = "rdh_{}__{}__{}Down".format(chan,proc,rrv_stat_name) #Hardcoded naming convention: 'rdh_binvar__proc__systUp/Down'
                             rdh_statDown = RooDataHist(rdh_name, rdh_name, RooArgList(rrv_xaxis), h_statDown_ibin)
-                            getattr(wspace,'import')(rdh_statUp) #commands 'RooFit.RecycleConflictNodes()' and 'RooFit.Silence()' only available for datasets starting from ROOT6.18 ?
-                            getattr(wspace,'import')(rdh_statDown) #commands 'RooFit.RecycleConflictNodes()' and 'RooFit.Silence()' only available for datasets starting from ROOT6.18 ?
+                            getattr(wspace,'import')(rdh_statUp)
+                            getattr(wspace,'import')(rdh_statDown)
 
                 #-- if/else EFT signal
 # //--------------------------------------------
@@ -688,6 +708,8 @@ if __name__ == "__main__":
 
     PrintBanner()
 
+    read_UpDownShiftedHist_forRPH = True #True <-> convert up/down (shape syst) histograms for RPHs, just like for RDHs (uses PR #634); else: encode the shapeSyst effects directly into bin parameterizations
+
 # User options -- Default values
 # //--------------------------------------------
     datacard_path = './datacard.txt'
@@ -699,11 +721,11 @@ if __name__ == "__main__":
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
-    parser.add_argument("-d", metavar="datacard path", help="Path to the txt datacard (to create RooWorkspace)")
-    parser.add_argument("-v", metavar="Combine verbosity level", help="Set combine output verbosity")
-    parser.add_argument("-f", metavar="parameterization file path", help="Path to the EFT parameterization dict")
-    parser.add_argument("-t", metavar="template file path", help="Path to the rootfile containing templates")
+    parser.add_argument("-d", metavar="datacard path", help="Path to the txt datacard (to create RooWorkspace)", required=True)
+    parser.add_argument("-f", metavar="parameterization file path", help="Path to the EFT parameterization dict", required=True)
+    parser.add_argument("-t", metavar="template file path", help="Path to the rootfile containing templates", required=True)
     parser.add_argument("-o", metavar="otherRegions template file path", help="Path to the otherRegions rootfile containing SRttZ4l templates")
+    parser.add_argument("-v", metavar="Combine verbosity level", help="Set combine output verbosity")
 
     args = parser.parse_args()
 
@@ -720,6 +742,6 @@ if __name__ == "__main__":
     eftws.Load_Fits(verb)
     eftws.Parse_Input_Datacard(datacard_path, verb)
     eftws.Fill_Dict_ShapeSyst(verb)
-    eftws.Import_RooParametricHists_ToWorkspace(datacard_path, template_file, template_file_otherRegions, verb)
+    eftws.Import_RooParametricHists_ToWorkspace(datacard_path, template_file, template_file_otherRegions, read_UpDownShiftedHist_forRPH, verb)
 
 # //--------------------------------------------

@@ -1,5 +1,22 @@
 #-- Plot fit results
-# Adapted from: https://github.com/cms-govner/EFTFit
+#-- Adapted from: https://github.com/cms-govner/EFTFit
+'''
+*** Critical values of chi2 distribution wih N dofs: (cf. PDG18 Table 39.2)
+* N = 1
+- 68.27% (1sigma) -> 1.00
+- 95% -> 3.84
+- 95.45% (2sigma) -> 4.00
+- 99% -> 6.63
+- 99.73% (3sigma) -> 9.00
+
+* N = 2
+- 68.27% (1sigma) -> 2.30
+- 95% -> 5.99
+- 95.45% (2sigma) -> 6.18
+- 99% -> 9.21
+- 99.73% (3sigma) -> 11.83
+'''
+
 
 import ROOT
 from ROOT import TCanvas, TGraph, gStyle, TMath
@@ -9,14 +26,17 @@ import sys
 import numpy
 import itertools
 import subprocess as sp
-from ContourHelper import ContourHelper
+from ContourHelper import *
 from Utils.ColoredPrintout import colors
 import getopt # command line parser
 import argparse
+import math
 import numpy as np
 from functools import partial
 from settings import opts #Custom dictionnary of settings
 import CombineHarvester.CombineTools.plotting as plot #Combine plotting utils
+from array import array
+import ctypes
 
 
  #    # ###### #      #####  ###### #####
@@ -74,11 +94,17 @@ def Get_Intersection_X(graph, y_line):
 def Get_Parameter_LegName(name):
 
     # EFT operators
-    if name == 'ctz': return 'C_{tZ} (#Lambda/TeV)^{2}'
-    elif name == 'ctw': return 'C_{tW} (#Lambda/TeV)^{2}'
-    elif name == 'cpq3': return 'C^{3}_{#phiQ} (#Lambda/TeV)^{2}'
-    elif name == 'cpqm': return 'C^{-}_{#phiQ} (#Lambda/TeV)^{2}'
-    elif name == 'cpt': return 'C_{#phit} (#Lambda/TeV)^{2}'
+    if name == 'ctz': return 'C_{tZ} / #Lambda^{2} [TeV^{-2}]'
+    elif name == 'ctw': return 'C_{tW} / #Lambda^{2} [TeV^{-2}]'
+    elif name == 'cpq3': return 'C^{3}_{#phiQ} / #Lambda^{2} [TeV^{-2}]'
+    elif name == 'cpqm': return 'C^{-}_{#phiQ} / #Lambda^{2} [TeV^{-2}]'
+    elif name == 'cpt': return 'C_{#phit} / #Lambda^{2} [TeV^{-2}]'
+
+    #if name == 'ctz': return 'C_{tZ} (#Lambda/TeV)^{2}'
+    #elif name == 'ctw': return 'C_{tW} (#Lambda/TeV)^{2}'
+    #elif name == 'cpq3': return 'C^{3}_{#phiQ} (#Lambda/TeV)^{2}'
+    #elif name == 'cpqm': return 'C^{-}_{#phiQ} (#Lambda/TeV)^{2}'
+    #elif name == 'cpt': return 'C_{#phit} (#Lambda/TeV)^{2}'
 
     # SM signal strengths
     elif name == 'r_tzq': return '#mu(tZq)'
@@ -88,7 +114,7 @@ def Get_Parameter_LegName(name):
 
 
 def Get_nSigmaBand_Graphs(graph):
-#-- y coordinates corresponding to relevant NLL thresholds
+    #-- y coordinates corresponding to relevant NLL thresholds
     yval_68 = 1 #68% CL <-> 1 sigma <-> nll=1
     yval_95 = 3.84 #95% CL <-> ~2 sigma <-> nll=3.84
     # yval_2sigmas = 4 #~95.45% CL <-> 2 sigma <-> nll=4
@@ -392,7 +418,7 @@ class EFTPlot(object):
  # #   ## #   #
  # #    # #   #
 
-    def __init__(self, opts):
+    def __init__(self, opts, mode='1D'):
 
         self.SM_mus = opts["SM_mus"]
         self.wcs = opts["wcs"]
@@ -422,9 +448,10 @@ class EFTPlot(object):
         self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
         self.extraText.SetNDC()
         self.extraText.SetTextFont(52)
-        self.extraText.SetTextSize(0.04)
+        self.extraText.SetTextSize(0.05)
 
         self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
         self.lumiText.SetNDC()
         self.lumiText.SetTextFont(42)
         self.lumiText.SetTextAlign(31)
@@ -471,7 +498,7 @@ class EFTPlot(object):
  #     # ####### #######    #       ######  ####    #      ##### ######
 
 
-    def Plot_NLLscan_1D(self, mode='SM', param='', log=False):
+    def Plot_NLLscan_1D(self, mode='SM', param='', log=False, paper=False, filepath=''):
         '''
         Plot the NLL function versus a single POI (1D scan).
         NB: this is the prefered function, which uses CombineTool helper functions for convenience.
@@ -482,7 +509,8 @@ class EFTPlot(object):
         NB: 'NLL' = negative profiled log-likelihood function, as read in TFile.
         '''
 
-        filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+        if filepath == '': filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+
         if not param:
             logging.error("No param specified!")
             return
@@ -655,36 +683,21 @@ class EFTPlot(object):
         graph.GetYaxis().SetTitle("-2 #Delta log(L)")
         # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
 
-        '''
-        cmsText = "CMS";
-        latex = ROOT.TLatex()
-        latex.SetNDC();
-        latex.SetTextColor(ROOT.kBlack);
-        latex.SetTextFont(61);
-        latex.SetTextAlign(11);
-        latex.SetTextSize(0.06);
-        latex.DrawLatex(l+0.01, 0.92, cmsText)
-
-        extraText = "Preliminary simulation";
-        latex.SetTextFont(52);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(l+0.12, 0.92, extraText)
-
-        latex.SetTextFont(42);
-        latex.SetTextAlign(31);
-        latex.SetTextSize(0.04);
-        latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
-        '''
         self.CMS_text.Draw('same')
-        self.extraText.Draw('same')
+        if paper==False: self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
         #-- Save
+        outname = 'scan1D_{}'.format(param)
         if log:
-            graph.SetMinimum(0.1)
+            graph.SetMinimum(0.1) #Crash if zero
             graph.SetLogz()
-            c.Print('scan1D_{}_log.png'.format(param))
-        else: c.Print('scan1D_{}.png'.format(param))
+            outname+= '_log'
+
+        if paper: outname+= '_paper'
+        outname+= '.png'
+
+        c.Print(outname)
 
         return
 
@@ -817,7 +830,7 @@ class EFTPlot(object):
     '''
 
 
-    def Plot1DManualNLLScan(self, param):
+    def Plot1DManualNLLScan(self, param, paper=False):
         '''
         Plot a NLL scan from multiple fixed points (NLL scanned manually with algo=fixed rather than automatically with algo=grid)
         '''
@@ -838,8 +851,8 @@ class EFTPlot(object):
         #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4]
         #WC_values = [-4, -2, -1, 0, 1, 2, 4]
         #WC_values = [-2, -1.5, -1, 0, 1, 2]
-	#WC_values = [-1.5, -1.2, -1, -0.8, -0.5, -0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.8, 1, 1.2, 1.5]
-	WC_values = [-1.5, -1, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5]
+    	#WC_values = [-1.5, -1.2, -1, -0.8, -0.5, -0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.8, 1, 1.2, 1.5]
+    	WC_values = [-1.5, -1, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5]
 
         list_filepaths = []
         for val in WC_values:
@@ -945,14 +958,18 @@ class EFTPlot(object):
         extraText = "Preliminary simulation";
         latex.SetTextFont(52);
         latex.SetTextSize(0.04);
-        latex.DrawLatex(l+0.12, 0.92, extraText)
+        if paper==False: latex.DrawLatex(l+0.12, 0.92, extraText)
 
         latex.SetTextFont(42);
         latex.SetTextAlign(31);
         latex.SetTextSize(0.04);
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
-        c.Print('scan1D_{}_manual.png'.format(param))
+        outname = 'scan1D_manual_{}'.format(param)
+        if paper: outname+= '_paper'
+        outname+= '.png'
+
+        c.Print(outname)
 
         return
 
@@ -965,8 +982,7 @@ class EFTPlot(object):
  #    ## #       #          #       #      #    #   #      #       #     #
  #     # ####### #######    #       ######  ####    #      ####### ######
 
-    #FIXME -- update style (cf. 1D)
-    def Plot_NLLscan_2D(self, mode='SM', params=[], ceiling=1, log=False):
+    def Plot_NLLscan_2D(self, mode='EFT', params=[], ceiling=1, log=False, paper=False, filepath=''):
         '''
         Plot the NLL function versus 2 POIs (2D scan).
 
@@ -975,12 +991,12 @@ class EFTPlot(object):
         ceiling: maximum NLL value
         '''
 
-        path = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
+        if filepath == '': filepath = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
 
         if len(params)!=2:
             logging.error("Function 'Plot_NLLscan_2D' requires exactly two parameters!")
             return
-        if not os.path.exists(path):
+        if not os.path.exists(filepath):
             logging.error("File path does not exist!")
             return
 
@@ -995,53 +1011,193 @@ class EFTPlot(object):
         c.SetRightMargin(0.17);
         l = c.GetLeftMargin()
 
+        c.SetTopMargin(0.15) #Leave space for legend
+
         hname = 'scan2D_' + mode #Name of TH2 object
         if log: hname += "_log"
 
-        # Open file and draw 2D histogram
+        #-- Open file and draw 2D histogram
+        xvar = params[0]; yvar = params[1]
         logging.info(colors.fg.orange + "Open file : " + colors.reset)
-        logging.info(path)
-        rootFile = ROOT.TFile.Open(path)
+        logging.info(filepath)
+        rootFile = ROOT.TFile.Open(filepath)
         limitTree = rootFile.Get('limit')
         minZ = limitTree.GetMinimum('deltaNLL')
-        ymin = limitTree.GetMinimum(params[0])
-        ymax = limitTree.GetMaximum(params[0])
-        xmin = limitTree.GetMinimum(params[1])
-        xmax = limitTree.GetMaximum(params[1])
+        ymin = limitTree.GetMinimum(xvar)
+        ymax = limitTree.GetMaximum(xvar)
+        xmin = limitTree.GetMinimum(yvar)
+        xmax = limitTree.GetMaximum(yvar)
 
-        maxZ = 20 #Max z-axis threshold
-        nbins = 15
+        # ymax+= 2 #Leave space for legend
 
-        limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ,params[0],params[1],hname,nbins,xmin,xmax,nbins,ymin,ymax), '2*deltaNLL<{}'.format(maxZ), 'prof colz')
-        # limitTree.Draw('2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ,params[0],params[1],hname,nbins,-3,3,nbins,-3,3), '2*deltaNLL<{}'.format(maxZ), 'prof colz') #Hard-code x/y ranges, binnings
+        # maxZ = 20 #Max z-axis threshold
+        maxZ = 1000 #Max z-axis threshold #If want whole plot to be colored
+        nbins = 150
+
+    	#-- Auto-binning
+    	nbins = (int) (math.sqrt(limitTree.GetEntries())) #If there are N^2 points, will use N bins in each axis
+    	# print('nbins', nbins)
+
+        expr = '2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ, xvar, yvar, hname, nbins, xmin, xmax, nbins, ymin, ymax)
+        limitTree.Draw(expr, '2*deltaNLL<{}'.format(maxZ), 'prof colz') #Option 'prof' generates a TProfile
 
         hist = c.GetPrimitive(hname)
 
-        # Draw best fit point from grid scan
-        limitTree.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
-        best_fit = c.FindObject('Graph')
-        best_fit.SetMarkerSize(2)
-        best_fit.SetMarkerStyle(34)
-        best_fit.Draw("p same")
+        hist.Draw('colz')
+
+        #-- Draw best fit point from grid scan
+        #limitTree.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
+        #best_fit = c.FindObject('Graph')
+        #best_fit.SetMarkerSize(1)
+        #best_fit.SetMarkerStyle(34)
+        #best_fit.Draw("p same")
+
+        #-- Marker for SM point
+        marker_1 = ROOT.TMarker()
+        marker_1.SetMarkerSize(2)
+        marker_1.SetMarkerStyle(34)
+        marker_1.Draw("p same")
+        # hSM = ROOT.TH1F('SM', 'SM', 1, 0, 1) #To add to TLegend
+        # hSM.SetMarkerStyle(33)
+        # hSM.SetMarkerColor(97)
+
+        '''
+        x = array( 'd' )
+        x.append(2.30) #68% CL
+        h_cont68 = hist.Clone()
+        h_cont68.SetContour(1, x)
+        h_cont68.Draw("cont3 same")
+        # h_cont68.SetLineColor(ROOT.kAzure-1)
+        h_cont68.SetLineColor(ROOT.kBlack)
+        h_cont68.SetLineStyle(7)
+        h_cont68.SetLineWidth(2)
+
+        x = array( 'd' )
+        x.append(5.99) #95% CL
+        h_cont95 = hist.Clone()
+        # h_cont95.Smooth()
+        # h_cont95 = self.ContourHelper.FramePlot(hist)
+        h_cont95.SetContour(1, x)
+        h_cont95.Draw("cont3 same")
+        # h_cont95.SetLineColor(ROOT.kRed+1)
+        h_cont95.SetLineColor(ROOT.kBlack)
+        h_cont95.SetLineWidth(2)
+
+        # for xbin in range(1, h_cont95.GetNbinsX()):
+        #     h_cont95.SetBinContent(xbin, 1, 1000)
+        #     h_cont95.SetBinContent(xbin, h_cont95.GetNbinsY(), 1000)
+        '''
+
+        vals = [2.28, 5.99]
+        drawContours = True
+        if drawContours:
+            histsForCont = hist.Clone()
+            c_contlist = ((ctypes.c_double)*(len(vals)))(*vals)
+            histsForCont.SetContour(len(c_contlist), c_contlist)
+            histsForCont.Draw("cont z list")
+            c.Update()
+            conts = ROOT.gROOT.GetListOfSpecials().FindObject("contours")
+            cont_p1 = conts.At(0).Clone()
+            cont_p2 = conts.At(1).Clone()
+
+            hist.Draw('colz')
+
+            for conts in [cont_p2]:
+                for cont in conts:
+                    cont.SetLineColor(ROOT.kBlack)
+                    cont.SetLineWidth(3)
+                    cont.SetLineStyle(2)
+                    cont.Draw("L same")
+            for conts in [cont_p1]:
+                for cont in conts:
+                    #cont.SetLineColor(ROOT.kBlue-6)
+                    cont.SetLineColor(ROOT.kBlack)
+                    cont.SetLineWidth(3)
+                    cont.Draw("L same")
 
         if log: c.SetLogz()
         hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[0]))
         hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[1]))
         hist.GetZaxis().SetTitle("-2 #Delta log(L)")
         hist.GetYaxis().SetTitleOffset(0.9)
+        hist.SetMaximum(20.) #If want to cut z-axis below
 
         hist.SetTitle('')
-        # hist.SetTitle("2*deltaNLL < {}".format(ceiling))
         hist.SetStats(0)
 
+        #FIXME -- with Preliminary
+        '''
+        left = 0.17
+        top = 0.91+0.02
+        self.CMS_text = ROOT.TLatex(left, top, "CMS")
+        self.CMS_text.SetNDC()
+        self.CMS_text.SetTextColor(ROOT.kBlack)
+        self.CMS_text.SetTextFont(61)
+        self.CMS_text.SetTextAlign(11)
+        self.CMS_text.SetTextSize(0.06)
+
+        self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
+        self.extraText.SetNDC()
+        self.extraText.SetTextFont(52)
+        self.extraText.SetTextSize(0.05)
+
+        self.lumiText = ROOT.TLatex(left, top-0.06, "137 fb^{-1} (13 TeV)")
+        # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+        self.lumiText.SetNDC()
+        self.lumiText.SetTextFont(42)
+        self.lumiText.SetTextAlign(11)
+        # self.lumiText.SetTextAlign(31)
+        self.lumiText.SetTextSize(0.04)
+        '''
+
+        #-- For paper
+        left = 0.17
+        top = 0.91-0.04
+        self.CMS_text = ROOT.TLatex(left, top, "CMS")
+        self.CMS_text.SetNDC()
+        self.CMS_text.SetTextColor(ROOT.kBlack)
+        self.CMS_text.SetTextFont(61)
+        self.CMS_text.SetTextAlign(11)
+        self.CMS_text.SetTextSize(0.06)
+
+        self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
+        self.extraText.SetNDC()
+        self.extraText.SetTextFont(52)
+        self.extraText.SetTextSize(0.05)
+
+        self.lumiText = ROOT.TLatex(left+0.15, top, "137 fb^{-1} (13 TeV)")
+        # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+        self.lumiText.SetNDC()
+        self.lumiText.SetTextFont(42)
+        self.lumiText.SetTextAlign(11)
+        # self.lumiText.SetTextAlign(31)
+        self.lumiText.SetTextSize(0.04)
+
         self.CMS_text.Draw('same')
-        self.extraText.Draw('same')
+        # if paper==False: self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
-        # Save plot
-        c.Print(hname+".png",'png')
+        #-- Legend
+        # legend = ROOT.TLegend(0.53,0.70,0.80,0.87)
+        legend = ROOT.TLegend(0.60,0.85,0.83,0.99)
+        # legend.AddEntry(h_cont68, "68% CL",'L')
+        # legend.AddEntry(h_cont95, "95% CL",'L')
+        legend.AddEntry(marker_1, "SM",'p')
+        # legend.AddEntry(best_fit, "Best fit",'p')
+        legend.SetTextSize(0.04)
+        legend.SetNColumns(1)
+        legend.Draw('same')
 
-        # Save to root file
+        #-- Save plot
+        outname = hname
+        if paper: outname+= '_paper'
+        outname+= '.png'
+
+        c.Print(outname)
+
+        #-- Save to root file
         if not log:
             outfile = ROOT.TFile(self.histosFileName,'UPDATE')
             hist.Write()
@@ -1055,6 +1211,7 @@ class EFTPlot(object):
  #    #  #  #  #      #   #  #      #    #   #      #      #      #    #   #   #    #
   ####    ##   ###### #    # ###### #    #   #      #      ######  ####    #    ####
 
+    #-- Not used yet
     def OverlayLLPlot1DEFT(self, name1='.test', name2='.test', wc='', log=False):
         if not wc:
             logging.error("No wc specified!")
@@ -1164,7 +1321,7 @@ class EFTPlot(object):
 
         # CMS-required text
         self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
+        self.lumiText.Draw('same')
 
         # Legend
         legend = ROOT.TLegend(0.1,0.85,0.45,0.945)
@@ -1278,7 +1435,7 @@ class EFTPlot(object):
 
         # CMS-required text
         self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
+        self.lumiText.Draw('same')
 
         #Check log option, then save as image
         if log:
@@ -1299,7 +1456,8 @@ class EFTPlot(object):
  #    # #    # #   ##   #   #    # #    # #   #  #    #
   ####   ####  #    #   #    ####   ####  #    #  ####
 
-    def ContourPlotEFT(self, mode='EFT', params=[]):
+    #FIXME -- update style
+    def ContourPlotEFT(self, mode='EFT', params=[], paper=False, filepath=''):
         '''
         Make 2D contour plots.
         '''
@@ -1307,30 +1465,43 @@ class EFTPlot(object):
         if len(params)!=2:
             logging.error("Function 'ContourPlot' requires exactly two params!")
             return
-        path = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
-        if not os.path.exists(path):
-            logging.error("File {} does not exist!".format(path))
+
+        if filepath == '': filepath = './higgsCombine.{}.MultiDimFit.mH120.root'.format(mode)
+
+        if not os.path.exists(filepath):
+            logging.error("File {} does not exist!".format(filepath))
             return
 
-        best2DeltaNLL = 1000000
-        ROOT.gROOT.SetBatch(True)
-        canvas = ROOT.TCanvas('c','c',800,800)
-
         ranges = self.wc_ranges #Default: EFT
-        if mode=='SM':
-            ranges = self.SMmu_ranges
+        if mode=='SM': ranges = self.SMmu_ranges #SM
 
         #-- Get Grid scan and copy to h_contour
-        # params[0] is y-axis variable, params[1] is x-axis variable
-        gridFile = ROOT.TFile.Open(path)
-        gridTree = gridFile.Get('limit')
-        minZ = gridTree.GetMinimum('deltaNLL')
-        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,params[0],params[1],ranges[params[1]][0],ranges[params[1]][1],ranges[params[0]][0],ranges[params[0]][1]), '', 'prof colz')
+        #-- params[0] is x-axis variable, params[1] is y-axis variable
+        gridFile = ROOT.TFile.Open(filepath)
+        tree = gridFile.Get('limit')
+        minZ = tree.GetMinimum('deltaNLL')
 
-        original = ROOT.TProfile2D(canvas.GetPrimitive('grid'))
-        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,ranges[params[1]][0],ranges[params[1]][1],150,ranges[params[0]][0],ranges[params[0]][1])
+        ROOT.gROOT.SetBatch(True)
+        c = ROOT.TCanvas('c','c',1000,800)
+        c.SetGrid(1)
+        c.SetTopMargin(0.1)
+        l = c.GetLeftMargin()
+
+        nbins = 150
+        xvar = params[0]; yvar = params[1]
+        # xmin = ranges[xvar][0]; xmax = ranges[xvar][1]
+        # ymin = ranges[yvar][0]; ymax = ranges[yvar][1]
+        xmin = -10; xmax = 10 #Why range impact plot ?
+        ymin = -10; ymax = 10
+
+        c.cd()
+        expr = '2*(deltaNLL-{}):{}:{}>>grid({},{},{},{},{},{})'.format(minZ, xvar, yvar, nbins, xmin, xmax, nbins, ymin, ymax)
+        tree.Draw(expr, '', 'prof colz')
+
+        original = ROOT.TProfile2D(c.GetPrimitive('grid'))
+
+        h_contour = ROOT.TProfile2D('h_contour', 'h_contour', nbins, xmin, xmax, nbins, ymin, ymax)
         h_contour = original.Clone('h_contour')
-        #original.Copy(h_contour)
 
         #-- Adjust scale so that the best bin has content 0
         best2DeltaNLL = original.GetMinimum()
@@ -1353,6 +1524,14 @@ class EFTPlot(object):
 
         #-- Set Contours
         c68 = self.ContourHelper.GetContour(h_contour,2.30)
+        # print('c68', c68)
+        # print('c68[0]', c68[0])
+        # print('c68[0].GetN()', c68[0].GetN())
+        # for ipt in range(c68[0].GetN()):
+        #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+        #     c68[0].GetPoint(ipt, x, y)
+        #     print(x, y)
+
         c95 = self.ContourHelper.GetContour(h_contour,6.18)
         c997 = self.ContourHelper.GetContour(h_contour,11.83)
         c681D = self.ContourHelper.GetContour(h_contour,1.00)
@@ -1361,6 +1540,7 @@ class EFTPlot(object):
         self.ContourHelper.styleMultiGraph(c68,ROOT.kYellow+1,3,1)
         self.ContourHelper.styleMultiGraph(c95,ROOT.kCyan-2,3,1)
         self.ContourHelper.styleMultiGraph(c997,ROOT.kBlue-2,3,1)
+
         #place holders for the legend, since TLine is weird
         hc68 = ROOT.TH1F('c68', 'c68', 1, 0, 1)
         hc95 = ROOT.TH1F('c95', 'c68', 1, 0, 1)
@@ -1385,24 +1565,30 @@ class EFTPlot(object):
         hSM.SetMarkerStyle(33)
         hSM.SetMarkerColor(97)
 
-        # Change format of plot
-        h_contour.SetStats(0)
+        # h_contour.SetStats(0)
         #h_contour.SetTitle("Significance Contours")
-        h_contour.SetTitle("")
-        h_contour.GetYaxis().SetTitle(self.texdic[params[0].rstrip('i')])
-        h_contour.GetXaxis().SetTitle(self.texdic[params[1].rstrip('i')])
+        # h_contour.SetTitle("")
+        # h_contour.GetYaxis().SetTitle(self.texdic[params[0].rstrip('i')])
+        # h_contour.GetXaxis().SetTitle(self.texdic[params[1].rstrip('i')])
 
-        # Draw and save plot
-        h_contour.GetXaxis().SetTitleOffset(1.1)
-        h_contour.GetXaxis().SetTitleSize(0.04)
-        h_contour.GetXaxis().SetLabelSize(0.04)
-        h_contour.GetYaxis().SetTitleOffset(1.1)
-        h_contour.GetYaxis().SetTitleSize(0.04)
-        h_contour.GetXaxis().SetLabelSize(0.04)
+        #-- Labels
+        h_contour.SetTitle("")
+        h_contour.SetMarkerStyle(8)
+        h_contour.SetMarkerSize(1)
+        h_contour.GetXaxis().SetTitle(Get_Parameter_LegName(params[0])) #FIXME order ok ?
+        h_contour.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
+
+        # h_contour.GetXaxis().SetTitleOffset(1.1)
+        # h_contour.GetXaxis().SetTitleSize(0.04)
+        # h_contour.GetXaxis().SetLabelSize(0.04)
+        # h_contour.GetYaxis().SetTitleOffset(1.1)
+        # h_contour.GetYaxis().SetTitleSize(0.04)
+        # h_contour.GetXaxis().SetLabelSize(0.04)
         #h_contour.GetYaxis().SetNdivisions(7)
+
         h_contour.Draw('AXIS')
-        #canvas.Print('contour.png','png')
         c68.Draw('L SAME')
+        # c68[0].Draw('hist SAME')
         c95.Draw('L SAME')
         c997.Draw('L SAME')
         #C681D.Draw('L SAME')
@@ -1430,144 +1616,27 @@ class EFTPlot(object):
         legend.AddEntry(hSM,"SM value",'p')
         legend.SetTextSize(0.035)
         legend.SetNColumns(4)
-        legend.Draw('same')
+        # legend.Draw('same') #FIXME
+
         self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
-        canvas.SetGrid()
-        canvas.Print('{}{}contour.png'.format(params[0],params[1]),'png')
+        if paper==False: self.extraText.Draw('same')
+        self.lumiText.Draw('same')
+        c.SetGrid()
+
+        outname = '{}_{}_2Dcontour'.format(params[0],params[1])
+        if paper: outname+= '_paper'
+        outname+= '.png'
+
+        c.Print(outname)
 
         # Save contour to histogram file
         outfile = ROOT.TFile(self.histosFileName,'UPDATE')
         h_contour.Write()
         outfile.Close()
 
-        ROOT.gStyle.SetPalette(57)
+        # ROOT.gStyle.SetPalette(57)
 
         return
-
-
-    ''' #FIXME -- can remove ? try other func for SM first
-    def ContourPlotSM(self, name='.test', params=[]):
-        if len(params)!=2:
-            logging.error("Function 'ContourPlot' requires exactly two parameters!")
-            return
-
-        best2DeltaNLL = 1000000
-        ROOT.gROOT.SetBatch(True)
-        canvas = ROOT.TCanvas('c','c',800,800)
-
-        # Get Grid scan and copy to h_contour
-        # params[0] is y-axis variable, params[1] is x-axis variable
-        gridFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
-        gridTree = gridFile.Get('limit')
-        minZ = gridTree.GetMinimum('deltaNLL')
-        #gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(200,0,15,200,0,15)'.format(minZ,params[0],params[1]), '', 'prof colz')
-        gridTree.Draw('2*(deltaNLL-{}):{}:{}>>grid(150,{},{},150,{},{})'.format(minZ,params[0],params[1],self.SMmu_ranges[params[1]][0],self.SMmu_ranges[params[1]][1],self.SMmu_ranges[params[0]][0],self.SMmu_ranges[params[0]][1]), '', 'prof colz')
-        #gridTree.Draw('2*deltaNLL:{}:{}>>grid(50,0,30,50,0,30)'.format(params[0],params[1]), '', 'prof colz')
-        original = ROOT.TProfile2D(canvas.GetPrimitive('grid'))
-        h_contour = ROOT.TProfile2D('h_contour','h_contour',150,self.SMmu_ranges[params[1]][0],self.SMmu_ranges[params[1]][1],150,self.SMmu_ranges[params[0]][0],self.SMmu_ranges[params[0]][1])
-
-        # Adjust scale so that the best bin has content 0
-        best2DeltaNLL = original.GetMinimum()
-        for xbin in range(original.GetNbinsX()):
-            xcoord = original.GetXaxis().GetBinCenter(xbin)
-            for ybin in range(original.GetNbinsY()):
-                ycoord = original.GetYaxis().GetBinCenter(ybin)
-                if original.GetBinContent(1+xbin,1+ybin)==0:
-                    h_contour.Fill(xcoord,ycoord,1000)
-                if original.GetBinContent(1+xbin,1+ybin)!=0:
-                    h_contour.Fill(xcoord,ycoord,original.GetBinContent(1+xbin,1+ybin)-best2DeltaNLL)
-                #h_contour.SetBinContent(1+xbin,1+ybin,original.GetBinContent(1+xbin,1+ybin)-best2DeltaNLL)
-
-        # Exclude data outside of the contours
-        #h_contour.SetMaximum(11.83)
-        #h_contour.SetContour(200)
-        #h_contour.GetZaxis().SetRangeUser(0,21);
-        #h_contour.GetXaxis().SetRangeUser(0,6); # ttH
-        #h_contour.GetXaxis().SetRangeUser(0,4); # tllq
-        #h_contour.GetYaxis().SetRangeUser(0,3); # tll, tllnu
-        #h_contour.GetXaxis().SetRange(1,h_contour.GetNbinsX()-3)
-        #h_contour.GetYaxis().SetRange(1,h_contour.GetNbinsY()-3)
-
-        # Set Contours
-        c68 = self.ContourHelper.GetContour(h_contour,2.30)
-        c95 = self.ContourHelper.GetContour(h_contour,6.18)
-        c997 = self.ContourHelper.GetContour(h_contour,11.83)
-        self.ContourHelper.styleMultiGraph(c68,ROOT.kYellow+1,3,1)
-        self.ContourHelper.styleMultiGraph(c95,ROOT.kCyan-2,3,1)
-        self.ContourHelper.styleMultiGraph(c997,ROOT.kBlue-2,3,1)
-
-        # Marker for SM point
-        marker_1 = ROOT.TMarker()
-        marker_1.SetMarkerSize(2.0)
-        marker_1.SetMarkerColor(97)
-        marker_1.SetMarkerStyle(33)
-        marker_2 = ROOT.TMarker()
-        marker_2.SetMarkerSize(1.2)
-        marker_2.SetMarkerColor(89)
-        marker_2.SetMarkerStyle(33)
-
-        # Misc Markers -- use as needed
-        # Simultaneous Fit Marker -- use as needed
-        #simulFit = ROOT.TMarker(0.96,1.11,20) # tllq,ttll
-        simulFit = ROOT.TMarker(2.58,0.70,20) # ttH,ttlnu
-        # Central Fit Marker -- use as needed
-        centralFit = ROOT.TGraphAsymmErrors(1)
-        #centralFit.SetPoint(0,0.58,1.24) # tllq,ttll
-        #centralFit.SetPointError(0,0.54,0.61,0.24,0.31) # tllq,ttll
-        centralFit.SetPoint(0,2.56,0.84) # ttH,ttlnu
-        centralFit.SetPointError(0,0.72,0.87,0.36,0.43) # ttH,ttlnu
-        centralFit.SetMarkerSize(2)
-        centralFit.SetMarkerStyle(6)
-        centralFit.SetLineColor(2)
-        # Dedicated Fit Marker -- use as needed
-        dedicatedFit = ROOT.TGraphAsymmErrors(1)
-        #dedicatedFit.SetPoint(0,1.01,1.28) # tZq,ttZ
-        #dedicatedFit.SetPointError(0,0.21,0.23,0.13,0.14) # tZq,ttZ
-        dedicatedFit.SetPoint(0,0.75,1.23) # ttH,ttW
-        dedicatedFit.SetPointError(0,0.43,0.46,0.28,0.31) # ttH,ttW
-        dedicatedFit.SetMarkerSize(2)
-        dedicatedFit.SetMarkerStyle(6)
-        dedicatedFit.SetLineColor(8)
-
-        # Change format of plot
-        h_contour.SetStats(0)
-        h_contour.SetTitle("Significance Contours")
-        h_contour.GetYaxis().SetTitle(params[0])
-        h_contour.GetXaxis().SetTitle(params[1])
-
-        # CMS-required text
-        CMS_text = ROOT.TLatex(0.9, 0.93, "CMS Preliminary Simulation")
-        CMS_text.SetNDC(1)
-        CMS_text.SetTextSize(0.02)
-        CMS_text.SetTextAlign(30)
-        Lumi_text = ROOT.TLatex(0.9, 0.91, "Luminosity = 41.53 fb^{-1}")
-        Lumi_text.SetNDC(1)
-        Lumi_text.SetTextSize(0.02)
-        Lumi_text.SetTextAlign(30)
-
-        # Draw and save plot
-        h_contour.Draw('AXIS')
-        c68.Draw('L SAME')
-        c95.Draw('L SAME')
-        c997.Draw('L SAME')
-        #marker_1.DrawMarker(1,1)
-        #marker_2.DrawMarker(1,1)
-        simulFit.Draw('same')
-        centralFit.Draw('same')
-        dedicatedFit.Draw('same')
-
-        self.CMS_text.Draw('same')
-        self.Lumi_text.Draw('same')
-        canvas.Print('{}{}contour.png'.format(params[0],params[1]),'png')
-
-        # Save contour to histogram file
-        outfile = ROOT.TFile(self.histosFileName,'UPDATE')
-        h_contour.Write()
-        outfile.Close()
-
-        ROOT.gStyle.SetPalette(57)
-    '''
 
 
   ####   ####  #####  #####  ###### #        ##   ##### #  ####  #    #  ####
@@ -1883,48 +1952,58 @@ if __name__ == "__main__":
 # User options
 # //--------------------------------------------
     SM = False #True <-> consider SM scenario (rather than SMEFT)
-    scan_type = '1D'
+    mode = '1D'
     POI = []
+    paper = False
+    filepath = ''
+
 
 # Set up the command line arguments
 # //--------------------------------------------
     parser = argparse.ArgumentParser(description='Perform SM and EFT fits using custom Physics Model')
-    # parser.add_argument("-m", metavar="m", help="SM or EFT")
-    parser.add_argument("-scan", metavar="scan", help="Scan type (1D, 2D, manual, ...)")
+    parser.add_argument("-m", metavar="mode", help="Plotting mode: 1D, 2D, contour, manual")
+    #parser.add_argument("-scan", metavar="scan", help="Scan type (1D, 2D, manual, ...)")
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
     parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)", nargs='?', const=1)
+    parser.add_argument("--paper", metavar="paper", help="Make plots for paper (remove Prelim. labels)", nargs='?', const=1)
+    parser.add_argument("-f", metavar="file path", help="Path to the rootfile containing the object to plot")
 
     args = parser.parse_args()
-    if args.scan in ['1D','2D','manual','contour']: scan_type = args.scan
-    elif args.scan:
+    if args.m in ['1D','2D','manual','contour']: mode = args.m
+    #if len(args.POI) == 2:
+    #	print('2 POIs detected --> Will make 2D scan')
+	#   mode = '2D'
+    elif args.m:
         print('ERROR ! Wrong [type] arg !'); exit(1)
     if args.POI: POI = args.POI
     if args.sm: SM = True
+    if args.paper: paper = True
+    if args.f: filepath = args.f
 
-    plotter = EFTPlot(opts)
+    plotter = EFTPlot(opts, mode)
     Load_Canvas_Style()
 
 # SM
 # //--------------------------------------------
     if SM:
-        if scan_type=='1D': plotter.Plot_NLLscan_1D(mode='SM', param=opts['SM_mu'], log=False)
-        elif scan_type=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False)
-        elif scan_type=='contour': plotter.ContourPlotEFT(mode='SM', params=opts['SM_mus'])
+        if mode=='1D': plotter.Plot_NLLscan_1D(mode='SM', param=opts['SM_mu'], log=False, paper=paper, filepath=filepath)
+        elif mode=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False, paper=paper, filepath=filepath)
+        elif mode=='contour': plotter.ContourPlotEFT(mode='SM', params=opts['SM_mus'], paper=paper, filepath=filepath)
 
 # SMEFT
 # //--------------------------------------------
     else:
-        if scan_type=='1D':
+        if mode=='1D':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
-            plotter.Plot_NLLscan_1D(mode='EFT', param=param_tmp[0], log=False)
-        elif scan_type=='2D':
+            plotter.Plot_NLLscan_1D(mode='EFT', param=param_tmp[0], log=False, paper=paper, filepath=filepath)
+        elif mode=='2D':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-            plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False)
-        elif scan_type=='contour':
+            plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False, paper=paper, filepath=filepath)
+        elif mode=='contour':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-            plotter.ContourPlotEFT(mode='EFT', params=param_tmp)
-        elif scan_type == 'manual':
+            plotter.ContourPlotEFT(mode='EFT', params=param_tmp, paper=paper, filepath=filepath)
+        elif mode == 'manual':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
-            plotter.Plot1DManualNLLScan(param=param_tmp[0])
+            plotter.Plot1DManualNLLScan(param=param_tmp[0], paper=paper)
 
     #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctz', '.EFT.SM.Freeze.ctz', 'ctz')

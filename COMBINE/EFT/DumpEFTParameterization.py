@@ -22,15 +22,20 @@ operators = [SM_name]+opts['wcs'] #List of operators for which to extract parame
 
 #Setup
 # //--------------------------------------------
-if len(sys.argv) != 2: hist_file = "../templates/xxx.root" #Default rootfile path
-else: hist_file = sys.argv[1] #Rootfile path given in arg
+hist_file_arg = "../templates/xxx.root" if len(sys.argv) < 2 else sys.argv[1] #Specify main histofile
+hist_file_otherRegion_arg = '../templates/Templates_otherRegions_Run2.root' if len(sys.argv) <= 2 else sys.argv[2] #Can also specify non-default 'otherRegions' histofile
 
 fits = {} #Dict that will hold the parameterizations of the cross-sections
 # //--------------------------------------------
 
-for iter in [1,2]: #NEW: also need to dump content of 'otherRegions' rootfile !! Because it contains SRttZ4l #Trick: loop over code twice, once for selected rootfile, second time for otherRegions file !
+for iter in [1,2,3]: #-- Also need to dump content of 'otherRegions' rootfile ! Because it contains SRttZ4l #Trick: loop over code twice, once for selected rootfile, second time for otherRegions file !
 
-    if iter==2: hist_file = '../templates/Templates_otherRegions_Run2.root' #Hardcoded filepath for 'otherRegions' file
+    hist_file = hist_file_arg #Main iteration for SR histo file
+
+    if iter==2: hist_file = hist_file_otherRegion_arg #Filepath to 'otherRegions' file
+    elif iter==3: #Trick: even if reading NN_cpq3 file (for SRtZq), want to read NN_SM (for SRttZ) and mTW (for SRother) in NN_SM file (convention) --> Also dump corresponding parameterizations
+	if 'cpq3' not in hist_file_arg: continue
+	hist_file = '../templates/Templates_NN_SM_EFT2_Run2.root' #Hardcoded filepath for 'NN_SM' file
 
     if not os.path.exists(hist_file):
         print(colors.bg.red + "File {} does not exist!".format(hist_file) + colors.reset)

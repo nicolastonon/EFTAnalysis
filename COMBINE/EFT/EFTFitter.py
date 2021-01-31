@@ -68,6 +68,7 @@ class EFTFit(object):
         self.scan_wcs = opts['scan_wcs']
         self.wcs_tracked = opts['wcs_tracked']
         self.wc_ranges = opts['wc_ranges']
+        self.wc_ranges_scan = opts['wc_ranges_scan']
         self.wcs_pairs = opts['wcs_pairs']
         self.SM_mu = opts['SM_mu']
         self.SM_mus = opts['SM_mus']
@@ -208,10 +209,11 @@ class EFTFit(object):
             else: frozen_pois = [wc for wc in self.wcs if wc not in params_POI]
             if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if autoBounds:          args.extend(['--autoBoundsPOIs=*']) #Auto adjust POI bounds if found close to boundary
-        if exp:                 args.extend(['-t','-1']) #Assume MC expected (Asimov?)
-        if verbosity>0:           args.extend(['-v', str(verbosity)])
-        if other:               args.extend(other)
+        if autoBounds: args.extend(['--autoBoundsPOIs', '*']) #Auto adjust POI bounds if found close to boundary
+        # if autoBounds: args.extend(['--autoBoundsPOIs=',','.join([','.join('{}'.format(poi) for poi in self.wcs)])]) #Auto adjust POI bounds if found close to boundary
+        if exp: args.extend(['-t','-1']) #Assume MC expected (Asimov?)
+        if verbosity>0: args.extend(['-v', str(verbosity)])
+        if other: args.extend(other)
         check = True in (wc not in params_POI for wc in self.wcs)
         if check and not SM: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
         if SM: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
@@ -236,89 +238,110 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0):
+    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset)
 
-        # CMSSW_BASE = os.getenv('CMSSW_BASE')
-        # Other options: '--cminFallbackAlgo Minuit2,Combined,2:0.3'
-        args = ['combineTool.py','-d',datacard,'-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
+        if collect==False: #Run grid scan
+            # CMSSW_BASE = os.getenv('CMSSW_BASE')
+            # Other options: '--cminFallbackAlgo Minuit2,Combined,2:0.3'
+            args = ['combineTool.py','-d',datacard,'-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
 
-        for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
+            for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
 
-        if SM:
-            args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in scan_params)]) #Set default values to 1
-            args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,opts["SMmu_ranges"][mu][0],opts["SMmu_ranges"][mu][1]) for mu in opts["SM_mus"])])
-        else:
-            args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
-
-            #CHANGED -- want to restrict 1D ranges for grid scans, else loosing too many points !
-            if freeze:
-                min = -1; max = 1 #For ctz, ctw
-                if scan_params[0] in ['cpqm','cpq3']: min = -2; max = 2 #For cpqm,cpq3
-                if scan_params[0] in ['cpt']: min = -3; max = 3 #For cpt
-                args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[0],min,max)])
+            if SM:
+                args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in scan_params)]) #Set default values to 1
+                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,opts["SMmu_ranges"][mu][0],opts["SMmu_ranges"][mu][1]) for mu in opts["SM_mus"])])
             else:
-                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
+                args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
 
+                #CHANGED -- want to restrict 1D ranges for grid scans, else loosing too many points ! #FIXME -- make it default ?
+                '''
+                if freeze:
+                    if len(scan_params)==1: #1D
+                        min = -1; max = 1 #For ctz, ctw
+                        if scan_params[0] in ['cpqm','cpq3']: min = -2; max = 2 #For cpqm,cpq3
+                        if scan_params[0] in ['cpt']: min = -3; max = 3 #For cpt
+                        args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[0],min,max)])
+                    else: #n-D
+                        for iparam,param in enumerate(scan_params):
+                            min = -2; max = 2 #For ctz, ctw, cpq3
+                            if scan_params[iparam] in ['cpqm','cpt']: min = -15; max = 15 #For cpqm,cpt
+                            #args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[iparam],min,max)])
+                            args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
+                else:
+                    for iparam,param in enumerate(scan_params):
+                        min = -2; max = 2 #For ctz, ctw, cpq3
+                        if scan_params[iparam] in ['cpqm','cpt']: min = -15; max = 15 #For cpqm,cpt
+                        args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[iparam],min,max)])
+                    #args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
+                '''
+                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan[wc][0],self.wc_ranges_scan[wc][1]) for wc in self.wcs)]) #in params_POI
 
-        args.extend(['--points','{}'.format(points)])
-        if name: args.extend(['-n','{}'.format(name)])
-        check = True in (wc not in self.wcs for wc in self.wcs_tracked)
-        if check:
-            tracked_pois = []
-            if SM: tracked_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
-            else: tracked_pois = [par for par in self.wcs if par not in scan_params]
-            if len(tracked_pois)>0: args.extend(['--trackParameters',','.join([par for par in tracked_pois if par not in scan_params])]) #Save values of additional parameters (e.g. profiled nuisances)
-        # if startValuesString:   args.extend(['--setParameters',startValuesString])
-        if freeze:
-            frozen_pois = []
-            if SM: frozen_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
-            else: frozen_pois = [par for par in self.wcs if par not in scan_params]
-            if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters
-        else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if exp:               args.extend(['-t -1'])
-        if verbosity>0:           args.extend(['-v', str(verbosity)])
-        if other:             args.extend(other)
-        # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
+            args.extend(['--points','{}'.format(points)])
+            if name: args.extend(['-n','{}'.format(name)])
+            check = True in (wc not in self.wcs for wc in self.wcs_tracked)
+            if check:
+                tracked_pois = []
+                if SM: tracked_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
+                else: tracked_pois = [par for par in self.wcs if par not in scan_params]
+                if len(tracked_pois)>0: args.extend(['--trackParameters',','.join([par for par in tracked_pois if par not in scan_params])]) #Save values of additional parameters (e.g. profiled nuisances)
+            # if startValuesString:   args.extend(['--setParameters',startValuesString])
+            if freeze:
+                frozen_pois = []
+                if SM: frozen_pois = [par for par in self.SM_mus if par not in scan_params] #Define which params are frozen
+                else: frozen_pois = [par for par in self.wcs if par not in scan_params]
+                if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters
+            else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+            if exp:               args.extend(['-t -1'])
+            if verbosity>0:           args.extend(['-v', str(verbosity)])
+            if other:             args.extend(other)
+            # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
 
-        if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','50'])
-        if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50','--dry-run'])
+            if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','50'])
+            if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50','--dry-run'])
 
-        if debug: print('args --> ', args)
-        logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
+            if debug: print('args --> ', args)
+            logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
 
-        # Run the combineTool.py command
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            self.log_subprocess_output(process.stdout,'info')
-            self.log_subprocess_output(process.stderr,'err')
-        process.wait()
+            # Run the combineTool.py command
+            process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+            with process.stdout,process.stderr:
+                self.log_subprocess_output(process.stdout,'info')
+                self.log_subprocess_output(process.stderr,'err')
+            process.wait()
 
-        # Condor needs executab permissions on the .sh file, so we used --dry-run
-        # Add the permission and complete the submission.
-        if batch=='condor':
-            if os.path.exists('condor{}'.format(name)):
-                logging.error("Directory condor{} already exists!".format(name))
-                logging.error("OVERWRITING !")
-                shutil.rmtree('condor{}'.format(name), ignore_errors=True)
-                #return
+            # Condor needs executab permissions on the .sh file, so we used --dry-run
+            # Add the permission and complete the submission.
+            if batch=='condor':
+                if os.path.exists('condor{}'.format(name)):
+                    logging.error("Directory condor{} already exists!".format(name))
+                    logging.error("OVERWRITING !")
+                    shutil.rmtree('condor{}'.format(name), ignore_errors=True)
+                    #return
 
-            sp.call(['mkdir','condor{}'.format(name)])
-            sp.call(['chmod','a+x','condor_{}.sh'.format(name.replace('.',''))])
-            logging.info('Now submitting condor jobs.')
-            condorsub = sp.Popen(['condor_submit','-append','initialdir=condor{}'.format(name),'condor_{}.sub'.format(name.replace('.',''))], stdout=sp.PIPE, stderr=sp.PIPE)
-            with condorsub.stdout,condorsub.stderr:
-                self.log_subprocess_output(condorsub.stdout,'info')
-                self.log_subprocess_output(condorsub.stderr,'err')
-            condorsub.wait()
+                sp.call(['mkdir','condor{}'.format(name)])
+                sp.call(['chmod','a+x','condor_{}.sh'.format(name.replace('.',''))])
+                logging.info('Now submitting condor jobs.')
+                condorsub = sp.Popen(['condor_submit','-append','initialdir=condor{}'.format(name),'condor_{}.sub'.format(name.replace('.',''))], stdout=sp.PIPE, stderr=sp.PIPE)
+                with condorsub.stdout,condorsub.stderr:
+                    self.log_subprocess_output(condorsub.stdout,'info')
+                    self.log_subprocess_output(condorsub.stderr,'err')
+                condorsub.wait()
 
-        if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
-        else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
+            if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
+            else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-        if batch=='':
-            fitter.printIntervalFits(basename=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
+            if batch=='':
+                fitter.printIntervalFits(basename=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
+
+        else: #Only collect/hadd grid scan outputs (produced via batch)
+            print(colors.fg.orange + '-- Collecting grid scan output files from batch --> [scan_tmp.root] ...' + colors.reset)
+            hadd_cmd = 'hadd -f scan_tmp.root higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(name)
+            #sp.call(['hadd', '-f', 'scan_tmp.root', 'higgsCombine{}.POINTS\*.MultiDimFit.mH120.root'.format(name)]) #Hadd output files
+            proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+            print(colors.fg.orange + '... Done !' + colors.reset)
 
         return
 
@@ -1006,6 +1029,7 @@ if __name__ == "__main__":
     points = -1 #Choose npoints for grid scans #-1 <-> use default values set below (different for 1D/2D)
     mask = [] #Can choose to mask specific channels from the likelihood #Mask channels matching pattern(s)
     antimask = [] #Mask channels NOT matching any pattern
+    only_collect_outputs = False #True <-> only collect/hadd output files previously produced e.g. on the grid
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1029,6 +1053,7 @@ if __name__ == "__main__":
     parser.add_argument("-points", metavar="points", help="Number of points for grid scans")
     parser.add_argument('--mask', metavar="mask", nargs='+', help='Mask channels matching pattern', required=False) #Takes >=0 args
     parser.add_argument('--antimask', metavar="antimask", nargs='+', help='Mask channels NOT matching any pattern', required=False) #Takes >=0 args
+    parser.add_argument("--collect", metavar="collect", help="Impact plot: only collect output files previously produced e.g. on the grid", nargs='?', const=1)
 
     args = parser.parse_args()
     if args.sm: SM = True
@@ -1050,6 +1075,7 @@ if __name__ == "__main__":
     if args.points: points = args.points
     if args.mask: mask = args.mask
     if args.antimask: antimask = args.antimask #-- implement this also for SM fits
+    if args.collect: only_collect_outputs = True
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1078,8 +1104,8 @@ if __name__ == "__main__":
             exit(1)
 
         if mode in ['','grid','scan']:
-            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch) #1D
-            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=40*40, exp=exp, verbosity=verb, batch=batch) #2D
+            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs) #1D
+            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=40*40, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs) #2D
 
 # SMEFT fit
 # //--------------------------------------------
@@ -1092,7 +1118,7 @@ if __name__ == "__main__":
 
         #-- Maximum Likelihood Fit
         if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
-        elif mode is 'printbestfit': #Only print best fit results
+        elif mode == 'printbestfit': #Only print best fit results
             fitter.printBestFit(name='.EFT', params=POI)
             exit(1)
 
@@ -1101,12 +1127,12 @@ if __name__ == "__main__":
             if scan_dim=='1D':
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
                 points = points if points != -1 else 50
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,])
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs)
                 # fitter.batchRetrieve1DScansEFT(basename=name, batch=batch, scan_wcs=param_tmp)
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
                 points = points if points != -1 else 40*40 #1600
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,])
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs)
                 # fitter.batchRetrieve2DScansEFT(basename=name, batch=batch, wc_pair=param_tmp, allPairs=False)
 
         #-- OTHERS
