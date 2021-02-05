@@ -84,23 +84,22 @@ bool Is_Syst_Match_Sample(TString syst, TString sample, bool use_rph)
 	// cout<<"syst "<<syst<<endl;
 	// cout<<"sample "<<sample<<endl;
 
-    if(use_rph && sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations
+    // if(use_rph && sample.Contains("PrivMC")) {return false;} //Combine does not yet support interpolation for RooParametricHists --> nuisances incorporated directly in bin parameterizations //Obsolete
 
     if( (syst.Contains("Fake", TString::kIgnoreCase) || syst.BeginsWith("FR") || syst.Contains("NPL")) && !sample.Contains("NPL")) {return false;}
     else if(sample.Contains("NPL") && !syst.Contains("Fake", TString::kIgnoreCase) && !syst.BeginsWith("FR") && !syst.Contains("NPL") && !syst.Contains("CRDY") ) {return false;}
 
-    else if(syst.Contains("njets_tZq", TString::kIgnoreCase) && sample != "PrivMC_tZq") {return false;}
+    else if(syst.Contains("njets_tZq", TString::kIgnoreCase) && !sample.Contains("PrivMC_tZq")) {return false;}
 
     else if(syst.Contains("tZq", TString::kIgnoreCase) && !sample.Contains("tZq")) {return false;}
     else if(syst.Contains("ttZ", TString::kIgnoreCase) && !sample.Contains("ttZ")) {return false;}
     else if(syst.Contains("tWZ", TString::kIgnoreCase) && !sample.Contains("tWZ")) {return false;}
 
-    else if(syst.Contains("CRWZ", TString::kIgnoreCase) && !sample.Contains("WZ")) {return false;}
+    else if(syst.Contains("CRWZ", TString::kIgnoreCase) && sample != "WZ") {return false;}
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
-    else if(syst.Contains("CRDY", TString::kIgnoreCase) && !sample.Contains("WZ") && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
+    else if(syst.Contains("CRDY", TString::kIgnoreCase) && sample != "WZ" && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
-    //else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ" && sample != "tWZ" ) {return false;} //Hardcoded: PDF uncertainty considered/correlated for signals only
-    else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ") {return false;} //Some missing for tWZ
+    else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME") || syst.BeginsWith("ISR") || syst.BeginsWith("FSR")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ") {return false;} //For signal samples only
 
     //else if((syst=="JES" || syst.Contains("JER") || syst.Contains("MET")) && !sample.Contains("PrivMC")) {return false;}
 
@@ -121,8 +120,9 @@ void Choose_Arguments_From_CommandLine(TString& signal, bool& use_rph)
     cout<<"* 'tzq' <-> Signal is tZq"<<endl;
     cout<<"* 'ttz' <-> Signal is ttZ"<<endl;
     cout<<"* 'twz' <-> Signal is tWZ"<<endl;
+    cout<<"* 'test' <-> hardcoded (testing)"<<endl;
 	cin>>signal;
-	while(signal != "tzq" && signal != "ttz" && signal != "twz" && signal != "0" && signal != "eft" && signal != "efttzq" && signal != "eftttz" && signal != "efttwz")
+	while(signal != "tzq" && signal != "ttz" && signal != "twz" && signal != "0" && signal != "eft" && signal != "efttzq" && signal != "eftttz" && signal != "efttwz" && signal != "test")
 	{
 		cin.clear();
 		cin.ignore(1000, '\n');
@@ -180,7 +180,6 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 {
     //TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
-    // bool include_njets_syst = false; //Obsolete
 
 	//-- Protections
 	if(v_shapeSyst.size() != v_shapeSyst_isCorrelYears.size()) {cout<<"ERROR: incorrect size for vector 'v_shapeSyst_isCorrelYears' !"<<endl; return;}
@@ -195,7 +194,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 //--------------------------------------------
 
     //-- Add keyword at b.o.f. to indicate whether this template corresponds to the use of RooParametricHists, or only regular TH1s
-    if (use_rph && signal.Contains("eft"))
+    if(use_rph)
     {
         outfile<<"#RPH"<<endl;
     }
@@ -209,15 +208,22 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     //--- Filepath, naming convention
     outfile<<"---------------------------------------------------"<<endl;
 
-    if(use_rph && signal.Contains("eft"))
+    if(use_rph)
     {
-        outfile<<"[SR] shapes * [VAR]_[CHAN]_[YEAR] workspacetoread w:rdh_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC"<<endl; //RDH
+        outfile<<"[SR]shapes * [VAR]_[CHAN]_[YEAR] workspacetoread w:rdh_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC"<<endl; //SR <-> use RPHs for SMEFT signals <-> must use RDHs for all other templates (bkgs, systs, ...)
 
-        outfile<<"[SR]shapes PrivMC_tZq [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
-        outfile<<"[SR]shapes PrivMC_ttZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
-        outfile<<"[SR]shapes PrivMC_tWZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
+        for(int isample=0; isample<v_samples.size(); isample++)
+        {
+            if(!v_samples[isample].Contains("PrivMC_")) {continue;} //For SMEFT signals only
 
-        outfile<<"[CR]shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC"<<endl;
+            //-- Systematics variations included in RPH bin param //Obsolete
+            // outfile<<"[SR]shapes "<<v_samples[isample]<<" [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS"<<endl;
+
+            //-- Read up/down RDHs for signal variations
+            outfile<<"[SR]shapes "<<v_samples[isample]<<" [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC"<<endl;
+        }
+
+        outfile<<"[CR]shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC"<<endl; // CR <-> no parameterization of SMEFT signals <-> regular shape analysis
     }
     else
     {
@@ -357,8 +363,8 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
     for(int isample=0; isample<v_samples.size(); isample++)
     {
-        if(v_isSignal[isample] == 1) {continue;} //No norm. syst for signals
-		else if(v_sampleUncert[isample] == -1) //Rate param
+        if(v_isSignal[isample] == 1 && v_sampleUncert[isample] == -1) {continue;}
+		else if(v_isSignal[isample] == 0 && v_sampleUncert[isample] == -1) //Rate param
         {
             v_rateParam.push_back(v_samples[isample]);
             continue;
@@ -372,7 +378,26 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         {
             outfile<<"\t";
 
-			if(isample == jsample) {outfile<<1.+v_sampleUncert[jsample]/100.;} //in %
+			if(isample == jsample)
+            {
+                // if(v_sampleUncert[jsample].Contains("/")) //Ex: '0.96/1.05' -> 4% down and 5% up
+                // {
+                //     //Break TString in 2 based on delimited '/'
+                //     TObjArray* keys = v_sampleUncert[jsample].Tokenize("/");
+                //     // keys->Print();
+                //     outfile<<((TObjString *)(tx->At(0)))->String();
+                //     outfile<<"/";
+                //     outfile<<((TObjString *)(tx->At(1)))->String();
+                // }
+
+                //-- FIXME new TH SMEFT signals
+                // if(v_samples[isample].Contains("PrivMC_tZq")) {outfile<<1.031<<endl;}
+                // else if(v_samples[isample].Contains("PrivMC_ttZ")) {outfile<<"0.884/1.10"<<endl;}
+                // else if(v_samples[isample].Contains("PrivMC_tWZ")) {outfile<<1.15<<endl;}
+
+                // else
+                {outfile<<1.+v_sampleUncert[jsample]/100.;} //Ex: '50' -> 50%
+            }
             else {outfile<<"-";}
         }
         outfile<<endl;
@@ -403,6 +428,9 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         else if(v_shapeSyst[isyst].EndsWith("17")) {outfile<<"[2017]";}
         else if(v_shapeSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
 
+        //-- Region-specific markers
+        if(v_shapeSyst[isyst] == "njets_tZq") {outfile<<"[SRtZq]";}
+
         outfile<<v_shapeSyst[isyst];
         if(!v_shapeSyst_isCorrelYears[isyst]) {outfile<<"[YEAR]";} //Uncorrelated for different year --> Modify systematic name itself
         outfile<<"\t"<<"shape";
@@ -419,16 +447,14 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 			else {outfile<<"-";}
         }
         outfile<<endl;
-
-        // if(v_shapeSyst[isyst] == "njets_tZq") {include_njets_syst = true;} //Obsolete
     }
 
     //-- If using RooDataHists (and RooParametricHists), can't use autoMCstats --> Declare 1 shape systematic for each histobin and process
-    if(use_rph && signal.Contains("eft"))
+    if(use_rph)
     {
         for(int isample=0; isample<v_samples.size(); isample++)
         {
-            if(v_samples[isample].Contains("PrivMC")) {continue;} //MC stat directly embeded in RPH parmeterizations
+            if(v_samples[isample].Contains("PrivMC")) {continue;} //MC stat directly embeded in RPH parameterizations
 
             TString nuis_mcstat_name = "#MCstat_[BIN]_[VAR]_[YEAR]_" + v_samples[isample]; //Ex: 'MCstat_countExp_SRttZ4l_2018_data_obs'
 
@@ -438,7 +464,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
                 outfile<<"\t";
 
                 //-- MCstat for given process only applies to this process
-                if(isample==jsample) {outfile<<"1";}
+                if(isample == jsample) {outfile<<"1";}
                 else {outfile<<"-";}
             }
             outfile<<endl;
@@ -481,7 +507,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
     outfile<<"---------------------------------------------------"<<endl;
 
-    if(!use_rph || !signal.Contains("eft")) //Default : use autoMCstats
+    if(!use_rph) //Default : use autoMCstats
     {
         outfile<<"[STAT]"<<"\t"<<"*"<<"\t"<<"autoMCStats"<<"\t"<<"10"<<endl;
     }
@@ -504,10 +530,8 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
 
     //-- If using RPHs (whose bins are directly parameterized on WCs), better to declare the WCs explicitely in the card
-    if(use_rph && signal.Contains("eft"))
+    if(use_rph)
     {
-        // if(include_njets_syst) {outfile<<"njets_tZq"<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;} //Only impacts RPHs
-
         //-- Add explicit gaussian constraints with mean=0 and sigma=1 (this is the default constraint used for shape systematics)
         for(int isyst=0; isyst<v_shapeSyst.size(); isyst++)
         {
@@ -523,13 +547,14 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
             outfile<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
         }
 
-        for(int isample=0; isample<v_samples.size(); isample++)
+        //FIXME
+        /*for(int isample=0; isample<v_samples.size(); isample++)
         {
             if(!v_samples[isample].Contains("PrivMC")) {continue;}
 
             TString nuis_mcstat_name = "#MCstat_[BIN]_[VAR]_[YEAR]_" + v_samples[isample]; //Ex: 'MCstat_countExp_SRttZ4l_2018_PrivMC_tZq'
             outfile<<"[STAT]"<<nuis_mcstat_name<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
-        }
+        }*/
 
         outfile<<"---------------------------------------------------"<<endl;
 
@@ -611,26 +636,40 @@ int main()
     if(signal == "efttzq") //Signal : SMEFT tZq
     {
         v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+
+        // v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        // v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "eftttz") //Signal : SMEFT ttZ
     {
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
         v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+
+        // v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        // v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "efttwz") //Signal : SMEFT tWZ
     {
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
         v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+
+        // v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        // v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "eft") //Signals : SMEFT tZq+ttZ+tWZ
     {
         v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
         v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+
+        //FIXME -- test uncert for SMEFT signals
+        // v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
     }
     else if(signal == "0") //Signals : SM tZq+ttZ+tWZ
     {
@@ -641,7 +680,7 @@ int main()
     else if(signal == "tzq") //Signal : SM tZq
     {
         v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
         v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
     else if(signal == "ttz") //Signal : SM ttZ
@@ -653,9 +692,24 @@ int main()
     else if(signal == "twz") //Signal : SM tWZ
     {
         v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
         v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
     }
+    else if(signal == "test") //Whatever you want to try out
+    {
+        // v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+
+        //v_samples.push_back("PrivMC_tZq_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        //v_samples.push_back("PrivMC_ttZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        //v_samples.push_back("PrivMC_tWZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+
+        // v_samples.push_back("PrivMC_tZq_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_ttZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        // v_samples.push_back("PrivMC_tWZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+    }
+    //el
     //else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
     v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
@@ -745,7 +799,8 @@ int main()
     bool use_split_JEC = false;
     if(!use_split_JEC) //Total JEC
     {
-        v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+        //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); //FIXME -- obsolete
+        v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(false);
     }
     else //Split JEC
     {
@@ -766,8 +821,8 @@ int main()
         v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true);
         v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true);
         v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(false);
         v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false);
         v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false);
         v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -778,11 +833,13 @@ int main()
         v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
     }
 
-    //-- Missing
-    // v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    // v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
+    //-- Missing //FIXME
+    /*
+    v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
+    */
 
     //-- Obsolete
     // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);

@@ -52,12 +52,12 @@ int main(int argc, char **argv)
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
-    TString plot_extension = ".png"; //extension of plots
+    TString plot_extension = ".png"; //Default file extension for plots //For 'paper plots', .pdf extension is enforced
     bool plot_onlyMaxNodeEvents = true; //For multiclass NN-SM template plots only (EFT strategy 2): true <-> only include events if they have their max output value in the corresponding node
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-    bool draw_prelim_label = true; //true <-> Add 'preliminary' label on plots
+    bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
 
 //-----------------------------------------------------------------------------------------
 // ##       ##     ## ##     ## #### ##    ##  #######   ######  #### ######## ##    ##
@@ -227,15 +227,7 @@ int main(int argc, char **argv)
 
     std::vector<TString > thevarlist;
     thevarlist.push_back("recoZ_Pt");
-    thevarlist.push_back("recoZ_Eta");
-    thevarlist.push_back("mHT");
-    thevarlist.push_back("mTW");
-    thevarlist.push_back("Mass_3l");
-    thevarlist.push_back("recoZ_dPhill");
-    thevarlist.push_back("lAsymmetry");
-    thevarlist.push_back("jPrimeAbsEta");
-    thevarlist.push_back("maxEtaJet");
-    thevarlist.push_back("maxDeepJet");
+
 
 //---------------------------------------------------------------------------
 //  #######  ######## ##     ## ######## ########       ##     ##    ###    ########   ######
@@ -250,29 +242,47 @@ int main(int argc, char **argv)
 //NOTE : Branch can be linked to only *one* variable via SetBranchAddress ; if additional variable is already present in other variable vector, it is removed from this vector !
 
     vector<TString> set_v_add_var_names;
-    // set_v_add_var_names.push_back("nMediumBJets");
 
     set_v_add_var_names.push_back("channel");
     set_v_add_var_names.push_back("njets");
     set_v_add_var_names.push_back("nbjets");
     set_v_add_var_names.push_back("metEt");
 
-    set_v_add_var_names.push_back("jet1_pt");
-    set_v_add_var_names.push_back("lep1_pt");
+    set_v_add_var_names.push_back("recoZ_Pt");
+    set_v_add_var_names.push_back("recoZ_Eta");
+    set_v_add_var_names.push_back("recoZ_dPhill");
+    set_v_add_var_names.push_back("mHT");
+    set_v_add_var_names.push_back("mTW");
+    set_v_add_var_names.push_back("Mass_3l");
+    set_v_add_var_names.push_back("lAsymmetry");
+    set_v_add_var_names.push_back("jPrimeAbsEta");
+    set_v_add_var_names.push_back("maxEtaJet");
+    set_v_add_var_names.push_back("maxDeepJet");
     set_v_add_var_names.push_back("cosThetaStarPolTop");
     set_v_add_var_names.push_back("cosThetaStarPolZ");
-    set_v_add_var_names.push_back("dEta_tjprime");
-    set_v_add_var_names.push_back("dR_tZ");
+    set_v_add_var_names.push_back("jet1_pt");
+    set_v_add_var_names.push_back("lep1_pt");
+    set_v_add_var_names.push_back("maxDiJet_Pt");
+    set_v_add_var_names.push_back("maxDiJet_M");
+    set_v_add_var_names.push_back("jprime_Pt");
     set_v_add_var_names.push_back("recoLepTop_Pt");
     set_v_add_var_names.push_back("recoLepTop_Eta");
     set_v_add_var_names.push_back("recoLepTopLep_Pt");
     set_v_add_var_names.push_back("TopZsystem_M");
     set_v_add_var_names.push_back("mbjMax");
+
+    set_v_add_var_names.push_back("dEta_tjprime");
+    set_v_add_var_names.push_back("dR_tZ");
     set_v_add_var_names.push_back("dR_ZlW");
     set_v_add_var_names.push_back("dR_blW");
-    set_v_add_var_names.push_back("maxDiJet_Pt");
-    set_v_add_var_names.push_back("maxDiJet_M");
     set_v_add_var_names.push_back("dR_lWjprime");
+    set_v_add_var_names.push_back("dEta_Zjprime");
+    set_v_add_var_names.push_back("dR_tClosestLep");
+    set_v_add_var_names.push_back("dEta_bjprime");
+    set_v_add_var_names.push_back("dEta_lWjprime");
+    set_v_add_var_names.push_back("dR_jprimeClosestLep");
+    set_v_add_var_names.push_back("dR_bjprime");
+    set_v_add_var_names.push_back("dR_Zjprime");
 
 
 //---------------------------------------------------------------------------
@@ -397,7 +407,7 @@ int main(int argc, char **argv)
 
     bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
-        bool use_combine_file = true; //FIXME //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
+        bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
@@ -445,7 +455,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, draw_prelim_label);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

@@ -32,8 +32,8 @@ opts = {
 #-- List of SM processes
 "processes": ['tZq'],
 #"processes": ['PrivMC_tWZ'],
-"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
-# "processes": ['tzq'], #SM signal processes
+#"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
+"processes": ['tZq','ttZ','tWZ'], #SM signal processes
 
 #-- Names of SM signal strengths for processes of interest
 #"SM_mus": ['r_tzq'], #Names of SM signal strengths for processes of interest

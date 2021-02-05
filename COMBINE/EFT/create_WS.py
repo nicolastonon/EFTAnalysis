@@ -13,8 +13,6 @@ Store RooParametricHist (for EFT signal histos) and RooDataHist (for all other h
 Written by Nicolas Tonon (DESY), 2021
 '''
 
-#- test 'useless' removal ?
-
 import os
 import stat
 import sys
@@ -38,7 +36,7 @@ from settings import opts #Custom dictionnary of settings
 # //--------------------------------------------
 
 min_threshold_EFTcoeff = 0.0001 #Don't consider EFT terms whose coefficients are below this threshold (negligible)
-min_threshold_MCstat = 0.01 #Don't include MCstat nuisance in RPH bin parameterization if relError is less than this relative threshold
+min_threshold_MCstat = 0.05 #Don't include MCstat nuisance in RPH bin parameterization if relError is less than this relative threshold
 
 
 # //--------------------------------------------
@@ -479,12 +477,6 @@ class EFTWorkspace(object):
                             #For each relevant syst, store the corresponding RooFormulaVar (and associated RooRealVar) for the current bin; 1 RFV <-> 1 RRV
                             if read_UpDownShiftedHist_forRPH == False:
 
-                                # a, b = self.Get_PolyCoeffs_FromUpDownVariations(bin_content, hup.GetBinContent(ibin), hdown.GetBinContent(ibin))
-                                # rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
-                                # rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+{}*@0+{}*@0*@0".format(a,b), RooArgList(rrv_shapeSyst)) #NB: having '+-xxx' in expression is not a problem ?
-                                # list_shapeSyst_expr_bin.append(rfv_shapesyst)
-                                # self.allVars.append(rfv_shapesyst) #Useless ?
-
                                 #-- See: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/settinguptheanalysis/#rates-for-shape-analysis
                                 #-- See: https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/blob/102x/src/AsymQuad.cc#L94-L126
                                 rfv_shapesyst_name = 'rfv_shapesyst_{}_{}_{}'.format(bin_name,proc,syst)
@@ -492,7 +484,7 @@ class EFTWorkspace(object):
                                 rfv_shapesyst = RooFormulaVar(rfv_shapesyst_name, 'Parameterization of shapeSyst {} in bin {}'.format(syst,bin_name), "1+({})".format(shapesyst_expr), RooArgList(rrv_shapeSyst))
                                 # print('rfv_shapesyst.evaluate', rfv_shapesyst.evaluate()) #Evaluate RDV at initial RRV value
                                 list_shapeSyst_expr_bin.append(rfv_shapesyst)
-                                self.allVars.append(rfv_shapesyst) #Useless ?
+                                self.allVars.append(rfv_shapesyst)
 
                             elif ibin==1: #Convert up/down (shape syst) histograms for RPHs, just like for RDHs (uses PR #634) #Do that only once !
 
@@ -513,7 +505,7 @@ class EFTWorkspace(object):
  #    # #    #    #    #   #   #    #   #
  #    #  ####      ####    #   #    #   #
 
-                        include_MCstatError_rph = False
+                        include_MCstatError_rph = False #Do not include MCstat errors if below user-defined threshold
                         if include_MCstat_nuisances:
 
                             bin_error = h_tmp.GetBinError(ibin)

@@ -436,6 +436,7 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     onlyCentralSample=False #Check whether all training samples are central samples
     centralVSpureEFT=False #Check whether training samples are part central / part pure-EFT
     onlySMEFT=False #Check whether all training samples are SM/EFT private samples
+    SMEFTAndCentral=False #Check whether training samples are a mixture of central and SM/EFT prviate samples
     ncentralSamples=0; nPureEFTSamples=0; nSMEFTSamples=0;
     for label in labels_list:
         if("PrivMC" in label and "_c" in label): nPureEFTSamples+=1 #E.g. 'PrivMC_tZq_ctz'
@@ -446,12 +447,14 @@ def Initialization_And_SanityChecks(opts, lumi_years, processClasses_list, label
     if nPureEFTSamples == 0 and nSMEFTSamples==0: onlyCentralSample=True
     elif nSMEFTSamples == len(labels_list): onlySMEFT=True
     elif (nPureEFTSamples+ncentralSamples) == len(labels_list): centralVSpureEFT=True
+    elif nSMEFTSamples>0 and ncentralSamples>0: SMEFTAndCentral=True
     else: print(colors.fg.red, 'ERROR : sample naming conventions not recognized, or incorrect combination of samples', colors.reset); exit(1)
 
     opts["samplesType"] = ""
     if onlyCentralSample: opts["samplesType"] = "onlyCentralSample"
     elif centralVSpureEFT: opts["samplesType"] = "centralVSpureEFT"
     elif onlySMEFT: opts["samplesType"] = "onlySMEFT"
+    elif SMEFTAndCentral: opts["samplesType"] = "SMEFTAndCentral"
 
     if (opts["trainAtManyEFTpoints"]==True or opts["strategy"] not in ["classifier", "regressor"]) and onlySMEFT==False: print(colors.bold, colors.fg.red, 'This NN strategy is supported for SM+EFT samples only !', colors.reset); exit(1) #Can only train on different EFT hypotheses if using SMEFT samples
     # elif opts["strategy"] in ["classifier", "regressor"] and nSMEFTSamples > 0: print(colors.bold, colors.fg.red, 'This NN strategy is not supported for SM+EFT samples !', colors.reset); exit(1)
@@ -670,7 +673,7 @@ def Write_Timestamp_toLogfile(filepath, status):
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
     # print('Current Timestamp : ', timestampStr)
 
-    print('filepath', filepath)
+    # print('filepath', filepath)
     text_file = open(filepath, mode) #Overwrite file
     if status == 0: text_file.write("Start of NN training :" + str(timestampStr) + "\n")
     elif status == 1: text_file.write("End of NN training and evaluation :" + str(timestampStr) + "\n")

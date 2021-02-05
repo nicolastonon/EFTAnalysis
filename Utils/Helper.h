@@ -132,16 +132,16 @@ void Get_Pointer_GENHisto(TH1F*&, TString);
 vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 float Get_x_ZptCosCategory(float, float);
-TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0);
+TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0, bool=false);
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool);
 vector<vector<float>> Get_nJets_SF(TString, TString, TString, vector<TString>);
 float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
-void Scale_THSyst_toBeforeSelection(TH1F*&, TH1F*&, TString);
 TString Get_Template_XaxisTitle(TString);
 TString Get_EFToperator_label(TString);
+TString Get_Unit_Variable(TString);
 //--------------------------------------------
 
 //--------------------------------------------
@@ -236,6 +236,54 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
 
     return;
 };
+
+/**
+ * For theory systematics (only applied to signal samples), only want to consider the acceptance effect on normalization
+ * <-> We apply a SF corresponding to (variation_beforeSel/nominal_beforeSel) <-> the normalization difference after selection should be purely due to differences in acceptance
+ * NB: there is a small approximation, before the SFs were still obtained after some minimal preselection (TopAnalysis level)
+ */
+// void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
+template <class T> void Scale_THSyst_toBeforeSelection(T*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
+{
+	if(!h || !h_sumWeights_beforeSel) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: Null histogram !"))<<endl; return;}
+
+    int ibin_syst = -1;
+    double nomYield_beforeSel = h_sumWeights_beforeSel->GetBinContent(1); //First bin <-> nominal yield before event selection
+
+    if(systname == "MEUp") {ibin_syst = 2;}
+    else if(systname == "MEDown") {ibin_syst = 3;}
+
+    else if(systname == "PDFUp") {ibin_syst = 9;}
+    else if(systname == "PDFDown") {ibin_syst = 10;}
+
+    else if(systname == "alphasUp") {ibin_syst = 11;}
+    else if(systname == "alphasDown") {ibin_syst = 12;}
+
+    else if(systname == "ISRUp") {ibin_syst = 13;}
+    else if(systname == "ISRDown") {ibin_syst = 14;}
+
+    else if(systname == "FSRUp") {ibin_syst = 15;}
+    else if(systname == "FSRDown") {ibin_syst = 16;}
+
+    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0)
+    {
+        if(ibin_syst <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: ibin_syst <= 0 !"))<<endl;}
+        if(h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: h_sumWeights_beforeSel->GetBinContent("<<ibin_syst<<") = "<<h_sumWeights_beforeSel->GetBinContent(ibin_syst)<<" !"))<<endl;}
+        return;
+    }
+
+    // cout<<"ibin_syst "<<ibin_syst<<endl;
+    // cout<<"[Scale_THSyst_toBeforeSelection / "<<systname<<"] Integral before: "<<h->Integral()<<endl;
+
+    double SF = nomYield_beforeSel / h_sumWeights_beforeSel->GetBinContent(ibin_syst);
+    h->Scale(SF);
+
+    // cout<<"[Scale_THSyst_toBeforeSelection / "<<systname<<"] h->Scale("<<SF<<")"<<endl;
+    // cout<<"[Scale_THSyst_toBeforeSelection / "<<systname<<"] Integral after: "<<h->Integral()<<endl;
+
+    return;
+}
+
 //--------------------------------------------
 
 #endif

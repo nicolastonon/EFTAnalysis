@@ -35,7 +35,6 @@ import numpy as np
 from functools import partial
 from settings import opts #Custom dictionnary of settings
 import CombineHarvester.CombineTools.plotting as plot #Combine plotting utils
-from array import array
 import ctypes
 
 
@@ -991,6 +990,16 @@ class EFTPlot(object):
         ceiling: maximum NLL value
         '''
 
+        ROOT.gStyle.SetPalette(57) #kBird (default, blue to yellow)
+        # ROOT.gStyle.SetPalette(ROOT.kOcean) #Dark greens/blues
+        # ROOT.gStyle.SetPalette(ROOT.kDarkBodyRadiator) #Dark to light
+        # ROOT.gStyle.SetPalette(ROOT.kBlackBody) #Light red to blue
+        # ROOT.gStyle.SetPalette(ROOT.kBlueGreenYellow)
+        # ROOT.gStyle.SetPalette(ROOT.kLightTemperature)
+
+        drawContours = True #True <-> superimpose contours (default)
+        valCont = [2.30, 5.99] #1sigma and 95% contours
+
         if filepath == '': filepath = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
 
         if len(params)!=2:
@@ -1028,8 +1037,6 @@ class EFTPlot(object):
         xmin = limitTree.GetMinimum(yvar)
         xmax = limitTree.GetMaximum(yvar)
 
-        # ymax+= 2 #Leave space for legend
-
         # maxZ = 20 #Max z-axis threshold
         maxZ = 1000 #Max z-axis threshold #If want whole plot to be colored
         nbins = 150
@@ -1042,8 +1049,34 @@ class EFTPlot(object):
         limitTree.Draw(expr, '2*deltaNLL<{}'.format(maxZ), 'prof colz') #Option 'prof' generates a TProfile
 
         hist = c.GetPrimitive(hname)
+        hist.Draw('colz') #Clean draw (not necessary)
 
-        hist.Draw('colz')
+        if drawContours:
+            histsForCont = hist.Clone() #Clone histo
+            c_contlist = ((ctypes.c_double)*(len(valCont)))(*valCont) #Define contour thresholds ('levels')
+            histsForCont.SetContour(len(c_contlist), c_contlist) #Set the contours
+            histsForCont.Draw("cont z list") #Get the contour in memory
+            c.Update()
+            conts = ROOT.gROOT.GetListOfSpecials().FindObject("contours") #Retrieve the object
+            cont_p1 = conts.At(0).Clone()
+            cont_p2 = conts.At(1).Clone()
+
+            hist.Draw('colz') #Fresh draw to overwrite previous one
+
+            for conts in [cont_p1]:
+                for cont in conts:
+                    #cont.SetLineColor(ROOT.kBlue-6)
+                    cont.SetLineColor(ROOT.kBlack)
+                    cont.SetLineWidth(3)
+                    cont.SetLineStyle(7)
+                    cont.Draw("L same") #Draw second contour
+                    h_cont68 = cont.Clone()
+            for conts in [cont_p2]:
+                for cont in conts:
+                    cont.SetLineColor(ROOT.kBlack)
+                    cont.SetLineWidth(3)
+                    cont.Draw("L same") #Draw first contour
+                    h_cont95 = cont.Clone()
 
         #-- Draw best fit point from grid scan
         #limitTree.Draw(params[0]+":"+params[1],'quantileExpected==-1','p same') # Best fit point from grid scan
@@ -1057,67 +1090,10 @@ class EFTPlot(object):
         marker_1.SetMarkerSize(2)
         marker_1.SetMarkerStyle(34)
         marker_1.Draw("p same")
-        # hSM = ROOT.TH1F('SM', 'SM', 1, 0, 1) #To add to TLegend
-        # hSM.SetMarkerStyle(33)
-        # hSM.SetMarkerColor(97)
-
-        '''
-        x = array( 'd' )
-        x.append(2.30) #68% CL
-        h_cont68 = hist.Clone()
-        h_cont68.SetContour(1, x)
-        h_cont68.Draw("cont3 same")
-        # h_cont68.SetLineColor(ROOT.kAzure-1)
-        h_cont68.SetLineColor(ROOT.kBlack)
-        h_cont68.SetLineStyle(7)
-        h_cont68.SetLineWidth(2)
-
-        x = array( 'd' )
-        x.append(5.99) #95% CL
-        h_cont95 = hist.Clone()
-        # h_cont95.Smooth()
-        # h_cont95 = self.ContourHelper.FramePlot(hist)
-        h_cont95.SetContour(1, x)
-        h_cont95.Draw("cont3 same")
-        # h_cont95.SetLineColor(ROOT.kRed+1)
-        h_cont95.SetLineColor(ROOT.kBlack)
-        h_cont95.SetLineWidth(2)
-
-        # for xbin in range(1, h_cont95.GetNbinsX()):
-        #     h_cont95.SetBinContent(xbin, 1, 1000)
-        #     h_cont95.SetBinContent(xbin, h_cont95.GetNbinsY(), 1000)
-        '''
-
-        vals = [2.28, 5.99]
-        drawContours = True
-        if drawContours:
-            histsForCont = hist.Clone()
-            c_contlist = ((ctypes.c_double)*(len(vals)))(*vals)
-            histsForCont.SetContour(len(c_contlist), c_contlist)
-            histsForCont.Draw("cont z list")
-            c.Update()
-            conts = ROOT.gROOT.GetListOfSpecials().FindObject("contours")
-            cont_p1 = conts.At(0).Clone()
-            cont_p2 = conts.At(1).Clone()
-
-            hist.Draw('colz')
-
-            for conts in [cont_p2]:
-                for cont in conts:
-                    cont.SetLineColor(ROOT.kBlack)
-                    cont.SetLineWidth(3)
-                    cont.SetLineStyle(2)
-                    cont.Draw("L same")
-            for conts in [cont_p1]:
-                for cont in conts:
-                    #cont.SetLineColor(ROOT.kBlue-6)
-                    cont.SetLineColor(ROOT.kBlack)
-                    cont.SetLineWidth(3)
-                    cont.Draw("L same")
 
         if log: c.SetLogz()
-        hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[0]))
-        hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[1]))
+        hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[0]))
+        hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
         hist.GetZaxis().SetTitle("-2 #Delta log(L)")
         hist.GetYaxis().SetTitleOffset(0.9)
         hist.SetMaximum(20.) #If want to cut z-axis below
@@ -1125,75 +1101,76 @@ class EFTPlot(object):
         hist.SetTitle('')
         hist.SetStats(0)
 
-        #FIXME -- with Preliminary
-        '''
-        left = 0.17
-        top = 0.91+0.02
-        self.CMS_text = ROOT.TLatex(left, top, "CMS")
-        self.CMS_text.SetNDC()
-        self.CMS_text.SetTextColor(ROOT.kBlack)
-        self.CMS_text.SetTextFont(61)
-        self.CMS_text.SetTextAlign(11)
-        self.CMS_text.SetTextSize(0.06)
+        if paper:
+            left = 0.17
+            top = 0.91-0.04
+            self.CMS_text = ROOT.TLatex(left, top, "CMS")
+            self.CMS_text.SetNDC()
+            self.CMS_text.SetTextColor(ROOT.kBlack)
+            self.CMS_text.SetTextFont(61)
+            self.CMS_text.SetTextAlign(11)
+            self.CMS_text.SetTextSize(0.06)
 
-        self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
-        self.extraText.SetNDC()
-        self.extraText.SetTextFont(52)
-        self.extraText.SetTextSize(0.05)
+            self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
+            self.extraText.SetNDC()
+            self.extraText.SetTextFont(52)
+            self.extraText.SetTextSize(0.05)
 
-        self.lumiText = ROOT.TLatex(left, top-0.06, "137 fb^{-1} (13 TeV)")
-        # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
-        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-        self.lumiText.SetNDC()
-        self.lumiText.SetTextFont(42)
-        self.lumiText.SetTextAlign(11)
-        # self.lumiText.SetTextAlign(31)
-        self.lumiText.SetTextSize(0.04)
-        '''
+            self.lumiText = ROOT.TLatex(left+0.14, top, "137 fb^{-1} (13 TeV)")
+            # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+            if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+            self.lumiText.SetNDC()
+            self.lumiText.SetTextFont(42)
+            self.lumiText.SetTextAlign(11)
+            # self.lumiText.SetTextAlign(31)
+            self.lumiText.SetTextSize(0.04)
+
+        else: #Preliminary
+            left = 0.17
+            top = 0.91+0.02
+            self.CMS_text = ROOT.TLatex(left, top, "CMS")
+            self.CMS_text.SetNDC()
+            self.CMS_text.SetTextColor(ROOT.kBlack)
+            self.CMS_text.SetTextFont(61)
+            self.CMS_text.SetTextAlign(11)
+            self.CMS_text.SetTextSize(0.06)
+
+            self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
+            self.extraText.SetNDC()
+            self.extraText.SetTextFont(52)
+            self.extraText.SetTextSize(0.05)
+
+            self.lumiText = ROOT.TLatex(left+0.01, top-0.06, "137 fb^{-1} (13 TeV)")
+            # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+            if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+            self.lumiText.SetNDC()
+            self.lumiText.SetTextFont(42)
+            self.lumiText.SetTextAlign(11)
+            # self.lumiText.SetTextAlign(31)
+            self.lumiText.SetTextSize(0.04)
 
         #-- For paper
-        left = 0.17
-        top = 0.91-0.04
-        self.CMS_text = ROOT.TLatex(left, top, "CMS")
-        self.CMS_text.SetNDC()
-        self.CMS_text.SetTextColor(ROOT.kBlack)
-        self.CMS_text.SetTextFont(61)
-        self.CMS_text.SetTextAlign(11)
-        self.CMS_text.SetTextSize(0.06)
-
-        self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
-        self.extraText.SetNDC()
-        self.extraText.SetTextFont(52)
-        self.extraText.SetTextSize(0.05)
-
-        self.lumiText = ROOT.TLatex(left+0.15, top, "137 fb^{-1} (13 TeV)")
-        # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
-        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-        self.lumiText.SetNDC()
-        self.lumiText.SetTextFont(42)
-        self.lumiText.SetTextAlign(11)
-        # self.lumiText.SetTextAlign(31)
-        self.lumiText.SetTextSize(0.04)
 
         self.CMS_text.Draw('same')
-        # if paper==False: self.extraText.Draw('same')
+        if paper==False: self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
         #-- Legend
         # legend = ROOT.TLegend(0.53,0.70,0.80,0.87)
         legend = ROOT.TLegend(0.60,0.85,0.83,0.99)
-        # legend.AddEntry(h_cont68, "68% CL",'L')
-        # legend.AddEntry(h_cont95, "95% CL",'L')
+        legend.AddEntry(h_cont68, "68% CL",'L')
+        legend.AddEntry(h_cont95, "95% CL",'L')
         legend.AddEntry(marker_1, "SM",'p')
         # legend.AddEntry(best_fit, "Best fit",'p')
+        legend.SetBorderSize(0)
         legend.SetTextSize(0.04)
         legend.SetNColumns(1)
         legend.Draw('same')
 
         #-- Save plot
         outname = hname
-        if paper: outname+= '_paper'
-        outname+= '.png'
+        if paper: outname+= '_paper.pdf'
+        else: outname+= '.png'
 
         c.Print(outname)
 
@@ -1456,7 +1433,6 @@ class EFTPlot(object):
  #    # #    # #   ##   #   #    # #    # #   #  #    #
   ####   ####  #    #   #    ####   ####  #    #  ####
 
-    #FIXME -- update style
     def ContourPlotEFT(self, mode='EFT', params=[], paper=False, filepath=''):
         '''
         Make 2D contour plots.
@@ -1575,7 +1551,7 @@ class EFTPlot(object):
         h_contour.SetTitle("")
         h_contour.SetMarkerStyle(8)
         h_contour.SetMarkerSize(1)
-        h_contour.GetXaxis().SetTitle(Get_Parameter_LegName(params[0])) #FIXME order ok ?
+        h_contour.GetXaxis().SetTitle(Get_Parameter_LegName(params[0]))
         h_contour.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
 
         # h_contour.GetXaxis().SetTitleOffset(1.1)
@@ -1616,7 +1592,7 @@ class EFTPlot(object):
         legend.AddEntry(hSM,"SM value",'p')
         legend.SetTextSize(0.035)
         legend.SetNColumns(4)
-        # legend.Draw('same') #FIXME
+        # legend.Draw('same')
 
         self.CMS_text.Draw('same')
         if paper==False: self.extraText.Draw('same')
@@ -1633,8 +1609,6 @@ class EFTPlot(object):
         outfile = ROOT.TFile(self.histosFileName,'UPDATE')
         h_contour.Write()
         outfile.Close()
-
-        # ROOT.gStyle.SetPalette(57)
 
         return
 

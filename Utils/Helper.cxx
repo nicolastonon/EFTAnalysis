@@ -928,9 +928,9 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
         for(int isample=0; isample<v_groups.size(); isample++)
 		{
             //Signals
-            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
-            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
-            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[16]->GetNumber();}
+            if(v_groups[isample] == "tZq" || v_groups[isample].Contains("PrivMC_tZq")) {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample].Contains("PrivMC_ttZ")) {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample].Contains("PrivMC_tWZ")) {v_colors[isample] = v_custom_colors[16]->GetNumber();}
             // else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();}
 
             //t(t)X
@@ -959,10 +959,10 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
 		for(int isample=0; isample<v_samples.size(); isample++)
 		{
             //Signals
-            if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = kOrange+10;}
+            if(v_samples[isample] == "tZq" || v_samples[isample].Contains("PrivMC_tZq")) {v_colors[isample] = kOrange+10;}
             // if(v_samples[isample] == "tZq") {v_colors[isample] = test.GetNumber();}
-            else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = kOrange+6;}
-            else if(v_samples[isample] == "tWZ" || v_samples[isample] == "PrivMC_tWZ") {v_colors[isample] = kOrange+2;}
+            else if(v_samples[isample] == "ttZ" || v_samples[isample].Contains("PrivMC_ttZ")) {v_colors[isample] = kOrange+6;}
+            else if(v_samples[isample] == "tWZ" || v_samples[isample].Contains("PrivMC_tWZ")) {v_colors[isample] = kOrange+2;}
 
             //ttX
             else if(v_samples[isample] == "ttH") {v_colors[isample] = kGreen-5;}
@@ -988,9 +988,9 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
         for(int isample=0; isample<v_groups.size(); isample++)
 		{
             //Signals
-            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
-            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
-            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[7]->GetNumber();}
+            if(v_groups[isample] == "tZq" || v_groups[isample].Contains("PrivMC_tZq")) {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample].Contains("PrivMC_ttZ")) {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample].Contains("PrivMC_tWZ")) {v_colors[isample] = v_custom_colors[7]->GetNumber();}
 
             //t(t)X
             else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
@@ -1032,8 +1032,8 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
 		for(int isample=0; isample<v_samples.size(); isample++)
 		{
             //Signals
-            if(v_samples[isample] == "tZq" || v_samples[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[0]->GetNumber();}
-            else if(v_samples[isample] == "ttZ" || v_samples[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
+            if(v_samples[isample] == "tZq" || v_samples[isample].Contains("PrivMC_tZq")) {v_colors[isample] = v_custom_colors[0]->GetNumber();}
+            else if(v_samples[isample] == "ttZ" || v_samples[isample].Contains("PrivMC_ttZ")) {v_colors[isample] = v_custom_colors[1]->GetNumber();}
             else if(v_samples[isample] == "tWZ") {v_colors[isample] = kOrange+2;}
 
             //ttX
@@ -1086,9 +1086,9 @@ void Get_Samples_Colors(vector<int>& v_colors, std::vector<TColor*>& v_custom_co
         for(int isample=0; isample<v_groups.size(); isample++)
         {
             //Signals
-            if(v_groups[isample] == "tZq" || v_groups[isample] == "PrivMC_tZq") {v_colors[isample] = v_custom_colors[6]->GetNumber();}
-            else if(v_groups[isample] == "ttZ" || v_groups[isample] == "PrivMC_ttZ") {v_colors[isample] = v_custom_colors[9]->GetNumber();}
-            else if(v_groups[isample] == "tWZ" || v_groups[isample] == "PrivMC_tWZ") {v_colors[isample] = v_custom_colors[16]->GetNumber();}
+            if(v_groups[isample] == "tZq" || v_groups[isample].Contains("PrivMC_tZq")) {v_colors[isample] = v_custom_colors[6]->GetNumber();}
+            else if(v_groups[isample] == "ttZ" || v_groups[isample].Contains("PrivMC_ttZ")) {v_colors[isample] = v_custom_colors[9]->GetNumber();}
+            else if(v_groups[isample] == "tWZ" || v_groups[isample].Contains("PrivMC_tWZ")) {v_colors[isample] = v_custom_colors[16]->GetNumber();}
 
             //t(t)X
             else if(v_groups[isample] == "tX") {v_colors[isample] = v_custom_colors[1]->GetNumber();}
@@ -1175,7 +1175,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "mHT") {nbins = 10; xmin = 200; xmax = 1200;}
     else if(var == "top_mass") {nbins = 15; xmin = 100; xmax = 300;}
     else if(var == "dPhijj_max") {nbins = 10; xmin = 0; xmax = 3;}
-    else if(var == "maxDijet_M") {nbins = 10; xmin = 100; xmax = 1000;}
+    else if(var == "maxDiJet_M") {nbins = 10; xmin = 100; xmax = 1000;}
     else if(var == "maxDiJet_Pt") {nbins = 20; xmin = 100; xmax = 400;}
     else if(var == "maxDijet_dPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
     else if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {nbins = 10; xmin = 0; xmax = 3.5;}
@@ -1193,6 +1193,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "recoLepTop_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "recoLepTop_Pt") {nbins = 20; xmin = 0.; xmax = 300.;}
     else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
+    else if(var == "jprime_Pt") {nbins = 20; xmin = 50.; xmax = 300.;}
 
     else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
     else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 500.;}
@@ -1208,7 +1209,8 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var.Contains("eta", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var.Contains("phi", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
 
-    else if(var == "njets" || var == "nbjets") {nbins = 6; xmin = 0.; xmax = 6;}
+    else if(var == "njets") {nbins = 8; xmin = 0.; xmax = 8;}
+    else if(var == "nbjets") {nbins = 6; xmin = 0.; xmax = 6;}
 
     // else if(var == "Lep3Pt") {nbins = 20; xmin = 0; xmax = 80;}
 
@@ -1226,17 +1228,17 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
 
     xmin = -1; xmax = 1; //BDT: [-1,1]
 
-    if(template_name.Contains("NN") || template_name.Contains("BDT")) {nbins = 10;} //MVA default
+    if(template_name.Contains("NN") || template_name.Contains("BDT")) {nbins = 15;} //MVA default
 
     if(template_name.Contains("NN")) //NN: [0,1]
     {
         xmin = 0;
-        if((!make_SMvsEFT_templates_plots || template_name.Contains("NN_SM") || template_name.Contains("NN_cpq3_SRttZ")) && categorization_strategy==2 && plot_onlyMaxNodeEvents)  //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
+        if(categorization_strategy==2 && plot_onlyMaxNodeEvents && (!make_SMvsEFT_templates_plots || template_name.Contains("NN_SM") || template_name.Contains("NN_cpq3_SRttZ")))  //Special case: if we plot SM vs SM multiclass NN and only plot events in their max. node, then by construction there can be no events with x<1/3 --> Adapt axis
         {
-            xmin = 0.3; nbins = 7; //Default
+            xmin = 0.3; nbins = 10; //Default
 
             //-- Testing
-            if(template_name.Contains("tZq")) {xmin = 0.4; nbins = 8;}
+            if(template_name.Contains("tZq")) {xmin = 0.4; nbins = 10;}
             if(template_name.Contains("ttZ")) {xmin = 0.4; xmax = 0.9; nbins = 10;}
         }
     }
@@ -1244,20 +1246,15 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     else if(template_name.Contains("ZptCos")) {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
     else if(template_name.Contains("Zpt")) //1D Zpt
     {
-        // //DEFAULT
-        // nbins = 5;
-        // xmin = 0; xmax = 450;
-        // if(template_name.Contains("SRtZq")) {xmax = 350;}
-
-        nbins = 10;
-        xmin = 0; xmax = 500;
+        nbins = 8;
+        xmin = 0; xmax = 400;
         if(template_name.Contains("SRtZq")) {xmax = 300;}
     }
 
     if(template_name.Contains("mTW"))
     {
         nbins=15; xmin=0; xmax=150;
-        if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning for now
+        if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning //Obsolete
     }
     if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
@@ -1288,8 +1285,8 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.70;}
             else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.40; max_tmp = 0.80;}
 
-            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 1.00;}
-            else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;}
+            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 1.00;} //[-2;2]: [0.4,1.]
+            else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //[-2;2]: [0.49,0.57]
 
             else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
             // else if(template_name.Contains("NN_cpq3_SRttZ")) {min_tmp = 0.50; max_tmp = 0.55;} //Not used ! (NN_SM -> [0,1])
@@ -1306,6 +1303,11 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             xmin = min_tmp; xmax = max_tmp;
         }
     }
+
+    // if(template_name.Contains("mTW")) //Testing -- to remove
+    // {
+    //     nbins=15; xmin=0; xmax=1.;
+    // }
 
     return;
 }
@@ -1327,13 +1329,14 @@ TString Get_Variable_Name(TString var)
     if(var == "Mass_3l") {return "m_{3l}";}
     if(var == "forwardJetAbsEta") {return "#left|#eta#left(j^{fwd}#right)#right|";}
     if(var == "jPrimeAbsEta") {return "#left|#eta(j')#right|";}
+    if(var == "jprime_Pt") {return "p_{T}(j')";}
     if(var == "maxDeepCSV") {return "max. DeepCSV";}
     if(var == "deepCSV_2nd") {return "2nd max. DeepCSV";}
     if(var == "maxDeepJet") {return "max. DeepJet";}
     if(var == "deepJet_2nd") {return "2nd max. DeepJet";}
     if(var == "delRljPrime") {return "#DeltaR(j',l)";}
     if(var == "lAsymmetry") {return "q_{l} #upoint #left|#eta(l)#right|";}
-    if(var == "maxDijetMass") {return "max. m_{j,j}";}
+    if(var == "maxDijetMass" || var == "maxDiJet_M") {return "max. m_{j,j}";}
     if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {return "max. #Delta#phi(l,l)";}
     if(var == "metEt") {return "E_{T}^{miss}";}
     if(var == "recoZ_Mass") {return "m_{Z}";}
@@ -1345,6 +1348,8 @@ TString Get_Variable_Name(TString var)
     if(var == "Top_delRbW") {return "#DeltaR#left(W^{t},b^{t}#right)";}
     if(var == "cosThetaStarPolTop") {return "cos#left(#theta^{*}_{top}#right)";}
     if(var == "cosThetaStarPolZ") {return "cos#left(#theta^{*}_{Z}#right)";}
+    if(var == "njets") {return "Jet multiplicity";}
+    if(var == "nbjets") {return "b jet multiplicity";}
 
     //GenPlotter variables
     if(var == "Z_pt") {return "p_{T}(Z)";}
@@ -1496,16 +1501,17 @@ TString Get_Modified_SystName(TString systname, TString lumiYear, TString sample
 
     || systname.BeginsWith("JER")
     || systname.BeginsWith("MET")
-    || systname.BeginsWith("RelativeStatFSR")
-    || systname.BeginsWith("RelativeStatEC")
-    || systname.BeginsWith("RelativeStatHF")
-    || systname.BeginsWith("RelativeSample")
-    || systname.BeginsWith("RelativePtEC1")
-    || systname.BeginsWith("RelativePtEC2")
+    || systname.BeginsWith("JES")
+    || systname.BeginsWith("AbsoluteStat")
     || systname.BeginsWith("TimePtEta")
     || systname.BeginsWith("RelativeJEREC1")
     || systname.BeginsWith("RelativeJEREC2")
-    || systname.BeginsWith("AbsoluteStat")
+    || systname.BeginsWith("RelativePtEC1")
+    || systname.BeginsWith("RelativePtEC2")
+    || systname.BeginsWith("RelativeSample")
+    || systname.BeginsWith("RelativeStatEC")
+    || systname.BeginsWith("RelativeStatHF")
+    || systname.BeginsWith("RelativeStatFSR")
     )
     {
         if(systname.EndsWith("Up"))
@@ -1653,7 +1659,7 @@ float Get_x_ZptCosCategory(float Zpt, float cosThetaStarPolZ)
 }
 
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
-TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy)
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy, bool paramNN)
 {
     TString MVA_basename = MVA_type; if(MVA_type.Contains("NN")) {MVA_basename = "NN";}
     TString EFToperator = "";
@@ -1683,7 +1689,9 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
             else //SM vs EFT
             {
                 path_suffix = "EFT/" + signal_process + "/";
-                if(EFToperator != "") {path_suffix+= EFToperator + "/";}
+                if(EFToperator != "") {path_suffix+= EFToperator;}
+                if(paramNN) {path_suffix+= "_param";}
+                path_suffix+= "/";
             }
         }
         if(load_NN_info) {path_suffix+= "NN_info.txt";} //Read NN info file (input features, etc.)
@@ -1828,12 +1836,12 @@ TString Get_Region_Label(TString region, TString variable)
 {
     TString label = "";
 
+    //-- Region-dependent label //Obsolete ?
     region.ToLower();
-    if(region=="signal") {label = "SR-3#ell";}
-    else if(region=="tzq") {label = "tZq SR";}
-    else if(region=="ttz") {label = "ttZ SR";}
-    else if(region=="ttz4l") {label = "SR-ttZ-4#ell";}
-
+    if(region=="signal") {label = "SR-3\\ell";}
+    else if(region=="tzq") {label = "SR-tZq";}
+    else if(region=="ttz") {label = "SR-t#bar{t}Z";}
+    else if(region=="ttz4l") {label = "SR-t#bar{t}Z-4\\ell";}
     else if(region=="xg") {label = "V#gamma CR";}
     else if(region=="zz") {label = "ZZ CR";}
     else if(region=="tx") {label = "tX CR";}
@@ -1841,9 +1849,14 @@ TString Get_Region_Label(TString region, TString variable)
     else if(region=="wz") {label = "WZ CR";}
     else if(region=="dy") {label = "DY CR";}
 
+    //-- Variable-dependent label
     if(variable.Contains("SRtZq")) {label = "SR-tZq";}
-    else if(variable.Contains("SRttZ")) {label = "SR-ttZ";}
-    else if(variable.Contains("_SRother")) {label = "SR-Other";}
+    else if(variable.Contains("SRttZ")) {label = "SR-t#bar{t}Z";}
+    else if(variable.Contains("SRother")) {label = "SR-Other";}
+    else if(variable.Contains("SRttZ4l")) {label = "SR-t#bar{t}Z-4\\ell";}
+    else if(variable.Contains("CRWZ")) {label = "WZ CR";}
+    else if(variable.Contains("CRZZ")) {label = "ZZ CR";}
+    else if(variable.Contains("CRDY")) {label = "Z/#gamma CR";}
 
     return label;
 }
@@ -2000,47 +2013,6 @@ float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iy
     return SF;
 }
 
-/**
- * For theory systematics (only applied to signal samples), only want to consider the acceptance effect on normalization
- * <-> We apply a SF corresponding to (variation_beforeSel/nominal_beforeSel) <-> the normalization difference after selection should be purely due to differences in acceptance
- * NB: there is a small approximation, before the SFs were still obtained after some minimal preselection (TopAnalysis level)
- */
-void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
-{
-	if(!h || !h_sumWeights_beforeSel) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: Null histogram !"))<<endl; return;}
-
-    int ibin_syst = -1;
-    double nomYield_beforeSel = h_sumWeights_beforeSel->GetBinContent(1); //First bin <-> nominal yield before event selection
-
-    if(systname == "MEUp") {ibin_syst = 2;}
-    else if(systname == "MEDown") {ibin_syst = 3;}
-
-    else if(systname == "PDFUp") {ibin_syst = 9;}
-    else if(systname == "PDFDown") {ibin_syst = 10;}
-
-    else if(systname == "alphasUp") {ibin_syst = 11;}
-    else if(systname == "alphasDown") {ibin_syst = 12;}
-
-    else if(systname == "ISRUp") {ibin_syst = 13;}
-    else if(systname == "ISRDown") {ibin_syst = 14;}
-
-    else if(systname == "FSRUp") {ibin_syst = 15;}
-    else if(systname == "FSRDown") {ibin_syst = 16;}
-
-    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0)
-    {
-        if(ibin_syst <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: ibin_syst <= 0 !"))<<endl;}
-        if(h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0 !"))<<endl;}
-        return;
-    }
-
-    double SF = nomYield_beforeSel / h_sumWeights_beforeSel->GetBinContent(ibin_syst);
-    h->Scale(SF);
-
-    // cout<<"[Scale_THSyst_toBeforeSelection] h->Scale("<<SF<<")"<<endl;
-
-    return;
-}
 
 //-- Hardcode template naming conventions for plot's X-axis
 TString Get_Template_XaxisTitle(TString variable)
@@ -2053,6 +2025,11 @@ TString Get_Template_XaxisTitle(TString variable)
     else if(variable == "NN2") {title = "NN (Bkgs node)";}
     else if(variable.Contains("NN")) {title = "NN output";}
 
+    //Other region templates conventions
+    if(variable.Contains("mTW")) {title = "m_{T}^{W}";}
+    else if(variable.Contains("countExp")) {title = "Counting experiment";}
+
+    //NN-SM/EFT conventions
     if(variable.Contains("NN_SM"))
     {
         title = "NN-SM";
@@ -2091,4 +2068,23 @@ TString Get_EFToperator_label(TString operator_name)
     else if(operator_name == "cpt") {label = "C_{#phit}";}
 
     return label;
+}
+
+//Get the unit to display on the x-axis title (e.g.: 'Events / 5 GeV')
+TString Get_Unit_Variable(TString var)
+{
+    TString unit = "";
+
+    if(var.Contains("m3l", TString::kIgnoreCase)
+    || var.Contains("mTW", TString::kIgnoreCase)
+    || var.Contains("metEt", TString::kIgnoreCase)
+    || var.Contains("_pt", TString::kIgnoreCase)
+    || var.Contains("pt_", TString::kIgnoreCase)
+    || var.Contains("_M", TString::kIgnoreCase)
+    || var.Contains("m_", TString::kIgnoreCase)
+    || var.Contains("mbjMax", TString::kIgnoreCase)
+    || var.Contains("mHT", TString::kIgnoreCase)
+    ) {unit = " GeV";} //Must include space
+
+    return unit;
 }

@@ -279,9 +279,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
         		    // TString file_histos = "../templates/Combine_Input.root"; //Templates_otherRegions_NN_Run2.root
                     // TString file_histos_pathFromHere = "./../templates/Templates_"+ (include_otherRegions? v_templates[0]:v_templates[itemplate]) + (filename_template_suffix? "_"+filename_template_suffix:"")+(selection != ""? "_"+selection:"")+"_"; //For use within this code
-                    TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_"; //For use within this code
+                    TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_"; //For use within this code
                     if(isOtherRegion) {file_histos_pathFromHere = "./../templates/Templates_otherRegions"+(selection != ""? "_"+selection:"")+"_";} //Read a different file for templates with 'fixed' observables (only change SR templates)
-                    else if(v_templates[itemplate] == "NN_SM") {file_histos_pathFromHere = "./../templates/Templates_NN_SM" + (filename_template_suffix? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Trick: when reading NN_cpq3 file (for SRtZq), we need to read the NN_SM file for SRttZ (<-> NN_SM template) and SRother (<-> mTW template) !
+                    else if(v_templates[itemplate] == "NN_SM") {file_histos_pathFromHere = "./../templates/Templates_NN_SM" + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Trick: when reading NN_cpq3 file (for SRtZq), we need to read the NN_SM file for SRttZ (<-> NN_SM template) and SRother (<-> mTW template) !
                     TString file_histos_pathFromHere_Run2 = file_histos_pathFromHere + "Run2.root"; //In case year-dependent file is not found, will look for Run2 file by default
                     file_histos_pathFromHere+= lumiName+".root";
                     // if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
@@ -668,9 +668,11 @@ void Choose_Arguments_From_CommandLine(char& include_systematics, char& include_
     //Set a 'filename suffix' if needed (if present in the filename)
     cout<<endl<<FYEL("=== Set the template name suffix for the filename ===")<<endl;
     cout<<ITAL(DIM("'EFT1' / 'EFT2' / 'SM' / ..."))<<endl;
+    cout<<ITAL(DIM(<<"(NB: 1 <-> '')"));
     cout<<ITAL(DIM(<<"..."));
     cin>>tstringtmp;
     if(tstringtmp != "0") {filename_template_suffix = tstringtmp;}
+    if(tstringtmp == "1") {filename_template_suffix = "";} //No suffix
 
     //Set a 'selection flag' if necessary (if present in the histo/file names)
     cout<<endl<<FYEL("=== Set the event selection flag ===")<<endl;
@@ -726,6 +728,8 @@ int main()
     v_regions.push_back("SRtZq");
     v_regions.push_back("SRttZ");
     v_regions.push_back("SRother");
+    
+    //v_regions.push_back("signal");
 
     TString selection = ""; //Main event selection, before sub-categorization
     TString filename_template_suffix = "EFT2"; //Specify extension in histo filename
@@ -762,3 +766,4 @@ int main()
 
 	return 0;
 }
+

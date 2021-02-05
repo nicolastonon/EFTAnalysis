@@ -790,8 +790,8 @@ void Split_AllNtuples_ByCategory(vector<TString> v_samples, vector<TString> v_sa
     //-- Merge 'full' ntuples (*not* split by sub-categories) into ntuples grouped by 'sample groups'
     if(hadd_fullSamples_byGroup) {Merge_Samples_byGroups(v_samples, v_sampleGroups, v_sel, v_years, prefix, true);} //Merge by sample group
 
-    //Trick: even if not merging main samples (e.g. because already considering group ntuples), we still want to merge (NPL_DATA+NPL_MC) created by this code -- for full samples only
-    else {Merge_Samples_byGroups(v_dummy, v_dummy, v_sel, v_years, prefix, true);}
+    //Trick: even if not merging main samples (e.g. because already considering group ntuples), we still want to merge (NPL_DATA+NPL_MC) if created by this code -- for full samples only
+    else if(make_FakesMC_samples || make_FakesDATA_fullSample) {Merge_Samples_byGroups(v_dummy, v_dummy, v_sel, v_years, prefix, true);}
 
     return;
 }

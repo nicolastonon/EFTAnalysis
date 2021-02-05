@@ -71,23 +71,45 @@ def log_subprocess_output(pipe,level):
             if level=='info': logging.info(line.rstrip('\n'))
             if level=='err': logging.error(line.rstrip('\n'))
 
-def makeWorkspaceEFT(datacard='datacard.txt', verbosity=0):
-        ### Generates a workspace from a datacard and fit parameterization file ###
-        print(colors.fg.lightblue + "Creating workspace from datacard " + datacard + colors.reset)
-        if not os.path.isfile(datacard):
-            print("Datacard does not exist!")
-            sys.exit()
-        CMSSW_BASE = os.getenv('CMSSW_BASE')
-        args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
 
-        if verbosity>0: args.extend(['-v', str(verbosity)])
+ #    #  ####  #####  #    #  ####  #####    ##    ####  ######
+ #    # #    # #    # #   #  #      #    #  #  #  #    # #
+ #    # #    # #    # ####    ####  #    # #    # #      #####
+ # ## # #    # #####  #  #        # #####  ###### #      #
+ ##  ## #    # #   #  #   #  #    # #      #    # #    # #
+ #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-        print(colors.fg.purple + ' '.join(args) + colors.reset)
-        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
-        with process.stdout,process.stderr:
-            log_subprocess_output(process.stdout,'info')
-            log_subprocess_output(process.stderr,'err')
-        process.wait()
+def makeWorkspace(SM=False, datacard='datacard.txt', verbosity=0):
+	### Generates a workspace from a datacard and fit parameterization file ###
+	logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
+	if not os.path.isfile(datacard):
+	    logging.error("Datacard does not exist!")
+	    sys.exit()
+	CMSSW_BASE = os.getenv('CMSSW_BASE')
+
+	if SM:
+	    args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o','SMWorkspace.root']
+	    # Map signal strengths to processes in all bins
+	    for iproc,proc in enumerate(opts["processes"]):
+		args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
+	else: args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
+
+	if verbosity>0: args.extend(['-v', str(verbosity)])
+	args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
+
+	# Remove pre-existing WS
+	if SM: sp.call(['rm','SMWorkspace.root'])
+	else: sp.call(['rm','EFTWorkspace.root'])
+
+	logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
+	process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+	with process.stdout,process.stderr:
+	    log_subprocess_output(process.stdout,'info')
+	    log_subprocess_output(process.stderr,'err')
+	process.wait()
+
+	return
+
 
 #=====================================
 
@@ -121,9 +143,9 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         print(colors.fg.red + "ERROR: empty list POIs\n" + colors.reset)
         exit(1)
 
-        if name == '':
-            if SM: name = '.SM'
-            else: name = '.EFT'
+    if name == '':
+        if SM: name = '.SM'
+        else: name = '.EFT'
 
     if only_collect_outputs == False:
 
@@ -429,8 +451,9 @@ if __name__ == "__main__":
 # //--------------------------------------------
 
     if 'txt' in datacard_path:
-        if only_collect_outputs == False: makeWorkspaceEFT(datacard=datacard_path) #Create RooWorkspace from txt datacard
-        datacard_path = 'EFTWorkspace.root' #Assume the WS was already created
+        if only_collect_outputs == False: makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb) #Create RooWorkspace from txt datacard
+        if SM == True: datacard_path = 'SMWorkspace.root'
+	else: datacard_path = 'EFTWorkspace.root'
 
     if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name, ntoys=ntoys, SM=SM)
 

@@ -200,7 +200,7 @@ class TopEFT_analysis
 
     bool split_EFTtemplates_perBin; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
 
-    bool draw_prelim_label;
+    bool use_paperStyle;
 };
 
 #endif

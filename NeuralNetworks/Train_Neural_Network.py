@@ -84,7 +84,6 @@ optsTrain = {
 #=== Event preselection ===#
 # "cuts": "1", #Event selection, both for train/test ; "1" <-> no cut
 "cuts": "is_signal_SR",
-# "cuts": "passStep3 && jets_pt[2]>30 && gen_rho>0 && gen_additional_jet_pt>20 && abs(gen_additional_jet_eta)<2.6",
 
 #=== Input features ===#
 "useHardCodedListInputFeatures": True, #True <-> use list of input features hard-coded in 'InputFeatures.py' (can define several for specific cases); otherwise, use the list of features defined here below

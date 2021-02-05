@@ -590,7 +590,8 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
             if iter > 0 and (nofOutputNodes == 1 or opts["strategy"] != "classifier"): break #Only makes sense for multiclassifier
             if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"] and inode > 0: break #Only for r node
 
-            nbins = 30
+            # nbins = 30 #Default #Too many fluctuations >
+            nbins = 20
             rmin = 0.; rmax = 1.
 
             fig = plt.figure('overtrain') #figsize=(30,15), dpi=200

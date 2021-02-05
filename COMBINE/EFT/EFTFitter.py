@@ -205,7 +205,9 @@ class EFTFit(object):
         else: args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
         if freeze:
             frozen_pois = []
-            if SM: frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
+            if SM: 
+	            #frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
+                print(colors.bg.red + "WARNING: preventing to use --freeze for SM... if needed, remove this protection !" + colors.reset)
             else: frozen_pois = [wc for wc in self.wcs if wc not in params_POI]
             if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
@@ -839,6 +841,9 @@ class EFTFit(object):
             if roorealvar.hasRange('err95'): #If 95% CL errors available (using --do95 1 --robustFit 1 options)
                 err_low_95 = round(roorealvar.getMin('err95'),3)
                 err_high_95 = round(roorealvar.getMax('err95'),3)
+                if err_low_95 > 0: #Assume that the default parameter value is 1 instead of 0, adapt limits
+                    err_low_95-= 1
+                    err_high_95-= 1
 
             fit_array.append((param,value,err_low,err_high,err_low_95,err_high_95))
 
@@ -1131,7 +1136,7 @@ if __name__ == "__main__":
                 # fitter.batchRetrieve1DScansEFT(basename=name, batch=batch, scan_wcs=param_tmp)
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-                points = points if points != -1 else 40*40 #1600
+                points = points if points != -1 else 50*50 # 2500 pts
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs)
                 # fitter.batchRetrieve2DScansEFT(basename=name, batch=batch, wc_pair=param_tmp, allPairs=False)
 

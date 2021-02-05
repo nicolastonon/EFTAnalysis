@@ -28,9 +28,11 @@ print('\n * Creating datacard for year : '+year+' / channel : '+channel+' / vari
 
 # fileToSearch = "Template_Datacard.txt" #TEMPLATE card to parse
 file = open(fileToSearch).read()
+# print('fileToSearch', fileToSearch)
 
 use_rph = False
 if "#RPH" in file: use_rph = True #Detect keyword at b.o.f.
+# print('use_rph', use_rph)
 
 #if any(x in theVar for x in ['_CR']): fileToSearch = "Template_Datacard_noSig.txt" #Special case: don't consider any signal in CRs (approximation)
 
@@ -66,7 +68,7 @@ else:
     exit()
 
 #-- SR/CR differences (when using RooParametricHist)
-SR = '#'
+SR = '' #Default: consider region as SR
 CR = '#'
 PrivMC_CR = '1' #Default: activate systs also for PrivMC EFT samples
 rate_sig = '-1'
@@ -75,10 +77,8 @@ if 'SR' in theVar:
     rate_sig = '1' #Applied only to EFT signals in SR (must multiply PDF_norm by 1)
 elif 'CR' in theVar:
     CR = ''
+    SR = '#'
     PrivMC_CR = '-' #Choose to ignore shape systs for PrivMC samples in CRs (since nominals are dummies anyway)
-
-njets_tZq = '#njets_tZq'
-if use_rph and 'SRtZq' in theVar: njets_tZq = 'njets_tZq'
 
 #-- Year-to-year correlations
 is2016="#"
@@ -113,10 +113,11 @@ elif year=="2018":
     LumiXY = "1.02"
 
 #-- Region-specific flags
-isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#' #Disactive these systematics by default
+isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#' ; isSRtZq = '#' #Disactive corresponding systematics by default (unless in these specific regions)
 if 'CRWZ' in theVar: isCRWZ = ''
 elif 'CRZZ' in theVar: isCRZZ = ''
 elif 'CRDY' in theVar: isCRDY = ''
+elif 'SRtZq' in theVar: isSRtZq = ''
 
 #--------------------------------------------
 # ele_sys = "" #Ele systematics only in ele channels
@@ -158,8 +159,7 @@ file = file.replace("[PrivMC_CR]", PrivMC_CR)
 file = file.replace("[CRWZ]", isCRWZ)
 file = file.replace("[CRZZ]", isCRZZ)
 file = file.replace("[CRDY]", isCRDY)
-
-file = file.replace("njets_tZq", njets_tZq)
+file = file.replace("[SRtZq]", isSRtZq)
 
 #--------------------------------------------
 

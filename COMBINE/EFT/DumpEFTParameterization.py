@@ -39,7 +39,8 @@ for iter in [1,2,3]: #-- Also need to dump content of 'otherRegions' rootfile ! 
 
     if not os.path.exists(hist_file):
         print(colors.bg.red + "File {} does not exist!".format(hist_file) + colors.reset)
-        exit(1)
+        #exit(1)
+	continue
 
     #Read file and extract parameterizations for each process / category
     # //--------------------------------------------

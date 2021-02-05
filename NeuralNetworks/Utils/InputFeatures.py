@@ -164,31 +164,35 @@ features_CARL_ttZ_5D.append("maxDiJet_Pt")
 # features_CARL_ttZ_5D.append("cosThetaStarPolZ")
 
 
-
 # //--------------------------------------------
 # //--------------------------------------------
 # //--------------------------------------------
 
 
 # NN-SM: tZq vs ttZ vs Others
+#TMP check: '#OK #NO!' <-> good agreement between priv/central for tZq, but not for ttZ
 features_SM = []
-features_SM.append("recoZ_Pt")
-features_SM.append("recoZ_Eta")
-features_SM.append("recoZ_dPhill")
-features_SM.append("mHT")
-features_SM.append("mTW")
-features_SM.append("Mass_3l")
-features_SM.append("lAsymmetry")
-features_SM.append("jPrimeAbsEta")
-features_SM.append("maxDeepJet")
-features_SM.append("maxDiJet_M")
-features_SM.append("dR_blW")
-features_SM.append("dR_lWjprime")
-features_SM.append("nbjets")
-features_SM.append("cosThetaStarPolTop")
-features_SM.append("mbjMax")
-# features_SM.append("njets") #Not so well modeled in SRtZq
-# features_SM.append("maxEtaJet") #Poorly modeled ?
+features_SM.append("recoZ_Pt") #OK #OK
+features_SM.append("mTW") #OK #OK
+features_SM.append("Mass_3l") #OK #OK
+features_SM.append("lAsymmetry") #OK #OK
+features_SM.append("maxDeepJet") #OK #OK
+features_SM.append("nbjets") #OK #OK
+features_SM.append("maxDiJet_M") #? #?
+features_SM.append("recoZ_Eta") #~ #OK
+features_SM.append("recoZ_dPhill") #~ #OK
+features_SM.append("dR_lWjprime") #~ #OK
+features_SM.append("mbjMax") #~ #OK
+
+#FIXME -- removing improves ?
+# features_SM.append("dR_blW") #NO! #OK
+# features_SM.append("jPrimeAbsEta") #NO! #OK
+# features_SM.append("cosThetaStarPolTop") #NO! #NO!
+# features_SM.append("mHT") #NO! #~ #Also rather poor data/MC
+
+#FIXME -- testing
+features_SM.append("maxEtaJet") #OK #OK
+features_SM.append("jprime_Pt") #OK #OK
 
 #-- Testing
 # features_SM.append("maxDelRbL")
