@@ -3381,7 +3381,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         //-- Dummy object, only used to display uncertainty band also in legend
         TH1F* h_uncert = new TH1F("h_uncert", "h_uncert", 1, 0, 1);
         h_uncert->SetFillStyle(3004); //3002
-		h_uncert->SetFillColor(kBlack);
+        h_uncert->SetFillColor(kBlack);
+        h_uncert->SetLineWidth(0.);
         qw->AddEntry(h_uncert, "Uncert.", "F");
         // qw->AddEntry(h_uncert, "Uncertainty", "F");
 
@@ -3930,7 +3931,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
 			gr_ratio_error = new TGraphAsymmErrors(thegraph_tmp->GetN(), theX , theY ,  theErrorX_l, theErrorX_h, theErrorY_l, theErrorY_h);
             gr_ratio_error->SetFillStyle(3004); //3002
-			gr_ratio_error->SetFillColor(kBlack);
+            gr_ratio_error->SetFillColor(kBlue+2);
+            // gr_ratio_error->SetFillColor(kBlack);
 			// gr_ratio_error->SetFillColor(kCyan);
 
 			pad_ratio->cd(0);
