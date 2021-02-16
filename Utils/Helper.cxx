@@ -1222,7 +1222,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
 
 //Return the binning of the variable passed in arg
 //NB: use Contains() function because I am passing full variable names as arguments (e.g. 'NN_SRtZq')
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds, bool use_NN_SRother)
 {
     nbins = 15; //Default
 
@@ -1237,9 +1237,9 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
         {
             xmin = 0.3; nbins = 10; //Default
 
-            //-- Testing
-            if(template_name.Contains("tZq")) {xmin = 0.4; nbins = 10;}
-            if(template_name.Contains("ttZ")) {xmin = 0.4; xmax = 0.9; nbins = 10;}
+            //-- Changed: better boundaries
+            if(template_name.Contains("tZq")) {nbins = 10; xmin = 0.4;}
+            if(template_name.Contains("ttZ")) {nbins = 10; xmin = 0.4; xmax = 0.9;}
         }
     }
     else if(template_name.Contains("categ")) {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
@@ -1255,6 +1255,8 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     {
         nbins=15; xmin=0; xmax=150;
         if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning //Obsolete
+
+        if(use_NN_SRother) {nbins = 10; xmin = 0.4; xmax = 0.9;} //Can chose to plot NN-bkg node in SRother instead
     }
     if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
@@ -1289,7 +1291,7 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //[-2;2]: [0.49,0.57]
 
             else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
-            // else if(template_name.Contains("NN_cpq3_SRttZ")) {min_tmp = 0.50; max_tmp = 0.55;} //Not used ! (NN_SM -> [0,1])
+            // else if(template_name.Contains("NN_cpq3_SRttZ")) {min_tmp = 0.50; max_tmp = 0.55;} //Not used ! (NN_SM -> [0.4,1])
 
             else if(template_name.Contains("NN_3D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
             else if(template_name.Contains("NN_3D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
@@ -1303,11 +1305,6 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             xmin = min_tmp; xmax = max_tmp;
         }
     }
-
-    // if(template_name.Contains("mTW")) //Testing -- to remove
-    // {
-    //     nbins=15; xmin=0; xmax=1.;
-    // }
 
     return;
 }
@@ -1724,26 +1721,52 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized, bool combineFile_fromHarvester, bool prefit)
 {
     TString fullpath = ""; //Full input path
     if(region != "") {region = "_" + region;}
 
 	if(use_CombineFile) //Reading a template file produced by Combine (specific naming conventions)
 	{
-        //TRY 1 : look for Combine file
-		fullpath = "./outputs/fitDiagnostics_";
-		fullpath+= template_type + region + filename_suffix + ".root";
-
-        cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
-        if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
-		else
+        if(combineFile_fromHarvester) //File produced by CombineHarvester, different naming
         {
-            fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
+            fullpath = "./outputs/shapes_";
+            fullpath+= prefit? "prefit_":"postfit_";
+            fullpath+= template_type + ".root";
 
-            cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
+            if(!is_templateFile) //Control plots, hardcoded name
+            {
+                fullpath = "./outputs/shapes_";
+                fullpath+= prefit? "prefit_":"postfit_";
+                fullpath+= "control.root";
+            }
+
+            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
             if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
-            else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
+            else
+            {
+                fullpath = "./outputs/shapes.root"; //Try a generic name
+
+                cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
+                if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+                else {cout<<BOLD(FRED("ERROR: shapes.root file from CombineHarvester not found !"))<<endl; return "";}
+            }
+        }
+        else //File produced by FitDiagnostics
+        {
+            fullpath = "./outputs/fitDiagnostics_";
+            fullpath+= template_type + region + filename_suffix + ".root";
+
+            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
+            if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+            else
+            {
+                fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
+
+                cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
+                if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+                else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
+            }
         }
     }
 	else //Reading my own file
@@ -1930,7 +1953,9 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         variable_list.push_back("countExp_SRttZ4l");
         variable_list.push_back("mTW_CRWZ");
         variable_list.push_back("countExp_CRZZ");
-        variable_list.push_back("countExp_CRDY");
+
+        // variable_list.push_back("countExp_CRDY"); //Not used anymore
+
         template_name = "";
     }
 
@@ -2020,9 +2045,9 @@ TString Get_Template_XaxisTitle(TString variable)
     TString title = variable;
 
     //-- Previous conventions
-    if(variable == "NN0") {title = "NN (tZq node)";}
-    else if(variable == "NN1") {title = "NN (ttZ node)";}
-    else if(variable == "NN2") {title = "NN (Bkgs node)";}
+    if(variable == "NN0") {title = "NN output (tZq node)";}
+    else if(variable == "NN1") {title = "NN output (ttZ node)";}
+    else if(variable == "NN2") {title = "NN output (Backgrounds node)";}
     else if(variable.Contains("NN")) {title = "NN output";}
 
     //Other region templates conventions
@@ -2032,25 +2057,31 @@ TString Get_Template_XaxisTitle(TString variable)
     //NN-SM/EFT conventions
     if(variable.Contains("NN_SM"))
     {
-        title = "NN-SM";
+        title = "NN-SM output";
         if(variable.Contains("SRtZq")) {title+= " (tZq node)";}
         else if(variable.Contains("SRttZ")) {title+= " (ttZ node)";}
-        else if(variable.Contains("SRother")) {title+= " (Bkg node)";}
+        else if(variable.Contains("SRother")) {title+= " (Backgrounds node)";}
     }
     else if(variable.Contains("NN_ctz"))
     {
-        title = "NN-C_{tZ}";
+        title = "NN-C_{tZ} output";
+
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
-        // else if(variable.Contains("SRttZ")) {title+= "^{ttZ}";}
+        // title = "NN-#mathcal{O}_{tZ}"; //Does not work
     }
     else if(variable.Contains("NN_ctw"))
     {
-        title = "NN-C_{tW}";
+        title = "NN-C_{tW} output";
     }
     else if(variable.Contains("NN_cpq3"))
     {
-        title = "NN-C^{3}_{#phiQ}";
+        title = "NN-C^{3}_{#phiQ} output";
+
         if(variable.Contains("SRttZ")) {title = "NN-SM (ttZ node)";} //Actually using NN-sM for cpq3/ttZ
+    }
+    else if(variable.Contains("NN_5D"))
+    {
+        title = "NN-5D output";
     }
 
     return title;
@@ -2087,4 +2118,95 @@ TString Get_Unit_Variable(TString var)
     ) {unit = " GeV";} //Must include space
 
     return unit;
+}
+
+/**
+ * Read template histograms and extract/printout the yields per fit region
+ */
+void Print_Yields_fromHistograms(TString filepath, TString template_name, vector<TString> v_years, vector<TString> v_regions, vector<TString> v_processes)
+{
+//--------------------------------------------
+    // TString bin = ""; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
+    TString bin = "bin6"; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
+//--------------------------------------------
+
+//-- SETUP
+
+    if(!Check_File_Existence(filepath))
+    {
+        cout<<endl<<"File "<<filepath<<FRED(" not found!")<<endl;
+        return;
+    }
+    TFile* f = TFile::Open(filepath);
+
+    v_years.push_back("Run2");
+    vector<vector<vector<float>>> v3_years_regions_proc(v_years.size()); //1 element per year + Run2
+
+//-- FILL VECTORS
+
+    for(int iyear=0; iyear<v_years.size()-1 ; iyear++)
+    {
+        v3_years_regions_proc[iyear].resize(v_regions.size());
+        v3_years_regions_proc[v_years.size()-1].resize(v_regions.size()); //Run2
+        for(int iregion=0; iregion<v_regions.size(); iregion++)
+        {
+            v3_years_regions_proc[iyear][iregion].resize(v_processes.size());
+            v3_years_regions_proc[v_years.size()-1][iregion].resize(v_processes.size()); //Run2
+            for(int iproc=0; iproc<v_processes.size(); iproc++)
+            {
+                TString histoname;
+                if(bin != "") {histoname+= bin + "_";}
+                histoname+= template_name;
+                if(v_regions[iregion] == "SRother" || v_regions[iregion] == "WZCR") {histoname = "mTW";}
+                else if(v_regions[iregion] == "SRttZ4l" || v_regions[iregion] == "ZZCR") {histoname = "countExp";}
+                histoname+=  "_" + v_regions[iregion] + "_" + v_years[iyear] + "__";
+                if(v_processes[iproc] == "DATA") {histoname+= "data_obs";}
+                else {histoname+= v_processes[iproc];}
+                // cout<<"histoname "<<histoname<<endl;
+
+                if(!f->GetListOfKeys()->Contains(histoname)) {cout<<"ERROR ! Histogram "<<histoname<<" not found !"<<endl; continue;}
+
+                TH1F* th1f = NULL;
+                TH1EFT* th1eft = NULL;
+                if(histoname.Contains("PrivMC")) //TH1EFT
+                {
+                    th1eft = (TH1EFT*) f->Get(histoname);
+                    v3_years_regions_proc[iyear][iregion][iproc] = th1eft->Integral();
+                    v3_years_regions_proc[v_years.size()-1][iregion][iproc]+= th1eft->Integral(); //Run2
+                    th1eft = NULL;
+                }
+                else //TH1F
+                {
+                    th1f = (TH1F*) f->Get(histoname);
+                    v3_years_regions_proc[iyear][iregion][iproc] = th1f->Integral();
+                    v3_years_regions_proc[v_years.size()-1][iregion][iproc]+= th1f->Integral(); //Run2
+                    th1f = NULL;
+                }
+            } //processes
+        } //regions
+    } //years
+
+//-- PRINTOUTS
+
+    for(int iyear=0; iyear<v_years.size(); iyear++)
+    {
+        cout<<endl<<BOLD(FMAG("=== YEAR "<<v_years[iyear]<<""))<<endl<<endl;
+        for(int iregion=0; iregion<v_regions.size(); iregion++)
+        {
+            cout<<endl<<BOLD(FYEL("== REGION "<<v_regions[iregion]<<""))<<endl<<endl;
+            float sum_mc = 0;
+            for(int iproc=0; iproc<v_processes.size(); iproc++)
+            {
+                if(v_processes[iproc] == "tZq" || v_processes[iproc] == "ttZ" || v_processes[iproc] == "tWZ") {continue;}
+                // if(v_processes[iproc] == "PrivMC_tZq" || v_processes[iproc] == "PrivMC_ttZ" || v_processes[iproc] == "PrivMC_tWZ") {continue;}
+
+                cout<<"- PROCESS "<<v_processes[iproc]<<endl;
+                cout<<"--> "<<v3_years_regions_proc[iyear][iregion][iproc]<<endl;
+                if(v_processes[iproc] != "DATA") {sum_mc+= v3_years_regions_proc[iyear][iregion][iproc];}
+            }
+            cout<<"- TOTAL MC => "<<sum_mc<<endl;
+        }
+    }
+
+    return;
 }

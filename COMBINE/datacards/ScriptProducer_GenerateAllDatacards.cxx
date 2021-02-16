@@ -137,12 +137,13 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         }
     }
 
-    //-- Special case: for cpq3, we use NN_cpq in SRtZq *but* NN_SM in SRttZ --> Hardcode it here
+    //-- Special case: for cpq3, we use NN_cpq3 in SRtZq *but* different distribution in SRttZ --> Hardcode it here //FIXME -- becomes obsolete with new cpq3 file
     for(int itemplate=0; itemplate<v_templates.size(); itemplate++)
     {
         for(int iregion=0; iregion<v_regions.size(); iregion++)
         {
             if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "NN_SM";}
+            // if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "Zpt";}
         }
     }
 
@@ -170,7 +171,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         v_regions.push_back("SRttZ4l"); v_templates.push_back("countExp");
         v_regions.push_back("CRWZ"); v_templates.push_back("mTW");
         v_regions.push_back("CRZZ"); v_templates.push_back("countExp");
-        v_regions.push_back("CRDY"); v_templates.push_back("countExp");
+        //v_regions.push_back("CRDY"); v_templates.push_back("countExp"); //FIXME -- remove ?
     }
     //Overrides some option to perform a fit following the setup of the main SM tZq differential analysis
     //NB: just add all region and template names together here; then call dedicated hard-coded function to sort out relevant combinations
@@ -282,6 +283,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_"; //For use within this code
                     if(isOtherRegion) {file_histos_pathFromHere = "./../templates/Templates_otherRegions"+(selection != ""? "_"+selection:"")+"_";} //Read a different file for templates with 'fixed' observables (only change SR templates)
                     else if(v_templates[itemplate] == "NN_SM") {file_histos_pathFromHere = "./../templates/Templates_NN_SM" + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Trick: when reading NN_cpq3 file (for SRtZq), we need to read the NN_SM file for SRttZ (<-> NN_SM template) and SRother (<-> mTW template) !
+                    else if(v_templates[itemplate] == "Zpt") {file_histos_pathFromHere = "./../templates/Templates_Zpt" + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //FIXME
                     TString file_histos_pathFromHere_Run2 = file_histos_pathFromHere + "Run2.root"; //In case year-dependent file is not found, will look for Run2 file by default
                     file_histos_pathFromHere+= lumiName+".root";
                     // if(scan_operator_hardcoded) {file_histos_pathFromHere = "./../templates/Templates_NN_EFT2param_Run2.root";} //HARD-CODED
@@ -434,6 +436,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     	TString output_name = "COMBINED_Datacard_TemplateFit";
         if(systChoice == "noShape") output_name+= "_noShape";
         if(statChoice == "noStat") output_name+= "_noStat";
+        if(mode_histoBins==3) output_name+= "_countExp";
         if(scan_operator_hardcoded) {output_name+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
         output_name+= "_" + lumiName;
         if(use_rph) {output_name+= "_rph";}
@@ -528,6 +531,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             TString output_name = "COMBINED_Datacard_TemplateFit";
             if(systChoice == "noShape") output_name+= "_noShape";
             if(statChoice == "noStat") output_name+= "_noStat";
+            if(mode_histoBins==3) output_name+= "_countExp";
         	output_name+= "_" + v_regions[iregion] + "_" + lumiName + ".txt";
             file_out<<"> "<<output_name<<endl<<endl;
             file_out<<"mv "<<output_name<<" datacards_TemplateFit/"<<endl<<endl;
@@ -728,14 +732,14 @@ int main()
     v_regions.push_back("SRtZq");
     v_regions.push_back("SRttZ");
     v_regions.push_back("SRother");
-    
+
     //v_regions.push_back("signal");
 
     TString selection = ""; //Main event selection, before sub-categorization
     TString filename_template_suffix = "EFT2"; //Specify extension in histo filename
     bool scan_operator_hardcoded = false; //true <-> will generate datacards for several different bin names (scan steps) to be used in a script
 
-    bool use_rph = true;
+    bool use_rph = false; //true <-> will also produce datacards for using RooParametric
     TString path_tmp_workspace = "../../../EFT/WS.root"; //Hard-coded path to the temporary workspace potentially containing RooParametricHists, etc. //Must be provided to card parser so that the WS contents get read
 
     TString scriptname = "makeDatacardsForTemplateFit.sh"; //Name of output script to create and run
@@ -766,4 +770,3 @@ int main()
 
 	return 0;
 }
-

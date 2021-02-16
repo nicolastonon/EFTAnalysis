@@ -8,42 +8,63 @@ bin        	[VAR]_[CHAN]_[YEAR]
 observation	-1
 ---------------------------------------------------
 bin    	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]
-process	PrivMC_tZq	PrivMC_ttZ	PrivMC_tWZ	tX	VVV	WZ	XG	NPL
+process	PrivMC_tZq	PrivMC_ttZ	PrivMC_tWZ	tX	WZ	VVV	XG	NPL
 process	0	-1	-2	3	4	5	6	7
 rate 	-1	-1	-1	-1	-1	-1	-1	-1
 ---------------------------------------------------
 [2016]Lumi16	lnN	1.022	1.022	1.022	1.022	1.022	1.022	1.022	-
 [2017]Lumi17	lnN	1.020	1.020	1.020	1.020	1.020	1.020	1.020	-
-Lumi18	lnN	1.015	1.015	1.015	1.015	1.015	1.015	1.015	-
+[2018]Lumi18	lnN	1.015	1.015	1.015	1.015	1.015	1.015	1.015	-
 [201617]Lumi1617	lnN	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	-
 [201718]Lumi1718	lnN	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	-
 LumiXY	lnN	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	-
-Lumi	lnN	1.023	1.023	1.023	1.023	1.023	1.023	1.023	-
 [2016]Trigger16	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
 [2017]Trigger17	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
-Trigger18	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
-[CRWZ]N_CRWZ_extrap	lnN	-	-	1.08	-	-	1.08	-	-
-[CRZZ]N_CRZZ_extrap	lnN	-	-	-	-	1.08	-	-	-
-[CRDY]N_CRDY_extrap	lnN	-	-	1.08	-	1.08	1.08	1.08	1.08
+[2018]Trigger18	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
+[WZext]WZ_HF_extrap	lnN	-	-	-	-	1.06	-	-	-
 ---------------------------------------------------
+PrivMC_tZq_rate	lnN	1.033	-	-	-	-	-	-	-
+PrivMC_ttZ_rate	lnN	-	0.884/1.1	-	-	-	-	-	-
+PrivMC_tWZ_rate	lnN	-	-	1.2	-	-	-	-	-
 tX_rate	lnN	-	-	-	1.2	-	-	-	-
-VVV_rate	lnN	-	-	-	-	1.15	-	-	-
-WZ_rate	lnN	-	-	-	-	-	1.15	-	-
+WZ_rate	lnN	-	-	-	-	1.1	-	-	-
+VVV_rate	lnN	-	-	-	-	-	1.1	-	-
 XG_rate	lnN	-	-	-	-	-	-	1.1	-
 NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 ---------------------------------------------------
-[SHAPE]PU	shape	1	1	1	1	1	1	1	-
-[SHAPE][201617]prefire	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagHF	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagLF	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagHFstats1[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagHFstats2[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagLFstats1[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagLFstats2[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagCFerr1[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]BtagCFerr2[YEAR]	shape	1	1	1	1	1	1	1	-
-[SHAPE]jetPUIDEff	shape	1	1	1	1	1	1	1	-
-[SHAPE]jetPUIDMT	shape	1	1	1	1	1	1	1	-
+[SHAPE]PU	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE][201617]prefire	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagHF	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagLF	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagHFstats1[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagHFstats2[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagLFstats1[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagLFstats2[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagCFerr1	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]BtagCFerr2	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]jetPUIDEff	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]jetPUIDMT	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]FRm_norm	shape	-	-	-	-	-	-	-	1
+[SHAPE]FRm_pt	shape	-	-	-	-	-	-	-	1
+[SHAPE]FRm_be	shape	-	-	-	-	-	-	-	1
+[SHAPE]FRe_norm	shape	-	-	-	-	-	-	-	1
+[SHAPE]FRe_pt	shape	-	-	-	-	-	-	-	1
+[SHAPE]FRe_be	shape	-	-	-	-	-	-	-	1
+[SHAPE]LepEff_muLoose	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]LepEff_muTight	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]LepEff_elLoose	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]LepEff_elTight	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE][SRtZq]njets_tZq	shape	[PrivMC_CR]	-	-	-	-	-	-	-
+[SHAPE]PDF	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]alphas	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]MEtZq	shape	[PrivMC_CR]	-	-	-	-	-	-	-
+[SHAPE]MEttZ	shape	-	[PrivMC_CR]	-	-	-	-	-	-
+[SHAPE]MEtWZ	shape	-	-	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]JER[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[SHAPE]MET[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]JES[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 ---------------------------------------------------
 ---------------------------------------------------
 [STAT]	*	autoMCStats	10
+---------------------------------------------------
+---------------------------------------------------

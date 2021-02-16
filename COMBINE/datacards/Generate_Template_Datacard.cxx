@@ -95,6 +95,9 @@ bool Is_Syst_Match_Sample(TString syst, TString sample, bool use_rph)
     else if(syst.Contains("ttZ", TString::kIgnoreCase) && !sample.Contains("ttZ")) {return false;}
     else if(syst.Contains("tWZ", TString::kIgnoreCase) && !sample.Contains("tWZ")) {return false;}
 
+    else if(syst == "WZ_HF_extrap" && sample != "WZ") {return false;}
+
+    //-- Obsolete... to remove
     else if(syst.Contains("CRWZ", TString::kIgnoreCase) && sample != "WZ") {return false;}
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
     else if(syst.Contains("CRDY", TString::kIgnoreCase) && sample != "WZ" && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
@@ -176,7 +179,7 @@ void Choose_Arguments_From_CommandLine(TString& signal, bool& use_rph)
  * @param v_normSystValue    value of these systematics
  * @param v_shapeSyst    list of shape systematics
  */
-void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<float> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, bool use_rph, TString outfile_name="Template_Datacard.txt")
+void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<TString> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, bool use_rph, TString outfile_name="Template_Datacard.txt")
 {
     //TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
@@ -311,6 +314,9 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
         else if(v_normSyst[isyst].EndsWith("18")) {outfile<<"[2018]";}
 
         //-- Region-specific markers
+        if(v_normSyst[isyst] == "WZ_HF_extrap") {outfile<<"[WZext]";}
+
+        //-- Obsolete... to remove
         if(v_normSyst[isyst].Contains("CRWZ")) {outfile<<"[CRWZ]";}
         else if(v_normSyst[isyst].Contains("CRZZ")) {outfile<<"[CRZZ]";}
         else if(v_normSyst[isyst].Contains("CRDY")) {outfile<<"[CRDY]";}
@@ -363,42 +369,35 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     outfile<<"---------------------------------------------------"<<endl;
     for(int isample=0; isample<v_samples.size(); isample++)
     {
-        if(v_isSignal[isample] == 1 && v_sampleUncert[isample] == -1) {continue;}
-		else if(v_isSignal[isample] == 0 && v_sampleUncert[isample] == -1) //Rate param
+        if(v_isSignal[isample] == 1 && v_sampleUncert[isample] == "-1") {continue;} //Signal without norm. uncertainty
+		else if(v_isSignal[isample] == 0 && v_sampleUncert[isample] == "-1") //Rate parameter for background --> Don't apply lnN uncertainty
         {
             v_rateParam.push_back(v_samples[isample]);
             continue;
-        } //Don't apply lnN rate syst for some samples
+        }
 
 		// cout<<"Sample "<<v_samples[isample]<<" / Uncert = "<<v_sampleUncert[isample]<<endl;
 
-        outfile<<v_samples[isample] + "_rate"<<"\t"<<"lnN";
+        outfile<<v_samples[isample] + "_rate"<<"\t"<<"lnN"; //Create lnN rate parameter for current process
 
-        for(int jsample=0; jsample<v_samples.size(); jsample++)
+        for(int jsample=0; jsample<v_samples.size(); jsample++) //Apply it to current process only
         {
             outfile<<"\t";
 
-			if(isample == jsample)
+			if(isample == jsample) //Apply to this process
             {
-                // if(v_sampleUncert[jsample].Contains("/")) //Ex: '0.96/1.05' -> 4% down and 5% up
-                // {
-                //     //Break TString in 2 based on delimited '/'
-                //     TObjArray* keys = v_sampleUncert[jsample].Tokenize("/");
-                //     // keys->Print();
-                //     outfile<<((TObjString *)(tx->At(0)))->String();
-                //     outfile<<"/";
-                //     outfile<<((TObjString *)(tx->At(1)))->String();
-                // }
-
-                //-- FIXME new TH SMEFT signals
-                // if(v_samples[isample].Contains("PrivMC_tZq")) {outfile<<1.031<<endl;}
-                // else if(v_samples[isample].Contains("PrivMC_ttZ")) {outfile<<"0.884/1.10"<<endl;}
-                // else if(v_samples[isample].Contains("PrivMC_tWZ")) {outfile<<1.15<<endl;}
-
-                // else
-                {outfile<<1.+v_sampleUncert[jsample]/100.;} //Ex: '50' -> 50%
+                if(v_sampleUncert[jsample].Contains("/")) //Ex: '-0.04/0.06' -> 4% down and 6% up
+                {
+                    //Break TString in 2 based on delimited '/'
+                    TObjArray* keys = v_sampleUncert[jsample].Tokenize("/");
+                    // keys->Print();
+                    outfile<<1-abs(Convert_TString_To_Number(((TObjString *)(keys->At(0)))->String())/100.);
+                    outfile<<"/";
+                    outfile<<1+abs(Convert_TString_To_Number(((TObjString *)(keys->At(1)))->String())/100.);
+                }
+                else {outfile<<1.+(Convert_TString_To_Number(v_sampleUncert[jsample])/100.);} //Ex: '50' <-> 50% -> '1.5'
             }
-            else {outfile<<"-";}
+            else {outfile<<"-";} //Don't apply to other processes
         }
         outfile<<endl;
     }
@@ -547,14 +546,14 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
             outfile<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
         }
 
-        //FIXME
-        /*for(int isample=0; isample<v_samples.size(); isample++)
+        //-- Can disactivate RPH MCstat here (?)
+        for(int isample=0; isample<v_samples.size(); isample++)
         {
             if(!v_samples[isample].Contains("PrivMC")) {continue;}
 
             TString nuis_mcstat_name = "#MCstat_[BIN]_[VAR]_[YEAR]_" + v_samples[isample]; //Ex: 'MCstat_countExp_SRttZ4l_2018_PrivMC_tZq'
             outfile<<"[STAT]"<<nuis_mcstat_name<<"\t"<<"param"<<"\t"<<0<<"\t"<<1<<endl;
-        }*/
+        }
 
         outfile<<"---------------------------------------------------"<<endl;
 
@@ -615,7 +614,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 //Define all arguments needed by generator function (see function description for details about args)
 int main()
 {
-    bool use_rph = true; //true <-> new, use RooParametricHist //Still debugging
+    bool use_rph = false; //true <-> will also produce template datacard for using RooParametricHist
 
 //-- Read command line arguments
 //--------------------------------------------
@@ -630,93 +629,82 @@ int main()
 // #    # #    # #    # #      #      #      #    #
 //  ####  #    # #    # #      ###### ######  ####
 
-//-- Sample / 0 = sig, 1 = bkg / -1 = rateParam, else = lnN uncertainty
+/**
+ * Some references for lnN uncertainties:
+ - tZq TH: evidence paper
+ - ttZ TH: YR4
+ - ttW CMS 2016: https://arxiv.org/pdf/1711.02547.pdf ~15%
+ - ttH:  https://arxiv.org/abs/1806.00425 / https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.120.231801 ~25%
+ - ZZ: https://arxiv.org/abs/1607.08834 / https://arxiv.org/pdf/1709.08601.pdf ~3-5%
+ - WZ(+0j) CMS: https://arxiv.org/abs/1901.03428 ~3%
+ - ttGamma: https://cds.cern.ch/record/2271500/files/arXiv:1706.08128.pdf ~20%
+ - ZGamma: https://cds.cern.ch/record/1537415/files/EWK-11-009-pas.pdf / https://cds.cern.ch/record/2682846/files/ATLAS-CONF-2019-034.pdf ~5%
+*/
+
+//-- Sample / 0 = sig, 1 = bkg / -1 = rateParam, else = lnN uncertainty (possibly 2-sided, e.g. "-4.2/+8" <-> 0.96/1.08)
 //--------------------------------------------
-    vector<TString> v_samples; vector<int> v_isSignal; vector<float> v_sampleUncert;
-    if(signal == "efttzq") //Signal : SMEFT tZq
+    vector<TString> v_samples; vector<int> v_isSignal; vector<TString> v_sampleUncert;
+    if(signal == "efttzq") //Signal : SMEFT tZq (no norm. uncert.)
     {
-        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-
-        // v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        // v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("-11.6/10");
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("20");
     }
-    else if(signal == "eftttz") //Signal : SMEFT ttZ
+    else if(signal == "eftttz") //Signal : SMEFT ttZ (no norm. uncert.)
     {
-        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-
-        // v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        // v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back("3.3");
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("20");
     }
-    else if(signal == "efttwz") //Signal : SMEFT tWZ
+    else if(signal == "efttwz") //Signal : SMEFT tWZ (no norm. uncert.)
     {
-        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-
-        // v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        // v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back("3.3");
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("-11.6/10");
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
     }
     else if(signal == "eft") //Signals : SMEFT tZq+ttZ+tWZ
     {
-        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-
-        //FIXME -- test uncert for SMEFT signals
-        // v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back("3.3");
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-11.6/10");
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("20");
     }
     else if(signal == "0") //Signals : SM tZq+ttZ+tWZ
     {
-        v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
+        v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
     }
-    else if(signal == "tzq") //Signal : SM tZq
+    else if(signal == "tzq") //Signal : SM tZq (no norm. uncert.)
     {
-        v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("-11.6/10");
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("20");
     }
-    else if(signal == "ttz") //Signal : SM ttZ
+    else if(signal == "ttz") //Signal : SM ttZ (no norm. uncert.)
     {
-        v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back("3.3");
+        v_samples.push_back("tWZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("20");
     }
-    else if(signal == "twz") //Signal : SM tWZ
+    else if(signal == "twz") //Signal : SM tWZ (no norm. uncert.)
     {
-        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
+        v_samples.push_back("tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("tZq"); v_isSignal.push_back(0); v_sampleUncert.push_back("3.3");
+        v_samples.push_back("ttZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("-11.6/10");
     }
     else if(signal == "test") //Whatever you want to try out
     {
-        // v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-
-        //v_samples.push_back("PrivMC_tZq_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        //v_samples.push_back("PrivMC_ttZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-        //v_samples.push_back("PrivMC_tWZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(-1);
-
-        // v_samples.push_back("PrivMC_tZq_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_ttZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
-        // v_samples.push_back("PrivMC_tWZ_PSWeights"); v_isSignal.push_back(1); v_sampleUncert.push_back(50);
+        v_samples.push_back("PrivMC_tZq"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("PrivMC_ttZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
+        v_samples.push_back("PrivMC_tWZ"); v_isSignal.push_back(1); v_sampleUncert.push_back("-1");
     }
-    //el
     //else {cout<<FRED("Wrong arg ! Abort !")<<endl; return 0;}
 
-    v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back(20);
-    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back(15);
-    v_samples.push_back("XG"); v_isSignal.push_back(0); v_sampleUncert.push_back(10);
-    v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back(30);
+    v_samples.push_back("tX"); v_isSignal.push_back(0); v_sampleUncert.push_back("20");
+    v_samples.push_back("WZ"); v_isSignal.push_back(0); v_sampleUncert.push_back("10");
+    v_samples.push_back("VVV"); v_isSignal.push_back(0); v_sampleUncert.push_back("10");
+    v_samples.push_back("XG"); v_isSignal.push_back(0); v_sampleUncert.push_back("10");
+    v_samples.push_back("NPL"); v_isSignal.push_back(0); v_sampleUncert.push_back("30");
 
 
  //               #     #
@@ -727,7 +715,7 @@ int main()
  // #      #   ## #    ##    #    #   #   #    #   #
  // ###### #    # #     #     ####    #    ####    #
 
-//lnN systematics
+//-- lnN systematics
 //Write "(1+X)%". E.g for lnN symmetric of 10% => "1.10"
 //For a 5%/10% lnN asymmetric syst, write : "1.05/1.10"
 //-1 <-> values must be hardcoded (to allow for correlations with different values per year)
@@ -744,9 +732,11 @@ int main()
     v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02");
     v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02");
 
-    v_normSyst.push_back("N_CRWZ_extrap"); v_normSystValue.push_back("1.05");
-    v_normSyst.push_back("N_CRZZ_extrap"); v_normSystValue.push_back("1.05");
-    v_normSyst.push_back("N_CRDY_extrap"); v_normSystValue.push_back("1.05");
+    v_normSyst.push_back("WZ_HF_extrap"); v_normSystValue.push_back("1.06");
+
+    //-- Obsolete...
+    // v_normSyst.push_back("N_CRZZ_extrap"); v_normSystValue.push_back("1.05");
+    // v_normSyst.push_back("N_CRDY_extrap"); v_normSystValue.push_back("1.05");
 
 
 //  ####  #    #   ##   #####  ######     ####  #   #  ####  #####
@@ -795,12 +785,12 @@ int main()
     v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
 
-    //-- JEC
+    //-- JEC //Default: single source uncorrelated between years
     bool use_split_JEC = false;
     if(!use_split_JEC) //Total JEC
     {
-        //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); //FIXME -- obsolete
         v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(false);
+        //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
     }
     else //Split JEC
     {
@@ -833,16 +823,13 @@ int main()
         v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
     }
 
-    //-- Missing //FIXME
+    //-- Missing
     /*
     v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
     */
-
-    //-- Obsolete
-    // v_shapeSyst.push_back("FakeFactor"); v_shapeSyst_isCorrelYears.push_back(true);
 
 
 //  ####    ##   #      #       ####

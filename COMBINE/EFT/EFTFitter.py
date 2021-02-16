@@ -68,7 +68,8 @@ class EFTFit(object):
         self.scan_wcs = opts['scan_wcs']
         self.wcs_tracked = opts['wcs_tracked']
         self.wc_ranges = opts['wc_ranges']
-        self.wc_ranges_scan = opts['wc_ranges_scan']
+        self.wc_ranges_scan1D = opts['wc_ranges_scan1D']
+        self.wc_ranges_scan2D = opts['wc_ranges_scan2D']
         self.wcs_pairs = opts['wcs_pairs']
         self.SM_mu = opts['SM_mu']
         self.SM_mus = opts['SM_mus']
@@ -130,7 +131,7 @@ class EFTFit(object):
  ##  ## #    # #   #  #   #  #    # #      #    # #    # #
  #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-    def makeWorkspace(self, SM=False, datacard='datacard.txt', verbosity=0):
+    def makeWorkspace(self, ws_output, SM=False, datacard='datacard.txt', verbosity=0, wcs=[]):
         ### Generates a workspace from a datacard and fit parameterization file ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
@@ -139,18 +140,20 @@ class EFTFit(object):
         CMSSW_BASE = os.getenv('CMSSW_BASE')
 
         if SM:
-            args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o','SMWorkspace.root']
+            args = ['text2workspace.py',datacard,'-P','HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel', '-o',ws]
             # Map signal strengths to processes in all bins
             for iproc,proc in enumerate(opts["processes"]):
-                args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][0])+','+str(opts["SMmu_ranges"][opts["SM_mus"][iproc]][1])+']'])
-        else: args = ['text2workspace.py',datacard,'-P','EFTModel:eftmodel','--PO','fits=./Parameterization_EFT.npy','-o','EFTWorkspace.root']
+                args.extend(['--PO', 'map=.*/'+proc+':'+opts["SM_mus"][iproc]+'[1,'+str(self.SMmu_ranges[opts["SM_mus"][iproc]][0])+','+str(self.SMmu_ranges[opts["SM_mus"][iproc]][1])+']'])
+        else:
+            args = ['text2workspace.py',datacard, '-P','EFTModel:eftmodel', '-o',ws,'--PO','fits=./Parameterization_EFT.npy']
+            if len(wcs) != 0: #Useless ?
+                for wc in wcs: args.extend(['--PO','wcs=',' '.join('{}'.format(wc) for wc in wcs)])
 
         if verbosity>0: args.extend(['-v', str(verbosity)])
         args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
 
         # Remove pre-existing WS
-        if SM: sp.call(['rm','SMWorkspace.root'])
-        else: sp.call(['rm','EFTWorkspace.root'])
+        sp.call(['rm',ws])
 
         logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -205,18 +208,18 @@ class EFTFit(object):
         else: args.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
         if freeze:
             frozen_pois = []
-            if SM: 
-	            #frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
-                print(colors.bg.red + "WARNING: preventing to use --freeze for SM... if needed, remove this protection !" + colors.reset)
+            if SM:
+	            frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
+                #print(colors.bg.red + "WARNING: preventing to use --freeze for SM... if needed, remove this protection !" + colors.reset)
             else: frozen_pois = [wc for wc in self.wcs if wc not in params_POI]
             if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
         else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-        if autoBounds: args.extend(['--autoBoundsPOIs', '*']) #Auto adjust POI bounds if found close to boundary
+        #if autoBounds: args.extend(['--autoBoundsPOIs', '*']) #Auto adjust POI bounds if found close to boundary
         # if autoBounds: args.extend(['--autoBoundsPOIs=',','.join([','.join('{}'.format(poi) for poi in self.wcs)])]) #Auto adjust POI bounds if found close to boundary
         if exp: args.extend(['-t','-1']) #Assume MC expected (Asimov?)
         if verbosity>0: args.extend(['-v', str(verbosity)])
         if other: args.extend(other)
-        check = True in (wc not in params_POI for wc in self.wcs)
+        check = True in (wc not in params_POI for wc in self.wcs_tracked)
         if check and not SM: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
         if SM: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
         else: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
@@ -243,43 +246,61 @@ class EFTFit(object):
     def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
-        logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset)
+        logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset) #'You need to supply shell=True to execute the command through a shell interpreter. If you do that however, you can no longer supply a list as the first argument, because the arguments will get quoted then. Instead, specify the raw commandline as you want it to be passed to the shell'
 
         if collect==False: #Run grid scan
-            # CMSSW_BASE = os.getenv('CMSSW_BASE')
-            # Other options: '--cminFallbackAlgo Minuit2,Combined,2:0.3'
+
+            if batch != '': #Delete pre-existing scan files with same name, to avoid unvoluntary mixing
+                print('rm higgsCombine{}.POINTS*root'.format(name))
+                sp.call('rm higgsCombine{}.POINTS*root'.format(name), shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
             args = ['combineTool.py','-d',datacard,'-M','MultiDimFit','--algo','grid','--cminPreScan','--cminDefaultMinimizerStrategy=0']
 
             for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
 
             if SM:
                 args.extend(['--setParameters',','.join('{}=1'.format(mu) for mu in scan_params)]) #Set default values to 1
-                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,opts["SMmu_ranges"][mu][0],opts["SMmu_ranges"][mu][1]) for mu in opts["SM_mus"])])
+                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)])
             else:
-                args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in opts["wcs"])]) #Set default values to 1
+                args.extend(['--setParameters',','.join('{}=0'.format(wc) for wc in self.wcs)]) #Set default values to 1
 
-                #CHANGED -- want to restrict 1D ranges for grid scans, else loosing too many points ! #FIXME -- make it default ?
+                if freeze:
+                    if len(scan_params)==1: #1D
+                        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan1D[wc][0],self.wc_ranges_scan1D[wc][1]) for wc in self.wcs)])
+                    else: #n-D
+                        args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan2D[wc][0],self.wc_ranges_scan2D[wc][1]) for wc in self.wcs)])
+                else:
+                    args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan2D[wc][0],self.wc_ranges_scan2D[wc][1]) for wc in self.wcs)])
+
+                #Obsolete? -- want to adjust 1D ranges for grid scans only (not best fits), else loosing too many points !
                 '''
                 if freeze:
                     if len(scan_params)==1: #1D
-                        min = -1; max = 1 #For ctz, ctw
-                        if scan_params[0] in ['cpqm','cpq3']: min = -2; max = 2 #For cpqm,cpq3
-                        if scan_params[0] in ['cpt']: min = -3; max = 3 #For cpt
-                        args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[0],min,max)])
+                        min = -1; max = 1 #ctw
+                        if scan_params[0]  == 'ctz': min = -1.5; max = 1
+                        elif scan_params[0]  == 'cpq3': min = -2; max = 2
+                        elif scan_params[0]  == 'cpqm': min = -4; max = 4
+                        elif scan_params[0]  == 'cpt': min = -7; max = 7
+                        args.extend([':{}={},{}'.format(scan_params[0],min,max)])
+                        # args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[0],min,max)])
                     else: #n-D
                         for iparam,param in enumerate(scan_params):
                             min = -2; max = 2 #For ctz, ctw, cpq3
-                            if scan_params[iparam] in ['cpqm','cpt']: min = -15; max = 15 #For cpqm,cpt
+                            if scan_params[iparam]  == 'cpqm': min = -20; max = 20
+                            elif scan_params[iparam]  == 'cpt': min = -25; max = 20
+                            args.extend([':{}={},{}'.format(scan_params[iparam],min,max)])
                             #args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[iparam],min,max)])
-                            args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
-                else:
-                    for iparam,param in enumerate(scan_params):
-                        min = -2; max = 2 #For ctz, ctw, cpq3
-                        if scan_params[iparam] in ['cpqm','cpt']: min = -15; max = 15 #For cpqm,cpt
-                        args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[iparam],min,max)])
-                    #args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
+                            # args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
                 '''
-                args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan[wc][0],self.wc_ranges_scan[wc][1]) for wc in self.wcs)]) #in params_POI
+
+                # else:
+                #     for iparam,param in enumerate(scan_params):
+                #         min = -2; max = 2 #For ctz, ctw, cpq3
+                #         if scan_params[iparam] in ['cpqm','cpt']: min = -15; max = 15 #For cpqm,cpt
+                #         args.extend(['--setParameterRanges', ':{}={},{}'.format(scan_params[iparam],min,max)])
+                #     #args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)])
+
+                # args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges_scan[wc][0],self.wc_ranges_scan[wc][1]) for wc in self.wcs)]) #in params_POI
 
             args.extend(['--points','{}'.format(points)])
             if name: args.extend(['-n','{}'.format(name)])
@@ -1035,6 +1056,8 @@ if __name__ == "__main__":
     mask = [] #Can choose to mask specific channels from the likelihood #Mask channels matching pattern(s)
     antimask = [] #Mask channels NOT matching any pattern
     only_collect_outputs = False #True <-> only collect/hadd output files previously produced e.g. on the grid
+    wcs = [] #For EFTModel... useless ?
+    ws = 'EFTWorkspace.root' #Name for output workspace
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1059,6 +1082,8 @@ if __name__ == "__main__":
     parser.add_argument('--mask', metavar="mask", nargs='+', help='Mask channels matching pattern', required=False) #Takes >=0 args
     parser.add_argument('--antimask', metavar="antimask", nargs='+', help='Mask channels NOT matching any pattern', required=False) #Takes >=0 args
     parser.add_argument("--collect", metavar="collect", help="Impact plot: only collect output files previously produced e.g. on the grid", nargs='?', const=1)
+    parser.add_argument('--wcs', metavar="wcs", nargs='+', help='testing', required=False)
+    parser.add_argument("-o", metavar="output workspace name", help="Name for output workspace")
 
     args = parser.parse_args()
     if args.sm: SM = True
@@ -1081,6 +1106,8 @@ if __name__ == "__main__":
     if args.mask: mask = args.mask
     if args.antimask: antimask = args.antimask #-- implement this also for SM fits
     if args.collect: only_collect_outputs = True
+    if args.wcs: wcs = args.wcs
+    if args.o: ws = args.o
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1098,10 +1125,11 @@ if __name__ == "__main__":
 # SM fit
 # //--------------------------------------------
     if SM:
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb)
+        if ws=='EFTWorkspace.root': ws = 'SMWorkspace.root' #SM name
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, ws_output=ws)
         if createWS==1: exit(1)
         if name == '': name = '.SM' #Default
-        if '.txt' in datacard_path: datacard_path = './SMWorkspace.root' #If WS was created, make sure to update path
+        if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
         elif mode is 'printbestfit': #Only print best fit results
@@ -1110,16 +1138,16 @@ if __name__ == "__main__":
 
         if mode in ['','grid','scan']:
             if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs) #1D
-            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=40*40, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs) #2D
+            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=50*50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs) #2D
 
 # SMEFT fit
 # //--------------------------------------------
     else:
         #-- Create Combine Workspace
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path): fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, wcs=wcs, ws_output=ws)
         if createWS==1: exit(1)
         if name == '': name = '.EFT' #Default
-        if '.txt' in datacard_path: datacard_path = './EFTWorkspace.root' #If WS was created, make sure to update path
+        if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         #-- Maximum Likelihood Fit
         if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)

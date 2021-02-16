@@ -188,10 +188,16 @@ class EFTModel(PhysicsModel):
         #     return 0
 
         if (process,bin) not in self.procbins:
+        # if (process,bin) not in self.procbins or process == 'PrivMC_ttZ': #Can manually prevent scaling for given procbins here #FIXME
             print(colors.fg.lightgrey + '* ({0},{1}) not in self.procbins ! => Do not scale'.format(process, bin) + colors.reset)
             # print(colors.fg.orange + '* ({0},{1},{2}) not in self.procbins ! => Do not scale'.format(process, bin, systematic) + colors.reset)
             return 1
+
         else:
+            # if process=="PrivMC_tZq":
+            #     print(colors.fg.orange + '* Scaling (PrivMC_tZq,{1}) by r_{0}_{1}'.format("PrivMC_ttZ", bin) + colors.reset)
+            #     return 'r_{0}_{1}'.format("PrivMC_ttZ",bin)
+
             print(colors.fg.orange + '* Scaling ({0},{1}) by r_{0}_{1}'.format(process, bin) + colors.reset)
             return 'r_{0}_{1}'.format(process,bin)
             # print(colors.fg.orange + '* Scaling ({0},{1},{2}) by r_{0}_{1}_{2}'.format(process, bin, systematic) + colors.reset)

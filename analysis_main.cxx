@@ -46,6 +46,7 @@ int main(int argc, char **argv)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
+    bool use_NN_SRother = false; //Use NN-bkg node instead of mTW in SRother (testing)
     bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
     TString template_name = "NN_ctz"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
@@ -407,7 +408,7 @@ int main(int argc, char **argv)
 
     bool draw_templates = true; //Plot templates of selected BDT, in selected region
         bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
-        bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
+        bool use_combine_file = true; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
@@ -455,7 +456,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle, use_NN_SRother);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################
@@ -518,12 +519,12 @@ int main(int argc, char **argv)
 
     if(draw_input_vars)
     {
-        theAnalysis->Draw_Templates(true, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents);
+        theAnalysis->Draw_Templates(true, plotChannel, plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, "", prefit, use_combine_file);
         if(draw_input_allChannels)
         {
             for(int ichan=1; ichan<thechannellist.size(); ichan++)
             {
-                theAnalysis->Draw_Templates(true, thechannellist[ichan], plot_onlyMaxNodeEvents, plot_onlyMVACutEvents);
+                theAnalysis->Draw_Templates(true, thechannellist[ichan], plot_onlyMaxNodeEvents, plot_onlyMVACutEvents, "", prefit, use_combine_file);
             }
         }
     }

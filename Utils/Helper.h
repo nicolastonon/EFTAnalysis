@@ -123,7 +123,7 @@ bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, float&, float&);
-void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&, vector<float>);
+void Get_Template_Range(int&, float&, float&, TString, bool, bool, int, bool, int&, int&, int&, int&, vector<float>, bool=false);
 TString Get_Variable_Name(TString);
 TString Get_Category_Boolean_Name(TString, bool=false);
 float Count_Total_Nof_Entries(TString, TString, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, std::vector<TString>, bool, bool);
@@ -133,7 +133,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 float Get_x_ZptCosCategory(float, float);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0, bool=false);
-TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false);
+TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false, bool=false, bool=true);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool);
@@ -142,6 +142,7 @@ float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
 TString Get_Template_XaxisTitle(TString);
 TString Get_EFToperator_label(TString);
 TString Get_Unit_Variable(TString);
+void Print_Yields_fromHistograms(TString, TString, vector<TString>, vector<TString>, vector<TString>);
 //--------------------------------------------
 
 //--------------------------------------------

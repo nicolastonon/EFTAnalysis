@@ -33,9 +33,11 @@ for iter in [1,2,3]: #-- Also need to dump content of 'otherRegions' rootfile ! 
     hist_file = hist_file_arg #Main iteration for SR histo file
 
     if iter==2: hist_file = hist_file_otherRegion_arg #Filepath to 'otherRegions' file
-    elif iter==3: #Trick: even if reading NN_cpq3 file (for SRtZq), want to read NN_SM (for SRttZ) and mTW (for SRother) in NN_SM file (convention) --> Also dump corresponding parameterizations
-	if 'cpq3' not in hist_file_arg: continue
-	hist_file = '../templates/Templates_NN_SM_EFT2_Run2.root' #Hardcoded filepath for 'NN_SM' file
+    #FIXME -- obsolete when will reproduce cpq3 file
+    elif iter==3: #Trick: even if reading NN_cpq3 file (for SRtZq), want to read different distribution for SRttZ --> Also dump corresponding parameterizations
+    	if 'cpq3' not in hist_file_arg: continue
+    	hist_file = '../templates/Templates_NN_SM_EFT2_Run2.root' #Hardcoded filepath for 'NN_SM' file
+        # hist_file = '../templates/Templates_Zpt_EFT2_Run2.root' #Hardcoded filepath for 'Zpt' file
 
     if not os.path.exists(hist_file):
         print(colors.bg.red + "File {} does not exist!".format(hist_file) + colors.reset)

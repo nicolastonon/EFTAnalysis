@@ -528,6 +528,9 @@ class EFTPlot(object):
         c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
+        color_68 = 12 #68% band <-> 12=Gray
+        color_95 = ROOT.kAzure-8 #95% band <-> Blue
+
         #-- Get scan TTree
         rootFile = ROOT.TFile.Open(filepath)
         limitTree = rootFile.Get('limit')
@@ -571,20 +574,28 @@ class EFTPlot(object):
         line.SetLineColor(16) #12 Grey, kRed+1, ...
         line.SetLineStyle(7)
         line.SetLineWidth(3)
-        print('graph.GetXaxis().GetXmin()', graph.GetXaxis().GetXmin())
-        print('graph.GetXaxis().GetXmax()', graph.GetXaxis().GetXmax())
-        for yval in yvals:
-            if yval == 1: line.SetLineColor(12)
-            elif yval == 3.84: line.SetLineColor(ROOT.kAzure-7) #kRed+1
+
+        # print('graph.GetXaxis().GetXmin()', graph.GetXaxis().GetXmin())
+        # print('graph.GetXaxis().GetXmax()', graph.GetXaxis().GetXmax())
+        for yval in yvals: #For each CL value
+            if yval == 1: line.SetLineColor(color_68)
+            elif yval == 3.84: line.SetLineColor(color_95)
+
+            #Full horizontal line
             #plot.DrawHorizontalLine(pads[0], line, yval) #Helper func
-            line.DrawLine(graph.GetXaxis().GetXmin(), yval, graph.GetXaxis().GetXmax(), yval)
+            # line.DrawLine(graph.GetXaxis().GetXmin(), yval, graph.GetXaxis().GetXmax(), yval)
 
-            for cr in main_scan['crossings'][yval]:
-                if yval == 1: line.SetLineColor(12)
-                elif yval == 3.84: line.SetLineColor(ROOT.kAzure-7)
+            #Split horizontal lines
+            line.DrawLine(graph.GetXaxis().GetXmin(), yval, main_scan['crossings'][yval][0]['lo'], yval)
+            line.DrawLine(main_scan['crossings'][yval][0]['hi'], yval, graph.GetXaxis().GetXmax(), yval)
 
-                if cr['valid_lo']: line.DrawLine(cr['lo'], 0, cr['lo'], yval)
-                if cr['valid_hi']: line.DrawLine(cr['hi'], 0, cr['hi'], yval)
+            #Vertical lines
+            for cr in main_scan['crossings'][yval]: #For each CL value
+                if yval == 1: line.SetLineColor(color_68)
+                elif yval == 3.84: line.SetLineColor(color_68)
+
+                if cr['valid_lo']: line.DrawLine(cr['lo'], 0, cr['lo'], yval) #Low bound
+                if cr['valid_hi']: line.DrawLine(cr['hi'], 0, cr['hi'], yval) #High bound
 
         #-- Create and draw filled TGraph (shaded area below NLL function representing 2sigmas area)
         crossings = main_scan['crossings'][yvals[0]][0]
@@ -608,7 +619,7 @@ class EFTPlot(object):
             fgraph68.InsertPointBefore(2, x, y) #cf. trick
             fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], yvals[0]) #Add first-to-last point at y=Y
             fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], 0) #Add last point at y=0
-            fgraph68.SetFillColorAlpha(12, 0.50)
+            fgraph68.SetFillColorAlpha(color_68, 0.60) #Gray
             fgraph68.SetFillStyle(3001)
             fgraph68.SetLineColor(ROOT.kBlack); fgraph68.SetLineWidth(0)
             fgraph68.Draw("F same")
@@ -627,6 +638,21 @@ class EFTPlot(object):
                     #print(ipt, x, y, 'REMOVED', crossings['lo'])
                     fgraph95.RemovePoint(ipt)
                 else: ipt+= 1
+
+            list_ipt_overlap68 = [] #List the indices of the points in fgraph95 which overlap with fgraph68, so that we can remove them in the plot
+            for ipt in range(0, fgraph95.GetN()):
+                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                fgraph95.GetPoint(ipt, x, y)
+                # print('ipt', ipt, 'x', x, 'y', y)
+                if x > main_scan['crossings'][yvals[0]][0]['lo'] and x < main_scan['crossings'][yvals[0]][0]['hi']:
+                    fgraph95.SetPoint(ipt, x, 0) #Set overlap points to y=0
+                    list_ipt_overlap68.append(ipt)
+            #Add points to adjust the band perfectly on the crossing points #NB: the weird indices (+3...) are due to the fact that we keep adding point to the graph !
+            fgraph95.InsertPointBefore(list_ipt_overlap68[0], main_scan['crossings'][yvals[0]][0]['lo'], 0)
+            fgraph95.InsertPointBefore(list_ipt_overlap68[0], main_scan['crossings'][yvals[0]][0]['lo'], yvals[0])
+            fgraph95.InsertPointBefore(list_ipt_overlap68[len(list_ipt_overlap68)-1]+3, main_scan['crossings'][yvals[0]][0]['hi'], yvals[0])
+            fgraph95.InsertPointBefore(list_ipt_overlap68[len(list_ipt_overlap68)-1]+3, main_scan['crossings'][yvals[0]][0]['hi'], 0)
+
         # Trick: manually set first and last points to get the filled area properly defined
         if fgraph95 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
             fgraph95.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
@@ -635,7 +661,8 @@ class EFTPlot(object):
             fgraph95.InsertPointBefore(2, x, y) #cf. trick
             fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], yvals[1]) #Add first-to-last point at y=Y
             fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], 0) #Add last point at y=0
-            fgraph95.SetFillColorAlpha(ROOT.kAzure-7, 0.30)
+            # fgraph95.SetFillColorAlpha(ROOT.kAzure-7, 0.30) #Blue
+            fgraph95.SetFillColorAlpha(color_95, 0.50) #Blue
             fgraph95.SetFillStyle(3001)
             fgraph95.SetLineColor(ROOT.kBlack); fgraph95.SetLineWidth(0)
             fgraph95.Draw("F same")
@@ -660,7 +687,8 @@ class EFTPlot(object):
         #pt = ROOT.TPaveText(0.59, 0.82 - len(other_scans)*0.08, 0.95, 0.91, 'NDCNB')
         #pt.AddText(textfit)
 
-        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
+        leg = ROOT.TLegend(0.37,0.70,0.75,0.86)
+        leg.SetTextSize(0.04)
         leg.AddEntry(graph, "Profiled log-likelihood", "L")
         crossings = main_scan['crossings'][yvals[0]][0]
         #print('crossings', crossings)
@@ -693,8 +721,8 @@ class EFTPlot(object):
             graph.SetLogz()
             outname+= '_log'
 
-        if paper: outname+= '_paper'
-        outname+= '.png'
+        if paper: outname+= '_paper.pdf'
+        else: outname+= '.png'
 
         c.Print(outname)
 
@@ -782,7 +810,8 @@ class EFTPlot(object):
         line_Y_2sigmas.SetLineStyle(7)
 
         #-- Legend
-        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
+        leg = ROOT.TLegend(0.37,0.70,0.75,0.86)
+        leg.SetTextSize(0.04)
         leg.AddEntry(graph, "Profiled log-likelihood", "L")
         if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
         if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
@@ -931,7 +960,8 @@ class EFTPlot(object):
         graph.SetMaximum(10.) #Arbitrary
 
         #-- Legend
-        leg = ROOT.TLegend(0.42,0.70,0.72,0.87)
+        leg = ROOT.TLegend(0.37,0.70,0.75,0.86)
+        leg.SetTextSize(0.04)
         leg.AddEntry(graph, "Profiled log-likelihood", "L")
         if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
         if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
@@ -965,8 +995,8 @@ class EFTPlot(object):
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
         outname = 'scan1D_manual_{}'.format(param)
-        if paper: outname+= '_paper'
-        outname+= '.png'
+        if paper: outname+= '_paper.pdf'
+        else: outname+= '.png'
 
         c.Print(outname)
 
@@ -991,6 +1021,8 @@ class EFTPlot(object):
         '''
 
         ROOT.gStyle.SetPalette(57) #kBird (default, blue to yellow)
+
+        # ROOT.gStyle.SetPalette(ROOT.kDeepSea) #Dark blues
         # ROOT.gStyle.SetPalette(ROOT.kOcean) #Dark greens/blues
         # ROOT.gStyle.SetPalette(ROOT.kDarkBodyRadiator) #Dark to light
         # ROOT.gStyle.SetPalette(ROOT.kBlackBody) #Light red to blue
@@ -1979,5 +2011,3 @@ if __name__ == "__main__":
         elif mode == 'manual':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
             plotter.Plot1DManualNLLScan(param=param_tmp[0], paper=paper)
-
-    #plotter.OverlayLLPlot1D('.EFT.SM.Float.ctz', '.EFT.SM.Freeze.ctz', 'ctz')

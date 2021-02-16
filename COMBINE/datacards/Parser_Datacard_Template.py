@@ -113,11 +113,15 @@ elif year=="2018":
     LumiXY = "1.02"
 
 #-- Region-specific flags
-isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#' ; isSRtZq = '#' #Disactive corresponding systematics by default (unless in these specific regions)
-if 'CRWZ' in theVar: isCRWZ = ''
-elif 'CRZZ' in theVar: isCRZZ = ''
-elif 'CRDY' in theVar: isCRDY = ''
-elif 'SRtZq' in theVar: isSRtZq = ''
+isSRtZq = '#'; isWZextrap = '#' #Disactive corresponding systematics by default (unless in these specific regions)
+if 'SRtZq' in theVar: isSRtZq = ''
+if 'SR' in theVar: isWZextrap = ''
+
+#-- Obsolete, to remove
+# isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#'
+# if 'CRWZ' in theVar: isCRWZ = ''
+# elif 'CRZZ' in theVar: isCRZZ = ''
+# elif 'CRDY' in theVar: isCRDY = ''
 
 #--------------------------------------------
 # ele_sys = "" #Ele systematics only in ele channels
@@ -156,10 +160,17 @@ file = file.replace("[RATE_SIG]", rate_sig)
 file = file.replace("[PrivMC_CR]", PrivMC_CR)
 
 #For region-specific uncertainties (e.g. CR extrapolation uncertainties)
-file = file.replace("[CRWZ]", isCRWZ)
-file = file.replace("[CRZZ]", isCRZZ)
-file = file.replace("[CRDY]", isCRDY)
 file = file.replace("[SRtZq]", isSRtZq)
+file = file.replace("[WZext]", isWZextrap)
+
+#Testing: make some nuisance unique in each bin
+# if 'SRttZ' in theVar:
+#     file = file.replace("PrivMC_ttZ_rate", "PrivMC_ttZ_rate_{}".format(theVar))
+
+#Obsolete
+# file = file.replace("[CRWZ]", isCRWZ)
+# file = file.replace("[CRZZ]", isCRZZ)
+# file = file.replace("[CRDY]", isCRDY)
 
 #--------------------------------------------
 

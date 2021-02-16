@@ -133,6 +133,7 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
                 hist_TrainingEvents_class.Scale(1./hist_TrainingEvents_class.Integral())
                 hist_TrainingEvents_class.Write()
 
+            #NB: if crash 'list index out of range', check you are considering >=2 classes, etc.
             hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Scale(1./hist_TestingEvents_class.Integral())

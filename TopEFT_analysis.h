@@ -74,7 +74,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -86,7 +86,7 @@ class TopEFT_analysis
     void SetBranchAddress_SystVariationArray(TTree*, TString, vector<Double_t*>&, int); //Details in func comments
     void MergeSplit_Templates(bool, TString, vector<TString>, TString="", TString = "",bool=true);
 
-    bool Get_VectorAllEvents_passMVACut(vector<int>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
+    bool Get_VectorAllEvents_passMVACut(vector<int>&, vector<vector<float>>&, TString, TString, TString, TString, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
 
 
 //--- MEMBERS
@@ -200,7 +200,9 @@ class TopEFT_analysis
 
     bool split_EFTtemplates_perBin; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
 
-    bool use_paperStyle;
+    bool use_paperStyle; //Enforce CMS paper styles
+
+    bool use_NN_SRother; //Use NN-bkg node instead of mTW in SRother (testing)
 };
 
 #endif

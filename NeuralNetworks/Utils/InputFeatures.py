@@ -1,4 +1,5 @@
 # //--------------------------------------------
+#Remove dR_blW/jPrimeAbsEta/cosThetaStarPolTop/mHT... ?
 
 #-- CARL tZq
 
@@ -72,19 +73,19 @@ features_CARL_tZq_cpt.append("TopZsystem_M")
 features_CARL_tZq_5D = []
 features_CARL_tZq_5D.append("recoZ_Pt")
 features_CARL_tZq_5D.append("recoZ_Eta")
-features_CARL_tZq_5D.append("recoZ_dPhill")
+features_CARL_tZq_5D.append("recoZ_dPhill") #Remove ? (corr)
 features_CARL_tZq_5D.append("dR_blW")
 features_CARL_tZq_5D.append("dR_tZ")
 features_CARL_tZq_5D.append("recoLepTop_Pt")
 features_CARL_tZq_5D.append("dR_tClosestLep")
 features_CARL_tZq_5D.append("cosThetaStarPolZ")
 features_CARL_tZq_5D.append("cosThetaStarPolTop")
-features_CARL_tZq_5D.append("Mass_3l")
+features_CARL_tZq_5D.append("Mass_3l") #Remove ? (corr)
 features_CARL_tZq_5D.append("dEta_Zjprime")
-features_CARL_tZq_5D.append("jPrimeAbsEta")
 features_CARL_tZq_5D.append("dEta_bjprime")
 features_CARL_tZq_5D.append("maxDiJet_Pt")
-features_CARL_tZq_5D.append("TopZsystem_M")
+features_CARL_tZq_5D.append("jPrimeAbsEta") #Remove ? (corr, data)
+features_CARL_tZq_5D.append("TopZsystem_M") #Remove ? (corr)
 
 
 
@@ -183,16 +184,14 @@ features_SM.append("recoZ_Eta") #~ #OK
 features_SM.append("recoZ_dPhill") #~ #OK
 features_SM.append("dR_lWjprime") #~ #OK
 features_SM.append("mbjMax") #~ #OK
+features_SM.append("maxEtaJet") #OK #OK (new)
+features_SM.append("jprime_Pt") #OK #OK (new)
 
 #FIXME -- removing improves ?
 # features_SM.append("dR_blW") #NO! #OK
 # features_SM.append("jPrimeAbsEta") #NO! #OK
 # features_SM.append("cosThetaStarPolTop") #NO! #NO!
 # features_SM.append("mHT") #NO! #~ #Also rather poor data/MC
-
-#FIXME -- testing
-features_SM.append("maxEtaJet") #OK #OK
-features_SM.append("jprime_Pt") #OK #OK
 
 #-- Testing
 # features_SM.append("maxDelRbL")

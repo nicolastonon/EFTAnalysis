@@ -25,7 +25,7 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
+"parameterizedNN": True, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
@@ -37,7 +37,7 @@ optsTrain = {
 # "strategy": "CASCAL", # <-> Calibrated Classifier (CARL) + score regression; still in test phase
 
 #=== General training/architecture settings ===#
-"nEpochs": 100, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
+"nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
 "splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
@@ -47,7 +47,7 @@ optsTrain = {
 "activHiddenLayers": 'relu', #Activation function for hidden layers #sigmoid,tanh,relu,lrelu,prelu,selu,...
 "use_normInputLayer": True, #True <-> add a transformation layer to rescale input features
 "use_batchNorm": True, #True <-> apply batch normalization after each hidden layer
-"dropoutRate": 0.5, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
+"dropoutRate": 0.4, #Dropout rate (0 <-> disabled) #Use to avoid overtraining for complex architectures only, and with sufficient nof epochs
 "regularizer": ['L2', 0.0001], #Weight regularization: '' (<-> None), 'L1','L2','L1L2' <-> apply value given in 2nd arg.
 "optimizer": "Adam", #Optimization algorithm: 'SGD', 'RMSprop', 'Adam', 'Nadam','Adadelta','AdaBound',... #See basic explanations here: https://medium.com/@sdoshi579/optimizers-for-training-neural-network-59450d71caf6
 "learnRate": 0.001, #Learning rate (initial value) of optimizer. Too low -> weights don't update. Too large -> Unstable, no convergence #Default (Adam): 0.001
@@ -68,9 +68,9 @@ optsTrain = {
 # "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 50, #Number of EFT points from which to sample events (times the number of selected operators)
-"minWC": -2, "maxWC": 2, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
+"minWC": -5, "maxWC": 5, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-5,5, -5,5, -15,15, -10,10, -15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values) #NB: must keep ranges for all operators (found in samples), even if considering only a subset of operators !
 "nEventsPerPoint": 10000, #max nof events to be used for each EFT point (for parameterized NN only) ; -1 <-> use all available events
 "batchSizeEFT": 1000, #Batch size (<-> nof events fed to the network before its parameter get updated)
@@ -92,7 +92,7 @@ optsTrain = {
 #=== OTHERS ===#
 "makeValPlotsOnly": False, #True <-> load pre-existing model, skip train/test phase, create validation plots directly. Get data first (needed for plots)
 "testToy1D": False, #True <-> Testing (expert) mode: try to replicate 1D toy example from arXiv:1601.07913, to debug/understand basic paramNN
-"storeInTestDirectory": False, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
+"storeInTestDirectory": True, #True <-> all results (weights, plots, etc.) overwrite existing files in a common dir.; False <-> store results in specific sub-dir., depending on user-options, following path conventions of main analysis code
 "storePerOperatorSeparately": True, #True <-> when training on SM vs EFT and considering a single operator, will store all outputs in an operatgor-specific dir. (allows to then consider different trainigs for different operators)
 "useFakeableNPL": True, #True <-> if running on MC NPL samples (hardcoded names), will consider events from both SR+sideband (i.e. events with ==3FO,2 or 3 tights instead of ==3 tight leptons); for normalization, use that of ==3 tight lepton events only (otherwise need FR weights)
 "displayImages": False, #True <-> will display (pop-up) some output figures (metrics, loss, ROC, ...)
@@ -113,9 +113,9 @@ _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
-# _list_processClasses.append(["PrivMC_tZq"])
+_list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_tZq_TOP19001"])
-_list_processClasses.append(["PrivMC_ttZ"])
+# _list_processClasses.append(["PrivMC_ttZ"])
 # _list_processClasses.append(["PrivMC_ttZ_TOP19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
@@ -129,9 +129,9 @@ _list_processClasses.append(["PrivMC_ttZ"])
 _list_labels = []
 # _list_labels.append("tZq")
 # _list_labels.append("ttZ")
-# _list_labels.append("PrivMC_tZq")
+_list_labels.append("PrivMC_tZq")
 # _list_labels.append("PrivMC_tZq_TOP19001")
-_list_labels.append("PrivMC_ttZ")
+# _list_labels.append("PrivMC_ttZ")
 # _list_labels.append("PrivMC_ttZ_TOP19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")
