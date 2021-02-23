@@ -115,7 +115,7 @@ elif year=="2018":
 #-- Region-specific flags
 isSRtZq = '#'; isWZextrap = '#' #Disactive corresponding systematics by default (unless in these specific regions)
 if 'SRtZq' in theVar: isSRtZq = ''
-if 'SR' in theVar: isWZextrap = ''
+if 'SR' in theVar: isWZextrap = '' #Apply WZ extrapolation uncertainties in all SR, since they have b jet requirements not present in the WZ CR
 
 #-- Obsolete, to remove
 # isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#'

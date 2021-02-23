@@ -136,7 +136,7 @@ TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=f
 TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false, bool=false, bool=true);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
-void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool);
+void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool, bool=false);
 vector<vector<float>> Get_nJets_SF(TString, TString, TString, vector<TString>);
 float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
 TString Get_Template_XaxisTitle(TString);
@@ -182,7 +182,7 @@ template <class T> void Set_Histogram_FlatZero(T*& h, TString name="", bool prin
     for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
     	h->SetBinContent(ibin, pow(10, -5));
-    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, pow(10, -5));}
+    	if(h->GetBinError(ibin) == 0) {h->SetBinError(ibin, pow(10, -6));}
     }
 
     return;
@@ -193,7 +193,13 @@ template <class T> void Avoid_Histogram_EmptyOrNegativeBins(T*& h)
 {
     for(int ibin=1; ibin<h->GetNbinsX()+1; ibin++)
     {
+        //content <= 0 --> set content and error >~0
     	if(h->GetBinContent(ibin) <= 0) {h->SetBinContent(ibin, pow(10, -5)); h->SetBinError(ibin, pow(10, -6));}
+
+        //error > content --> error = content //FIXME //FIXME -- needs fixing ?
+        // if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)-pow(10, -6));}
+        if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)/2.);}
+        // if(h->GetBinError(ibin) > h->GetBinContent(ibin)/2.) {h->SetBinError(ibin, h->GetBinContent(ibin)/2.);}
     }
 
     return;
@@ -207,14 +213,13 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
     int firstBin = store_countExp? 0:1; //If want to also store histo as single bin (counting exp.), add corresponding 'bin 0' by convention
     for(int ibin=firstBin; ibin<h->GetNbinsX()+1; ibin++)
     {
-        T* h_tmp = new T("", "", 1, 0, 1);
-        // TH1F* h_tmp = new TH1F("", "", 1, 0, 1);
+        T* h_tmp = new T("", "", 1, 0, 1); //Create single-bin histo
         TString outname_tmp = "";
 
-        if(!ibin) //ibin==0 --> Store entire histo content as single bin --> counting experiment
+        if(!ibin) //ibin==0 --> Store entire histo content as a single bin (counting experiment)
         {
             Double_t integral=0, error=0;
-            integral = h->IntegralAndError(0, h->GetNbinsX()+1, error);
+            integral = h->IntegralAndError(0, h->GetNbinsX()+1, error); //Get integral and its error
             h_tmp->SetBinContent(1, integral);
             h_tmp->SetBinError(1, error);
             outname_tmp = "countExp_" + outname;
@@ -226,7 +231,7 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
             outname_tmp = "bin" + Convert_Number_To_TString(ibin) + "_" + outname;
         }
 
-        if(!outname.Contains("NPL_MC") && h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC is negative by design
+        if(!outname.Contains("NPL_MC") && !outname.Contains("data", TString::kIgnoreCase) && h_tmp->Integral() <= 0) {Set_Histogram_FlatZero(h_tmp, outname_tmp, false);} //If integral of histo is negative, set to 0 (else COMBINE crashes) -- must mean that norm is close to 0 anyway //Special case: NPL_MC is negative by design
 
         h_tmp->Write(outname_tmp);
         nhistos++;

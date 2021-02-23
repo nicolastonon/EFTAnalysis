@@ -27,9 +27,9 @@ opts = {
               },
 "wc_ranges_scan2D": { #Ranges for 2D grid scans
                 'ctz':  [-2,2],
-                'ctw':  [-2,2],
+                'ctw':  [-1.5,1.5],
                 'cpq3': [-2,2],
-                'cpqm': [-20,20],
+                'cpqm': [-15,25],
                 'cpt':  [-25,20],
               },
 #"wcs_tracked": ['ctz', 'ctw', 'cpq3', 'cpqm', 'cpt'], #WCs to track *when not considered as POIs* (all by default)

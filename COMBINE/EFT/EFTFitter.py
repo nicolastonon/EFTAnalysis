@@ -170,7 +170,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValue='', autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[]):
+    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[]):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -200,8 +200,13 @@ class EFTFit(object):
         args.extend(['-n','{}'.format(name)])
         if fixedPointNLL:
             #args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Access absolute NLL #Necessary/useful ?
-            if SM: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['SM_mu'],startValue)])
-            else: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValue)])
+            # if SM: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['SM_mu'],startValues)])
+            # else: args.extend(['--algo','fixed','--fixedPointPOIs','{}={}'.format(opts['wc'],startValues)])
+            args.extend(['--algo','fixed'])
+            if SM:
+                args.extend(['--fixedPointPOIs',','.join([','.join('{}={}'.format(mu,startValues[imu]) for imu,mu in enumerate(self.SM_mus))])])
+            else: 
+                args.extend(['--fixedPointPOIs',','.join([','.join('{}={}'.format(wc,startValues[iwc]) for iwc,wc in enumerate(self.wcs))])])
         if params_POI:
             for param in params_POI: args.extend(['-P','{}'.format(param)])
         if SM: args.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
@@ -233,7 +238,7 @@ class EFTFit(object):
         process.wait()
         logging.info(colors.fg.lightblue + "Done with bestFit !" + colors.reset)
 
-        if not fixedPointNLL: self.printBestFit(name=name, params=params_POI)
+        if not fixedPointNLL: self.printBestFit(name=name, params=params_POI, SM=SM)
 
 
   ####  #####  # #####      ####   ####    ##   #    #
@@ -243,7 +248,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False):
+    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset) #'You need to supply shell=True to execute the command through a shell interpreter. If you do that however, you can no longer supply a list as the first argument, because the arguments will get quoted then. Instead, specify the raw commandline as you want it to be passed to the shell'
@@ -357,12 +362,16 @@ class EFTFit(object):
             else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
             if batch=='':
-                fitter.printIntervalFits(basename=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
+                fitter.printInterval_fromScan(name=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
 
         else: #Only collect/hadd grid scan outputs (produced via batch)
-            print(colors.fg.orange + '-- Collecting grid scan output files from batch --> [scan_tmp.root] ...' + colors.reset)
-            hadd_cmd = 'hadd -f scan_tmp.root higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(name)
-            #sp.call(['hadd', '-f', 'scan_tmp.root', 'higgsCombine{}.POINTS\*.MultiDimFit.mH120.root'.format(name)]) #Hadd output files
+            outfilename = 'scan_'
+            if len(scan_params)==1: outfilename+= scan_params[0]
+            elif len(scan_params)==2: outfilename+= scan_params[0]+'_'+scan_params[1]
+            else: outfilename+= '5D'
+            outfilename+= '.root'
+            print(colors.fg.orange + '-- Collecting grid scan output files from batch --> [{}] ...'.format(outfilename) + colors.reset)
+            hadd_cmd = 'hadd -f {} higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(outfilename,name)
             proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
             print(colors.fg.orange + '... Done !' + colors.reset)
 
@@ -376,7 +385,8 @@ class EFTFit(object):
  #    # #    #   #   #    # #    #
  #####  #    #   #    ####  #    #
 
-    def batch1DScanSM(self, basename='.test', batch='', scan_params=[], points=300, freeze=False, other=[]):
+    '''
+    def batch1DScanSM(self, name='.test', batch='', scan_params=[], points=300, freeze=False, other=[]):
         ### For each SM signal strength, run a 1D deltaNLL Scan.
         if not scan_params:
             scan_params = ['r_tzq']
@@ -385,22 +395,22 @@ class EFTFit(object):
             scanmax = 3
             if param=='r_ttH': scanmax = 6
             if param=='r_tllq': scanmax = 4
-            self.gridScanSM('{}.{}'.format(basename,param), batch, [param], self.systematics+[params for params in scan_params if params != param], points, freeze, ['--setParameterRanges','{}=0,{}'.format(param,scanmax)]+other)
+            self.gridScanSM('{}.{}'.format(name,param), batch, [param], self.systematics+[params for params in scan_params if params != param], points, freeze, ['--setParameterRanges','{}=0,{}'.format(param,scanmax)]+other)
 
-    def batchRetrieve1DScansSM(self, basename='.test', batch='crab'):
+    def batchRetrieve1DScansSM(self, name='.test', batch='crab'):
         ### For each wc, retrieves finished 1D deltaNLL crab jobs, extracts, and hadd's into a single file ###
         for param in ['r_ttll','r_ttlnu','r_ttH','r_tllq']:
-            self.retrieveGridScan('{}.{}'.format(basename,param),batch)
+            self.retrieveGridScan('{}.{}'.format(name,param),batch)
 
-    def batch1DScanEFT(self, basename='.EFT', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
+    def batch1DScanEFT(self, name='', batch='crab', freeze=False, scan_wcs=[], points=300, other=[]):
         ### For each wc, run a 1D deltaNLL Scan.
         if not scan_wcs:
             scan_wcs = self.wcs
 
         for wc in scan_wcs:
-            self.gridScanEFT('{}.{}'.format(basename,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
+            self.gridScanEFT('{}.{}'.format(name,wc), batch, freeze, [wc], [wcs for wcs in self.wcs if wcs != wc], points, other)
 
-    def batch2DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=90000, allPairs=False, other=[]):
+    def batch2DScanEFT(self, name='EFT.gridScan', batch='crab', freeze=False, points=90000, allPairs=False, other=[]):
         ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
 
         # Use EVERY combination of wcs
@@ -410,7 +420,7 @@ class EFTFit(object):
             for wcs in itertools.combinations(scan_wcs,2):
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScanEFT(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}'.format(name,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
         # Use each wc only once
         if not allPairs:
@@ -421,9 +431,9 @@ class EFTFit(object):
             for wcs in scan_wcs:
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScanEFT(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}'.format(name,wcs[0],wcs[1]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
-    def batch3DScanEFT(self, basename='.EFT.gridScan', batch='crab', freeze=False, points=27000000, allPairs=False, other=[], wc_triplet=[]):
+    def batch3DScanEFT(self, name='EFT.gridScan', batch='crab', freeze=False, points=27000000, allPairs=False, other=[], wc_triplet=[]):
         ### For pairs of wcs, runs deltaNLL Scan in two wcs using CRAB or Condor ###
 
         # Use EVERY combination of wcs
@@ -433,7 +443,7 @@ class EFTFit(object):
             for wcs in itertools.combinations(scan_wcs,2):
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScanEFT(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}{}'.format(name,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
         # Use each wc only once
         if not allPairs:
@@ -445,21 +455,21 @@ class EFTFit(object):
             for wcs in scan_wcs:
                 wcs_tracked = [wc for wc in self.wcs if wc not in wcs]
                 #print pois, wcs_tracked
-                self.gridScanEFT(name='{}.{}{}{}'.format(basename,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
+                self.gridScanEFT(name='{}.{}{}{}'.format(name,wcs[0],wcs[1],wcs[2]), batch=batch, freeze=freeze, scan_params=list(wcs), params_tracked=wcs_tracked, points=points, other=other)
 
-    def batchResubmit1DScansEFT(self, basename='.EFT.gridScan', scan_wcs=[]):
+    def batchResubmit1DScansEFT(self, name='EFT.gridScan', scan_wcs=[]):
         ### For each wc, attempt to resubmit failed CRAB jobs ###
         if not scan_wcs:
             scan_wcs = self.wcs
 
         for wc in scan_wcs:
-            process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wc], stdout=sp.PIPE, stderr=sp.PIPE)
+            process = sp.Popen(['crab','resubmit','crab_'+name.replace('.','')+wc], stdout=sp.PIPE, stderr=sp.PIPE)
             with process.stdout,process.stderr:
                 self.log_subprocess_output(process.stdout,'info')
                 self.log_subprocess_output(process.stderr,'err')
             process.wait()
 
-    def batchResubmit2DScansEFT(self, basename='.EFT.gridScan', allPairs=False):
+    def batchResubmit2DScansEFT(self, name='EFT.gridScan', allPairs=False):
         ### For pairs of wcs, attempt to resubmit failed CRAB jobs ###
 
         # Use EVERY combination of wcs
@@ -467,7 +477,7 @@ class EFTFit(object):
             scan_wcs = self.wcs
 
             for wcs in itertools.combinations(scan_wcs,2):
-                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
+                process = sp.Popen(['crab','resubmit','crab_'+name.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
                 with process.stdout,process.stderr:
                     self.log_subprocess_output(process.stdout,'info')
                     self.log_subprocess_output(process.stderr,'err')
@@ -479,11 +489,12 @@ class EFTFit(object):
             scan_wcs = [('cQlMi','cQei'),('cpQ3','cbW'),('cptb','cQl3i'),('ctG','cpQM'),('ctz','ctw'),('ctei','ctlTi'),('ctlSi','ctli'),('ctp','cpt')]
 
             for wcs in scan_wcs:
-                process = sp.Popen(['crab','resubmit','crab_'+basename.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
+                process = sp.Popen(['crab','resubmit','crab_'+name.replace('.','')+wcs[0]+wcs[1]], stdout=sp.PIPE, stderr=sp.PIPE)
                 with process.stdout,process.stderr:
                     self.log_subprocess_output(process.stdout,'info')
                     self.log_subprocess_output(process.stderr,'err')
                 process.wait()
+    '''
 
 
   ####  ###### #####    #####  ######  ####  #####    #    #   ##   #
@@ -493,6 +504,7 @@ class EFTFit(object):
  #    # #        #      #    # #      #    #   #       #  #  #    # #
   ####  ######   #      #####  ######  ####    #        ##   #    # ######
 
+    '''
     def getBestValues2D(self, name, scan_params=[], params_tracked=[]):
         ### Gets values of parameters for grid scan point with best deltaNLL ###
 
@@ -525,7 +537,7 @@ class EFTFit(object):
             startValues.append('{}={}'.format(param,value))
         return ','.join(startValues)
 
-    def getBestValues1DEFT(self, basename=".EFT", wcs=[]):
+    def getBestValues1DEFT(self, name="EFT", wcs=[]):
         ### Gets values of WCs for grid scan point with best deltaNLL ###
         if not wcs:
             wcs = self.wcs
@@ -537,7 +549,7 @@ class EFTFit(object):
             bestDeltaNLL=1000000;
             bestEntry=-1;
 
-            fitFile = './higgsCombine{}.{}.MultiDimFit.root'.format(basename,wc)
+            fitFile = './higgsCombine{}.{}.MultiDimFit.root'.format(name,wc)
             logging.info("Obtaining best value from {}".format(fitFile))
 
             if not os.path.isfile(fitFile):
@@ -559,6 +571,7 @@ class EFTFit(object):
             startValues.append('{}={}'.format(wc,value))
 
         return ','.join(startValues)
+    '''
 
 
  #####  ###### ##### #####  # ###### #    # ######     ####  #####  # #####
@@ -568,6 +581,7 @@ class EFTFit(object):
  #   #  #        #   #   #  # #       #  #  #         #    # #   #  # #    #
  #    # ######   #   #    # # ######   ##   ######     ####  #    # # #####
 
+    '''
     def retrieveGridScan(self, name='.test', batch='crab', user='ntonon'):#getpass.getuser()):
 
         ### Retrieve grid jobs outputs, extracts/hadd them into a single file ###
@@ -608,7 +622,6 @@ class EFTFit(object):
             if not glob.glob('higgsCombine{}.POINTS*.root'.format(name)): #glob: find matching patterns
                 logging.info("No files with names higgsCombine{}.POINTS*.root to hadd. Returning.".format(name))
                 return
-            #haddargs = ['hadd','-f','higgsCombine'+name+'.MultiDimFit.root']+sorted(glob.glob('higgsCombine{}.POINTS*.root'.format(name)))
             haddargs = ['hadd','-f','./higgsCombine'+name+'.MultiDimFit.mH120.root']+sorted(glob.glob('higgsCombine{}.POINTS*.root'.format(name)))
             process = sp.Popen(haddargs, stdout=sp.PIPE, stderr=sp.PIPE)
             with process.stdout,process.stderr:
@@ -622,29 +635,31 @@ class EFTFit(object):
             if os.path.isfile('condor_{}.sub'.format(name.replace('.',''))):
                 os.rename('condor_{}.sub'.format(name.replace('.','')),'condor{0}/condor_{0}.sub'.format(name))
 
-    def batchRetrieve1DScansEFT(self, basename='.EFT', batch='crab', scan_wcs=[]):
+
+    def batchRetrieve1DScansEFT(self, name='', batch='crab', scan_wcs=[]):
         ### For each wc, retrieves finished 1D deltaNLL grid jobs, extracts, and hadd's into a single file ###
         if not scan_wcs:
             scan_wcs = self.wcs
 
         for wc in scan_wcs:
-            self.retrieveGridScan('{}.{}'.format(basename,wc),batch)
+            self.retrieveGridScan('{}.{}'.format(name,wc),batch)
 
-    def batchRetrieve2DScansEFT(self, wc_pair=[], basename='.EFT', batch='crab', allPairs=False):
+    def batchRetrieve2DScansEFT(self, wc_pair=[], name='', batch='crab', allPairs=False):
         ### For pairs of wcs, retrieves finished grid jobs, extracts, and hadd's into a single file ###
 
         # Use EVERY combination of wcs
         if allPairs:
             wc_pair = self.wcs
             for wcs in itertools.combinations(wc_pair,2):
-                self.retrieveGridScan(name='{}.{}{}'.format(basename,wcs[0],wcs[1]), batch=batch)
+                self.retrieveGridScan(name='{}.{}{}'.format(name,wcs[0],wcs[1]), batch=batch)
 
         # Consider a single pair of WCs
         else:
             if wc_pair == []: wc_pair = self.wcs_pairs
             print wc_pair
-            print '{}.{}'.format(batch, basename)
-            self.retrieveGridScan(name=basename, batch=batch)
+            print '{}.{}'.format(batch, name)
+            self.retrieveGridScan(name=name, batch=batch)
+    '''
 
 
  #####  ###### #####  #    #  ####  ##### #  ####  #    #
@@ -654,6 +669,7 @@ class EFTFit(object):
  #   #  #      #    # #    # #    #   #   # #    # #   ##
  #    # ###### #####   ####   ####    #   #  ####  #    #
 
+    '''
     def reductionFitEFT(self, name='.EFT', wc='ctz', final=True, from_wcs=[], alreadyRun=True):
         ### Extract a 1D scan from a higher-dimension scan to avoid discontinuities ###
         if not wc:
@@ -665,7 +681,6 @@ class EFTFit(object):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
             return
         elif not alreadyRun and not os.path.exists('higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-        #if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
             return
 
@@ -719,13 +734,11 @@ class EFTFit(object):
         if final:
             os.system('hadd -f higgsCombine{}.MultiDimFit.mH120.root higgsCombine{}.POINTS*.{}reduced.MultiDimFit.root '.format(name,name,''.join(wcs)))
         if not os.path.exists('higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-        #if not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name)):
             logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
             return
 
         rootFile = []
         rootFile = ROOT.TFile.Open('higgsCombine{}.MultiDimFit.mH120.root'.format(name))
-        #rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
         limitTree = rootFile.Get('limit')
 
         # First loop through entries and get deltaNLL list for each value of the WC
@@ -766,6 +779,7 @@ class EFTFit(object):
 
         # Write the file
         outFile.Write()
+    '''
 
 
   ####   ####  #    # #####    ##   #####  ######    ###### # #####  ####
@@ -775,14 +789,15 @@ class EFTFit(object):
  #    # #    # #    # #      #    # #   #  #         #      #   #   #    #
   ####   ####  #    # #      #    # #    # ######    #      #   #    ####
 
-    def compareFitsEFT(self,basename='.EFT.SM.Float'):
+    '''
+    def compareFitsEFT(self,name='EFT.SM.Float'):
         ### Compare results of different 1D EFT scans ###
         tfiles = {}
         limits = {}
         bestFits = {} # Nested dict; bestFit of key1 according to key2
         # First get all scan files
         for wc in self.wcs:
-            tfiles[wc] = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(basename+'.'+wc))
+            tfiles[wc] = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name+'.'+wc))
             limits[wc] = tfiles[wc].Get('limit')
             bestFits[wc] = {}
         # Get best fits
@@ -810,6 +825,7 @@ class EFTFit(object):
             print("Best value of {}: {}".format(poiwc,bestFits[poiwc][poiwc]))
             for trackedwc in trackedwcs:
                 print("Value according to {}: {}".format(trackedwc,bestFits[poiwc][trackedwc]))
+    '''
 
 
  #####  #####  # #    # #####
@@ -819,16 +835,20 @@ class EFTFit(object):
  #      #   #  # #   ##   #
  #      #    # # #    #   #
 
-    def printBestFit(self, name='.EFT', params = []):
+    def printBestFit(self, name='', params=[], SM=False):
         '''
-        Print a table of SM signal strengths, their best fits, and their uncertainties ###
+        Print best fit values and uncertainties of parameters.
+        Read multidimfit.root file (output from max. likelihood fit)
 
         Example to inspect file via command line:
         root multidimfit.EFT.root
         a = fit_mdf->floatParsFinal().find("ctz") #POI
         b = (RooAbsReal*) a; b->Print() #Printout
-        rf = dynamic_cast<RooRealVar*>(a)
-        rf->getMin("err68"); rf->getMax("err68"); #...
+        rf = dynamic_cast<RooRealVar*>(a);
+        rf->getErrorLo(); f->getErrorHi(); #Get +-1sigma uncertainties
+        rf->getMin("err68")-roorealvar.getVal(); rf->getMax("err68")-roorealvar.getVal(); #Idem
+        rf->getMin("err68"); rf->getMax("err68"); #Get 68%CL INTERVAL
+        rf->getMin("err95"); rf->getMax("err95"); #Get 95%CL INTERVAL (if used option '--do95')
 
         Example in python:
         import ROOT
@@ -836,40 +856,61 @@ class EFTFit(object):
         fit = fit_file.Get('fit_mdf')
         roorealvar = fit.floatParsFinal().find('ctz')
         value = round(roorealvar.getVal(),2) #Best fit value
-        value = round(roorealvar.getMin('err68'),2) #Lower 68% limit; idem with getMax, err95
+        value = round(roorealvar.getMin('err68'),2) #Lower 68% interval bound
         '''
 
         logging.info(colors.fg.lightblue + "\nEnter function printBestFit()" + colors.reset)
 
-        if len(params)==0:
-            print('params is empty... Return !')
-
+        if len(params)==0: print('params is empty... Return !')
         fit_array = []
 
-        logging.info("Obtaining result of fit: multidimfit{}.root".format(name))
-        fit_file = ROOT.TFile.Open('./multidimfit{}.root'.format(name))
-        fit = fit_file.Get('fit_mdf')
-
         for param in params:
+
+            filepath = "multidimfit{}.root".format(name) #Default naming convention
+            if name=='': #Convention: look for WC-specific file (hardcoded naming convention)
+                suffix = 'Obs' #'Exp' / 'Obs'
+                filepath = "multidimfit.{}{}.root".format(param,suffix)
+
+            if not os.path.exists(filepath):
+                logging.error(colors.fg.red + "File {} does not exist!".format(filepath) + colors.reset)
+                continue
+
+            logging.info("Obtaining result of fit: {}".format(filepath)) #NB: no '.' before 'name', since this file is produced automatically by combine (not by this code)
+            fit_file = ROOT.TFile.Open(filepath)
+            fit = fit_file.Get('fit_mdf')
+
             roorealvar = fit.floatParsFinal().find(param)
-            if not roorealvar: continue
+            if not roorealvar:
+                print('ERROR: RooRealVar not found for param:', param)
+                continue
 
             value = round(roorealvar.getVal(),3)
-            #err_sym =  round(roorealvar.getError(),3)
-            err_low = round(roorealvar.getErrorLo(),3)
-            err_high = round(roorealvar.getErrorHi(),3)
+
+            #-- Get 68% CL interval
+            err_low = round(roorealvar.getMin('err68'),3); err_high = round(roorealvar.getMax('err68'),3)
+            # err_low = round(roorealvar.getErrorLo(),3) #Returns error directly, no need to substract bestFitVal
+            # err_high = round(roorealvar.getErrorHi(),3) #Returns error directly, no need to substract bestFitVal
+
+            #-- Get 95% CL interval
             err_low_95 = -9; err_high_95 = -9
             if roorealvar.hasRange('err95'): #If 95% CL errors available (using --do95 1 --robustFit 1 options)
                 err_low_95 = round(roorealvar.getMin('err95'),3)
                 err_high_95 = round(roorealvar.getMax('err95'),3)
-                if err_low_95 > 0: #Assume that the default parameter value is 1 instead of 0, adapt limits
-                    err_low_95-= 1
-                    err_high_95-= 1
+
+            if SM == True: #DIFFERENT CONVENTION FOR SM RESULTS --> Instead of quoting INTERVALS (like for EFT results), quote UNCERTAINTIES directly !
+
+                #-- To convert interval->uncertainty, simply substract best fit value
+                err_low-= value
+                err_high-= value
+                err_low_95-= value
+                err_high_95-= value
 
             fit_array.append((param,value,err_low,err_high,err_low_95,err_high_95))
 
         logging.info('\n' + colors.fg.orange + "Fit result:" + colors.reset)
-        logging.info(colors.fg.orange + "Param | Best Fit Value | [68% interval] | [95% interval]" + colors.reset)
+        if SM==True: logging.info(colors.fg.orange + "Param | Best Fit Value | [68% ERROR] | [95% ERROR]" + colors.reset)
+        else: logging.info(colors.fg.orange + "Param | Best Fit Value | [68% interval] | [95% interval]" + colors.reset)
+
         for row in fit_array:
             logging.info(colors.fg.orange + row[0] + ' | ' + str(row[1]) + ' | ' + "[" + str(row[2]) + ";" + str(row[3]) + "] | [" + str(row[4]) + ';' + str(row[5]) + ']' + colors.reset + '\n')
             #logging.debug("{} {} +/- {}".format(row[0],row[1],row[2]))
@@ -877,44 +918,13 @@ class EFTFit(object):
         return
 
 
-    def printIntervalFitsEFT(self, basename='.EFT', scan_params=[]):
-        ### Print a table of wcs, their best fits, and their uncertainties ###
-        ### Use 1D scans instead of regular MultiDimFit ###
-        logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
+    def printInterval_fromScan(self, name='.EFT', scan_params=[], SM=False):
+        '''
+        Print best fit values and uncertainties of parameters.
+        Read higgsCombine.root file (output from grid scan)
+        '''
 
-        if not scan_params: scan_params = [self.wc]
-        ROOT.gROOT.SetBatch(True)
-        fit_array = []
-        canvas = ROOT.TCanvas()
-        for wc in scan_params:
-
-            canvas.Clear()
-
-            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root for WC {}".format(basename,wc))
-
-            #-- Get scan TTree
-            rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
-            limitTree = rootFile.Get('limit')
-
-            #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
-            graph = plot.TGraphFromTree(limitTree, wc, '2*deltaNLL', 'quantileExpected > -1.5')
-
-            yvals = [1., 3.84] #1sigma, 95%CL intervals
-            #func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig = BuildScan(graph, ROOT.kBlack, yvals)
-            main_scan = BuildScan(graph, ROOT.kBlack, yvals)
-
-            crossings = main_scan['crossings'][yvals[1]][0]
-            if crossings['valid_lo'] == True and crossings['valid_hi'] == True:
-                print(colors.fg.orange + wc + ": 95% interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
-            else: print('Error: invalid crossing X-values...')
-
-        return
-
-
-    def printIntervalFits(self, basename='.EFT', scan_params=[], SM=False):
-        ### Print a table of wcs, their best fits, and their uncertainties ###
-        ### Use 1D scans instead of regular MultiDimFit ###
-        logging.info(colors.fg.lightblue + "Enter function printIntervalFits()\n" + colors.reset)
+        logging.info(colors.fg.lightblue + "Enter function printInterval_fromScan()\n" + colors.reset)
 
         if not scan_params:
             if SM: scan_params = [self.wc]
@@ -926,11 +936,10 @@ class EFTFit(object):
         for param in scan_params:
 
             canvas.Clear()
-
-            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root for POI {}".format(basename,param))
+            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root for POI {}".format(name,param))
 
             #-- Get scan TTree
-            rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
+            rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(name))
             limitTree = rootFile.Get('limit')
 
             #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
@@ -942,77 +951,16 @@ class EFTFit(object):
 
             crossings = main_scan['crossings'][yvals[1]][0]
             if crossings['valid_lo'] == True and crossings['valid_hi'] == True:
-                print(colors.fg.orange +  + ": 95% interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
+                print(colors.fg.orange + ": 95% CL interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
             else: print('Error: invalid crossing X-values...')
 
         return
 
 
-    '''
-    def printIntervalFitsEFT(self, basename='.EFT', scan_params=[]):
-        ### Print a table of wcs, their best fits, and their uncertainties ###
-        ### Use 1D scans instead of regular MultiDimFit ###
-        #-- NB: this method is actually very imprecise (takes crossings as (x1+x2)/2), relies on very fine scans. Better to use Combine function 'BuildScan' like in EFTPlotter. See new function above.
-        logging.info(colors.fg.lightblue + "Enter function printIntervalFitsEFT()\n" + colors.reset)
 
-        NLL_threshold = 3.84 #Define NN threshold to determine exclusion boundaries #3.84 <-> 95%
 
-        if not scan_params: scan_params = self.wc
-        ROOT.gROOT.SetBatch(True)
-        fit_array = []
-        canvas = ROOT.TCanvas()
-        for wc in scan_params:
 
-            canvas.Clear()
 
-            logging.info("Obtaining result of scan: higgsCombine{}.MultiDimFit.mH120.root".format(basename))
-            fit_file = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.mH120.root'.format(basename))
-            limit_tree = fit_file.Get('limit')
-
-            limit_tree.Draw('2*deltaNLL:{}>>{}1DNLL(50,{},{})'.format(wc,wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]),'2*deltaNLL>-1','same')
-            graph = canvas.GetPrimitive('Graph')
-            # print(graph.GetN())
-
-            graph.Sort() #If error here, problem with limit tree
-
-            lowedges=[]
-            highedges=[]
-            minimums=[]
-            true_minimums=[]
-            best = [-1000,1000]
-            prev = 1000
-            for idx in range(1, graph.GetN()):
-                # print('idx', idx)
-                y_val = graph.GetY()[idx]
-                if prev>NLL_threshold and NLL_threshold>y_val:
-                    lowedges.append((graph.GetX()[idx-1]+graph.GetX()[idx+1])/2)
-                if prev<NLL_threshold and NLL_threshold<y_val:
-                    highedges.append((graph.GetX()[idx-1]+graph.GetX()[idx+1])/2)
-                if y_val < best[1]:
-                    best = [graph.GetX()[idx],y_val]
-                if y_val<prev and y_val<graph.GetY()[idx+1]:
-                    minimums.append((graph.GetX()[idx],y_val))
-                prev = y_val
-            if not len(lowedges) == len(highedges):
-                logging.error("Something is strange! Interval is missing endpoint!")
-
-            def sortkey(elem):
-                return elem[1]
-
-            for interval in zip(lowedges,highedges):
-                true_min = [-1000,1000]
-                for minimum in minimums:
-                    if minimum[1]<true_min[1] and interval[0]<minimum[0] and minimum[0]<interval[1]:
-                        true_min = minimum
-                true_minimums.append(true_min[0])
-
-            fit_array.append([wc,[list(l) for l in zip(true_minimums,lowedges,highedges)]])
-
-        for line in fit_array:
-            print line
-
-        return
-    '''
 
 
 
@@ -1043,7 +991,7 @@ if __name__ == "__main__":
     scan_dim = '1D' #'1d' <-> 1D scan (default); '2d' <-> 2D scan
     verb=0
     name = '' #Suffix added to output filenames
-    startValue = '' #Starting value for the POI
+    startValues = [] #Starting value(s) for the POI(s)
     fixedPointNLL = False #True <-> perform the NLL scan at a fixed point (different Combine options)
     debug=False
     freeze=False
@@ -1068,10 +1016,10 @@ if __name__ == "__main__":
     parser.add_argument("-dim", metavar="dim", help="1D or 2D scan")
     parser.add_argument('--exp', help='Use MC predictions only (no data)', nargs='?', const=1) #nargs='?' <-> 0 or 1 arg (default value is const=1)
     parser.add_argument("--fixed", metavar="fixed", help="Get NLL for fixed point", nargs='?', const=1)
+    parser.add_argument('-val', metavar="val", nargs='+', help='Starting value(s) for the POI(s)', required=False) #Takes >=0 args
     parser.add_argument("-name", metavar="name", help="add suffix to output filename")
     parser.add_argument("-m", metavar="mode", help="Can choose to run only specific functions (grid, bestfit, etc.)")
     parser.add_argument("--batch", metavar="batchmode", help="(crab or condor -- only condor for now)", nargs='?', const=1)
-    parser.add_argument("-val", metavar="val", help="Starting value for the POI")
     parser.add_argument("--debug", metavar="debug", help="Activate code debug printouts", nargs='?', const=1)
     parser.add_argument("--freeze", metavar="freeze", help="Freeze other POIs", nargs='?', const=1)
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
@@ -1091,12 +1039,14 @@ if __name__ == "__main__":
     if args.v: verb = int(args.v)
     if args.exp: exp = True
     if args.name: name = args.name
-    if args.val: startValue = args.val
-    if args.dim == '2D' or args.dim == '2D': scan_dim = '2D'
+    if args.val: startValues = args.val
+    if args.dim == '2D': scan_dim = '2D'
     if args.fixed: fixedPointNLL = True
     if args.debug: debug = True
     if args.freeze: freeze = True
-    if args.POI: POI = args.POI
+    if args.POI:
+        POI = args.POI
+        if len(POI)==2: scan_dim = '2D'
     if args.noworkspace: createWS = 2
     if args.onlyworkspace: createWS = 1
     if args.m: mode = args.m
@@ -1115,9 +1065,11 @@ if __name__ == "__main__":
         print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
         exit(1)
 
-    if mode not in ['', 'bestfit', 'printbestfit', 'scan', 'grid']:
+    if mode not in ['', 'bestfit', 'printbestfit', 'scan', 'grid', 'other']:
         print('ERROR: mode not recognized !')
         exit(1)
+
+    if name != '' and name[0] != '.': name = '.{}'.format(name) #Convention: add a '.' before custom name
 
     PrintBanner() #Init printouts
 
@@ -1131,9 +1083,9 @@ if __name__ == "__main__":
         if name == '': name = '.SM' #Default
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
         elif mode is 'printbestfit': #Only print best fit results
-            fitter.printBestFit(name='.SM', params=POI)
+            fitter.printBestFit(name=name, params=POI, SM=SM)
             exit(1)
 
         if mode in ['','grid','scan']:
@@ -1150,9 +1102,9 @@ if __name__ == "__main__":
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         #-- Maximum Likelihood Fit
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValue=startValue, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask)
         elif mode == 'printbestfit': #Only print best fit results
-            fitter.printBestFit(name='.EFT', params=POI)
+            fitter.printBestFit(name=name, params=POI, SM=SM)
             exit(1)
 
         #-- Grid Scan
@@ -1161,15 +1113,13 @@ if __name__ == "__main__":
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
                 points = points if points != -1 else 50
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs)
-                # fitter.batchRetrieve1DScansEFT(basename=name, batch=batch, scan_wcs=param_tmp)
+
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
                 points = points if points != -1 else 50*50 # 2500 pts
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs)
-                # fitter.batchRetrieve2DScansEFT(basename=name, batch=batch, wc_pair=param_tmp, allPairs=False)
 
         #-- OTHERS
-        # fitter.batch1DScanEFT() # Freeze other WCs
-        # fitter.batchRetrieve1DScansEFT()
-        # fitter.getBestValues1DEFT()
+        if mode == 'other':
+            fitter.printBestFit(name='', params=opts['wcs'], SM=SM) #Print intervals for ALL wcs (if files found) #Keep name='' for naming conventions
 # //--------------------------------------------

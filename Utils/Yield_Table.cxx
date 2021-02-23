@@ -258,9 +258,13 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
             t->SetBranchStatus("weightMENominal", 1);
     		t->SetBranchAddress("weightMENominal", &weightMENominal);
 
-            Float_t mTW; //Debugging
+            //Others
+            Float_t mTW;
             t->SetBranchStatus("mTW", 1);
     		t->SetBranchAddress("mTW", &mTW);
+            Float_t njetscentral;
+            t->SetBranchStatus("njetscentral", 1);
+    		t->SetBranchAddress("njetscentral", &njetscentral);
 
             //--- Cut on relevant event selection (e.g. 3l SR, ttZ CR, etc.) -- stored as Char_t
             Char_t is_goodCategory; //Categ. of event
@@ -318,6 +322,10 @@ void Compute_Write_Yields(vector<TString> v_samples, vector<TString> v_label, TS
 
                 //--- Cut on category value
                 if(category != "" && !is_goodCategory) {continue;}
+
+                //FIXME
+                //-- Cut on njetscentral only (not considering forward jets) to quantify the decrease in signal acceptance if neglecting forward jets
+                if(njetscentral < 2) {continue;}
 
                 // if(v_samples[isample] == "PrivMC_tWZ" && weight>10) {continue;}
 
@@ -622,8 +630,12 @@ int main(int argc, char **argv)
     //TMP
     // v_samples.push_back("PrivMC_tZq_TOP19001"); v_label.push_back("PrivMC_tZq_TOP19001");
     // v_samples.push_back("PrivMC_ttZ_TOP19001"); v_label.push_back("PrivMC_ttZ_TOP19001");
-    // v_samples.push_back("PrivMC_tWZ_PSweights"); v_label.push_back("PrivMC_tWZ_PSweights");
-    // v_samples.push_back("PrivMC_ttZ_PSweights"); v_label.push_back("PrivMC_ttZ_PSweights");
+    //v_samples.push_back("PrivMC_ttZ_PSWeights"); v_label.push_back("PrivMC_ttZ_PSWeights");
+    //v_samples.push_back("PrivMC_tZq_PSWeights"); v_label.push_back("PrivMC_tZq_PSWeights");
+    //v_samples.push_back("PrivMC_tWZ_PSWeights"); v_label.push_back("PrivMC_tWZ_PSWeights");
+    v_samples.push_back("PrivMC_ttZ_noPS"); v_label.push_back("PrivMC_ttZ_noPS");
+    v_samples.push_back("PrivMC_tZq_noPS"); v_label.push_back("PrivMC_tZq_noPS");
+    v_samples.push_back("PrivMC_tWZ_noPS"); v_label.push_back("PrivMC_tWZ_noPS");
 
 //--------------------------------------------
 

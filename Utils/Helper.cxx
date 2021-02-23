@@ -1196,8 +1196,9 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "jprime_Pt") {nbins = 20; xmin = 50.; xmax = 300.;}
 
     else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
-    else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 500.;}
-    else if(var == "lep1_pt") {nbins = 20; xmin = 0.; xmax = 250.;}
+    else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 400.;}
+    else if(var == "jet2_pt" || var == "jet3_pt") {nbins = 20; xmin = 25.; xmax = 200.;}
+    else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 0.; xmax = 250.;}
     else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 500.;}
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
@@ -1305,6 +1306,12 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             xmin = min_tmp; xmax = max_tmp;
         }
     }
+
+    //-- Debug printouts
+    // cout<<"template_name "<<template_name<<endl;
+    // cout<<"nbins "<<nbins<<endl;
+    // cout<<"xmin "<<xmin<<endl;
+    // cout<<"xmax "<<xmax<<endl;
 
     return;
 }
@@ -1723,6 +1730,8 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
 TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized, bool combineFile_fromHarvester, bool prefit)
 {
+    bool printout = false; //true <-> display printouts
+
     TString fullpath = ""; //Full input path
     if(region != "") {region = "_" + region;}
 
@@ -1730,25 +1739,36 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	{
         if(combineFile_fromHarvester) //File produced by CombineHarvester, different naming
         {
-            fullpath = "./outputs/shapes_";
+            fullpath = "./outputs/dir_shapes_tmp/shapes_";
+            // fullpath = "./outputs/shapes_";
             fullpath+= prefit? "prefit_":"postfit_";
+            fullpath+= "datacard_";
             fullpath+= template_type + ".root";
 
             if(!is_templateFile) //Control plots, hardcoded name
             {
-                fullpath = "./outputs/shapes_";
+                fullpath = "./outputs/dir_shapes_tmp/shapes_";
+                // fullpath = "./outputs/shapes_";
                 fullpath+= prefit? "prefit_":"postfit_";
                 fullpath+= "control.root";
             }
 
-            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
-            if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+            if(printout) {cout<<DIM("Trying to open input file "<<fullpath<<" ... ");}
+            if(Check_File_Existence(fullpath))
+            {
+                if(printout) {cout<<DIM("FOUND !")<<endl;}
+                return fullpath;
+            }
             else
             {
                 fullpath = "./outputs/shapes.root"; //Try a generic name
 
-                cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
-                if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+                if(printout) {cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");}
+                if(Check_File_Existence(fullpath))
+                {
+                    if(printout) {cout<<DIM("FOUND !")<<endl;}
+                    return fullpath;
+                }
                 else {cout<<BOLD(FRED("ERROR: shapes.root file from CombineHarvester not found !"))<<endl; return "";}
             }
         }
@@ -1757,14 +1777,22 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
             fullpath = "./outputs/fitDiagnostics_";
             fullpath+= template_type + region + filename_suffix + ".root";
 
-            cout<<DIM("Trying to open input file "<<fullpath<<" ... ");
-            if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+            if(printout) {cout<<DIM("Trying to open input file "<<fullpath<<" ... ");}
+            if(Check_File_Existence(fullpath))
+            {
+                if(printout) {cout<<DIM("FOUND !")<<endl;}
+                return fullpath;
+            }
             else
             {
                 fullpath = "./outputs/fitDiagnostics.root"; //Try a generic name
 
-                cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");
-                if(Check_File_Existence(fullpath)) {cout<<DIM("FOUND !")<<endl; return fullpath;}
+                if(printout) {cout<<endl<<DIM("Trying to open input file "<<fullpath<<" ... ");}
+                if(Check_File_Existence(fullpath))
+                {
+                    if(printout) {cout<<DIM("FOUND !")<<endl;}
+                    return fullpath;
+                }
                 else {cout<<BOLD(FRED("ERROR: fitDiagnostics file from Combine not found !"))<<endl; return "";}
             }
         }
@@ -1859,24 +1887,25 @@ TString Get_Region_Label(TString region, TString variable)
 {
     TString label = "";
 
-    //-- Region-dependent label //Obsolete ?
+    //-- Region-dependent label //Order matters
     region.ToLower();
     if(region=="signal") {label = "SR-3\\ell";}
+    else if(region=="ttz4l") {label = "\\text{SR-t}\\bar{\\text{t}}\\text{Z-4}\\ell";} //NB: if using a TMathText (like \ell), must use TMathText for all math symbols
     else if(region=="tzq") {label = "SR-tZq";}
     else if(region=="ttz") {label = "SR-t#bar{t}Z";}
-    else if(region=="ttz4l") {label = "SR-t#bar{t}Z-4\\ell";}
-    else if(region=="xg") {label = "V#gamma CR";}
+    else if(region=="xg") {label = "X#gamma CR";}
     else if(region=="zz") {label = "ZZ CR";}
     else if(region=="tx") {label = "tX CR";}
     else if(region=="tt") {label = "t#bar{t} CR";}
     else if(region=="wz") {label = "WZ CR";}
     else if(region=="dy") {label = "DY CR";}
 
-    //-- Variable-dependent label
+    //-- Variable-dependent label //Order matters
     if(variable.Contains("SRtZq")) {label = "SR-tZq";}
+    // else if(variable.Contains("SRttZ4l")) {label = "SR-t#bar{t}Z-4l";}
+    else if(variable.Contains("SRttZ4l")) {label = "\\text{SR-t}\\bar{\\text{t}}\\text{Z-4}\\ell";} //NB: if using a TMathText (like \ell), must use TMathText for all math symbols
     else if(variable.Contains("SRttZ")) {label = "SR-t#bar{t}Z";}
     else if(variable.Contains("SRother")) {label = "SR-Other";}
-    else if(variable.Contains("SRttZ4l")) {label = "SR-t#bar{t}Z-4\\ell";}
     else if(variable.Contains("CRWZ")) {label = "WZ CR";}
     else if(variable.Contains("CRZZ")) {label = "ZZ CR";}
     else if(variable.Contains("CRDY")) {label = "Z/#gamma CR";}
@@ -1885,7 +1914,7 @@ TString Get_Region_Label(TString region, TString variable)
 }
 
 //Set the list of variables based on arguments
-void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy, bool make_fixedRegions_templates)
+void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy, bool make_fixedRegions_templates, bool use_combine_file)
 {
     // TString template_basename = template_name; if(template_name.Contains("NN_")) {template_basename = template_name;}
     variable_list.push_back(template_name);
@@ -1898,7 +1927,11 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         for(int ivar=0; ivar<var_list_tmp.size(); ivar++)
         {
             if(region == "signal" || region == "tZq") {variable_list.push_back(var_list_tmp[ivar] + "_SRtZq");} //Replaced: var_list_tmp[ivar] + "_" + MVA_type + "_SRtZq"
-            if(region == "signal" || region == "ttZ") {variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");}
+            if(region == "signal" || region == "ttZ")
+            {
+                if(use_combine_file && template_name == "NN_cpq3") {variable_list.push_back("NN_SM_SRttZ");} //Hardcoded -- we actually use the NN_SM ttZ node instead of a NN-cpq3 node in the SRttZ (but the proper naming convention is only used if reading a combine output file...) //HARDCODED
+                else {variable_list.push_back(var_list_tmp[ivar] + "_SRttZ");}
+            }
             if(region == "signal")
             {
                 if(make_SMvsEFT_templates_plots) {variable_list.push_back("mTW_SRother");} //For SM vs EFT in CR, use mTW distribution for now
@@ -2102,20 +2135,16 @@ TString Get_EFToperator_label(TString operator_name)
 }
 
 //Get the unit to display on the x-axis title (e.g.: 'Events / 5 GeV')
+//cf. https://twiki.cern.ch/twiki/bin/view/CMS/Internal/PubGuidelines#Figures_and_tables
 TString Get_Unit_Variable(TString var)
 {
-    TString unit = "";
+    TString unit = " GeV"; //Default //Must include space
 
-    if(var.Contains("m3l", TString::kIgnoreCase)
-    || var.Contains("mTW", TString::kIgnoreCase)
-    || var.Contains("metEt", TString::kIgnoreCase)
-    || var.Contains("_pt", TString::kIgnoreCase)
-    || var.Contains("pt_", TString::kIgnoreCase)
-    || var.Contains("_M", TString::kIgnoreCase)
-    || var.Contains("m_", TString::kIgnoreCase)
-    || var.Contains("mbjMax", TString::kIgnoreCase)
-    || var.Contains("mHT", TString::kIgnoreCase)
-    ) {unit = " GeV";} //Must include space
+    //-- Dimensionless x-axis
+    if(var.Contains("njets", TString::kIgnoreCase)
+    || var.Contains("nbjets", TString::kIgnoreCase)
+    || var.Contains("cosThetaStar", TString::kIgnoreCase)
+    ) {unit = " units";} //Must include space
 
     return unit;
 }
@@ -2126,8 +2155,8 @@ TString Get_Unit_Variable(TString var)
 void Print_Yields_fromHistograms(TString filepath, TString template_name, vector<TString> v_years, vector<TString> v_regions, vector<TString> v_processes)
 {
 //--------------------------------------------
-    // TString bin = ""; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
-    TString bin = "bin6"; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
+    TString bin = ""; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
+    // TString bin = "bin6"; //"" <-> get yields for full histo; "bin1" <-> only for bin1, etc.
 //--------------------------------------------
 
 //-- SETUP

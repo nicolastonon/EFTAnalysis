@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     //-- N T U P L E S --
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
     bool include_PrivMC_samples = true; //true <-> process private SMEFT signal samples (necessary e.g. for limit-setting, but much slower)
-    bool include_central_samples = true; //true <-> process central signal samples
+    bool include_central_samples = false; //true <-> process central signal samples
     bool process_samples_byGroup = true; //true <-> read grouped samples (if already hadded together), else read individual samples and combine them when creating histograms if needed (default)
 
     //-- M V A    S T R A T E G Y --
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     bool scanOperators_paramNN = false; //true <-> if considering a parameterized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
         TString operator1 = "ctw"; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
-        // vector<float> v_WCs_operator_scan1 = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
+        // vector<float> v_W = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan1 = {-1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     bool use_NN_SRother = false; //Use NN-bkg node instead of mTW in SRother (testing)
     bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
-    TString template_name = "NN_ctz"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
+    TString template_name = "NN_5D"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
 
     //-- P L O T T I N G --
     bool show_pulls_ratio = false; //true <-> bottom pad shows pull; else shows data/mc ratio (w/ errors)
@@ -59,6 +59,7 @@ int main(int argc, char **argv)
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
     bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
+
 
 //-----------------------------------------------------------------------------------------
 // ##       ##     ## ##     ## #### ##    ##  #######   ######  #### ######## ##    ##
@@ -262,6 +263,7 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("cosThetaStarPolTop");
     set_v_add_var_names.push_back("cosThetaStarPolZ");
     set_v_add_var_names.push_back("jet1_pt");
+    set_v_add_var_names.push_back("jet2_pt");
     set_v_add_var_names.push_back("lep1_pt");
     set_v_add_var_names.push_back("maxDiJet_Pt");
     set_v_add_var_names.push_back("maxDiJet_M");

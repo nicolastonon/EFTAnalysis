@@ -440,7 +440,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
             if (Is_Syst_Match_Sample(v_shapeSyst[isyst], v_samples[isample], use_rph))
             {
-                if(v_samples[isample].Contains("PrivMC")) {outfile<<"[PrivMC_CR]";} //Special case: we want to disactivate systs for PrivMC samples in CRs (since nominal is dummy anyway) //in %
+                if(v_samples[isample].Contains("PrivMC")) {outfile<<"[PrivMC_CR]";} //Special case: we want to disactivate systs for PrivMC samples in CRs (since nominal is dummy anyway) //NB: we still include the signals, because combine needs some //in %
                 else {outfile<<"1";} //in %
             }
 			else {outfile<<"-";}
@@ -823,13 +823,12 @@ int main()
         v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
     }
 
-    //-- Missing
-    /*
+    // /*
     v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
-    */
+    // */
 
 
 //  ####    ##   #      #       ####
