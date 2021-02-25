@@ -1730,7 +1730,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
 TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized, bool combineFile_fromHarvester, bool prefit)
 {
-    bool printout = false; //true <-> display printouts
+    bool printout = true; //true <-> display printouts
 
     TString fullpath = ""; //Full input path
     if(region != "") {region = "_" + region;}
@@ -1741,7 +1741,8 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
         {
             fullpath = "./outputs/dir_shapes_tmp/shapes_";
             // fullpath = "./outputs/shapes_";
-            fullpath+= prefit? "prefit_":"postfit_";
+            // fullpath+= prefit? "prefit_":"postfit_";
+            fullpath+= "postfit_"; //always use postfit files ?
             fullpath+= "datacard_";
             fullpath+= template_type + ".root";
 

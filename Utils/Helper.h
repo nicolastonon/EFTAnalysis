@@ -246,42 +246,39 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
 /**
  * For theory systematics (only applied to signal samples), only want to consider the acceptance effect on normalization
  * <-> We apply a SF corresponding to (variation_beforeSel/nominal_beforeSel) <-> the normalization difference after selection should be purely due to differences in acceptance
- * NB: there is a small approximation, before the SFs were still obtained after some minimal preselection (TopAnalysis level)
+ * NB: there is a small approximation, before the SFs were still obtained after some minimal preselection (applied at TopAnalysis level)
  */
-// void Scale_THSyst_toBeforeSelection(TH1F*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
-template <class T> void Scale_THSyst_toBeforeSelection(T*& h, TH1F*& h_sumWeights_beforeSel, TString systname)
+template <class T> void Scale_THSyst_toBeforeSelection(T*& h, vector<float>& v_SWE_beforeSel, TString systname)
 {
-	if(!h || !h_sumWeights_beforeSel) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] ERROR: Null histogram !"))<<endl; return;}
+    int index_syst = -1;
+    double nomYield_beforeSel = v_SWE_beforeSel[0]; //First element <-> nominal yield before event selection
 
-    int ibin_syst = -1;
-    double nomYield_beforeSel = h_sumWeights_beforeSel->GetBinContent(1); //First bin <-> nominal yield before event selection
+    if(systname == "MEUp") {index_syst = 2-1;}
+    else if(systname == "MEDown") {index_syst = 3-1;}
 
-    if(systname == "MEUp") {ibin_syst = 2;}
-    else if(systname == "MEDown") {ibin_syst = 3;}
+    else if(systname == "PDFUp") {index_syst = 9-1;}
+    else if(systname == "PDFDown") {index_syst = 10-1;}
 
-    else if(systname == "PDFUp") {ibin_syst = 9;}
-    else if(systname == "PDFDown") {ibin_syst = 10;}
+    else if(systname == "alphasUp") {index_syst = 11-1;}
+    else if(systname == "alphasDown") {index_syst = 12-1;}
 
-    else if(systname == "alphasUp") {ibin_syst = 11;}
-    else if(systname == "alphasDown") {ibin_syst = 12;}
+    else if(systname == "ISRUp") {index_syst = 13-1;}
+    else if(systname == "ISRDown") {index_syst = 14-1;}
 
-    else if(systname == "ISRUp") {ibin_syst = 13;}
-    else if(systname == "ISRDown") {ibin_syst = 14;}
+    else if(systname == "FSRUp") {index_syst = 15-1;}
+    else if(systname == "FSRDown") {index_syst = 16-1;}
 
-    else if(systname == "FSRUp") {ibin_syst = 15;}
-    else if(systname == "FSRDown") {ibin_syst = 16;}
-
-    if(ibin_syst <= 0 || h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0)
+    if(index_syst <= 0 || v_SWE_beforeSel[index_syst] <= 0)
     {
-        if(ibin_syst <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: ibin_syst <= 0 !"))<<endl;}
-        if(h_sumWeights_beforeSel->GetBinContent(ibin_syst) <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: h_sumWeights_beforeSel->GetBinContent("<<ibin_syst<<") = "<<h_sumWeights_beforeSel->GetBinContent(ibin_syst)<<" !"))<<endl;}
+        if(index_syst <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: index_syst <= 0 !"))<<endl;}
+        if(v_SWE_beforeSel[index_syst] <= 0) {cout<<BOLD(FRED("[Scale_THSyst_toBeforeSelection] (Syst = "<<systname<<") ERROR: v_SWE_beforeSel["<<index_syst<<"] = "<<v_SWE_beforeSel[index_syst]<<" !"))<<endl;}
         return;
     }
 
-    // cout<<"ibin_syst "<<ibin_syst<<endl;
+    // cout<<"index_syst "<<index_syst<<endl;
     // cout<<"[Scale_THSyst_toBeforeSelection / "<<systname<<"] Integral before: "<<h->Integral()<<endl;
 
-    double SF = nomYield_beforeSel / h_sumWeights_beforeSel->GetBinContent(ibin_syst);
+    double SF = nomYield_beforeSel / v_SWE_beforeSel[index_syst];
     h->Scale(SF);
 
     // cout<<"[Scale_THSyst_toBeforeSelection / "<<systname<<"] h->Scale("<<SF<<")"<<endl;
