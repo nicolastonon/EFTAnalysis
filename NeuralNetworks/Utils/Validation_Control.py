@@ -924,7 +924,8 @@ def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
         if opts["nofOutputNodes"] == 1: x_sig = x[y_process==1]; x_bkg = x[y_process==0] #Binary
         else: x_sig = x[y_process[:,0]==1]; x_bkg = x[y_process[:,0]==0] #Multiclass
         Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
-        Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
+        Make_Correlation_Plot(opts, np.concatenate((x_sig,x_bkg)), list_features, weight_dir + 'CorrelMatrix_bkg.png')
+        Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_all.png')
 
     elif opts["trainAtManyEFTpoints"] is True: #Separate between 'SM' and 'EFT'
         x_SM = x[y_process==0]; x_EFT = x[y_process>0]

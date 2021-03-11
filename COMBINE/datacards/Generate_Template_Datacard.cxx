@@ -264,6 +264,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     {
         int index_tmp = isample;
         if(v_isSignal[isample] == 1 && isample > 0) {index_tmp = -isample;}
+        else if(v_isSignal[isample] == 0 && isample == 0) {index_tmp = v_isSignal.size();}
         else if(v_isSignal[isample] != 0 && v_isSignal[isample] != 1) {cout<<"Error ! Wrong value of v_isSignal !"<<endl; return;}
 
         outfile<<"\t";
@@ -442,6 +443,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
             {
                 if(v_samples[isample].Contains("PrivMC")) {outfile<<"[PrivMC_CR]";} //Special case: we want to disactivate systs for PrivMC samples in CRs (since nominal is dummy anyway) //NB: we still include the signals, because combine needs some //in %
                 else {outfile<<"1";} //in %
+                // outfile<<"1";
             }
 			else {outfile<<"-";}
         }
@@ -759,8 +761,9 @@ int main()
     v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true);
+    
+    //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
+    //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
 
     v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true);
@@ -774,7 +777,7 @@ int main()
     v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //FIXME
 
     v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);

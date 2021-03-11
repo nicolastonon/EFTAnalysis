@@ -574,7 +574,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
     //-- To get correctr prefit/postfit uncertainties from combine, must split bins just like for nominal fits (so that we can access total errors easily) --> only combine all years together, for each channel (e.g. histo bin) included in the fit
     bool create_datacards_indivBins = true;
-    if(create_datacards_indivBins && !scan_operator_hardcoded)
+    if(create_datacards_indivBins && !scan_operator_hardcoded && mode_histoBins == 1)
     {
         for(int iregion=0; iregion<v_regions.size(); iregion++) //Loop over regions
         {
@@ -594,7 +594,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     var.ReplaceAll('-', 'm');
 
                     int nbins_tmp = 1;
-                    if(mode_histoBins==1 && !isOtherRegion)
+                    if(!isOtherRegion)
                     {
                         // nbins_tmp = v_nbins[idx_v_nbins]; idx_v_nbins++; //Read current binning; increment index to stay in sync
                         nbins_tmp = v_nbins_EFT_year_region_template[0][0][iregion][itemplate];

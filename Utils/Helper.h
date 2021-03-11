@@ -119,7 +119,7 @@ void Get_TemplateSymm_Histogram(TH1F*&, TH1F*&, TH1F*&, bool);
 void Inflate_Syst_inShapeTemplate(TH1F*&, TH1F*, float);
 
 //-- Analysis-specific helper functions
-bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&);
+bool Apply_CommandArgs_Choices(int, char**, std::vector<TString>&, TString&, TString&);
 void Get_Samples_Colors(std::vector<int>&, std::vector<TColor*>&, std::vector<TString>, std::vector<TString>, int);
 // void Set_Custom_ColorPalette(std::vector<TColor*>&, std::vector<int>&, std::vector<TString>); //Set custom color palette
 bool Get_Variable_Range(TString, int&, float&, float&);
@@ -133,7 +133,7 @@ vector<pair<TString,float>> Parse_EFTreweight_ID(TString);
 float Get_x_jetCategory(float, float, int, int, int, int);
 float Get_x_ZptCosCategory(float, float);
 TString Get_MVAFile_InputPath(TString, TString, TString, bool, bool=true, bool=false, int=0, bool=false);
-TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false, bool=false, bool=true);
+TString Get_HistoFile_InputPath(bool, TString, TString, TString, bool, TString, bool, int, bool, bool=false, bool=false, bool=true, bool=true);
 bool Extract_Values_From_NNInfoFile(TString, vector<TString>&, vector<TString>&, TString&, TString&, int&, int&, vector<float>&, TString* NN_strategy=NULL);
 TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool, bool=false);
@@ -196,9 +196,9 @@ template <class T> void Avoid_Histogram_EmptyOrNegativeBins(T*& h)
         //content <= 0 --> set content and error >~0
     	if(h->GetBinContent(ibin) <= 0) {h->SetBinContent(ibin, pow(10, -5)); h->SetBinError(ibin, pow(10, -6));}
 
-        //error > content --> error = content //FIXME //FIXME -- needs fixing ?
-        // if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)-pow(10, -6));}
-        if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)/2.);}
+        //error > content --> error = content //NB: not necessarily solid, be careful
+        if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)-pow(10, -3));}
+        // if(h->GetBinError(ibin) > h->GetBinContent(ibin)) {h->SetBinError(ibin, h->GetBinContent(ibin)/2.);}
         // if(h->GetBinError(ibin) > h->GetBinContent(ibin)/2.) {h->SetBinError(ibin, h->GetBinContent(ibin)/2.);}
     }
 

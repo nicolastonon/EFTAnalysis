@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
-    bool make_fixedRegions_templates = true; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
+    bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //Obsolete //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- N T U P L E S --
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     else //MC
     {
         thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
-        thesamplelist.push_back("TTbar_DiLep"); thesamplegroups.push_back("NPL");
+        thesamplelist.push_back("TTba"); thesamplegroups.push_back("NPL");
     }
 // */
 
@@ -262,9 +262,6 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("maxDeepJet");
     set_v_add_var_names.push_back("cosThetaStarPolTop");
     set_v_add_var_names.push_back("cosThetaStarPolZ");
-    set_v_add_var_names.push_back("jet1_pt");
-    set_v_add_var_names.push_back("jet2_pt");
-    set_v_add_var_names.push_back("lep1_pt");
     set_v_add_var_names.push_back("maxDiJet_Pt");
     set_v_add_var_names.push_back("maxDiJet_M");
     set_v_add_var_names.push_back("jprime_Pt");
@@ -286,6 +283,29 @@ int main(int argc, char **argv)
     set_v_add_var_names.push_back("dR_jprimeClosestLep");
     set_v_add_var_names.push_back("dR_bjprime");
     set_v_add_var_names.push_back("dR_Zjprime");
+
+    set_v_add_var_names.push_back("lep1_pt");
+    set_v_add_var_names.push_back("lep2_pt");
+    set_v_add_var_names.push_back("jet1_pt");
+    set_v_add_var_names.push_back("jet2_pt");
+
+    set_v_add_var_names.push_back("lep3_pt");
+    set_v_add_var_names.push_back("lep1_eta");
+    set_v_add_var_names.push_back("lep2_eta");
+    set_v_add_var_names.push_back("lep3_eta");
+    set_v_add_var_names.push_back("lep1_phi");
+    set_v_add_var_names.push_back("lep2_phi");
+    set_v_add_var_names.push_back("lep3_phi");
+    set_v_add_var_names.push_back("jet3_pt");
+    set_v_add_var_names.push_back("jet1_eta");
+    set_v_add_var_names.push_back("jet2_eta");
+    set_v_add_var_names.push_back("jet3_eta");
+    set_v_add_var_names.push_back("jet1_phi");
+    set_v_add_var_names.push_back("jet2_phi");
+    set_v_add_var_names.push_back("jet3_phi");
+    set_v_add_var_names.push_back("jet1_DeepJet");
+    set_v_add_var_names.push_back("jet2_DeepJet");
+    set_v_add_var_names.push_back("jet3_DeepJet");
 
 
 //---------------------------------------------------------------------------
@@ -357,9 +377,9 @@ int main(int argc, char **argv)
         theSystWeights.push_back("BtagLFstats2Down"); theSystWeights.push_back("BtagLFstats2Up");
         theSystWeights.push_back("BtagCFerr1Down"); theSystWeights.push_back("BtagCFerr1Up");
         theSystWeights.push_back("BtagCFerr2Down"); theSystWeights.push_back("BtagCFerr2Up");
-        theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp");
-        theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
-        theSystWeights.push_back("njets_tZqDown"); theSystWeights.push_back("njets_tZqUp"); //TESTING
+        theSystWeights.push_back("njets_tZqDown"); theSystWeights.push_back("njets_tZqUp");
+        // theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp"); //FIXME -- remove ?
+        // theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp"); //FIXME -- remove ?
 
         theSystWeights.push_back("FRm_normDown"); theSystWeights.push_back("FRm_normUp"); //FR from ttH: 3*2*2 sets of variations
         theSystWeights.push_back("FRm_ptDown"); theSystWeights.push_back("FRm_ptUp");
@@ -377,10 +397,8 @@ int main(int argc, char **argv)
         theSystWeights.push_back("PDFDown"); theSystWeights.push_back("PDFUp"); //Signals only
         theSystWeights.push_back("alphasDown"); theSystWeights.push_back("alphasUp"); //Signals only
         theSystWeights.push_back("MEDown"); theSystWeights.push_back("MEUp"); //Signals only
-
-        //-- MISSING
-        // theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp"); //Signals only //MISSING for PrivMC
-        // theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp"); //Signals only //MISSING for PrivMC
+        theSystWeights.push_back("ISRDown"); theSystWeights.push_back("ISRUp");
+        theSystWeights.push_back("FSRDown"); theSystWeights.push_back("FSRUp");
     }
 
 
@@ -400,7 +418,7 @@ int main(int argc, char **argv)
     bool train_BDT = false; //Train selected BDT in selected region (with events in training category)
 
 //-----------------    TEMPLATES CREATION
-    bool create_templates = true; //Create MVA templates
+    bool create_templates = false; //Create MVA templates
 
 //-----------------    CONTROL HISTOGRAMS
     bool create_inputVar_histograms = false; //Create histograms of input variables, for plotting
@@ -408,8 +426,8 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = false; //Plot templates of selected BDT, in selected region
-        bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
+    bool draw_templates = true; //Plot templates of selected BDT, in selected region
+        bool prefit = false; //true <-> plot prefit templates ; else postfit (requires combine output file)
         bool use_combine_file = true; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
@@ -450,7 +468,7 @@ int main(int argc, char **argv)
 //--------------------------------------------
 
 //-- Apply choices given via command line, if any
-	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region);
+	Apply_CommandArgs_Choices(argc, argv, set_lumi_years, region, template_name);
 
     // int nthreads = 4; ROOT::EnableImplicitMT(nthreads); //Enable multi-threading (I have 8 available threads)
 

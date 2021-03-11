@@ -8,13 +8,13 @@ TString Get_Category_LatexName(TString cat)
 {
     TString name = cat;
 
-    if(cat.Contains("signal")) {name = "\\sr";}
-    else if(cat.Contains("ttZ4l")) {name = "\\srttzfour";}
-    if(cat.Contains("wz")) {name = "\\WZ CR";}
-    if(cat.Contains("zz")) {name = "\\ZZ CR";}
-    if(cat.Contains("xg")) {name = "$X\\gamma$ CR";}
-    if(cat.Contains("dy")) {name = "$\\dy$ CR";}
-    if(cat.Contains("ttbar")) {name = "$t\\bar{t}}$ CR";}
+    if(cat.Contains("signal", TString::kIgnoreCase)) {name = "\\sr";}
+    else if(cat.Contains("ttz4l", TString::kIgnoreCase)) {name = "\\srttzfour";}
+    else if(cat.Contains("wz", TString::kIgnoreCase)) {name = "\\WZ CR";}
+    else if(cat.Contains("zz", TString::kIgnoreCase)) {name = "\\ZZ CR";}
+    else if(cat.Contains("xg", TString::kIgnoreCase)) {name = "$X\\gamma$ CR";}
+    else if(cat.Contains("dy", TString::kIgnoreCase)) {name = "$\\dy$ CR";}
+    else if(cat.Contains("ttbar", TString::kIgnoreCase)) {name = "$t\\bar{t}}$ CR";}
 
     return name;
 }
@@ -551,8 +551,8 @@ int main(int argc, char **argv)
 
 //--------------------------------------------
 
-    TString region = ""; vector<TString> v_lumis(1);
-    Apply_CommandArgs_Choices(argc, argv, v_lumis, region); //Get lumi/region via command line
+    TString region = ""; vector<TString> v_lumis(1); TString dummy;
+    Apply_CommandArgs_Choices(argc, argv, v_lumis, region, dummy); //Get lumi/region via command line
     if(region != "") {category = Get_Category_Boolean_Name(region);}
     if(v_lumis.size() == 3) {lumi = "Run2";}
     else if(v_lumis[0] != "") {lumi = v_lumis[0];}

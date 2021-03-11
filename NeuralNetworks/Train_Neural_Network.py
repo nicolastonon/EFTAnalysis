@@ -25,7 +25,7 @@ optsTrain = {
 "eventWeightName": '', #'' <-> hardcoded var name for my own NTuples; otherwise, use the specified var for per-event weights
 
 #=== NN strategy ===#
-"parameterizedNN": True, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
+"parameterizedNN": False, #True <-> include WCs of selected EFT operators as additional input features (--> parameterize the NN on the WC values) #Only valid for NN strategies requiring to train over mixture of SMEFT hypotheses (e.g. CARL, ...) #NB: much simpler, but sensible for multi-dim parameter space... ?
 
 # "strategy": "classifier", # <-> Regular classifier: separates events from different samples [central or pure-EFT samples only]
 # "strategy": "regressor", # <-> Regular regressor: regress some quantity for different samples #CHOOSE MODE IN Get_Data.py !
@@ -38,7 +38,7 @@ optsTrain = {
 
 #=== General training/architecture settings ===#
 "nEpochs": 50, #Number of training epochs (<-> nof times the full training dataset is shown to the NN)
-"splitTrainValTestData": [0.70, 0.0, 0.30], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
+"splitTrainValTestData": [0.80, 0.0, 0.20], #Fractions of events to be used for the training / validation (evaluation after each epoch) / test (final evaluation) datasets respectively #If frac_val=0, only split between train/test data (not ideal but may be necessary if stat. is too low) #Superseeded by 'nEventsTot_train/val/test' (when trainAtManyEFTpoints==False)
 # "splitTrainEventFrac": 0.80, #Fraction of events to be used for training (1 <-> use all requested events for training)
 "nHiddenLayers": 3, #Number of hidden layers
 "nNeuronsAllHiddenLayers": 50, #Number of neurons per same-size hidden layer
@@ -65,10 +65,10 @@ optsTrain = {
 # "refPoint": "rwgt_ctw_2",
 # "refPoint": "rwgt_ctw_5",
 # "refPoint": "rwgt_ctz_5",
-# "listOperatorsParam": ['ctz','ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
+# "listOperatorsParam": ['ctz', 'ctw', 'cpqm', 'cpq3', 'cpt'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz','ctw', 'cpq3'], #None <-> parameterize on all possible operators
 # "listOperatorsParam": ['ctz', 'ctw'], #None <-> parameterize on all possible operators
-"listOperatorsParam": ['ctz'], #None <-> parameterize on all possible operators
+"listOperatorsParam": ['ctw'], #None <-> parameterize on all possible operators
 "nPointsPerOperator": 50, #Number of EFT points from which to sample events (times the number of selected operators)
 "minWC": -5, "maxWC": 5, #Interval [min,max] in which EFT points get sampled uniformly to train the NN on
 # "listMinMaxWC": [-5,5, -5,5, -15,15, -10,10, -15,15], #If activated, and len(listMinMaxWC)=2*len(listOperatorsParam), will be interpreted as a list of min/max values for each operator selected above for NN parameterization (superseeds minWC/maxWC values) #NB: must keep ranges for all operators (found in samples), even if considering only a subset of operators !
@@ -113,9 +113,11 @@ _list_processClasses = []
 # _list_processClasses.append(["tZq"])
 # _list_processClasses.append(["ttZ"])
 # _list_processClasses.append(["tZq", "ttZ"])
-_list_processClasses.append(["PrivMC_tZq"])
-# _list_processClasses.append(["PrivMC_tZq_TOP19001"])
+_list_processClasses.append(["PrivMC_tZq_noPS"])
+# _list_processClasses.append(["PrivMC_ttZ_noPS"])
+# _list_processClasses.append(["PrivMC_tZq"])
 # _list_processClasses.append(["PrivMC_ttZ"])
+# _list_processClasses.append(["PrivMC_tZq_TOP19001"])
 # _list_processClasses.append(["PrivMC_ttZ_TOP19001"])
 # _list_processClasses.append(["PrivMC_tZq_ctz"])
 # _list_processClasses.append(["ttW", "ttH", "WZ", "ZZ4l"]) #Bkg
@@ -130,8 +132,8 @@ _list_labels = []
 # _list_labels.append("tZq")
 # _list_labels.append("ttZ")
 _list_labels.append("PrivMC_tZq")
-# _list_labels.append("PrivMC_tZq_TOP19001")
 # _list_labels.append("PrivMC_ttZ")
+# _list_labels.append("PrivMC_tZq_TOP19001")
 # _list_labels.append("PrivMC_ttZ_TOP19001")
 # _list_labels.append("PrivMC_tZq_ctz")
 # _list_labels.append("PrivMC_ttZ_ctz")

@@ -4,7 +4,7 @@ using namespace std;
 
 //-- HARDCODE THE BASE DIR. CONTAINING PRIVATE NTUPLES (used by all codes)
 TString NTUPLEDIR = "./input_ntuples/"; //FIXLOCAL
-// TString NTUPLEDIR = "/nfs/dust/cms/user/ntonon/CMSSW_10_2_20/src/potato_nicolas/potato-nicolas/nicolas/output/Analyzer3l-V10-AllSamples-d20201023-t151834/merged_ntuples/"; //FIXCMSSW
+//TString NTUPLEDIR = "/nfs/dust/cms/user/ntonon/TopEFT/CMSSW_10_2_24/src/potato-nicolas/nicolas/output/Analyzer3l-V12-AllSamples-d20210304-t102904/merged_ntuples/"; //FIXCMSSW
 
 
 //--------------------------------------------
@@ -813,7 +813,7 @@ void Inflate_Syst_inShapeTemplate(TH1F*& h_toInflate, TH1F* h_nominal, float inf
 //--------------------------------------------
 
 //Modifies arguments passed by reference according to command args
-bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYear, TString& region_choice)
+bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYear, TString& region_choice, TString& template_name)
 {
 	if(argc >= 2)
 	{
@@ -838,6 +838,8 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
         else if(arg1 == "wz") {region_choice = "wz";}
         else if(arg1 == "dy") {region_choice = "dy";}
         else if(arg1 == "tx") {region_choice = "tX";} //Obsolete
+
+        else if(arg1.Contains("nn")) {template_name = (TString) argv[1];}
 
         else
         {
@@ -874,6 +876,8 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
             else if(arg2 == "wz") {region_choice = "wz";}
             else if(arg2 == "dy") {region_choice = "dy";}
             else if(arg2 == "tx") {region_choice = "tx";} //Obsolete
+
+            else if(arg2.Contains("nn")) {template_name = (TString) argv[2];}
 
 			else
 			{
@@ -1176,7 +1180,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "top_mass") {nbins = 15; xmin = 100; xmax = 300;}
     else if(var == "dPhijj_max") {nbins = 10; xmin = 0; xmax = 3;}
     else if(var == "maxDiJet_M") {nbins = 10; xmin = 100; xmax = 1000;}
-    else if(var == "maxDiJet_Pt") {nbins = 20; xmin = 100; xmax = 400;}
+    else if(var == "maxDiJet_Pt") {nbins = 10; xmin = 100; xmax = 400;}
     else if(var == "maxDijet_dPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
     else if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {nbins = 10; xmin = 0; xmax = 3.5;}
     else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 50; xmax = 500;}
@@ -1184,8 +1188,8 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "mTW") {nbins = 20; xmin = 0.; xmax = 200;}
     else if(var == "recoZ_Mass") {nbins = 20; xmin = 75.; xmax = 110;}
     else if(var == "lAsymmetry") {nbins = 20; xmin = -3.; xmax = 3.;}
-    else if(var == "Mass_tZ") {nbins = 10; xmin = 200; xmax = 1000;}
-    else if(var == "maxDeepCSV" || var == "maxDeepJet" || var == "deepCSV_2nd" || var == "deepJet_2nd") {nbins = 20; xmin = 0.3; xmax = 1.1;}
+    else if(var == "Mass_tZ" || var == "TopZsystem_M") {nbins = 15; xmin = 200; xmax = 1000;}
+    else if(var.Contains("DeepJet", TString::kIgnoreCase)) {nbins = 15; xmin = 0.3; xmax = 1.;}
     else if(var == "maxDelRbL") {nbins = 20; xmin = 1.; xmax = 5;}
     else if(var == "Top_delRbl" || var == "Top_delRbW") {nbins = 20; xmin = 0.; xmax = 4.5;}
     else if(var == "channel") {nbins = 4; xmin = 0.; xmax = 4;}
@@ -1193,19 +1197,18 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "recoLepTop_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "recoLepTop_Pt") {nbins = 20; xmin = 0.; xmax = 300.;}
     else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
-    else if(var == "jprime_Pt") {nbins = 20; xmin = 50.; xmax = 300.;}
+    else if(var == "jprime_Pt") {nbins = 20; xmin = 25.; xmax = 225.;}
 
-    else if(var == "TopZsystem_M") {nbins = 20; xmin = 150.; xmax = 1000.;}
     else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 400.;}
     else if(var == "jet2_pt" || var == "jet3_pt") {nbins = 20; xmin = 25.; xmax = 200.;}
-    else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 0.; xmax = 250.;}
-    else if(var == "recoZ_Pt") {nbins = 20; xmin = 0.; xmax = 500.;}
+    else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 30.; xmax = 230.;}
+    else if(var == "recoZ_Pt") {nbins = 15; xmin = 0.; xmax = 300.;} //500
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
 
     else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
     else if(var.Contains("CSV", TString::kIgnoreCase)) {nbins = 20; xmin = 0.; xmax = 1.1;}
-    else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 7.;}
-    else if(var.Contains("deta", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
+    else if(var.Contains("dR") || var.Contains("DelR", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 6.;}
+    else if(var.Contains("deta", TString::kIgnoreCase) ) {nbins = 15; xmin = 0; xmax = 6.;}
     else if(var.Contains("dphi", TString::kIgnoreCase) ) {nbins = 20; xmin = 0; xmax = 3.;}
     else if(var.Contains("eta", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var.Contains("phi", TString::kIgnoreCase) ) {nbins = 20; xmin = -3.; xmax = 3.;}
@@ -1285,20 +1288,20 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             //-- Hard-coded ranges (training-dependent !) //FIXME
             nbins = 8;
 
-            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.70;}
-            else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.40; max_tmp = 0.80;}
+            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //0.45,0.70
+            else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //0.40/0.80
 
-            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 1.00;} //[-2;2]: [0.4,1.]
-            else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //[-2;2]: [0.49,0.57]
+            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.40; max_tmp = 0.80;}
+            else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.60;}
+            //else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 0.90;} //0.30,1.00
+            //else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //[-2;2]: [0.49,0.57]
 
             else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
-            // else if(template_name.Contains("NN_cpq3_SRttZ")) {min_tmp = 0.50; max_tmp = 0.55;} //Not used ! (NN_SM -> [0.4,1])
 
-            else if(template_name.Contains("NN_3D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
-            else if(template_name.Contains("NN_3D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
-
-            else if(template_name.Contains("NN_5D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.95;}
-            else if(template_name.Contains("NN_5D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
+            else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 10; min_tmp = 0.30; max_tmp = 0.90;}
+            else if(template_name.Contains("NN_5D_SRttZ")) {nbins = 10; min_tmp = 0.40; max_tmp = 0.70;}
+            //else if(template_name.Contains("NN_5D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.85;} //0.95
+            //else if(template_name.Contains("NN_5D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
 
             // cout<<"minmax_bounds[0] "<<minmax_bounds[0]<<" / minmax_bounds[1] "<<minmax_bounds[1]<<endl;
             // cout<<"min_tmp "<<min_tmp<<" / max_tmp "<<max_tmp<<endl;
@@ -1328,6 +1331,18 @@ TString Get_Variable_Name(TString var)
     if(var == "maxDijetDelR") {return "max. #DeltaR(j,j)";}
     if(var == "dEtaFwdJetBJet") {return "#Delta#eta#left(j^{fwd},b#right)";}
     if(var == "dEtaFwdJetClosestLep") {return "#Delta#eta#left(j^{fwd},l^{closest}#right)";}
+    if(var == "dR_jprimeClosestLep") {return "#DeltaR#left(j',l^{closest}#right)";}
+    if(var == "dR_tClosestLep") {return "#DeltaR#left(t,l^{closest}#right)";}
+    if(var == "dEta_bjprime") {return "#Delta#eta#left(j',b#right)";}
+    if(var == "dEta_lWjprime") {return "#Delta#eta#left(j',l_{W}#right)";}
+    if(var == "dEta_tjprime") {return "#Delta#eta#left(j',t#right)";}
+    if(var == "dEta_Zjprime") {return "#Delta#eta#left(j',Z#right)";}
+    if(var == "dR_bjprime") {return "#DeltaR#left(j',b#right)";}
+    if(var == "dR_lWjprime") {return "#DeltaR#left(j',l_{W}#right)";}
+    if(var == "dR_Zjprime") {return "#DeltaR#left(j',Z#right)";}
+    if(var == "dR_blW") {return "#DeltaR#left(b,l_{W}#right)";}
+    if(var == "dR_tZ") {return "#DeltaR#left(t,Z#right)";}
+    if(var == "dR_ZlW") {return "#DeltaR#left(Z,l_{W}#right)";}
     if(var == "mHT") {return "m_{HT}";}
     if(var == "mTW") {return "m_{T}^{W}";}
     if(var == "Mass_3l") {return "m_{3l}";}
@@ -1336,37 +1351,54 @@ TString Get_Variable_Name(TString var)
     if(var == "jprime_Pt") {return "p_{T}(j')";}
     if(var == "maxDeepCSV") {return "max. DeepCSV";}
     if(var == "deepCSV_2nd") {return "2nd max. DeepCSV";}
-    if(var == "maxDeepJet") {return "max. DeepJet";}
+    if(var == "maxDeepJet") {return "max. DeepJet score";}
     if(var == "deepJet_2nd") {return "2nd max. DeepJet";}
     if(var == "delRljPrime") {return "#DeltaR(j',l)";}
     if(var == "lAsymmetry") {return "q_{l} #upoint #left|#eta(l)#right|";}
     if(var == "maxDijetMass" || var == "maxDiJet_M") {return "max. m_{j,j}";}
-    if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {return "max. #Delta#phi(l,l)";}
+    if(var == "mbjMax") {return "max. m_{b,j}";}
+    if(var == "maxDelPhiLL") {return "max. #Delta#varphi(l,l)";}
+    if(var == "recoZ_dPhill") {return "#Delta#varphi(l,l)_{Z}";}
     if(var == "metEt") {return "E_{T}^{miss}";}
     if(var == "recoZ_Mass") {return "m_{Z}";}
     if(var == "Mass_tZ") {return "m_{tZ}";}
-    if(var == "maxDijetPt") {return "max. p_{T}(j,j)";}
-    if(var == "maxDijetDelPhi") {return "max #Delta#phi(j,j)";}
+    if(var == "maxDijetPt" || var == "maxDiJet_Pt") {return "max. p_{T}(j,j)";}
+    if(var == "maxDijetDelPhi") {return "max #Delta#varphi(j,j)";}
+    if(var == "maxEtaJet") {return "max. #left|#eta(j)#right|";}
     if(var == "minDelRbL") {return "min. #DeltaR(b,l)";}
     if(var == "Top_delRbl") {return "#DeltaR#left(l^{t},b^{t}#right)";}
     if(var == "Top_delRbW") {return "#DeltaR#left(W^{t},b^{t}#right)";}
     if(var == "cosThetaStarPolTop") {return "cos#left(#theta^{*}_{top}#right)";}
     if(var == "cosThetaStarPolZ") {return "cos#left(#theta^{*}_{Z}#right)";}
-    if(var == "njets") {return "Jet multiplicity";}
+    if(var == "njets") {return "jet multiplicity";}
     if(var == "nbjets") {return "b jet multiplicity";}
+    if(var == "recoZ_Pt") {return "p_{T}(Z)";}
+    if(var == "recoZ_Eta") {return "#eta(Z)";}
+    if(var == "recoLepTop_Pt") {return "p_{T}(t)";}
+    if(var == "recoLepTop_Eta") {return "#eta(t)";}
+    if(var == "recoLepTopLep_Pt") {return "p_{T}(l_{W})";}
+    if(var == "recoLepTopLep_Eta") {return "#eta(l_{W})";}
+    if(var == "channel") {return "Leptonic channel";}
+
+    if(var == "jet1_pt") {return "p_{T}(leading jet)";}
+    if(var == "jet2_pt") {return "p_{T}(second-leading jet)";}
+    if(var == "jet3_pt") {return "p_{T}(third-leading jet)";}
+    if(var == "lep1_pt") {return "p_{T}(leading lepton)";}
+    if(var == "lep2_pt") {return "p_{T}(second-leading lepton)";}
+    if(var == "lep3_pt") {return "p_{T}(third-leading lepton)";}
 
     //GenPlotter variables
-    if(var == "Z_pt") {return "p_{T}(Z)";}
-    if(var == "Z_eta") {return "#eta(Z)";}
-    if(var == "Z_m") {return "m(Z)";}
-    if(var == "Zreco_m") {return "m(Z_{reco})";}
+    if(var == "Z_pt" || var == "recoZ_Pt") {return "p_{T}(Z)";}
+    if(var == "Z_eta" || var == "recoZ_Eta") {return "#eta(Z)";}
+    if(var == "Z_m" || var == "recoZ_Eta") {return "m(Z)";}
+    if(var == "Zreco_m" || var == "recoZ_Eta") {return "m(Z_{reco})";}
     if(var == "Top_pt") {return "p_{T}(t)";}
     if(var == "Top_eta") {return "#eta(t)";}
     if(var == "Top_m") {return "m(t)";}
-    if(var == "TopZsystem_m") {return "m(tZ)";}
+    if(var == "TopZsystem_M" || var == "TopZsystem_m") {return "m(tZ)";}
     if(var == "LeadingTop_pt") {return "p_{T}(t^{lead})";}
     if(var == "LeadingTop_eta") {return "#eta(t^{lead})";}
-    if(var == "Zreco_dPhill") {return "#Delta#Phi_{ll}";}
+    if(var == "Zreco_dPhill") {return "#Delta#varphi_{ll}";}
     if(var == "cosThetaStarPol_Top") {return "cos#left(#theta^{*}_{top}#right)";}
     if(var == "cosThetaStarPol_Z") {return "cos#left(#theta^{*}_{Z}#right)";}
 
@@ -1728,9 +1760,9 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
 }
 
 //Get the path of the file containing the relevant histograms (either templates or input variables), depending on specific analysis options. Intended for use in Draw_Templates() function
-TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized, bool combineFile_fromHarvester, bool prefit)
+TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TString region, TString year, bool use_CombineFile, TString filename_suffix, bool MVA_EFT, int categorization_strategy, bool make_fixedRegions_templates, bool parametrized, bool combineFile_fromHarvester, bool prefit, bool printout)
 {
-    bool printout = true; //true <-> display printouts
+    // bool printout = true; //true <-> display printouts
 
     TString fullpath = ""; //Full input path
     if(region != "") {region = "_" + region;}
@@ -2109,7 +2141,7 @@ TString Get_Template_XaxisTitle(TString variable)
     }
     else if(variable.Contains("NN_cpq3"))
     {
-        title = "NN-C^{3}_{#phiQ} output";
+        title = "NN-C^{3}_{#varphiQ} output";
 
         if(variable.Contains("SRttZ")) {title = "NN-SM (ttZ node)";} //Actually using NN-sM for cpq3/ttZ
     }
@@ -2128,9 +2160,9 @@ TString Get_EFToperator_label(TString operator_name)
 
     if(operator_name == "ctz") {label = "C_{tZ}";}
     else if(operator_name == "ctw") {label = "C_{tW}";}
-    else if(operator_name == "cpqm") {label = "C^{-}_{#phiQ}";}
-    else if(operator_name == "cpq3") {label = "C^{3}_{#phiQ}";}
-    else if(operator_name == "cpt") {label = "C_{#phit}";}
+    else if(operator_name == "cpqm") {label = "C^{-}_{#varphiQ}";}
+    else if(operator_name == "cpq3") {label = "C^{3}_{#varphiQ}";}
+    else if(operator_name == "cpt") {label = "C_{#varphit}";}
 
     return label;
 }

@@ -414,7 +414,7 @@ class EFTPlot(object):
  #     # ####### #######    #       ######  ####    #      ##### ######
 
 
-    def Plot_NLLscan_1D(self, param='', log=False, paper=False, filepath='', name=''):
+    def Plot_NLLscan_1D(self, param='', log=False, paper=False, filepath='', name='', itoy=0):
         '''
         Plot the NLL function versus a single POI (1D scan).
         NB: this is the prefered function, which uses CombineTool helper functions for convenience.
@@ -425,6 +425,8 @@ class EFTPlot(object):
         '''
 
         superimpose_second_scan = True #True <-> will look for second rootfile (hardcoded path) to overlay
+    	# ymax = 7 #Remove graph points above ymax
+    	ymax = 50 #FIXME
 
         if filepath == '': filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
 
@@ -463,13 +465,37 @@ class EFTPlot(object):
         #-- Get x-y coordinates for TGraph representing NLL function
 
         #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
-        graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5')
+
+        #FIXME -- TESTING STICH SCANS --> same ? (but can help when combine is incorrectly interpolating linearly between 2 scans)
+        # minZ = limitTree.GetMinimum('deltaNLL')
+        # print('minZ', minZ)
+        # graph = plot.TGraphFromTree(limitTree, param, '2*(deltaNLL+nll+nll0)', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+        # minz = min(graph.GetY())
+        # print('minz', minz)
+        # # exit(1)
+        # for ipt in range(0, graph.GetN()):
+        #    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+        #    graph.GetPoint(ipt, x, y)
+        #    print(ipt, x, y)
+        #    graph.SetPoint(ipt, x, y-minz)
+        #    graph.GetPoint(ipt, x, y)
+        #    print('--> ', ipt, x, y)
+
+        graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5 && iToy=={}'.format(itoy)) #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+        # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
         #print(graph.GetN())
         graph.Sort()
         plot.RemoveGraphXDuplicates(graph)
-        plot.RemoveGraphYAbove(graph, 7.)
+        plot.RemoveGraphYAbove(graph, ymax)
         graph.SetLineColor(ROOT.kBlack)
         graph.SetLineWidth(4)
+
+        #-- Printouts
+        # print(graph.GetN())
+        # for ipt in range(0, graph.GetN()):
+        #    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+        #    graph.GetPoint(ipt, x, y)
+        #    print(ipt, x, y)
 
         #-- Overlay second scan (expected)
         if superimpose_second_scan == True:
@@ -482,10 +508,10 @@ class EFTPlot(object):
             rootFile = ROOT.TFile.Open(filepath)
             limitTree = rootFile.Get('limit')
             if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath) + colors.reset)
-            graph2 = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5')
+            graph2 = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
             graph2.Sort()
             plot.RemoveGraphXDuplicates(graph2)
-            plot.RemoveGraphYAbove(graph2, 7.)
+            plot.RemoveGraphYAbove(graph2, ymax)
             graph2.SetLineColor(ROOT.kGray)
             graph2.SetLineWidth(3)
 
@@ -510,91 +536,116 @@ class EFTPlot(object):
         #NB: moved here because needs to be drawn first, else hides other elements
         main_scan = BuildScan(graph, ROOT.kBlack, yvals)
         #main_scan['func'].Draw("same") #Can also draw the corresponding smooth function
+        # print('main_scan', main_scan)
 
-        crossings = main_scan['crossings'][yvals[0]][0]
-        fgraph68 = None
-        if crossings['valid_lo'] and crossings['valid_hi']:
-            fgraph68 = graph.Clone()
-            ipt = 0
-            while ipt<fgraph68.GetN():
-                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                fgraph68.GetPoint(ipt, x, y)
-                #print('x,y=', x, y)
-                if x < crossings['lo'] or x > crossings['hi']:
-                    # print(ipt, x, y)
-                    fgraph68.RemovePoint(ipt)
-                else: ipt+= 1
-        # Trick: manually set first and last points to get the filled area properly defined
-        if fgraph68 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-            fgraph68.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
-            fgraph68.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
-            fgraph68.InsertPointBefore(1, crossings['lo'], yvals[0]) #Add second point at y=Y
-            fgraph68.InsertPointBefore(2, x, y) #cf. trick
-            fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], yvals[0]) #Add first-to-last point at y=Y
-            fgraph68.SetPoint(fgraph68.GetN(), crossings['hi'], 0) #Add last point at y=0
-            fgraph68.SetFillColorAlpha(colorFill_68, 0.60) #Gray
-            fgraph68.SetFillStyle(self.fillstyle)
-            fgraph68.SetLineColor(ROOT.kBlack); fgraph68.SetLineWidth(0)
+        def Get_ErrorBand_Graph(graph, crossings, colorFill=ROOT.kBlack, idx_err=1):
+            '''
+            Return graph corresponding to color band for the given lo/hi crossings (to color 68% and 95% bands)
 
-        #-- Idem for 95%CL graph
-        crossings = main_scan['crossings'][yvals[1]][0]
-        fgraph95 = None
-        if crossings['valid_lo'] and crossings['valid_hi']:
-            fgraph95 = graph.Clone()
-            ipt = 0
-            while ipt<fgraph95.GetN():
-                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                fgraph95.GetPoint(ipt, x, y)
-                #print('x,y=', x, y)
-                if x < crossings['lo'] or x > crossings['hi']:
-                    #print(ipt, x, y, 'REMOVED', crossings['lo'])
-                    fgraph95.RemovePoint(ipt)
-                else: ipt+= 1
+            graph: object to fill and return
+            crossings: obtained from BuildScan()
+            idx_err: idx in yval (defines if dealing with 68/95/... band)
+            '''
 
-            list_ipt_overlap68 = [] #List the indices of the points in fgraph95 which overlap with fgraph68, so that we can remove them in the plot
-            for ipt in range(0, fgraph95.GetN()):
-                x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-                fgraph95.GetPoint(ipt, x, y)
-                # print('ipt', ipt, 'x', x, 'y', y)
-                if x > main_scan['crossings'][yvals[0]][0]['lo'] and x < main_scan['crossings'][yvals[0]][0]['hi']:
-                    fgraph95.SetPoint(ipt, x, 0) #Set overlap points to y=0
-                    list_ipt_overlap68.append(ipt)
-            #Add points to adjust the band perfectly on the crossing points #NB: the weird indices (+3...) are due to the fact that we keep adding point to the graph !
-            fgraph95.InsertPointBefore(list_ipt_overlap68[0], main_scan['crossings'][yvals[0]][0]['lo'], 0)
-            fgraph95.InsertPointBefore(list_ipt_overlap68[0], main_scan['crossings'][yvals[0]][0]['lo'], yvals[0])
-            fgraph95.InsertPointBefore(list_ipt_overlap68[len(list_ipt_overlap68)-1]+3, main_scan['crossings'][yvals[0]][0]['hi'], yvals[0])
-            fgraph95.InsertPointBefore(list_ipt_overlap68[len(list_ipt_overlap68)-1]+3, main_scan['crossings'][yvals[0]][0]['hi'], 0)
+            fgraph = None
+            if crossings['valid_lo'] and crossings['valid_hi']:
+                fgraph = graph.Clone()
+                ipt = 0
+                while ipt<fgraph.GetN():
+                    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                    fgraph.GetPoint(ipt, x, y)
+                    # print('x,y=', x, y)
+                    if x < crossings['lo'] or x > crossings['hi']:
+                        # print(ipt, x, y)
+                        fgraph.RemovePoint(ipt)
+                    else:
+                        if y < 0: fgraph.SetPoint(ipt, x, 0) #Multiple minima may lead to points with y<0 (i.e. lower than main minimum) --> don't color these
+                        ipt+= 1
+            # Trick: manually set first and last points to get the filled area properly defined
+            if fgraph is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                fgraph.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
+                fgraph.SetPoint(0, crossings['lo'], 0) # Add first point at y=0
+                fgraph.InsertPointBefore(1, crossings['lo'], yvals[idx_err]) # Add second point at y=Y
+                fgraph.InsertPointBefore(2, x, y) #cf. trick
+                fgraph.SetPoint(fgraph.GetN(), crossings['hi'], yvals[idx_err]) # Add first-to-last point at y=Y
+                fgraph.SetPoint(fgraph.GetN(), crossings['hi'], 0) # Add last point at y=0
+                fgraph.SetFillColorAlpha(colorFill, 0.60)
+                fgraph.SetFillStyle(self.fillstyle)
+                fgraph.SetLineColor(ROOT.kBlack); fgraph.SetLineWidth(0)
 
-        # Trick: manually set first and last points to get the filled area properly defined
-        if fgraph95 is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
-            fgraph95.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
-            fgraph95.SetPoint(0, crossings['lo'], 0) #Add first point at y=0
-            fgraph95.InsertPointBefore(1, crossings['lo'], yvals[1]) #Add second point at y=Y
-            fgraph95.InsertPointBefore(2, x, y) #cf. trick
-            fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], yvals[1]) #Add first-to-last point at y=Y
-            fgraph95.SetPoint(fgraph95.GetN(), crossings['hi'], 0) #Add last point at y=0
-            # fgraph95.SetFillColorAlpha(ROOT.kAzure-7, 0.30) #Blue
-            fgraph95.SetFillColorAlpha(colorFill_95, 0.50) #Blue
-            fgraph95.SetFillStyle(self.fillstyle)
-            fgraph95.SetLineColor(ROOT.kBlack); fgraph95.SetLineWidth(0)
+            return fgraph
 
-            #-- Printouts
-            #print(fgraph95.GetN())
-            #for ipt in range(0, fgraph95.GetN()):
-            #    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-            #    fgraph95.GetPoint(ipt, x, y)
-            #    print(ipt, x, y)
+        def Remove_Overlap_Points(v_graph, main_scan):
+            '''
+            Adjust 95% band so that a) it does not overlap with 68% band, and b) the inner/outer edges are vertical
+            '''
 
-        #-- Axes ranges
-        graph.SetMinimum(0.) #Display 0 label (else, line not displayed properly in .eps)
+            for ig, graph in enumerate(v_graph):
+                if ig >= len(main_scan['crossings'][yvals[0]]): break
+                cross = main_scan['crossings'][yvals[0]][ig]
+                list_ipt_overlap = [] #List the indices of the graph points in overlap from another band, so that we can remove them in the plot
+                for ipt in range(0, graph.GetN()):
+                    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                    graph.GetPoint(ipt, x, y)
+                    # print('ipt', ipt, 'x', x, 'y', y)
+                    if x > cross['lo'] and x < cross['hi']:
+                        graph.SetPoint(ipt, x, 0) #Set overlap points to y=0
+                        list_ipt_overlap.append(ipt)
+
+                #-- Add points to adjust the band perfectly on the crossing points #NB: the weird indices (+3...) are due to the fact that we keep adding point to the graph !
+                if len(list_ipt_overlap)>0:
+                    graph.InsertPointBefore(list_ipt_overlap[0], cross['lo'], 0)
+                    graph.InsertPointBefore(list_ipt_overlap[0], cross['lo'], yvals[0])
+                    graph.InsertPointBefore(list_ipt_overlap[len(list_ipt_overlap)-1]+3, cross['hi'], yvals[0])
+                    graph.InsertPointBefore(list_ipt_overlap[len(list_ipt_overlap)-1]+3, cross['hi'], 0)
+
+                #-- Trick: manually set first and last points to get the filled area properly defined
+                cross = main_scan['crossings'][yvals[1]][ig]
+                if graph is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
+                    graph.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
+                    graph.SetPoint(0, cross['lo'], 0) # Add first point at y=0
+                    graph.InsertPointBefore(1, cross['lo'], yvals[1]) # Add second point at y=Y
+                    graph.InsertPointBefore(2, x, y) #cf. trick
+                    graph.SetPoint(graph.GetN(), cross['hi'], yvals[1]) # Add first-to-last point at y=Y
+                    graph.SetPoint(graph.GetN(), cross['hi'], 0) # Add last point at y=0
+                    # for ipt in range(0, graph.GetN()):
+                    #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                    #     graph.GetPoint(ipt, x, y)
+                    #     print('ipt', ipt, 'x', x, 'y', y)
+
+            return
+
+        #-- Get 68% error graphs (--> error bands)
+        v_graph68 = []; idx_err = 0
+        for cross in main_scan['crossings'][yvals[idx_err]]:
+            g_tmp = Get_ErrorBand_Graph(graph, cross, colorFill=colorFill_68, idx_err=idx_err)
+            if g_tmp is not None: v_graph68.append(g_tmp)
+
+        #-- Get 95% error graphs (--> error bands)
+        v_graph95 = []; idx_err = 1
+        for cross in main_scan['crossings'][yvals[idx_err]]:
+            # print('-- cross95', cross)
+            g_tmp = Get_ErrorBand_Graph(graph, cross, colorFill=colorFill_95, idx_err=idx_err)
+            if g_tmp is not None: v_graph95.append(g_tmp)
+
+            # for ipt in range(0, graph.GetN()):
+            #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+            #     g_tmp.GetPoint(ipt, x, y)
+            #     print('ipt', ipt, 'x', x, 'y', y)
+
+        Remove_Overlap_Points(v_graph95, main_scan)
+
+        #-- Axes ranges #FIXME -- debug
+        # graph.SetMinimum(0.) #Display 0 label (else, line not displayed properly in .eps)
         # graph.SetMinimum(0.001) #Don't display 0 label
-        graph.SetMaximum(10.) #Arbitrary
+        #graph.SetMaximum(10.) #Arbitrary
+	graph.SetMaximum(20.)
 
         #-- Draw graphs
         graph.Draw("AL") #Create axes #A:axes, P: markers, L:line
         graph.GetXaxis().SetLimits(xmin,xmax)
-        fgraph95.Draw("F same")
-        fgraph68.Draw("F same")
+        for g in v_graph95: g.Draw("F same")
+        for g in v_graph68: g.Draw("F same")
         graph.Draw("L same") #Redraw line on top
 
         line = ROOT.TLine()
@@ -610,49 +661,56 @@ class EFTPlot(object):
             # line.DrawLine(graph.GetXaxis().GetXmin(), yval, graph.GetXaxis().GetXmax(), yval)
 
             #Split horizontal lines
-            line.DrawLine(xmin, yval, main_scan['crossings'][yval][0]['lo'], yval)
-            line.DrawLine(main_scan['crossings'][yval][0]['hi'], yval, xmax, yval)
+            # line.DrawLine(xmin, yval, main_scan['crossings'][yval][0]['lo'], yval)
+            # line.DrawLine(main_scan['crossings'][yval][0]['hi'], yval, xmax, yval)
 
-            #Vertical lines
-            for cr in main_scan['crossings'][yval]: #For each CL value
-                if yval == 1: line.SetLineColor(colorLine_68)
-                elif yval == 3.84: line.SetLineColor(colorLine_68)
 
+            for icr,cr in enumerate(main_scan['crossings'][yval]): #For each CL value
+                #-- Horizontal lines
+                #Low bound
+                if cr['valid_lo']:
+                    if icr == 0: line.DrawLine(xmin, yval, cr['lo'], yval)
+                    else: line.DrawLine(main_scan['crossings'][yval][icr-1]['hi'], yval, cr['lo'], yval) #Low bound
+
+                #High bound
+                if cr['valid_hi']:
+                    if icr < len(main_scan['crossings'][yval])-1: line.DrawLine(cr['hi'], yval, main_scan['crossings'][yval][icr+1]['lo'], yval)
+                    else: line.DrawLine(cr['hi'], yval, xmax, yval)
+
+                #-- Vertical lines
                 if cr['valid_lo']: line.DrawLine(cr['lo'], 0, cr['lo'], yval) #Low bound
                 if cr['valid_hi']: line.DrawLine(cr['hi'], 0, cr['hi'], yval) #High bound
 
         if superimpose_second_scan == True: graph2.Draw("L same") #Draw second graph last ('overlay')
 
         #-- Legend
-        leg = ROOT.TLegend(0.37,0.71,0.75,0.86)
-        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28,0.67,0.88,0.86) #More space
-        leg.SetTextSize(0.04)
+        toLeft = -0.08 #Default=0
+        leg = ROOT.TLegend(0.37+toLeft,0.71,0.75,0.86)
+        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28+toLeft,0.67,0.88,0.86) #More space
+        # leg.SetTextSize(0.04)
+        leg.SetTextSize(0.038)
         leg.SetBorderSize(0) #Remove legend border
 
         if superimpose_second_scan == True:
             leg.AddEntry(graph, "Profiled log-likelihood (Observed)", "L")
             leg.AddEntry(graph2, "Profiled log-likelihood (Expected)", "L")
         else: leg.AddEntry(graph, "Profiled log-likelihood", "L")
-        crossings = main_scan['crossings'][yvals[0]][0]
-        #print('crossings', crossings)
-        if crossings['valid_lo'] and crossings['valid_hi'] and fgraph68 is not None:
-            leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
-        crossings = main_scan['crossings'][yvals[1]][0]
-        if crossings['valid_lo'] and crossings['valid_hi'] and fgraph95 is not None:
-            leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
-            print(colors.fg.orange + "95% CL interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
 
-        #-- Look for additional other (disconnected) intervals
-        if(len(main_scan['crossings'][yvals[1]])>1):
-            crossings = main_scan['crossings'][yvals[1]][1]
-            if crossings['valid_lo'] and crossings['valid_hi'] and fgraph95 is not None:
-                leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
-                print(colors.fg.orange + "95% CL interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
-        if(len(main_scan['crossings'][yvals[1]])>2):
-            crossings = main_scan['crossings'][yvals[1]][2]
-            if crossings['valid_lo'] and crossings['valid_hi'] and fgraph95 is not None:
-                leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi']), "F")
-                print(colors.fg.orange + "95% CL interval: [" + str(crossings['lo']) + ", " + str(crossings['hi']) + "]" + colors.reset)
+        #-- 68% intersections
+        legentry_68 = ''
+        for ig, g in enumerate(v_graph68):
+            crossings = main_scan['crossings'][yvals[0]][ig]
+            if legentry_68 == '': legentry_68 = "68% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+            else: legentry_68+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+        if legentry_68 != '': leg.AddEntry(v_graph68[0], legentry_68, "F")
+
+        #-- 95% intersections
+        legentry_95 = ''
+        for ig, g in enumerate(v_graph95):
+            crossings = main_scan['crossings'][yvals[1]][ig]
+            if legentry_95 == '': legentry_95 = "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+            else: legentry_95+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+        if legentry_95 != '': leg.AddEntry(v_graph95[0], legentry_95, "F")
 
         leg.Draw("same")
 
@@ -663,7 +721,7 @@ class EFTPlot(object):
         graph.SetMarkerSize(1)
         # graph.GetXaxis().SetTitle(param)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
-        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        graph.GetYaxis().SetTitle("-2#Deltalog(L)") #2 #Delta log(L)
         # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
 
         self.CMS_text.Draw('same')
@@ -672,6 +730,7 @@ class EFTPlot(object):
 
         #-- Save
         outname = 'scan1D{}'.format(name.replace('.','_'))
+        if itoy>0: outname+= "_toy{}".format(itoy)
         if log:
             graph.SetMinimum(0.1) #Crash if zero
             graph.SetLogz()
@@ -809,7 +868,7 @@ class EFTPlot(object):
         graph.SetMarkerStyle(8)
         graph.SetMarkerSize(1)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
-        graph.GetYaxis().SetTitle("-2 #Delta log(L)")
+        graph.GetYaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
 
         cmsText = "CMS";
         latex = ROOT.TLatex()
@@ -998,7 +1057,7 @@ class EFTPlot(object):
         if log: c.SetLogz()
         hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[0]))
         hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
-        hist.GetZaxis().SetTitle("-2 #Delta log(L)")
+        hist.GetZaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
         hist.GetYaxis().SetTitleOffset(0.9)
         hist.SetMaximum(20.) #If want to cut z-axis below
 
@@ -1923,7 +1982,7 @@ if __name__ == "__main__":
     paper = False
     filepath = ''
     name = '' #Suffix added to output filenames
-
+    itoy = 0
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1935,6 +1994,7 @@ if __name__ == "__main__":
     parser.add_argument("--paper", metavar="paper", help="Make plots for paper (remove Prelim. labels)", nargs='?', const=1)
     parser.add_argument("-f", metavar="file path", help="Path to the rootfile containing the object to plot")
     parser.add_argument("-name", metavar="name", help="add suffix to output filename")
+    parser.add_argument("-itoy", metavar="itoy", help="draw a given toy")
 
     args = parser.parse_args()
     if len(args.POI) == 0:
@@ -1954,6 +2014,7 @@ if __name__ == "__main__":
     if args.paper: paper = True
     if args.f: filepath = args.f
     if args.name: name = args.name
+    if args.itoy: itoy = args.itoy
 
     if name != '' and name[0] != '.': name = '.{}'.format(name) #Convention: add a '.' before custom name
 
@@ -1966,7 +2027,7 @@ if __name__ == "__main__":
     if SM:
         if name == '': name = '.SM'
 
-        if mode=='1D': plotter.Plot_NLLscan_1D(param=opts['SM_mu'], log=False, paper=paper, filepath=filepath, name=name)
+        if mode=='1D': plotter.Plot_NLLscan_1D(param=opts['SM_mu'], log=False, paper=paper, filepath=filepath, name=name, itoy=itoy)
         elif mode=='2D': plotter.Plot_NLLscan_2D(mode='SM', params=opts['SM_mus'], ceiling=100, log=False, paper=paper, filepath=filepath, name=name)
         elif mode=='contour': plotter.ContourPlotEFT(mode='SM', params=opts['SM_mus'], paper=paper, filepath=filepath, name=name)
 
@@ -1977,7 +2038,7 @@ if __name__ == "__main__":
 
         if mode=='1D':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]
-            plotter.Plot_NLLscan_1D(param=param_tmp[0], log=False, paper=paper, filepath=filepath, name=name)
+            plotter.Plot_NLLscan_1D(param=param_tmp[0], log=False, paper=paper, filepath=filepath, name=name, itoy=itoy)
         elif mode=='2D':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False, paper=paper, filepath=filepath, name=name)

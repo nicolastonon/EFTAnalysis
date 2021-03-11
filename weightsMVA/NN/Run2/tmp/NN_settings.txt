@@ -1,13 +1,13 @@
-Start of NN training :06-Feb-2021 (19:19:43)
+Start of NN training :28-Feb-2021 (23:49:21)
 
 OPTIONS
 ----------------- 
 TTree --> result
 eventWeightName --> 
-parameterizedNN --> True
+parameterizedNN --> False
 strategy --> CARL
 nEpochs --> 50
-splitTrainValTestData --> [0.7, 0.0, 0.3]
+splitTrainValTestData --> [0.8, 0.0, 0.2]
 nHiddenLayers --> 3
 nNeuronsAllHiddenLayers --> 50
 activInputLayer --> relu
@@ -26,7 +26,7 @@ nEventsTot_val --> -1
 nEventsTot_test --> -1
 batchSizeClass --> 1000
 refPoint --> SM
-listOperatorsParam --> ['ctz']
+listOperatorsParam --> ['ctw']
 nPointsPerOperator --> 50
 minWC --> -5
 maxWC --> 5
@@ -54,10 +54,10 @@ batchSize --> 1000
 samplesType --> onlySMEFT
 loss --> binary_crossentropy
 metrics --> binary_accuracy
-NN_strategy --> MVA_param
+NN_strategy --> MVA_EFT
 ----------------- 
 
-Process 0 --> PrivMC_tZq
+Process 0 --> PrivMC_tZq_noPS
 ----------------- 
 
-End of NN training and evaluation :06-févr.-2021 (19:25:09)
+End of NN training and evaluation :28-févr.-2021 (23:55:59)

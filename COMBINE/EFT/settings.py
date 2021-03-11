@@ -6,7 +6,8 @@ opts = {
 
 #-- Different lists / associations of WCs
 "wcs": ['ctz', 'ctw', 'cpq3', 'cpqm', 'cpt'], #Full list of EFT operators #by default, include all operators in the physics model
-# "wcs": ['ctz', 'ctw'],
+#"wcs": ['ctz', 'ctw', 'cpq3', 'cpt'], #Full list of EFT operators #by default, include all operators in the physics model
+#"wcs": ['cpqm', 'cpt'],
 #"wcs": ['ctz'],
 "wc": 'ctz', #If want to float a single operator
 "wc_ranges": { #Ranges for fits
@@ -21,16 +22,16 @@ opts = {
 "wc_ranges_scan1D": { #Ranges for 1D grid scans
                 'ctz':  [-1.5,1.5],
                 'ctw':  [-1,1],
-                'cpq3': [-2,2],
+                'cpq3': [-4,4],
                 'cpqm': [-4,4],
-                'cpt':  [-7,7],
+                'cpt':  [-25,25], #Changed: actually far-apart minima (-17,0,9) in observed... !
               },
-"wc_ranges_scan2D": { #Ranges for 2D grid scans
+"wc_ranges_scan2D": { #Ranges for grid scans with >=1 free POI
                 'ctz':  [-2,2],
                 'ctw':  [-1.5,1.5],
                 'cpq3': [-2,2],
                 'cpqm': [-15,25],
-                'cpt':  [-25,20],
+                'cpt':  [-25,25],
               },
 #"wcs_tracked": ['ctz', 'ctw', 'cpq3', 'cpqm', 'cpt'], #WCs to track *when not considered as POIs* (all by default)
 # "wcs_tracked": ['ctz','ctw'],
@@ -39,14 +40,14 @@ opts = {
 "wcs_pairs": ['ctz','ctw'], #Default pair of operators for 2D plots
 
 #-- List of SM processes
-"processes": ['tZq'],
-#"processes": ['PrivMC_tWZ'],
-"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
+#"processes": ['tZq'],
+"processes": ['PrivMC_tZq'],
+#"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
 #"processes": ['tZq','ttZ','tWZ'], #SM signal processes
 
 #-- Names of SM signal strengths for processes of interest
-#"SM_mus": ['r_tzq'], #Names of SM signal strengths for processes of interest
-"SM_mus": ['r_tzq','r_ttz','r_twz'], #Names of SM signal strengths for processes of interest
+"SM_mus": ['r_tzq'], #Names of SM signal strengths for processes of interest
+#"SM_mus": ['r_tzq','r_ttz','r_twz'], #Names of SM signal strengths for processes of interest
 
 #-- Name of SM signal strengths for single process
 "SM_mu": 'r_tzq',
