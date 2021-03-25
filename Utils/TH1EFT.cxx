@@ -20,6 +20,9 @@ TH1EFT::TH1EFT(const char *name, const char *title, Int_t nbinsx, Double_t xlow,
     }
 }
 
+/**
+ * Initialize bins -- Warning: all non-under/overflow bins are erased !
+ */
 void TH1EFT::SetBins(Int_t nx, Double_t xmin, Double_t xmax)
 {
     // Use this function with care! Non-over/underflow bins are simply
@@ -92,7 +95,7 @@ Int_t TH1EFT::Fill(Double_t x, Double_t w, WCFit& fit)
     return Fill(x,w); // the original TH1D member function
 }
 
-// Returns a fit function for a particular bin (no checks are made if the bin is an over/underflow bin)
+// Returns a fit function for a particular bin
 WCFit TH1EFT::GetBinFit(Int_t bin)
 {
     Int_t nhists = this->hist_fits.size();
@@ -197,6 +200,7 @@ bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
     {
         // cout<<"kv.first "<<kv.first<<endl;
         // cout<<"kv.second "<<kv.second<<endl;
+
         bool found = false;
         vector<std::string> names = sumfit.getNames();
         for(int i=0; i < names.size(); i++) //For each pair of coeffs
@@ -217,10 +221,27 @@ bool TH1EFT::Check_WCPoint_Operators(WCPoint& pt)
     return true;
 }
 
-//Set the WCFit object associated with the given bin
+//Set the WCFit object associated with the given bin //NB: should use ref/pointer ?
 void TH1EFT::Set_WCFit_Bin(int ibin, WCFit fit)
 {
     this->hist_fits.at(ibin-1) = fit; //Bins start at 1; hist_fits indices start at 0
+
+    return;
+}
+
+/**
+ * Copy contents/errors/WCFits directly from another TH1EFT
+ */
+void TH1EFT::CloneTH1EFT(TH1EFT*& hToCopy)
+{
+    this->SetBins(hToCopy->GetNbinsX(), hToCopy->GetXaxis()->GetXmin(), hToCopy->GetXaxis()->GetXmax());
+
+    for(int ibin=1; ibin<hToCopy->GetNbinsX()+1; ibin++)
+    {
+        this->SetBinContent(ibin, hToCopy->GetBinContent(ibin));
+        this->SetBinError(ibin, hToCopy->GetBinError(ibin));
+        this->Set_WCFit_Bin(ibin, hToCopy->GetBinFit(ibin));
+    }
 
     return;
 }

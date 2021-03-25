@@ -170,7 +170,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1):
+    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -186,12 +186,10 @@ class EFTFit(object):
             if SM: name = '.SM'
             else: name = '.EFT'
 
-        #-- #Define channel masking regexp pattern, if any
+        #-- #Define channel masking regexp pattern, if any #NB: need to escape \(\) when running command interactively
         maskPattern = []; antimaskPattern = []
         if len(mask)>0: maskPattern=[','.join('rgx{{mask_.*{}.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
         if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
-        # if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-        # if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
 
         # CMSSW_BASE = os.getenv('CMSSW_BASE')
         # args=['combine','-d',datacard,'-M','MultiDimFit','--saveNLL','--saveFitResult','-H','AsymptoticLimits','--cminPoiOnlyFit']
@@ -228,7 +226,8 @@ class EFTFit(object):
         if check and not SM: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
         if SM: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
         else: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
-        if ntoys>0: args.extend(['-t',str(ntoys)])
+        if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
+        if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -249,7 +248,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False, mask=[], antimask=[], ntoys=-1):
+    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset) #'You need to supply shell=True to execute the command through a shell interpreter. If you do that however, you can no longer supply a list as the first argument, because the arguments will get quoted then. Instead, specify the raw commandline as you want it to be passed to the shell'
@@ -264,12 +263,11 @@ class EFTFit(object):
 
             for wc in scan_params: args.extend(['-P', '{}'.format(wc)]) #Define signal strengths as POIs
 
-            #-- #Define channel masking regexp pattern, if any
+            #-- #Define channel masking regexp pattern, if any #NB: need to escape \(\) when running command interactively
             maskPattern = []; antimaskPattern = []
             if len(mask)>0: maskPattern=[','.join('rgx{{mask_.*{}.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-            if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
-            # if len(mask)>0: maskPattern=[','.join('rgx{{mask.*_{}_.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
-            # if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+            #if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+            if len(antimask)>0: antimaskPattern=['rgx{\'^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$\'}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
 
             if SM:
                 args.extend(['--setParameters',','.join(['{}=1'.format(mu) for mu in scan_params]+maskPattern+antimaskPattern)]) #Set default values to 1
@@ -334,10 +332,14 @@ class EFTFit(object):
             if verbosity>0:           args.extend(['-v', str(verbosity)])
             if other:             args.extend(other)
             # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
-            if ntoys>0: args.extend(['-t',str(ntoys)])
+            if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
+            if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
+            args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Remove default offset in NLL (which depends on the scan-dependent bestfit value)
+            args.extend(['--saveNLL']) #Store absolute NLL values (needed to stich multiple scans with different bestfits together, etc.)
 
             if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','50'])
-            if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50','--dry-run'])
+            if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50']) #Run jobs directly
+            #if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50','--dry-run']) #Use dry-run to create script, give it permission, and submit it below #Obsolete
 
             if debug: print('args --> ', args)
             logging.info(colors.fg.purple + ' '.join(args) + colors.reset)
@@ -349,7 +351,9 @@ class EFTFit(object):
                 self.log_subprocess_output(process.stderr,'err')
             process.wait()
 
-            # Condor needs executab permissions on the .sh file, so we used --dry-run
+            #-- Obsolete, now submitting jobs directly above
+            '''
+            # Condor needs EXE permissions on the .sh file, so we used --dry-run
             # Add the permission and complete the submission.
             if batch=='condor':
                 if os.path.exists('condor{}'.format(name)):
@@ -366,12 +370,12 @@ class EFTFit(object):
                     self.log_subprocess_output(condorsub.stdout,'info')
                     self.log_subprocess_output(condorsub.stderr,'err')
                 condorsub.wait()
+            '''
 
             if batch: logging.info(colors.fg.lightblue + "Done with gridScan batch submission." + colors.reset)
             else: logging.info(colors.fg.lightblue + "Done with gridScan." + colors.reset)
 
-            if batch=='':
-                fitter.printInterval_fromScan(name=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
+            if batch=='': fitter.printInterval_fromScan(name=name, scan_params=scan_params, SM=SM) #Print exclusion range #Obsolete
 
         else: #Only collect/hadd grid scan outputs (produced via batch)
             outfilename = 'scan_'
@@ -379,12 +383,159 @@ class EFTFit(object):
             elif len(scan_params)==2: outfilename+= scan_params[0]+'_'+scan_params[1]
             else: outfilename+= '5D'
             outfilename+= '.root'
-            print(colors.fg.orange + '-- Collecting grid scan output files from batch --> [{}] ...'.format(outfilename) + colors.reset)
-            hadd_cmd = 'hadd -f {} higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(outfilename,name)
-            proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+            print(colors.fg.orange + '-- Collecting grid scan output files --> [{}] ...'.format(outfilename) + colors.reset)
+            #hadd_cmd = 'hadd -f {} higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(outfilename,name)
+            #proc = sp.Popen(hadd_cmd, shell=True)
+            proc = sp.Popen(['hadd','-f','test','test'], shell=True)
+            #print('hadd_cmd', hadd_cmd)
+            #proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE) #FIXME -- NOT WORKING ANYMORE
+            outdir_batch = 'condor{}'.format(name)
+            print(colors.fg.orange + '-- Moving all output files and HTCondor files to dedicated diretory --> [{}] ...'.format(outdir_batch) + colors.reset)
+            sp.call(['mkdir','{}'.format(outdir_batch)])
+            mv_cmd = 'mv {}.*.out {}.*.err higgsCombine{}.POINTS*.MultiDimFit.mH120.root {}'.format(name.replace('.',''),name.replace('.',''),name,outdir_batch)
+            #print('mv_cmd', mv_cmd)
+            proc = sp.Popen(mv_cmd, shell=True)
+            #proc = sp.Popen(mv_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
             print(colors.fg.orange + '... Done !' + colors.reset)
 
         return
+
+
+ #####  ###### #####  #    #  ####  ##### #  ####  #    #
+ #    # #      #    # #    # #    #   #   # #    # ##   #
+ #    # #####  #    # #    # #        #   # #    # # #  #
+ #####  #      #    # #    # #        #   # #    # #  # #
+ #   #  #      #    # #    # #    #   #   # #    # #   ##
+ #    # ###### #####   ####   ####    #   #  ####  #    #
+
+    def reductionFitEFT(self, name='.EFT', from_wcs=[], filepath=[]):
+        '''
+        Reduce a 2D scan (e.g. vs cpqm and cpt) to 1D (e.g. vs cpt) to avoid discontinuities.
+
+        Because strong correlations between parameters (e.g. POIs) may lead to discontinuities in the scan.
+        Workaround: scan in high dimension (fixed values of correlated parameters, more precise), and then for each value of the POI of interest, select the value of the other POI that minimizes the NLL. This is basically the standard procedure, but we help combine to converge to the true minimum.
+        Convention: expect 2 POIs : the first is the one we actually care about, the second is the one that gets reduced.
+        '''
+
+        ### Extract a 1D scan from a higher-dimension scan to avoid discontinuities ###
+
+        if len(from_wcs) != 2:
+            logging.error("Error ! Must specify 2 POIs (the first is the one we care about)")
+            return
+        param = from_wcs[0]
+
+        if filepath != []: filepath_tmp = filepath[0]
+        else: filepath_tmp = 'higgsCombine{}.MultiDimFit.mH120.root'.format(name)
+
+        if not os.path.exists(filepath_tmp):
+            logging.error("File {} does not exist!".format(filepath_tmp))
+            return
+
+        logging.info(colors.fg.lightblue + "Enter function reductionFitEFT()\n" + colors.reset) #'You need to supply shell=True to execute the command through a shell interpreter. If you do that however, you can no longer supply a list as the first argument, because the arguments will get quoted then. Instead, specify the raw commandline as you want it to be passed to the shell'
+        print(colors.fg.orange + 'Reading file: ' + filepath_tmp + colors.reset)
+        print(colors.fg.orange + '2D params: ' + from_wcs[0] + ' ' + from_wcs[1] + colors.reset)
+        print(colors.fg.orange + '1D param: ' + param + colors.reset)
+
+        rootFile = ROOT.TFile.Open(filepath_tmp)
+        limitTree = rootFile.Get('limit')
+
+        # First loop through entries and get deltaNLL list for each value of the WC
+        wc_dict = defaultdict(list)
+        for entry in range(limitTree.GetEntries()):
+            limitTree.GetEntry(entry)
+            wc_dict[limitTree.GetLeaf(param).GetValue(0)].append(limitTree.GetLeaf('deltaNLL').GetValue(0))
+        rootFile.Close()
+
+        # Next pick the best deltaNLL for each WC value
+        deltaNLL_dict_reduced = {}
+        for key in wc_dict:
+            deltaNLL_dict_reduced[key] = min(wc_dict[key])
+
+        # Now make a new .root file with the new TTree
+        # Only the WC and deltaNLL will be branches
+        # These can be directly used by EFTPlotter
+        outname = './higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,param)
+        outFile = []
+        outFile = ROOT.TFile.Open(outname, 'RECREATE')
+        outTree = ROOT.TTree('limit','limit')
+
+        wc_branch = array.array('f',[0.])
+        deltaNLL_branch = array.array('f',[0.])
+        outTree.Branch(param,wc_branch,param+'/F')
+        outTree.Branch('deltaNLL',deltaNLL_branch,'deltaNLL/F')
+        # outTree.Branch('nll',deltaNLL_branch,'nll/F')
+        # outTree.Branch('nll0',deltaNLL_branch,'nll0/F')
+        # outTree.Branch('iToy',deltaNLL_branch,'iToy/F')
+        # outTree.Branch('quantileExpected',deltaNLL_branch,'quantileExpected/F')
+
+        # Fill the branches
+        for event in range(len(deltaNLL_dict_reduced.keys())):
+            wc_branch[0] = deltaNLL_dict_reduced.keys()[event]
+            deltaNLL_branch[0] = deltaNLL_dict_reduced.values()[event]
+            outTree.Fill()
+
+        # Write the file
+        outFile.Write()
+
+        print(colors.fg.orange + '===> Wrote reduced output rootfile: ' + colors.reset + outname)
+
+        return
+
+    '''
+    def reduction2DFitEFT(self, name='.EFT.Private.Unblinded.Nov16.28redo.Float.cptcpQM', wcs=['cpt','ctp'], final=True):
+        ### Extract a 2D scan from a higher-dimension scan to avoid discontinuities ###
+        if not wcs:
+            logging.error("No WC specified!")
+            return
+        if final:
+            os.system('hadd -f higgsCombine{}.MultiDimFit.mH120.root higgsCombine{}.POINTS*.{}reduced.MultiDimFit.root '.format(name,name,''.join(wcs)))
+        if not os.path.exists('higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
+            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
+            return
+
+        rootFile = []
+        rootFile = ROOT.TFile.Open('higgsCombine{}.MultiDimFit.mH120.root'.format(name))
+        limitTree = rootFile.Get('limit')
+
+        # First loop through entries and get deltaNLL list for each value of the WC
+        wc_dict = defaultdict(list)
+        for entry in range(limitTree.GetEntries()):
+            limitTree.GetEntry(entry)
+            wc_dict[limitTree.GetLeaf(wcs[0]).GetValue(0),limitTree.GetLeaf(wcs[1]).GetValue(0)].append(limitTree.GetLeaf('deltaNLL').GetValue(0))
+        rootFile.Close()
+
+        # Next pick the best deltaNLL for each WC value
+        deltaNLL_dict_reduced = {}
+        for key in wc_dict:
+            deltaNLL_dict_reduced[key] = min(wc_dict[key])
+
+        # Now make a new .root file with the new TTree
+        # Only the WC and deltaNLL will be branches
+        # These can be directly used by EFTPlotter
+        outFile = []
+        if final:
+            outFile = ROOT.TFile.Open('./higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,''.join(wcs)),'RECREATE')
+        else:
+            outFile = ROOT.TFile.Open('higgsCombine{}.{}{}reduced.MultiDimFit.root'.format(name,wcs[0],wcs[1]),'RECREATE')
+        outTree = ROOT.TTree('limit','limit')
+
+        wc_branch1 = array.array('f',[0.])
+        wc_branch2 = array.array('f',[0.])
+        deltaNLL_branch = array.array('f',[0.])
+        outTree.Branch(wcs[0],wc_branch1,wcs[0]+'/F')
+        outTree.Branch(wcs[1],wc_branch2,wcs[1]+'/F')
+        outTree.Branch('deltaNLL',deltaNLL_branch,'deltaNLL/F')
+
+        # Fill the branches
+        for wc1,wc2 in deltaNLL_dict_reduced:
+            wc_branch1[0] = wc1
+            wc_branch2[0] = wc2
+            deltaNLL_branch[0] = deltaNLL_dict_reduced[(wc1,wc2)]
+            outTree.Fill()
+
+        # Write the file
+        outFile.Write()
+    '''
 
 
  #####    ##   #####  ####  #    #
@@ -671,128 +822,6 @@ class EFTFit(object):
     '''
 
 
- #####  ###### #####  #    #  ####  ##### #  ####  #    #
- #    # #      #    # #    # #    #   #   # #    # ##   #
- #    # #####  #    # #    # #        #   # #    # # #  #
- #####  #      #    # #    # #        #   # #    # #  # #
- #   #  #      #    # #    # #    #   #   # #    # #   ##
- #    # ###### #####   ####   ####    #   #  ####  #    #
-
-#-- FIXME SHOULD USE THAT TO PRODUCE CORRECT SCAN ? EVEN 1D ?
-
-    '''
-    def reductionFitEFT(self, name='.EFT', wc='ctz', final=True, from_wcs=[], alreadyRun=True):
-        ### Extract a 1D scan from a higher-dimension scan to avoid discontinuities ###
-        if not wc:
-            logging.error("No WC specified!")
-            return
-        if final and not alreadyRun:
-            os.system('hadd -f higgsCombine{}.MultiDimFit.mH120.root higgsCombine{}.POINTS*.{}reduced.MultiDimFit.root '.format(name,name,''.join(from_wcs)))
-        if alreadyRun and not os.path.exists('./higgsCombine{}.MultiDimFit.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-        elif not alreadyRun and not os.path.exists('higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-
-        rootFile = []
-        if alreadyRun:
-            rootFile = ROOT.TFile.Open('./higgsCombine{}.MultiDimFit.root'.format(name))
-        else: rootFile = ROOT.TFile.Open('higgsCombine{}.MultiDimFit.mH120.root'.format(name))
-        limitTree = rootFile.Get('limit')
-
-        # First loop through entries and get deltaNLL list for each value of the WC
-        wc_dict = defaultdict(list)
-        for entry in range(limitTree.GetEntries()):
-            limitTree.GetEntry(entry)
-            wc_dict[limitTree.GetLeaf(wc).GetValue(0)].append(limitTree.GetLeaf('deltaNLL').GetValue(0))
-        rootFile.Close()
-
-        # Next pick the best deltaNLL for each WC value
-        wc_dict_reduced = {}
-        for key in wc_dict:
-            wc_dict_reduced[key] = min(wc_dict[key])
-
-        # Now make a new .root file with the new TTree
-        # Only the WC and deltaNLL will be branches
-        # These can be directly used by EFTPlotter
-        outFile = []
-        if final:
-            outFile = ROOT.TFile.Open('./higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,wc),'RECREATE')
-        else:
-            outFile = ROOT.TFile.Open('higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,wc),'RECREATE')
-        outTree = ROOT.TTree('limit','limit')
-
-        wc_branch = array.array('f',[0.])
-        deltaNLL_branch = array.array('f',[0.])
-        outTree.Branch(wc,wc_branch,wc+'/F')
-        outTree.Branch('deltaNLL',deltaNLL_branch,'deltaNLL/F')
-
-        # Fill the branches
-        for event in range(len(wc_dict_reduced.keys())):
-            wc_branch[0] = wc_dict_reduced.keys()[event]
-            deltaNLL_branch[0] = wc_dict_reduced.values()[event]
-            outTree.Fill()
-
-        # Write the file
-        outFile.Write()
-
-    def reduction2DFitEFT(self, name='.EFT.Private.Unblinded.Nov16.28redo.Float.cptcpQM', wcs=['cpt','ctp'], final=True):
-        ### Extract a 2D scan from a higher-dimension scan to avoid discontinuities ###
-        if not wcs:
-            logging.error("No WC specified!")
-            return
-        if final:
-            os.system('hadd -f higgsCombine{}.MultiDimFit.mH120.root higgsCombine{}.POINTS*.{}reduced.MultiDimFit.root '.format(name,name,''.join(wcs)))
-        if not os.path.exists('higgsCombine{}.MultiDimFit.mH120.root'.format(name)):
-            logging.error("File higgsCombine{}.MultiDimFit.root does not exist!".format(name))
-            return
-
-        rootFile = []
-        rootFile = ROOT.TFile.Open('higgsCombine{}.MultiDimFit.mH120.root'.format(name))
-        limitTree = rootFile.Get('limit')
-
-        # First loop through entries and get deltaNLL list for each value of the WC
-        wc_dict = defaultdict(list)
-        for entry in range(limitTree.GetEntries()):
-            limitTree.GetEntry(entry)
-            wc_dict[limitTree.GetLeaf(wcs[0]).GetValue(0),limitTree.GetLeaf(wcs[1]).GetValue(0)].append(limitTree.GetLeaf('deltaNLL').GetValue(0))
-        rootFile.Close()
-
-        # Next pick the best deltaNLL for each WC value
-        wc_dict_reduced = {}
-        for key in wc_dict:
-            wc_dict_reduced[key] = min(wc_dict[key])
-
-        # Now make a new .root file with the new TTree
-        # Only the WC and deltaNLL will be branches
-        # These can be directly used by EFTPlotter
-        outFile = []
-        if final:
-            outFile = ROOT.TFile.Open('./higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,''.join(wcs)),'RECREATE')
-        else:
-            outFile = ROOT.TFile.Open('higgsCombine{}.{}{}reduced.MultiDimFit.root'.format(name,wcs[0],wcs[1]),'RECREATE')
-        outTree = ROOT.TTree('limit','limit')
-
-        wc_branch1 = array.array('f',[0.])
-        wc_branch2 = array.array('f',[0.])
-        deltaNLL_branch = array.array('f',[0.])
-        outTree.Branch(wcs[0],wc_branch1,wcs[0]+'/F')
-        outTree.Branch(wcs[1],wc_branch2,wcs[1]+'/F')
-        outTree.Branch('deltaNLL',deltaNLL_branch,'deltaNLL/F')
-
-        # Fill the branches
-        for wc1,wc2 in wc_dict_reduced:
-            wc_branch1[0] = wc1
-            wc_branch2[0] = wc2
-            deltaNLL_branch[0] = wc_dict_reduced[(wc1,wc2)]
-            outTree.Fill()
-
-        # Write the file
-        outFile.Write()
-    '''
-
-
   ####   ####  #    # #####    ##   #####  ######    ###### # #####  ####
  #    # #    # ##  ## #    #  #  #  #    # #         #      #   #   #
  #      #    # # ## # #    # #    # #    # #####     #####  #   #    ####
@@ -976,6 +1005,7 @@ class EFTFit(object):
    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
    ##    ########  ######     ##    #### ##    ##  ######
 
+    #-- Compare nuisances for a given fitresult, for different scan points
     def Testing(self, name):
 
         logging.info("Obtaining result of scan: higgsCombine.{}.MultiDimFit.mH120.root".format(name))
@@ -1010,7 +1040,155 @@ class EFTFit(object):
         return
 
 
+    #-- Compare nuisances for 2 fitresult files, for a given scan point
+    def Testing2(self, name1, name2, ientry=0):
 
+        #-- Get scan TTree
+        rootFile = ROOT.TFile.Open(name1)
+        limitTree = rootFile.Get('limit')
+        list_br = limitTree.GetListOfBranches()
+        # print(len(list_br))
+        limitTree.GetEntry(ientry)
+
+        rootFile2 = ROOT.TFile.Open(name2)
+        limitTree2 = rootFile2.Get('limit')
+        limitTree2.GetEntry(ientry)
+
+        for ibr in range(len(list_br)):
+            br_name = list_br.At(ibr).GetName()
+            # print(br_name, ' = ', limitTree.GetLeaf(br_name).GetValue(ientry))
+            val0 = limitTree.GetLeaf(br_name).GetValue(0)
+            val1 = limitTree2.GetLeaf(br_name).GetValue(0)
+            if val0 != 0:
+                if abs(val1-val0)>0.1 and (val1/val0>1.5 or val1/val0<0.5):
+                    print(colors.fg.red + br_name + ' = ' + str(val0) + ' / ' + str(val1) + colors.reset)
+                elif abs(val1-val0)>0.1 and (val1/val0>1.1 or val1/val0<0.9):
+                    print(colors.fg.orange + br_name + ' = ' + str(val0) + ' / ' + str(val1) + colors.reset)
+                else: print(br_name, ' = ', val0, ' / ', val1)
+            else:
+                print(br_name, ' = ', val0, ' / ', val1)
+            # print(br_name, ' = ', limitTree.GetLeaf(br_name).GetValue(0), ' / ', limitTree.GetLeaf(br_name).GetValue(1))
+
+        return
+
+
+    def makeStatSystScan(self, datacard='./EFTWorkspace.root', name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False, npoints=-1):
+
+        #-- #Define channel masking regexp pattern, if any #NB: need to escape \(\) when running command interactively
+        maskPattern = []; antimaskPattern = []
+        if len(mask)>0: maskPattern=[','.join('rgx{{mask_.*{}.*}}=1'.format(chan) for chan in mask)] #Use '{{' to insert a litteral bracket, not a replacement field #More info on regexp meaning: https://regex101.com/
+        if len(antimask)>0: antimaskPattern=['rgx{^mask_(?!.*('+'|'.join('{}'.format(chan) for chan in antimask)+')).*$}=1'] #Opposite: mask all channels NOT matching ANY 'chan'
+
+        args1=['combine','-d',datacard,'-M','MultiDimFit','--algo','grid']
+        args2=['combine','-d',datacard,'-M','MultiDimFit','--algo','none']
+        args3=['combine','-d',datacard,'-M','MultiDimFit','--algo','grid']
+
+        name1=name+'_full'; name2=name+'_bestFit'; name3=name+'_stat'
+        if name:
+            args1.extend(['-n',name1])
+            args2.extend(['-n',name2])
+            args3.extend(['-n',name3])
+        if params_POI:
+            for param in params_POI:
+                args1.extend(['-P','{}'.format(param)])
+                args2.extend(['-P','{}'.format(param)])
+                args3.extend(['-P','{}'.format(param)])
+        if SM:
+            args1.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
+            args2.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
+            args3.extend(['--setParameters',','.join([','.join('{}=1'.format(mu) for mu in self.SM_mus)]+maskPattern+antimaskPattern)]) #Set default values to 1
+        else:
+            args1.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
+            args2.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
+            args3.extend(['--setParameters',','.join([','.join('{}=0'.format(poi) for poi in self.wcs)]+maskPattern+antimaskPattern)]) #Set default values to 0 #Mask channels if needed
+        if freeze: #NB: looks like using option 'floatOtherPOIs' overrides 'freezeParameters'
+            frozen_pois = []
+            if SM:
+	            frozen_pois = [par for par in self.SM_mus if par not in params_POI] #Define which WCs are frozen
+                #print(colors.bg.red + "WARNING: preventing to use --freeze for SM... if needed, remove this protection !" + colors.reset)
+            else: frozen_pois = [wc for wc in self.wcs if wc not in params_POI]
+            if len(frozen_pois)>0:
+                args1.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
+                args2.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois)]) #Freeze other parameters
+                args3.extend(['--freezeParameters',','.join('{}'.format(poi) for poi in frozen_pois+['allConstrainedNuisances'])]) #Freeze other parameters
+        else:
+            args1.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+            args2.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+            args3.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
+        if exp:
+            args1.extend(['-t','-1']) #Assume MC expected (Asimov?)
+            args2.extend(['-t','-1']) #Assume MC expected (Asimov?)
+            args3.extend(['-t','-1']) #Assume MC expected (Asimov?)
+        if verbosity>0:
+            args1.extend(['-v', str(verbosity)])
+            args2.extend(['-v', str(verbosity)])
+            args3.extend(['-v', str(verbosity)])
+        check = True in (wc not in params_POI for wc in self.wcs_tracked)
+        if check and not SM:
+            args1.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
+            args2.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
+            args3.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
+        if SM:
+            args1.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
+            args2.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
+            args3.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
+        else:
+            ranges_tmp = self.wc_ranges_scan1D
+            # range_tmp = self.wc_ranges
+            args1.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,ranges_tmp[wc][0],ranges_tmp[wc][1]) for wc in self.wcs)]) #in params_POI
+            args2.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,ranges_tmp[wc][0],ranges_tmp[wc][1]) for wc in self.wcs)]) #in params_POI
+            args3.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,ranges_tmp[wc][0],ranges_tmp[wc][1]) for wc in self.wcs)]) #in params_POI
+        if trackNuisances:
+            args1.extend(['--saveSpecifiedNuis=all'])
+            args2.extend(['--saveSpecifiedNuis=all'])
+            args3.extend(['--saveSpecifiedNuis=all'])
+        if npoints != -1:
+            args1.extend(['--points','{}'.format(npoints)])
+            args2.extend(['--points','{}'.format(npoints)])
+            args3.extend(['--points','{}'.format(npoints)])
+
+        # args3.extend(['--snapshotName','MultiDimFit'])
+        args3.extend(['--fastScan'])
+
+        '''
+        if debug: print('args --> ', args1)
+        logging.info(colors.fg.purple + " ".join(args1) + colors.reset)
+        process = sp.Popen(args1, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            self.log_subprocess_output(process.stdout,'info')
+            self.log_subprocess_output(process.stderr,'err')
+        process.wait()
+
+        # if debug: print('args --> ', args2) #-- 'BestFit' fit Not needed ?
+        # logging.info(colors.fg.purple + " ".join(args2) + colors.reset)
+        # process = sp.Popen(args2, stdout=sp.PIPE, stderr=sp.PIPE)
+        # with process.stdout,process.stderr:
+        #     self.log_subprocess_output(process.stdout,'info')
+        #     self.log_subprocess_output(process.stderr,'err')
+        # process.wait()
+
+        if debug: print('args --> ', args3)
+        logging.info(colors.fg.purple + " ".join(args3) + colors.reset)
+        process = sp.Popen(args3, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            self.log_subprocess_output(process.stdout,'info')
+            self.log_subprocess_output(process.stderr,'err')
+        process.wait()
+        '''
+
+        args_plot=['plot1DScan.py','higgsCombine{}.MultiDimFit.mH120.root'.format(name1),'-o','statsyst_tmp','--others','higgsCombine{}.MultiDimFit.mH120.root:Stat. only:2'.format(name3),'--POI',param,'--main-label','\"Expected\"','--breakdown','syst,stat']
+
+        if debug: print('args --> ', args_plot)
+        logging.info(colors.fg.purple + " ".join(args_plot) + colors.reset)
+        process = sp.Popen(args_plot, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            self.log_subprocess_output(process.stdout,'info')
+            self.log_subprocess_output(process.stderr,'err')
+        process.wait()
+
+        logging.info(colors.fg.lightblue + "Done with makeStatSystScan !" + colors.reset)
+
+        return
 
 
 
@@ -1050,7 +1228,7 @@ if __name__ == "__main__":
     freeze=False
     createWS = 0 #0 <-> create WS and proceed ; 1 <-> create WS and exit ; 2 <-> don't create WS and proceed
     POI=[]
-    mode = '' #Can choose to run only specific functions (not all) #'','grid','bestfit'
+    mode = '' #Can choose to run only specific functions (not all) #'','grid','bestfit','reduce','other'
     batch = '' #Can choose to run jobs on 'crab' or 'condor'
     dryrun = '' #Perform dry run (don't submit jobs)
     points = -1 #Choose npoints for grid scans #-1 <-> use default values set below (different for 1D/2D)
@@ -1060,6 +1238,8 @@ if __name__ == "__main__":
     wcs = [] #For EFTModel... useless ?
     ws = 'EFTWorkspace.root' #Name for output workspace
     ntoys = -1
+    track = False #True <-> track all (constrained) nuisance parameters
+    filepath = []
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1087,6 +1267,8 @@ if __name__ == "__main__":
     parser.add_argument('--wcs', metavar="wcs", nargs='+', help='testing', required=False)
     parser.add_argument("-o", metavar="output workspace name", help="Name for output workspace")
     parser.add_argument("-t", metavar="number of MC toys", help="Number of MC toys")
+    parser.add_argument("--track", metavar="track nuisances", help="Track all nuisance parameters", nargs='?', const=1)
+    parser.add_argument("-f", metavar="file path(s)", nargs='+', help="Path(s) to the rootfile(s) containing the object(s) to plot", required=False)
 
     args = parser.parse_args()
     if args.sm: SM = True
@@ -1114,6 +1296,8 @@ if __name__ == "__main__":
     if args.wcs: wcs = args.wcs
     if args.o: ws = args.o
     if args.t and not exp: ntoys = args.t
+    if args.track: track = args.track
+    if args.f: filepath = args.f
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1121,7 +1305,7 @@ if __name__ == "__main__":
         print('ERROR: crab mode is not supported yet ! Use condor to submit jobs !')
         exit(1)
 
-    if mode not in ['', 'bestfit', 'printbestfit', 'scan', 'grid', 'other']:
+    if mode not in ['', 'bestfit', 'printbestfit', 'scan', 'grid', 'other', 'reduce', 'syststat', 'statsyst']:
         print('ERROR: mode not recognized !')
         exit(1)
 
@@ -1134,50 +1318,60 @@ if __name__ == "__main__":
 # //--------------------------------------------
     if SM:
         if ws=='EFTWorkspace.root': ws = 'SMWorkspace.root' #SM name
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode != 'other': fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, ws_output=ws)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, ws_output=ws)
         if createWS==1: exit(1)
         if name == '': name = '.SM' #Default
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
         elif mode is 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
             exit(1)
 
         if mode in ['','grid','scan']:
-            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys) #1D
-            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=50*50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys) #2D
+            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track) #1D
+            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=50*50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track) #2D
 
 # SMEFT fit
 # //--------------------------------------------
     else:
         #-- Create Combine Workspace
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode != 'other': fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, wcs=wcs, ws_output=ws)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, wcs=wcs, ws_output=ws)
         if createWS==1: exit(1)
         if name == '': name = '.EFT' #Default
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         #-- Maximum Likelihood Fit
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
         elif mode == 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
             exit(1)
 
         #-- Grid Scan
-        if not fixedPointNLL and mode in ['','grid','scan']:
+        elif not fixedPointNLL and mode in ['','grid','scan']:
             if scan_dim=='1D':
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
                 points = points if points != -1 else 50
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys)
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
 
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-                points = points if points != -1 else 50*50 # 2500 pts
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys)
+                points = points if points != -1 else 100*100 #10K points looks fine (40K probably finest); 2500 pts <-> fast but not fine enough
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
+
+        #-- Reduce n-D scan to (n-1)-D scan
+        elif mode == 'reduce':
+            param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']] #Convention: the first POI is the one we care about
+            fitter.reductionFitEFT(name='.test', from_wcs=param_tmp, filepath=filepath)
+
+        elif mode == 'syststat' or mode == 'statsyst':
+            param_tmp = POI if len(POI) == 1 else [opts['wc']]
+            fitter.makeStatSystScan(datacard=datacard_path, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, npoints=points)
 
         #-- OTHERS
         if mode == 'other':
-            fitter.printBestFit(name='', params=opts['wcs'], SM=SM) #Print intervals for ALL wcs (if files found) #Keep name='' for naming conventions
-            fitter.Testing('test')
+            #fitter.printBestFit(name='', params=opts['wcs'], SM=SM) #Print intervals for ALL wcs (if files found) #Keep name='' for naming conventions
+            #fitter.Testing('test')
+            fitter.Testing2('higgsCombine.test.MultiDimFit.mH120.default.root', 'higgsCombine.test.MultiDimFit.mH120.root', 7)
 
 # //--------------------------------------------

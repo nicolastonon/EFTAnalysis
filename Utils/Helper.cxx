@@ -1204,6 +1204,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 30.; xmax = 230.;}
     else if(var == "recoZ_Pt") {nbins = 15; xmin = 0.; xmax = 300.;} //500
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
+    else if(var.BeginsWith("jet") && var.Contains("eta", TString::kIgnoreCase)) {nbins = 20; xmin = -5.; xmax = 5.;}
 
     else if(var.BeginsWith("cos", TString::kIgnoreCase)) {nbins = 20; xmin = -1.; xmax = 1.;}
     else if(var.Contains("CSV", TString::kIgnoreCase)) {nbins = 20; xmin = 0.; xmax = 1.1;}
@@ -1285,16 +1286,15 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
                 max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
             }
 
-            //-- Hard-coded ranges (training-dependent !) //FIXME
+            //-- Hard-coded ranges (training-dependent !)
             nbins = 8;
 
-            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //0.45,0.70
-            else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //0.40/0.80
+            //Better than 10 bins
+            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //Could use 0.70
+            else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;}
 
-            else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.40; max_tmp = 0.80;}
-            else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.60;}
-            //else if(template_name.Contains("NN_ctw_SRtZq")) {min_tmp = 0.30; max_tmp = 0.90;} //0.30,1.00
-            //else if(template_name.Contains("NN_ctw_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;} //[-2;2]: [0.49,0.57]
+            else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.85;}
+            else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.65;} //0.75 --> last 2 bins empty
 
             else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
 
@@ -1833,7 +1833,8 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 	else //Reading my own file
 	{
         TString MVA_type = "";
-        TString region_tmp = region;
+        TString region_tmp = "";
+        // TString region_tmp = region;
         if(is_templateFile && categorization_strategy>0 && !make_fixedRegions_templates)
         {
             region_tmp = "";
@@ -1877,6 +1878,8 @@ TString Get_HistoFile_InputPath(bool is_templateFile, TString template_type, TSt
 //Read a NN info file and fill values via argument
 bool Extract_Values_From_NNInfoFile(TString NNinfo_input_path, vector<TString>& var_list_NN, vector<TString>& v_NN_nodeLabels, TString& NN_inputLayerName, TString& NN_outputLayerName, int& NN_iMaxNode, int& NN_nNodes, vector<float>& minmax_bounds, TString* NN_strategy)
 {
+    if(!Check_File_Existence(NNinfo_input_path) ) {cout<<endl<<FRED("File "<<NNinfo_input_path<<" not found!")<<endl; return false;}
+
     cout<<DIM("Retrieving MVA information from : "<<NNinfo_input_path<<"")<<endl;
     ifstream file_in(NNinfo_input_path);
     string line;
@@ -2017,8 +2020,9 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
     {
         variable_list.clear();
         variable_list.push_back("countExp_SRttZ4l");
-        variable_list.push_back("mTW_CRWZ");
+        variable_list.push_back("countExp_CRWZ");
         variable_list.push_back("countExp_CRZZ");
+        // variable_list.push_back("mTW_CRWZ"); //Switch to countExp in WZCR
 
         // variable_list.push_back("countExp_CRDY"); //Not used anymore
 
@@ -2029,7 +2033,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
 }
 
 /**
- * Semi-hardcoded function: read 'ControlHistograms' rootfile (produced with main function 'Produce_Templates'), to extract a SF based on a given variable histogram for 2 given processes and a given year.
+ * Semi-hardcoded function: read './outputs/njets_tZq.root' rootfile (produced with main function 'Produce_Templates', with [bool make_njetstZqSF_file = true]), to extract a SF based on a given variable histogram for 2 given processes and a given year.
  * Intended use-case: easily extract njet-based SF between central/private tZq samples
  * NB: SF taken as : (proc1/proc2), using normalized histos (shape-only systematic)
  */
@@ -2041,10 +2045,11 @@ vector<vector<float>> Get_nJets_SF(TString variable, TString proc1, TString proc
 
     for(int iyear=0; iyear<v_years.size(); iyear++)
     {
-        TString input_histo_filename = "./outputs/ControlHistograms_signal_Run2.root"; //Hard-coded
+        TString input_histo_filename = "./outputs/njets_tZq.root"; //Hardcoded
+        // TString input_histo_filename = "./outputs/ControlHistograms_signal_Run2.root"; //Read control histogram file //Obsolete
         if(!Check_File_Existence(input_histo_filename))
         {
-            input_histo_filename = "./outputs/ControlHistograms_signal_"+v_years[iyear]+".root"; //Hard-coded
+            // input_histo_filename = "./outputs/ControlHistograms_signal_"+v_years[iyear]+".root"; //Read control histogram file //Obsolete
             if(!Check_File_Existence(input_histo_filename)) {cout<<FRED("[Get_nJets_SF] ERROR: file "<<input_histo_filename<<" not found ! ")<<endl; return v_SFs_years;}
         }
         cout<<DIM("Opening file "<<input_histo_filename<<" ... ")<<endl;
@@ -2177,6 +2182,8 @@ TString Get_Unit_Variable(TString var)
     if(var.Contains("njets", TString::kIgnoreCase)
     || var.Contains("nbjets", TString::kIgnoreCase)
     || var.Contains("cosThetaStar", TString::kIgnoreCase)
+    || var.Contains("NN", TString::kIgnoreCase)
+    || var.Contains("BDT", TString::kIgnoreCase)
     ) {unit = " units";} //Must include space
 
     return unit;

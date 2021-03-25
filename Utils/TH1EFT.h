@@ -44,6 +44,7 @@ class TH1EFT : public TH1D
         void ScaleFits(double amt);
         void DumpFits();
         bool Check_WCPoint_Operators(WCPoint&);
+        void CloneTH1EFT(TH1EFT*&);
 
         void SetBins (Int_t nx, Double_t xmin, Double_t xmax);  // overriding virtual function from TH1
         Bool_t Add(const TH1 *h1, Double_t c1=1); // overriding virtual function from TH1

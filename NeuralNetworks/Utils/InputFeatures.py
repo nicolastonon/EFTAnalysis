@@ -194,19 +194,17 @@ features_SM.append("nbjets") #OK #OK
 features_SM.append("recoZ_Eta") #~ #OK
 features_SM.append("recoZ_dPhill") #~ #OK
 features_SM.append("dR_lWjprime") #~ #OK
-features_SM.append("mbjMax") #~ #OK
 features_SM.append("jprime_Pt") #OK #OK
 features_SM.append("metEt") #OK #OK
+features_SM.append("jPrimeAbsEta") #OK #OK #imperfect data/mc only in last bin
+features_SM.append("mTW")
+features_SM.append("recoLepTop_Pt")
 
 #-- removed to improve data/mc in SRtZq
+#features_SM.append("mbjMax") #~ #OK
 #features_SM.append("recoZ_Pt") #OK #OK #Imperfect data/MC, correlated with recoZ_dPhill
 #features_SM.append("maxDiJet_M") #? imperfect data/mc
-#features_SM.append("mTW") #OK #OK #imperfect data/mc
-#features_SM.append("jPrimeAbsEta") #OK #OK #imperfect data/mc
-
-#-- removing improves modeling ?
-#features_SM.append("maxEtaJet") #Poor data/MC
-# features_SM.append("dR_blW") #NO! #OK
+#features_SM.append("dR_blW") #NO! #OK
 
 #-- Testing
 # features_SM.append("maxDelRbL")

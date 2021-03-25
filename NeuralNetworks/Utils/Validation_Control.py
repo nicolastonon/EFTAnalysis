@@ -133,7 +133,6 @@ def Store_TrainTestPrediction_Histograms(opts, lumiName, list_features, list_lab
                 hist_TrainingEvents_class.Scale(1./hist_TrainingEvents_class.Integral())
                 hist_TrainingEvents_class.Write()
 
-            #NB: if crash 'list index out of range', check you are considering >=2 classes, etc.
             hist_TestingEvents_class = TH1F('hist_test_NODE_'+nodes_labels[inode]+'_CLASS_'+list_labels[iclass], '', nbins, 0, 1); hist_TestingEvents_class.Sumw2(); hist_TestingEvents_class.SetDirectory(0)
             fill_hist(hist_TestingEvents_class, list_predictions_test_allNodes_allClasses[inode][iclass][:maxEvents], weights=list_PhysicalWeightsTest_allClasses[iclass][:maxEvents])
             hist_TestingEvents_class.Scale(1./hist_TestingEvents_class.Integral())
@@ -591,7 +590,6 @@ def Make_Overtraining_plots(opts, list_labels, list_predictions_train_allNodes_a
             if iter > 0 and (nofOutputNodes == 1 or opts["strategy"] != "classifier"): break #Only makes sense for multiclassifier
             if opts["strategy"] in ["ROLR", "RASCAL", "CASCAL"] and inode > 0: break #Only for r node
 
-            # nbins = 30 #Default #Too many fluctuations >
             nbins = 20
             rmin = 0.; rmax = 1.
 
@@ -924,8 +922,9 @@ def Create_Correlation_Plots(opts, x, y_process, list_features, weight_dir):
         if opts["nofOutputNodes"] == 1: x_sig = x[y_process==1]; x_bkg = x[y_process==0] #Binary
         else: x_sig = x[y_process[:,0]==1]; x_bkg = x[y_process[:,0]==0] #Multiclass
         Make_Correlation_Plot(opts, x_sig, list_features, weight_dir + 'CorrelMatrix_sig.png')
-        Make_Correlation_Plot(opts, np.concatenate((x_sig,x_bkg)), list_features, weight_dir + 'CorrelMatrix_bkg.png')
-        Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_all.png')
+        Make_Correlation_Plot(opts, x_bkg, list_features, weight_dir + 'CorrelMatrix_bkg.png')
+        Make_Correlation_Plot(opts, np.concatenate((x_sig,x_bkg)), list_features, weight_dir + 'CorrelMatrix_all.png')
+
 
     elif opts["trainAtManyEFTpoints"] is True: #Separate between 'SM' and 'EFT'
         x_SM = x[y_process==0]; x_EFT = x[y_process>0]
@@ -942,7 +941,7 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     '''
 
 # //--------------------------------------------
-    doNotPlotP4 = False #Can choose to only consider high-level variables (not p4 variables) to improve readability
+    doNotPlotP4 = True #FIXME #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
     # sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
@@ -1192,6 +1191,7 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     '''
 
 # //--------------------------------------------
+    is_NAF = True #If running on NAF
 
     plot_importance_allFeatures = True #True <-> create importance plot for each single input feature (very slow !)
     nmax=1000 #Max nof events *per process class* #None <-> use all events #SLOW !
@@ -1199,8 +1199,10 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 # //--------------------------------------------
 
     if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
-    # shap.initjs() #Load Javascript library #Obsolete
-    shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- does not work on NAF ?
+
+    if is_NAF: shap.initjs() #Load Javascript library #Obsolete
+    else: shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- does not work on NAF ?
+
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
     if opts['activInputLayer'] == 'lrelu' or opts['activHiddenLayers'] == 'lrelu': return #Not compatible
 
@@ -1208,7 +1210,9 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     #-- model: The model to be explained. The output of the model can be a vector of size n_samples or a matrix of size [n_samples x n_output] (for a classification model).
     #-- data: Background dataset to generate the perturbed dataset required for training surrogate models. We simulate missing data by replacing the feature with the values it takes in the background dataset. So if the background dataset is a simple sample of all zeros, then we would approximate a feature being missing by setting it to zero. For small problems this background dataset can be the whole training set, but for larger problems consider using a single reference value or using the kmeans function to summarize the dataset.
     #-- link: A function to connect feature contribution values to the model output. For a classification model, we generally explain the logit of the predicted probability as a sum of feature contributions. Hence, if the output of the model (the first argument) is a probability, we set link = 'logit' to get the feature contributions in logit form.
-    explainer = shap.DeepExplainer(model, data=np.concatenate([list[:nmax] for list in list_xTrain_allClasses]))
+    if is_NAF: explainer = shap.GradientExplainer(model,np.concatenate([list[:nmax] for list in list_xTest_allClasses])) #FIXME
+    else: explainer = shap.DeepExplainer(model, data=np.concatenate([list[:nmax] for list in list_xTrain_allClasses]))
+
     # print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
     # print('[SHAP] Base value for first class:', explainer.expected_value.numpy()[0])
 
@@ -1233,11 +1237,11 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     # Plot SHAP values for all events
     # fig = plt.figure('all')
-    shap_all = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]).round(2), show=False, feature_names=list_features, link='logit', text_rotation=90) #matplotlib=True not supported for multiple events
-    shap.save_html(weight_dir+'shap_all.html', shap_all)
+    # shap_all = shap.force_plot(explainer.expected_value[0].numpy(), shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]).round(2), show=False, feature_names=list_features, link='logit', text_rotation=90) #matplotlib=True not supported for multiple events
+    # shap.save_html(weight_dir+'shap_all.html', shap_all)
     # plt.savefig("./shap_all.png", bbox_inches='tight', dpi=1000)
     # plt.close('all')
-    print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.html")
+    # print(colors.fg.lightgrey, "Saved shap_all plot as :", colors.reset, weight_dir+"shap_all.html")
 
     #-- Feature importance plot
     # See: https://github.com/slundberg/shap/blob/master/shap/plots/_summary.py#L18

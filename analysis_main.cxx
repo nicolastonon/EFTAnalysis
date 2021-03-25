@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
-    bool use_systematics = true; //true <-> will compute/store systematics selected below
+    bool use_systematics = false; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
     bool use_SMdiffAnalysis_strategy = false; //Obsolete //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
@@ -378,8 +378,8 @@ int main(int argc, char **argv)
         theSystWeights.push_back("BtagCFerr1Down"); theSystWeights.push_back("BtagCFerr1Up");
         theSystWeights.push_back("BtagCFerr2Down"); theSystWeights.push_back("BtagCFerr2Up");
         theSystWeights.push_back("njets_tZqDown"); theSystWeights.push_back("njets_tZqUp");
-        // theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp"); //FIXME -- remove ?
-        // theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp"); //FIXME -- remove ?
+        // theSystWeights.push_back("jetPUIDEffDown"); theSystWeights.push_back("jetPUIDEffUp");
+        // theSystWeights.push_back("jetPUIDMTDown"); theSystWeights.push_back("jetPUIDMTUp");
 
         theSystWeights.push_back("FRm_normDown"); theSystWeights.push_back("FRm_normUp"); //FR from ttH: 3*2*2 sets of variations
         theSystWeights.push_back("FRm_ptDown"); theSystWeights.push_back("FRm_ptUp");
@@ -426,9 +426,9 @@ int main(int argc, char **argv)
 //-----------------    PLOTS
     TString plotChannel = ""; //Can choose to plot particular subchannel //uu, ue, ee, ...
 
-    bool draw_templates = true; //Plot templates of selected BDT, in selected region
-        bool prefit = false; //true <-> plot prefit templates ; else postfit (requires combine output file)
-        bool use_combine_file = true; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
+    bool draw_templates = false; //Plot templates of selected BDT, in selected region
+        bool prefit = true; //true <-> plot prefit templates ; else postfit (requires combine output file)
+        bool use_combine_file = false; //true <-> use MLF output file from Combine (can get postfit plots, total error, etc.)
 
     bool draw_input_vars = false; //Plot input variables
         bool draw_input_allChannels = false; //true <-> also draw for eachs split channel
@@ -436,6 +436,8 @@ int main(int argc, char **argv)
     bool compare_template_shapes = false;
 
 //-----------------    OTHER
+
+    bool run_test = true; //Run test function, if any
 
 //-----------------
 
@@ -554,6 +556,8 @@ int main(int argc, char **argv)
     //#############################################
 
     if(compare_template_shapes) {theAnalysis->Compare_TemplateShapes_Processes(template_name, plotChannel);}
+
+    if(run_test) {theAnalysis->test();}
 
     //#############################################
     //  FINALIZE

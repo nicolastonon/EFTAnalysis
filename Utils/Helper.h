@@ -79,6 +79,7 @@
 //Custom classes for EFT
 #include "split_string.h"
 #include "TH1EFT.h"
+// #include "TFModel.h" //Tensorflow functions
 
 //--------------------------------------------
 //-- HARDCODE THE BASE DIR. CONTAINING PRIVATE NTUPLES (defined in Helper.cxx, used by all codes)
@@ -213,9 +214,10 @@ template <class T> void StoreEachHistoBinIndividually(TFile* f, T*& h, TString o
     int firstBin = store_countExp? 0:1; //If want to also store histo as single bin (counting exp.), add corresponding 'bin 0' by convention
     for(int ibin=firstBin; ibin<h->GetNbinsX()+1; ibin++)
     {
-        T* h_tmp = new T("", "", 1, 0, 1); //Create single-bin histo
-        TString outname_tmp = "";
+        TH1F* h_tmp = new TH1F("", "", 1, 0, 1); //Create single-bin histo //Force type to TH1F (don't store WCFit object for TH1EFTs)
+        // T* h_tmp = new T("", "", 1, 0, 1); //Create single-bin histo
 
+        TString outname_tmp = "";
         if(!ibin) //ibin==0 --> Store entire histo content as a single bin (counting experiment)
         {
             Double_t integral=0, error=0;

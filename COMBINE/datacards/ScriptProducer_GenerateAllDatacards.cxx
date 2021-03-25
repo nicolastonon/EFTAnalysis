@@ -137,7 +137,8 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         }
     }
 
-    //-- Special case: for cpq3, we use NN_cpq3 in SRtZq *but* different distribution in SRttZ --> Hardcode it here //FIXME -- becomes obsolete with new cpq3 file
+    //-- Special case: for cpq3, we use NN_cpq3 in SRtZq *but* different distribution in SRttZ --> Hardcode it here //Obsolete
+    /*
     for(int itemplate=0; itemplate<v_templates.size(); itemplate++)
     {
         for(int iregion=0; iregion<v_regions.size(); iregion++)
@@ -145,8 +146,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "NN_SM";}
             // if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "Zpt";}
         }
-    }
-
+    }*/
 
     //-- HARDCODED
     vector<TString> v_WCs_operator_scan1 = {"-999"}; //HARDCODED
@@ -171,8 +171,9 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     else if(include_otherRegions == 'y' || include_otherRegions == '1')
     {
         v_regions.push_back("SRttZ4l"); v_templates.push_back("countExp");
-        v_regions.push_back("CRWZ"); v_templates.push_back("mTW");
+        v_regions.push_back("CRWZ"); v_templates.push_back("countExp");
         v_regions.push_back("CRZZ"); v_templates.push_back("countExp");
+        // v_regions.push_back("CRWZ"); v_templates.push_back("mTW"); //Obsolete
 
         //v_regions.push_back("CRDY"); v_templates.push_back("countExp"); //-- remove ?
     }

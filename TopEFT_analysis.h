@@ -88,6 +88,7 @@ class TopEFT_analysis
 
     bool Get_VectorAllEvents_passMVACut(vector<int>&, vector<vector<float>>&, TString, TString, TTree*, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
 
+    void test();
 
 //--- MEMBERS
 	bool stop_program;

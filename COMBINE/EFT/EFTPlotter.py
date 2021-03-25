@@ -1,5 +1,7 @@
 #-- Plot fit results
 #-- Adapted from: https://github.com/cms-govner/EFTFit
+
+
 '''
 *** Critical values of chi2 distribution wih N dofs: (cf. PDG18 Table 39.2)
 * N = 1
@@ -16,6 +18,7 @@
 - 99% -> 9.21
 - 99.73% (3sigma) -> 11.83
 '''
+
 
 import ROOT
 from ROOT import TCanvas, TGraph, gStyle, TMath
@@ -161,6 +164,7 @@ def FindCrossingsWithSpline(graph, func, yval):
 
 #See: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/scripts/plot1DScan.py#L35
 def BuildScan(graph, color, yvals):
+
     bestfit = None
     for i in xrange(graph.GetN()):
         #print('graph.GetY()[i]', graph.GetY()[i])
@@ -169,11 +173,13 @@ def BuildScan(graph, color, yvals):
     graph.SetMarkerColor(color)
     spline = ROOT.TSpline3("spline3", graph)
     NAMECOUNTER = 0
+    if graph.GetN() == 0: print(colors.fg.red + "[BuildScan] ERROR: graph.GetN()==0" + colors.reset)
     func = ROOT.TF1('splinefn'+str(NAMECOUNTER), partial(Eval, spline), graph.GetX()[0], graph.GetX()[graph.GetN() - 1], 1)
     NAMECOUNTER += 1
     func.SetLineColor(color)
     func.SetLineWidth(3)
-    assert(bestfit is not None)
+    #assert(bestfit is not None)
+    if bestfit is None: return {}
     crossings = {}
     cross_1sig = None
     cross_2sig = None
@@ -210,7 +216,6 @@ def BuildScan(graph, color, yvals):
     #print('other_1sig', other_1sig)
     #print('other_2sig', other_2sig)
 
-    #return func, crossings, val, val_2sig, cross_1sig, cross_2sig, other_1sig, other_2sig
     return {
             "graph"     : graph,
             "spline"    : spline,
@@ -278,10 +283,18 @@ def Load_Canvas_Style():
     gStyle.SetStatBorderSize(1)
     gStyle.SetStatH(0.1)
     gStyle.SetStatW(0.15)
-    gStyle.SetPadTopMargin(0.07)
-    gStyle.SetPadBottomMargin(0.13)
-    gStyle.SetPadLeftMargin(0.16)
-    gStyle.SetPadRightMargin(0.03)
+
+    # gStyle.SetPadTopMargin(0.07)
+    # gStyle.SetPadBottomMargin(0.13)
+    # gStyle.SetPadLeftMargin(0.16)
+    # gStyle.SetPadRightMargin(0.03)
+
+    #-- CHANGED NT
+    gStyle.SetPadTopMargin(0.06);
+    gStyle.SetPadBottomMargin(0.15)
+    gStyle.SetPadLeftMargin(0.14);
+    gStyle.SetPadRightMargin(0.04);
+
     # gStyle.SetOptTitle(0)
     gStyle.SetOptTitle(1)
     gStyle.SetTitleFont(42)
@@ -327,7 +340,7 @@ class EFTPlot(object):
  # #   ## #   #
  # #    # #   #
 
-    def __init__(self, opts, mode='1D'):
+    def __init__(self, opts, mode='1D', paperStyle=False):
 
         self.SM_mus = opts["SM_mus"]
         self.wcs = opts["wcs"]
@@ -347,9 +360,12 @@ class EFTPlot(object):
         self.texdicfrac = {'ctw': '#frac{#it{c}_{tW}}{#Lambda^{2}}', 'ctz': '#frac{#it{c}_{tZ}}{#Lambda^{2}}', 'cpqm': '#frac{#it{c}^{-}_{#varphiQ}}{#Lambda^{2}}', 'cpq3': '#frac{#it{c}^{3(#it{l})}_{#varphiQ}}{#Lambda^{2}}', 'cpt': '#frac{#it{c}_{#varphit}}{#Lambda^{2}}'}
         self.texdicrev = {v: k for k,v in self.texdic.items()}
 
-        left = 0.17
-        top = 0.91
+        left = 0.15; top = 0.95
+        # left = 0.17; top = 0.91
+
         self.CMS_text = ROOT.TLatex(left, top, "CMS")
+        if paperStyle: self.CMS_text = ROOT.TLatex(left+0.03, 0.85, "CMS")
+        elif mode == '2D': self.CMS_text = ROOT.TLatex(left, 0.86, "CMS")
         self.CMS_text.SetNDC()
         self.CMS_text.SetTextColor(ROOT.kBlack)
         self.CMS_text.SetTextFont(61)
@@ -357,16 +373,20 @@ class EFTPlot(object):
         self.CMS_text.SetTextSize(0.06)
 
         self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
+        if mode == '2D' and not paperStyle: self.extraText = ROOT.TLatex(left+0.11, 0.86, "Preliminary")
         self.extraText.SetNDC()
         self.extraText.SetTextFont(52)
         self.extraText.SetTextSize(0.05)
 
         self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
-        if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+        if mode == '2D': 
+            if paperStyle: self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+            else: self.lumiText = ROOT.TLatex(0.36, 0.93, "137 fb^{-1} (13 TeV)")    
         self.lumiText.SetNDC()
         self.lumiText.SetTextFont(42)
         self.lumiText.SetTextAlign(31)
         self.lumiText.SetTextSize(0.04)
+
 
         # Style
         # //--------------------------------------------
@@ -414,7 +434,7 @@ class EFTPlot(object):
  #     # ####### #######    #       ######  ####    #      ##### ######
 
 
-    def Plot_NLLscan_1D(self, param='', log=False, paper=False, filepath='', name='', itoy=0):
+    def Plot_NLLscan_1D(self, param='', log=False, paper=False, filepath=[], name='', itoy=-1):
         '''
         Plot the NLL function versus a single POI (1D scan).
         NB: this is the prefered function, which uses CombineTool helper functions for convenience.
@@ -425,29 +445,30 @@ class EFTPlot(object):
         '''
 
         superimpose_second_scan = True #True <-> will look for second rootfile (hardcoded path) to overlay
-    	# ymax = 7 #Remove graph points above ymax
-    	ymax = 50 #FIXME
+        ymax = 13 #Remove graph points above ymax #Arbitrary, depends on max Y of plot
+        # ymax = 50
 
-        if filepath == '': filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
+        if filepath == []: filepath_tmp = './higgsCombine{}.MultiDimFit.mH120.root'.format(name)
+        else: filepath_tmp = filepath[0]
 
         if not param:
             logging.error("No param specified!")
             return
-        if not os.path.exists(filepath):
-            logging.error("File " + filepath + " does not exist!".format(name))
+        if not os.path.exists(filepath_tmp):
+            logging.error("File " + filepath_tmp + " does not exist!".format(name))
             return
 
         if name == '': name = param
 
         logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_1D()" + colors.reset + '\n')
-        print(colors.fg.orange + 'Reading file: ' + filepath + colors.reset)
+        print(colors.fg.orange + 'Reading file: ' + filepath_tmp + colors.reset)
         print(colors.fg.orange + 'Param: ' + param + colors.reset)
 
         ROOT.gROOT.SetBatch(True)
-        c = ROOT.TCanvas('','',1000,800)
+        c = ROOT.TCanvas('', '', 1000, 800)
         #pads = plot.OnePad() #Helper func
-        c.SetGrid(1)
-        c.SetTopMargin(0.1)
+        # c.SetGrid(1)
+        # c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
         colorLine_68 = 1 #68% band (12=gray, ...)
@@ -458,32 +479,49 @@ class EFTPlot(object):
         yvals = [1., 3.84] #1sigma, 95%CL intervals
 
         #-- Get scan TTree
-        rootFile = ROOT.TFile.Open(filepath)
+        rootFile = ROOT.TFile.Open(filepath_tmp)
         limitTree = rootFile.Get('limit')
         if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath) + colors.reset)
 
         #-- Get x-y coordinates for TGraph representing NLL function
-
         #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
+        stitch_multiple_scans = False #True <-> input rootfile contains hadded results from multiple scans with different bestfit values #NB: make this the new default ? Should be always correct to sum (deltaNLL+nll+nll0)
 
-        #FIXME -- TESTING STICH SCANS --> same ? (but can help when combine is incorrectly interpolating linearly between 2 scans)
-        # minZ = limitTree.GetMinimum('deltaNLL')
-        # print('minZ', minZ)
-        # graph = plot.TGraphFromTree(limitTree, param, '2*(deltaNLL+nll+nll0)', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
-        # minz = min(graph.GetY())
-        # print('minz', minz)
-        # # exit(1)
-        # for ipt in range(0, graph.GetN()):
-        #    x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-        #    graph.GetPoint(ipt, x, y)
-        #    print(ipt, x, y)
-        #    graph.SetPoint(ipt, x, y-minz)
-        #    graph.GetPoint(ipt, x, y)
-        #    print('--> ', ipt, x, y)
+        #-- Stitched scans (may can help when combine is incorrectly interpolating linearly between 2 scans)
+        if stitch_multiple_scans:
 
-        graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5 && iToy=={}'.format(itoy)) #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
-        # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
-        #print(graph.GetN())
+            if limitTree.GetListOfBranches().FindObject("quantileExpected"):
+                graph = plot.TGraphFromTree(limitTree, param, '2*(deltaNLL+nll+nll0)', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+            else: #May be a home-made reduced scan (only few branches)
+                graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', '')
+
+            minz = min(graph.GetY())
+            # minZ = limitTree.GetMinimum('deltaNLL')
+            # print('minz', minz)
+
+            for ipt in range(0, graph.GetN()):
+               x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+               graph.GetPoint(ipt, x, y)
+               # print(ipt, x, y)
+               graph.SetPoint(ipt, x, y-minz)
+               graph.GetPoint(ipt, x, y)
+               #print('--> ', ipt, x, y)
+
+        else:
+            selection = '' #E.g. for home-made reduced scan (only few branches)
+            if limitTree.GetListOfBranches().FindObject("quantileExpected"):
+                if itoy >= 0: selection = 'quantileExpected > -1.5 && iToy=={}'.format(itoy)
+                # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5 && iToy=={}'.format(itoy)) #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+                else: selection = 'quantileExpected > -1.5' #Expected asimov -> iToy = -1 #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+                # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+            print('selection :', selection)
+            graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', selection)
+            # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
+            # print(graph.GetN())
+
+        if graph.GetN() == 0:
+            print(colors.fg.red + "ERROR: graph.GetN()==0" + colors.reset)
+            return
         graph.Sort()
         plot.RemoveGraphXDuplicates(graph)
         plot.RemoveGraphYAbove(graph, ymax)
@@ -499,13 +537,12 @@ class EFTPlot(object):
 
         #-- Overlay second scan (expected)
         if superimpose_second_scan == True:
-            filepath = './higgsCombine.{}Exp.MultiDimFit.mH120.root'.format(param) #HARDCODED naming convention
-            if not os.path.exists(filepath):
-                logging.error("File " + filepath + " does not exist ! Can't overlay second TGraph...".format(name))
+            filepath_tmp = './higgsCombine.{}Exp.MultiDimFit.mH120.root'.format(param) #HARDCODED naming convention
+            if not os.path.exists(filepath_tmp):
+                logging.error("File " + filepath_tmp + " does not exist ! Can't overlay second TGraph...".format(name))
                 superimpose_second_scan = False
 
-        if superimpose_second_scan == True:
-            rootFile = ROOT.TFile.Open(filepath)
+            rootFile = ROOT.TFile.Open(filepath_tmp)
             limitTree = rootFile.Get('limit')
             if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath) + colors.reset)
             graph2 = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
@@ -561,12 +598,16 @@ class EFTPlot(object):
                     else:
                         if y < 0: fgraph.SetPoint(ipt, x, 0) #Multiple minima may lead to points with y<0 (i.e. lower than main minimum) --> don't color these
                         ipt+= 1
-            # Trick: manually set first and last points to get the filled area properly defined
+
+            #-- Trick: manually set first and last points to get the filled area properly defined
             if fgraph is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
                 fgraph.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
                 fgraph.SetPoint(0, crossings['lo'], 0) # Add first point at y=0
-                fgraph.InsertPointBefore(1, crossings['lo'], yvals[idx_err]) # Add second point at y=Y
-                fgraph.InsertPointBefore(2, x, y) #cf. trick
+                # print('fgraph.GetN()', fgraph.GetN())
+                if fgraph.GetN() == 1: fgraph.SetPoint(1, crossings['lo'], yvals[idx_err]) #NB: if only 1 point, no need to use InsertPointBefore, set next point directly
+                else: fgraph.InsertPointBefore(1, crossings['lo'], yvals[idx_err]) # Add second point at y=Y
+                if fgraph.GetN() == 2: fgraph.SetPoint(2, x, y) #cf. above
+                else: fgraph.InsertPointBefore(2, x, y) #cf. trick
                 fgraph.SetPoint(fgraph.GetN(), crossings['hi'], yvals[idx_err]) # Add first-to-last point at y=Y
                 fgraph.SetPoint(fgraph.GetN(), crossings['hi'], 0) # Add last point at y=0
                 fgraph.SetFillColorAlpha(colorFill, 0.60)
@@ -575,12 +616,15 @@ class EFTPlot(object):
 
             return fgraph
 
+
         def Remove_Overlap_Points(v_graph, main_scan):
             '''
             Adjust 95% band so that a) it does not overlap with 68% band, and b) the inner/outer edges are vertical
             '''
 
             for ig, graph in enumerate(v_graph):
+                # print('-- ig', ig)
+                if ig<len(main_scan['crossings'][yvals[0]]) and (not main_scan['crossings'][yvals[0]][ig]['valid_lo'] or not main_scan['crossings'][yvals[0]][ig]['valid_hi']): continue
                 if ig >= len(main_scan['crossings'][yvals[0]]): break
                 cross = main_scan['crossings'][yvals[0]][ig]
                 list_ipt_overlap = [] #List the indices of the graph points in overlap from another band, so that we can remove them in the plot
@@ -601,6 +645,8 @@ class EFTPlot(object):
 
                 #-- Trick: manually set first and last points to get the filled area properly defined
                 cross = main_scan['crossings'][yvals[1]][ig]
+                if not cross['valid_lo'] or not cross['valid_hi']: return
+
                 if graph is not None: #Only draw filled area if there are multiple intersections (else, need to care about direction)
                     graph.GetPoint(0, x, y) #Trick: can't do InsertPointBefore(0) -> Save first point, modify it, insert it next
                     graph.SetPoint(0, cross['lo'], 0) # Add first point at y=0
@@ -608,6 +654,7 @@ class EFTPlot(object):
                     graph.InsertPointBefore(2, x, y) #cf. trick
                     graph.SetPoint(graph.GetN(), cross['hi'], yvals[1]) # Add first-to-last point at y=Y
                     graph.SetPoint(graph.GetN(), cross['hi'], 0) # Add last point at y=0
+
                     # for ipt in range(0, graph.GetN()):
                     #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
                     #     graph.GetPoint(ipt, x, y)
@@ -626,20 +673,22 @@ class EFTPlot(object):
         for cross in main_scan['crossings'][yvals[idx_err]]:
             # print('-- cross95', cross)
             g_tmp = Get_ErrorBand_Graph(graph, cross, colorFill=colorFill_95, idx_err=idx_err)
-            if g_tmp is not None: v_graph95.append(g_tmp)
+            # print('g_tmp', g_tmp)
+            if g_tmp is not None:
+                v_graph95.append(g_tmp)
 
-            # for ipt in range(0, graph.GetN()):
-            #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
-            #     g_tmp.GetPoint(ipt, x, y)
-            #     print('ipt', ipt, 'x', x, 'y', y)
+                # for ipt in range(0, graph.GetN()):
+                #     x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+                #     g_tmp.GetPoint(ipt, x, y)
+                #     print('ipt', ipt, 'x', x, 'y', y)
+            # print(len(v_graph95))
 
         Remove_Overlap_Points(v_graph95, main_scan)
 
-        #-- Axes ranges #FIXME -- debug
-        # graph.SetMinimum(0.) #Display 0 label (else, line not displayed properly in .eps)
+        #-- Axes ranges
+        graph.SetMinimum(0.) #Display 0 label (else, line not displayed properly in .eps)
         # graph.SetMinimum(0.001) #Don't display 0 label
-        #graph.SetMaximum(10.) #Arbitrary
-	graph.SetMaximum(20.)
+        graph.SetMaximum(20.) #Arbitrary
 
         #-- Draw graphs
         graph.Draw("AL") #Create axes #A:axes, P: markers, L:line
@@ -684,9 +733,12 @@ class EFTPlot(object):
         if superimpose_second_scan == True: graph2.Draw("L same") #Draw second graph last ('overlay')
 
         #-- Legend
-        toLeft = -0.08 #Default=0
-        leg = ROOT.TLegend(0.37+toLeft,0.71,0.75,0.86)
-        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28+toLeft,0.67,0.88,0.86) #More space
+        toLeft = -0. #-0.06?
+        yleg = 0.75
+        # yleg = 0.71
+        #leg = ROOT.TLegend(0.37+toLeft,yleg,0.75,yleg+0.15)
+        leg = ROOT.TLegend(0.37+toLeft,yleg,0.75,yleg+0.15)
+        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28+toLeft,yleg-0.04,0.88,yleg+0.15) #More space
         # leg.SetTextSize(0.04)
         leg.SetTextSize(0.038)
         leg.SetBorderSize(0) #Remove legend border
@@ -698,7 +750,8 @@ class EFTPlot(object):
 
         #-- 68% intersections
         legentry_68 = ''
-        for ig, g in enumerate(v_graph68):
+        for ig, g in enumerate(main_scan['crossings'][yvals[0]]):
+        # for ig, g in enumerate(v_graph68): #Don't loop on graphs (intervals at boundaries are not drawn/included)
             crossings = main_scan['crossings'][yvals[0]][ig]
             if legentry_68 == '': legentry_68 = "68% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
             else: legentry_68+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
@@ -706,7 +759,8 @@ class EFTPlot(object):
 
         #-- 95% intersections
         legentry_95 = ''
-        for ig, g in enumerate(v_graph95):
+        for ig, g in enumerate(main_scan['crossings'][yvals[1]]):
+        # for ig, g in enumerate(v_graph95): #Don't loop on graphs (intervals at boundaries are not drawn/included)
             crossings = main_scan['crossings'][yvals[1]][ig]
             if legentry_95 == '': legentry_95 = "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
             else: legentry_95+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
@@ -721,8 +775,11 @@ class EFTPlot(object):
         graph.SetMarkerSize(1)
         # graph.GetXaxis().SetTitle(param)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
-        graph.GetYaxis().SetTitle("-2#Deltalog(L)") #2 #Delta log(L)
-        # graph.GetYaxis().SetTitle("{} 2#DeltaNLL".format(param))
+        # graph.GetYaxis().SetTitle("-2#Deltalog(L)") #2 #Delta log(L)
+        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        graph.GetXaxis().SetTitleOffset(1.1)
+        graph.GetYaxis().SetTitleOffset(1.1)
 
         self.CMS_text.Draw('same')
         if paper==False: self.extraText.Draw('same')
@@ -767,8 +824,8 @@ class EFTPlot(object):
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('','',1000,800)
         #c = ROOT.TCanvas('','',2000,1600)
-        c.SetGrid(1)
-        c.SetTopMargin(0.1)
+        # c.SetGrid(1)
+        # c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
         #WC_values = [-4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4]
@@ -868,7 +925,8 @@ class EFTPlot(object):
         graph.SetMarkerStyle(8)
         graph.SetMarkerSize(1)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
-        graph.GetYaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
+        # graph.GetYaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
+        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
 
         cmsText = "CMS";
         latex = ROOT.TLatex()
@@ -906,7 +964,7 @@ class EFTPlot(object):
  #    ## #       #          #       #      #    #   #      #       #     #
  #     # ####### #######    #       ######  ####    #      ####### ######
 
-    def Plot_NLLscan_2D(self, mode='EFT', params=[], ceiling=1, log=False, paper=False, filepath='', name=''):
+    def Plot_NLLscan_2D(self, mode='EFT', params=[], ceiling=1, log=False, paper=False, filepath=[], name=''):
         '''
         Plot the NLL function versus 2 POIs (2D scan).
 
@@ -927,13 +985,14 @@ class EFTPlot(object):
         drawContours = True #True <-> superimpose contours (default)
         valCont = [2.30, 5.99] #1sigma and 95% contours
 
-        if filepath == '': filepath = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
+        if filepath == '': filepath_tmp = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
+        else: filepath_tmp = filepath[0]
 
         if len(params) != 2:
             logging.error("Function 'Plot_NLLscan_2D' requires exactly two parameters!")
             return
-        if not os.path.exists(filepath):
-            logging.error("File {} does not exist!".format(filepath))
+        if not os.path.exists(filepath_tmp):
+            logging.error("File {} does not exist!".format(filepath_tmp))
             return
 
         logging.info(colors.fg.lightblue + "Enter function Plot_NLLscan_2D()\n" + colors.reset)
@@ -942,12 +1001,12 @@ class EFTPlot(object):
 
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('','',1000,800)
-        c.SetGrid(1)
-        c.SetTopMargin(0.1)
-        c.SetRightMargin(0.17);
+        # c.SetGrid(1)
+        # c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
-        c.SetTopMargin(0.15) #Leave space for legend
+        c.SetRightMargin(0.17) #Override default margin
+        if paper==False: c.SetTopMargin(0.15) #Override default margin
 
         hname = 'scan2D'
         hname+= name.replace('.','_') if name not in ['','EFT','SM'] else params[0]+'_'+params[1]
@@ -957,18 +1016,19 @@ class EFTPlot(object):
         xvar = params[0]; yvar = params[1]
         logging.info(colors.fg.orange + "Open file : " + colors.reset)
         logging.info(colors.fg.orange + "xvar={} / yvar={}".format(xvar,yvar) + colors.reset)
-        logging.info(filepath)
-        rootFile = ROOT.TFile.Open(filepath)
+        logging.info(filepath_tmp)
+        rootFile = ROOT.TFile.Open(filepath_tmp)
         limitTree = rootFile.Get('limit')
         minZ = limitTree.GetMinimum('deltaNLL')
         xmin = limitTree.GetMinimum(xvar)
         xmax = limitTree.GetMaximum(xvar)
         ymin = limitTree.GetMinimum(yvar)
         ymax = limitTree.GetMaximum(yvar)
-        # xmin = -40
-        # xmax = 40
-        # ymin = -40
-        # ymax = 40
+        if paper: #For paper style (legend within frame), need more space on top #Hardcoded
+            if params[0] == 'ctz' and params[1] == 'ctw': ymax+= 1. 
+            elif params[0] == 'cpqm' and params[1] == 'cpt': ymax+= 10. 
+        #print('ymax', ymax)
+        # xmin = -40; xmax = 40; ymin = -40; ymax = 40
 
         # maxZ = 20 #Max z-axis threshold
         maxZ = 1000 #Max z-axis threshold #If want whole plot to be colored
@@ -986,7 +1046,7 @@ class EFTPlot(object):
         # hist.Draw('colz') #Clean draw (not necessary)
 
         #-- Trick: can happen that just few points fail, an corresponding bins set 0 contents
-        #--> set bin content to same value as neighbouring bin (usually safe because happen far away from minimum)
+        #--> set bin content to same value as neighbouring bin (usually safe because happens far away from minimum)
         #NB: for some reason, can't use SetBinContent on 'hist' object directly; so duplicate it in new, modificable TH2F object
         newhist = ROOT.TH2F('', '', nbins, xmin, xmax, nbins, ymin, ymax)
         for xbin in range(1,hist.GetNbinsX()+1):
@@ -1001,6 +1061,7 @@ class EFTPlot(object):
                         # print('--> newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
                     elif xbin>1:
                         newhist.SetBinContent(xbin,ybin, newhist.GetBinContent(xbin-1,ybin))
+		    #print('newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
 
         hist = newhist #Reuse default name
         hist.Draw('colz') #Clean draw
@@ -1057,70 +1118,21 @@ class EFTPlot(object):
         if log: c.SetLogz()
         hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[0]))
         hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
-        hist.GetZaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
-        hist.GetYaxis().SetTitleOffset(0.9)
+        # hist.GetZaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
+        hist.GetZaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        hist.GetXaxis().SetTitleOffset(1.)
+        hist.GetYaxis().SetTitleOffset(1.)
         hist.SetMaximum(20.) #If want to cut z-axis below
-
         hist.SetTitle('')
         hist.SetStats(0)
-
-        if paper:
-            left = 0.17
-            top = 0.91-0.04
-            self.CMS_text = ROOT.TLatex(left, top, "CMS")
-            self.CMS_text.SetNDC()
-            self.CMS_text.SetTextColor(ROOT.kBlack)
-            self.CMS_text.SetTextFont(61)
-            self.CMS_text.SetTextAlign(11)
-            self.CMS_text.SetTextSize(0.06)
-
-            self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
-            self.extraText.SetNDC()
-            self.extraText.SetTextFont(52)
-            self.extraText.SetTextSize(0.05)
-
-            self.lumiText = ROOT.TLatex(left+0.12, top, "137 fb^{-1} (13 TeV)")
-            # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
-            if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-            self.lumiText.SetNDC()
-            self.lumiText.SetTextFont(42)
-            self.lumiText.SetTextAlign(11)
-            # self.lumiText.SetTextAlign(31)
-            self.lumiText.SetTextSize(0.04)
-
-        else: #Preliminary
-            left = 0.17
-            top = 0.91+0.02
-            self.CMS_text = ROOT.TLatex(left, top, "CMS")
-            self.CMS_text.SetNDC()
-            self.CMS_text.SetTextColor(ROOT.kBlack)
-            self.CMS_text.SetTextFont(61)
-            self.CMS_text.SetTextAlign(11)
-            self.CMS_text.SetTextSize(0.06)
-
-            self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
-            self.extraText.SetNDC()
-            self.extraText.SetTextFont(52)
-            self.extraText.SetTextSize(0.05)
-
-            self.lumiText = ROOT.TLatex(left+0.01, top-0.06, "137 fb^{-1} (13 TeV)")
-            # self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
-            if mode == '2D': self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-            self.lumiText.SetNDC()
-            self.lumiText.SetTextFont(42)
-            self.lumiText.SetTextAlign(11)
-            # self.lumiText.SetTextAlign(31)
-            self.lumiText.SetTextSize(0.04)
-
-        #-- For paper
 
         self.CMS_text.Draw('same')
         if paper==False: self.extraText.Draw('same')
         self.lumiText.Draw('same')
 
         #-- Legend
-        # legend = ROOT.TLegend(0.53,0.70,0.80,0.87)
         legend = ROOT.TLegend(0.60,0.86,0.83,0.99)
+        if paper: legend = ROOT.TLegend(0.55,0.75,0.85,0.90)
         legend.AddEntry(h_cont68, "68% CL",'L')
         legend.AddEntry(h_cont95, "95% CL",'L')
         legend.AddEntry(marker_SM, "SM",'p')
@@ -1128,6 +1140,7 @@ class EFTPlot(object):
         legend.SetBorderSize(0)
         legend.SetTextSize(0.04)
         legend.SetNColumns(1)
+        legend.SetFillStyle(0)
         legend.Draw('same')
 
         #-- Save plot
@@ -1396,7 +1409,7 @@ class EFTPlot(object):
  #    # #    # #   ##   #   #    # #    # #   #  #    #
   ####   ####  #    #   #    ####   ####  #    #  ####
 
-    def ContourPlotEFT(self, mode='EFT', params=[], paper=False, filepath='', name=''):
+    def ContourPlotEFT(self, mode='EFT', params=[], paper=False, filepath=[], name=''):
         '''
         Make 2D contour plots.
         '''
@@ -1405,10 +1418,11 @@ class EFTPlot(object):
             logging.error("Function 'ContourPlot' requires exactly two params!")
             return
 
-        if filepath == '': filepath = './higgsCombine{}.MultiDimFit.mH120.root'.format(mode)
+        if filepath == []: filepath_tmp = './higgsCombine{}.MultiDimFit.mH120.root'.format(mode)
+        else: filepath_tmp = filepath[0]
 
-        if not os.path.exists(filepath):
-            logging.error("File {} does not exist!".format(filepath))
+        if not os.path.exists(filepath_tmp):
+            logging.error("File {} does not exist!".format(filepath_tmp))
             return
 
         ranges = self.wc_ranges #Default: EFT
@@ -1418,14 +1432,14 @@ class EFTPlot(object):
 
         #-- Get Grid scan and copy to h_contour
         #-- params[0] is x-axis variable, params[1] is y-axis variable
-        gridFile = ROOT.TFile.Open(filepath)
+        gridFile = ROOT.TFile.Open(filepath_tmp)
         tree = gridFile.Get('limit')
         minZ = tree.GetMinimum('deltaNLL')
 
         ROOT.gROOT.SetBatch(True)
         c = ROOT.TCanvas('c','c',1000,800)
-        c.SetGrid(1)
-        c.SetTopMargin(0.1)
+        # c.SetGrid(1)
+        # c.SetTopMargin(0.1)
         l = c.GetLeftMargin()
 
         nbins = 150
@@ -1980,9 +1994,9 @@ if __name__ == "__main__":
     mode = '1D'
     POI = []
     paper = False
-    filepath = ''
+    filepath = []
     name = '' #Suffix added to output filenames
-    itoy = 0
+    itoy = -1 #Default (data or Asimov)
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1992,7 +2006,7 @@ if __name__ == "__main__":
     parser.add_argument('-P','--POI', metavar="POI", nargs='+', help='Define POI(s)', required=False) #Takes >=0 args
     parser.add_argument("--sm", metavar="SM", help="Consider SM scenario (rather than SMEFT)", nargs='?', const=1)
     parser.add_argument("--paper", metavar="paper", help="Make plots for paper (remove Prelim. labels)", nargs='?', const=1)
-    parser.add_argument("-f", metavar="file path", help="Path to the rootfile containing the object to plot")
+    parser.add_argument("-f", metavar="file path(s)", nargs='+', help="Path(s) to the rootfile(s) containing the object(s) to plot", required=False)
     parser.add_argument("-name", metavar="name", help="add suffix to output filename")
     parser.add_argument("-itoy", metavar="itoy", help="draw a given toy")
 
@@ -2018,7 +2032,7 @@ if __name__ == "__main__":
 
     if name != '' and name[0] != '.': name = '.{}'.format(name) #Convention: add a '.' before custom name
 
-    plotter = EFTPlot(opts, mode)
+    plotter = EFTPlot(opts, mode, paperStyle=paper)
     Load_Canvas_Style()
 
 

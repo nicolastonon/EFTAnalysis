@@ -761,7 +761,7 @@ int main()
     v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
     v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(true);
-    
+
     //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
     //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
 
@@ -777,7 +777,7 @@ int main()
     v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
 
-    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); //FIXME
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
 
     v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
     v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
