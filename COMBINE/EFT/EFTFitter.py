@@ -1150,7 +1150,7 @@ class EFTFit(object):
         # args3.extend(['--snapshotName','MultiDimFit'])
         args3.extend(['--fastScan'])
 
-        '''
+	#'''
         if debug: print('args --> ', args1)
         logging.info(colors.fg.purple + " ".join(args1) + colors.reset)
         process = sp.Popen(args1, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -1174,9 +1174,12 @@ class EFTFit(object):
             self.log_subprocess_output(process.stdout,'info')
             self.log_subprocess_output(process.stderr,'err')
         process.wait()
-        '''
+	#'''
 
-        args_plot=['plot1DScan.py','higgsCombine{}.MultiDimFit.mH120.root'.format(name1),'-o','statsyst_tmp','--others','higgsCombine{}.MultiDimFit.mH120.root:Stat. only:2'.format(name3),'--POI',param,'--main-label','\"Expected\"','--breakdown','syst,stat']
+	thelabel = 'Observed'	
+	if exp: thelabel = 'Expected'
+
+        args_plot=['plot1DScan.py','higgsCombine{}.MultiDimFit.mH120.root'.format(name1),'-o','statsyst_{}'.format(name.replace('.','')),'--others','higgsCombine{}.MultiDimFit.mH120.root:Stat. only:2'.format(name3),'--POI',param,'--main-label',thelabel,'--breakdown','syst,stat']
 
         if debug: print('args --> ', args_plot)
         logging.info(colors.fg.purple + " ".join(args_plot) + colors.reset)
@@ -1345,7 +1348,6 @@ if __name__ == "__main__":
         if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
         elif mode == 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
-            exit(1)
 
         #-- Grid Scan
         elif not fixedPointNLL and mode in ['','grid','scan']:

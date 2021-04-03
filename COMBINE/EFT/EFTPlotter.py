@@ -481,7 +481,7 @@ class EFTPlot(object):
         #-- Get scan TTree
         rootFile = ROOT.TFile.Open(filepath_tmp)
         limitTree = rootFile.Get('limit')
-        if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath) + colors.reset)
+        if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath_tmp) + colors.reset)
 
         #-- Get x-y coordinates for TGraph representing NLL function
         #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
@@ -519,6 +519,16 @@ class EFTPlot(object):
             # graph = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
             # print(graph.GetN())
 
+        #-- Substract ymin value from all points by default #Protects against case in which a local minimum is taken as reference (0) by mistake
+        minz = min(graph.GetY())
+        for ipt in range(0, graph.GetN()):
+           x, y = ROOT.Double(0), ROOT.Double(0) #Necessary to pass by reference in GetPoint()
+           graph.GetPoint(ipt, x, y)
+           # print(ipt, x, y)
+           graph.SetPoint(ipt, x, y-minz)
+           #graph.GetPoint(ipt, x, y)
+           #print('--> ', ipt, x, y)
+
         if graph.GetN() == 0:
             print(colors.fg.red + "ERROR: graph.GetN()==0" + colors.reset)
             return
@@ -544,7 +554,7 @@ class EFTPlot(object):
 
             rootFile = ROOT.TFile.Open(filepath_tmp)
             limitTree = rootFile.Get('limit')
-            if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath) + colors.reset)
+            if limitTree.GetEntries()<2: print(colors.fg.red + 'ERROR: <2 entries in file {}, are you sure you performed a grid scan ?'.format(filepath_tmp) + colors.reset)
             graph2 = plot.TGraphFromTree(limitTree, param, '2*deltaNLL', 'quantileExpected > -1.5') #NB: selection includes all points, since all have quantileExpected>=-1 (best fit)
             graph2.Sort()
             plot.RemoveGraphXDuplicates(graph2)

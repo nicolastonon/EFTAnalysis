@@ -435,9 +435,14 @@ int main(int argc, char **argv)
 
     bool compare_template_shapes = false;
 
+//-----------------    PAPER PLOTS
+
+    bool make_paperPlot_commonRegions = false;
+    bool make_paperPlot_signalRegions = true;
+
 //-----------------    OTHER
 
-    bool run_test = true; //Run test function, if any
+    bool run_test = false; //Run test function, if any
 
 //-----------------
 
@@ -552,12 +557,29 @@ int main(int argc, char **argv)
     }
 
     //#############################################
+    //  PAPER PLOTS
+    //#############################################
+
+    if(make_paperPlot_commonRegions) {theAnalysis->Make_PaperPlot_CommonRegions();}
+    if(make_paperPlot_signalRegions)
+    {
+        theAnalysis->Make_PaperPlot_SignalRegions("NN_ctz");
+        // theAnalysis->Make_PaperPlot_SignalRegions("NN_ctw");
+        // theAnalysis->Make_PaperPlot_SignalRegions("NN_cpq3");
+        // theAnalysis->Make_PaperPlot_SignalRegions("NN_SM");
+        // theAnalysis->Make_PaperPlot_SignalRegions("NN_5D");
+    }
+
+    //#############################################
     //  OTHER FUNCTIONS
     //#############################################
 
     if(compare_template_shapes) {theAnalysis->Compare_TemplateShapes_Processes(template_name, plotChannel);}
 
-    if(run_test) {theAnalysis->test();}
+    if(run_test) //Whatever function that is currently under testing
+    {
+        theAnalysis->Dump_Scores_allNNs();
+    }
 
     //#############################################
     //  FINALIZE

@@ -1200,7 +1200,8 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "jprime_Pt") {nbins = 20; xmin = 25.; xmax = 225.;}
 
     else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 400.;}
-    else if(var == "jet2_pt" || var == "jet3_pt") {nbins = 20; xmin = 25.; xmax = 200.;}
+    else if(var == "jet2_pt") {nbins = 20; xmin = 25.; xmax = 200.;}
+    else if(var == "jet3_pt") {nbins = 20; xmin = 25.; xmax = 120.;}
     else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 30.; xmax = 230.;}
     else if(var == "recoZ_Pt") {nbins = 15; xmin = 0.; xmax = 300.;} //500
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
@@ -1251,7 +1252,8 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     else if(template_name.Contains("ZptCos")) {nbins = 12; xmin = 0; xmax = 12;} //2D Zpt-cosThetaStarPolZ (as in TOP-18-009) //4bins in Zpt, 3 in cosTheta
     else if(template_name.Contains("Zpt")) //1D Zpt
     {
-        nbins = 8;
+        nbins = 5;
+        // nbins = 8;
         xmin = 0; xmax = 400;
         if(template_name.Contains("SRtZq")) {xmax = 300;}
     }
@@ -2117,7 +2119,7 @@ TString Get_Template_XaxisTitle(TString variable)
 
     //-- Previous conventions
     if(variable == "NN0") {title = "NN output (tZq node)";}
-    else if(variable == "NN1") {title = "NN output (ttZ node)";}
+    else if(variable == "NN1") {title = "NN output (t#bar{t}Z node)";}
     else if(variable == "NN2") {title = "NN output (Backgrounds node)";}
     else if(variable.Contains("NN")) {title = "NN output";}
 
@@ -2130,29 +2132,49 @@ TString Get_Template_XaxisTitle(TString variable)
     {
         title = "NN-SM output";
         if(variable.Contains("SRtZq")) {title+= " (tZq node)";}
-        else if(variable.Contains("SRttZ")) {title+= " (ttZ node)";}
+        else if(variable.Contains("SRttZ")) {title+= " (t#bar{t}Z node)";}
         else if(variable.Contains("SRother")) {title+= " (Backgrounds node)";}
     }
     else if(variable.Contains("NN_ctz"))
     {
-        title = "NN-C_{tZ} output";
+        title = "NN-C_{tZ}";
+        if(variable.Contains("SRtZq")) {title+= "-tZq";}
+        else if(variable.Contains("SRttZ")) {title+= "-t#bar{t}Z";}
+        // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
+        // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
+        title+= " output";
 
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // title = "NN-#mathcal{O}_{tZ}"; //Does not work
     }
     else if(variable.Contains("NN_ctw"))
     {
-        title = "NN-C_{tW} output";
+        title = "NN-C_{tW}";
+        if(variable.Contains("SRtZq")) {title+= "-tZq";}
+        else if(variable.Contains("SRttZ")) {title+= "-t#bar{t}Z";}
+        // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
+        // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
+        title+= " output";
     }
     else if(variable.Contains("NN_cpq3"))
     {
-        title = "NN-C^{3}_{#varphiQ} output";
+        title = "NN-C^{3}_{#varphiQ}";
+        if(variable.Contains("SRtZq")) {title+= "-tZq";}
+        else if(variable.Contains("SRttZ")) {title+= "-t#bar{t}Z";}
+        // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
+        // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
+        title+= " output";
 
-        if(variable.Contains("SRttZ")) {title = "NN-SM (ttZ node)";} //Actually using NN-sM for cpq3/ttZ
+        if(variable.Contains("SRttZ")) {title = "NN-SM (t#bar{t}Z node)";} //Actually using NN-sM for cpq3/ttZ
     }
     else if(variable.Contains("NN_5D"))
     {
-        title = "NN-5D output";
+        title = "NN-5D";
+        if(variable.Contains("SRtZq")) {title+= "-tZq";}
+        else if(variable.Contains("SRttZ")) {title+= "-t#bar{t}Z";}
+        // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
+        // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
+        title+= " output";
     }
 
     return title;

@@ -13,6 +13,9 @@
 // MergeSplit_Templates
 // SetBranchAddress_SystVariationArray
 // Get_VectorAllEvent
+
+// Make_PaperPlot_CommonRegions
+// Make_PaperPlot_SignalRegions
 //--------------------------------------------
 
 #include "TopEFT_analysis.h"
@@ -2483,8 +2486,9 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
         bool superimpose_EFT_auto = true; //true <-> bypass vectors filled below, and automatically draw proc/WCs depending on region
 
-        //-- HARDCODED BEST POSTFIT POINT //FIXME
-        TString bestfit_string = "rwgt_ctz_-0.07_ctw_-0.01_cpq3_0.50_cpqm_-2.30_cpt_-15.69"; //Hardcoded //String for rescaling the TH1EFT, corresponding to the bestfit point (for psotfit plots)
+        //-- HARDCODED BEST POSTFIT POINT
+        TString bestfit_string = ""; //Hardcoded //String for rescaling the TH1EFT, corresponding to the bestfit point (for psotfit plots)
+        // TString bestfit_string = "rwgt_ctz_-0.07_ctw_-0.01_cpq3_0.50_cpqm_-2.30_cpt_-15.69"; //Hardcoded //String for rescaling the TH1EFT, corresponding to the bestfit point (for psotfit plots)
 
         //-- Names of the private EFT samples to superimpose
         //NB: If empty, vectors are filled automatically depending on region, etc.
@@ -3648,7 +3652,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
         //-- Dummy object, only used to display uncertainty band also in legend
         TH1F* h_uncert = new TH1F("h_uncert", "h_uncert", 1, 0, 1);
-        h_uncert->SetFillStyle(3004); //3002
+        h_uncert->SetFillStyle(3254); //3002 //3004
         h_uncert->SetFillColor(kBlack);
         h_uncert->SetLineWidth(0.);
         qw->AddEntry(h_uncert, "Uncert.", "F");
@@ -3939,7 +3943,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		TGraphAsymmErrors* gr_error = NULL;
 
 		gr_error = new TGraphAsymmErrors(nofbins,xx,yy,exl,exh,eyl,eyh);
-        gr_error->SetFillStyle(3004); //3002
+        gr_error->SetFillStyle(3254); //3002 //3004
 		gr_error->SetFillColor(kBlack);
 		gr_error->Draw("e2 same"); //Superimposes the uncertainties on stack
 
@@ -4058,7 +4062,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		histo_ratio_data->GetYaxis()->SetTickLength(0.);
         histo_ratio_data->GetYaxis()->SetTitleOffset(1.15);
         // histo_ratio_data->GetYaxis()->SetTitleOffset(1.15);
-        histo_ratio_data->GetXaxis()->SetTitleOffset(1.1);
+        histo_ratio_data->GetXaxis()->SetTitleOffset(1.05);
         histo_ratio_data->GetYaxis()->SetLabelSize(0.04);
         histo_ratio_data->GetXaxis()->SetLabelSize(0.045);
 		histo_ratio_data->GetXaxis()->SetLabelFont(42);
@@ -4272,7 +4276,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 			}
 
 			gr_ratio_error = new TGraphAsymmErrors(thegraph_tmp->GetN(), theX , theY ,  theErrorX_l, theErrorX_h, theErrorY_l, theErrorY_h);
-            gr_ratio_error->SetFillStyle(3004); //3002
+            gr_ratio_error->SetFillStyle(3254); //3002 //3004
             gr_ratio_error->SetFillColor(kBlack); //kBlue+2 //kCyan
 
 			pad_ratio->cd(0);
@@ -5801,23 +5805,1756 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v_maxNode, vec
 
 
 
+//--------------------------------------------
+// ########     ###    ########  ######## ########     ########  ##        #######  ########  ######
+// ##     ##   ## ##   ##     ## ##       ##     ##    ##     ## ##       ##     ##    ##    ##    ##
+// ##     ##  ##   ##  ##     ## ##       ##     ##    ##     ## ##       ##     ##    ##    ##
+// ########  ##     ## ########  ######   ########     ########  ##       ##     ##    ##     ######
+// ##        ######### ##        ##       ##   ##      ##        ##       ##     ##    ##          ##
+// ##        ##     ## ##        ##       ##    ##     ##        ##       ##     ##    ##    ##    ##
+// ##        ##     ## ##        ######## ##     ##    ##        ########  #######     ##     ######
+//--------------------------------------------
+
+
+/**
+ * Hard-coded function to produce figures for the paper.
+ * Plot showing the postfit distributions in the regions common to all fits (CRs, SRttZ4l, SRother).
+ */
+void TopEFT_analysis::Make_PaperPlot_CommonRegions()
+{
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+	cout<<FYEL("--- Producing paper figure [COMMON REGIONS] ---")<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+
+
+//  ####  ###### ##### #    # #####
+// #      #        #   #    # #    #
+//  ####  #####    #   #    # #    #
+//      # #        #   #    # #####
+// #    # #        #   #    # #
+//  ####  ######   #    ####  #
+
+    //--------------------------
+    // DIVIDE CANVAS IN 4 PADS
+    //--------------------------
+
+    //-- Canvas definition
+    Load_Canvas_Style(); //Default top/bottom/left/right margins: 0.07/0.13/0.16/0.03
+    TCanvas* c1 = new TCanvas("c1","c1", 1400, 600);
+    c1->Divide(2, 1, 1E-11, 1E-11); //(x,y)
+    // c1->Divide(2, 1, 0.01, 0.00001, 0); //See: https://root.cern/doc/master/classTPad.html#TPad:Divide
+
+    //--------------------------
+    // DEFINE 3 VARIABLES TO PLOT
+    //--------------------------
+
+    int nbins_tmp, nIndivBins; float xmin_tmp, xmax_tmp;
+
+    int nvar = 2;
+    vector<TString> total_var_list(nvar);
+    total_var_list[0] = "countExp";
+    total_var_list[1] = "mTW";
+
+    //--------------------------
+    // CREATE VECTORS OF OBJECTS
+    //--------------------------
+
+    TH1F *h_tmp = NULL;
+
+    vector<TH1F*> v_hdata(nvar);
+    vector<THStack*> v_stack(nvar);
+    vector<TH1F*> v_histo_total_MC(nvar);
+    vector<vector<TH1F*> > v_vector_MC_histo(nvar); //Store separately the histos for each MC sample --> stack them after loops
+    vector<TH1F*> v_histo_ratio_data(nvar);
+    vector<TH1F*> v_hlines1(nvar), v_hlines2(nvar); //Draw TLinesin ratio plots
+
+    vector<TGraphAsymmErrors*> v_gr_error(nvar);
+    vector<TGraphAsymmErrors*> v_gr_ratio_error(nvar);
+
+    vector<TPad*> v_tpad_ratio(nvar);
+    vector<TGaxis*> v_axis(nvar);
+
+    vector<TString> MC_samples_legend; //List the MC samples to mention in legend
+
+    TLine* tline1; TLine* tline2;
+
+
+// #       ####   ####  #####   ####
+// #      #    # #    # #    # #
+// #      #    # #    # #    #  ####
+// #      #    # #    # #####       #
+// #      #    # #    # #      #    #
+// ######  ####   ####  #       ####
+
+//--------------------------------------------
+	for(int ivar=0; ivar<nvar; ivar++)
+	{
+        cout<<endl<<"== VARIABLE: "<<total_var_list[ivar]<<endl;
+
+    	TString primitive_name = "c1_" + Convert_Number_To_TString(ivar+1);
+        // c1->GetListOfPrimitives()->Print();
+        TPad* pad = (TPad*) c1->GetPrimitive(primitive_name);
+        TString inputfilename = "";
+    	if(total_var_list[ivar].Contains("countExp"))
+    	{
+            // inputfilename = "./outputs/shapes_postfit_otherRegions.root";
+    		pad->SetPad(0, 0., 0.50, 1); //xlow, ylow, xup, yup
+            pad->SetLogy();
+    	}
+    	else if(total_var_list[ivar].Contains("mTW"))
+    	{
+            // inputfilename = "./outputs/shapes_postfit_NN_5D.root";
+    		pad->SetPad(0.50, 0., 1., 1); //xlow, ylow, xup, yup
+            pad->SetRightMargin(0.04);
+    	}
+        pad->SetBottomMargin(0.30);
+
+        // cout<<"-- Open "<<inputfilename<<endl;
+        // TFile* file_input = TFile::Open(inputfilename);
+        TFile* file_input = NULL;
+
+        TH1F* h_tmp = NULL; //Tmp storing histo
+        TH1F* hdata_tmp = NULL; //Tmp storing data histo
+		// TH1F* h_sum_data = NULL; //Will store data histogram
+		// vector<TH1F*> v_MC_histo; //Will store all MC histograms (1 TH1F* per MC sample)
+        // TString data_histo_name = "";
+		// TGraphAsymmErrors* g_data = NULL; //If using Combine file, data are stored in TGAE
+		// TGraphAsymmErrors* g_tmp = NULL; //Tmp storing graph
+
+		//-- Init error vectors
+		double x, y, errory_low, errory_high;
+
+		vector<double> v_eyl, v_eyh, v_exl, v_exh, v_x, v_y; //Contain the systematic errors (used to create the TGraphError)
+
+        float bin_width = -1; //Get bin width of histograms for current variable
+
+        //-- All histos are for given lumiYears and sub-channels --> Need to sum them all for plots
+        for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+        {
+
+
+// #    #  ####
+// ##  ## #    #
+// # ## # #
+// #    # #
+// #    # #    #
+// #    #  ####
+
+			//--- Retrieve all MC samples
+			int nof_skipped_samples = 0; //Get sample index right
+
+			vector<bool> v_isSkippedSample(sample_list.size()); //Get sample index right (some samples are skipped)
+
+			for(int isample = 0; isample < sample_list.size(); isample++)
+			{
+                int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
+
+                // cout<<"sample_list[isample] "<<sample_list[isample]<<endl;
+                // cout<<"index_MC_sample "<<index_MC_sample<<endl;
+
+				//-- In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
+				//-- If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
+				TString samplename = sample_list[isample];
+				if(isample > 0 && sample_groups[isample] == sample_groups[isample-1]) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //if same group as previous sample, skip it
+                else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ" || sample_groups[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
+                else {samplename = sample_groups[isample];}
+
+				//-- Protections, special cases
+				if(sample_list[isample] == "DATA") {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                else if(!make_SMvsEFT_templates_plots && sample_list[isample].Contains("PrivMC")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM configuration --> only stack central samples (not private samples)
+                else if(make_SMvsEFT_templates_plots && (sample_list[isample] == "tZq" || sample_list[isample] == "ttZ" || sample_list[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //EFT configuration --> only stack private samples (at SM point), not central samples
+                else if(sample_list[isample] == "NPL_DATA")  {samplename = "NPL";} //Instead of 'NPL_DATA' and 'NPL_MC', we only want to read the merged histo 'NPL'
+                else if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element //Remove ?
+
+                //-- Add sample name to list (used for legend) //NB: add even if histo was not found and skipped, because expect that it will be found for some other year/channel/... But if not found at all, legend will be wrong
+                if(iyear==0 && ivar==0 && samplename != "DATA")
+                {
+                    if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
+                }
+                if(v_isSkippedSample[isample] == true) {continue;} //Skip this sample
+
+				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
+
+				h_tmp = NULL;
+                v_eyl.resize(nIndivBins); v_eyh.resize(nIndivBins); v_exl.resize(nIndivBins); v_exh.resize(nIndivBins); v_y.resize(nIndivBins); v_x.resize(nIndivBins);
+                std::fill(v_y.begin(), v_y.end(), -1); //Init errors positions to <0 (invisible)
+                if(total_var_list[ivar].Contains("mTW"))
+                {
+                    xmin_tmp = 0; xmax_tmp = 150; nIndivBins = 15;
+                    h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+
+                    for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                    {
+                        inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
+                        if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                        file_input = TFile::Open(inputfilename, "READ");
+                        // cout<<"inputfilename "<<inputfilename<<endl;
+
+                        TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_SRother_" + v_lumiYears[iyear] + "_postfit/";
+
+                        // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
+                        if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
+
+                        h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
+                        h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+
+                        //-- Errors
+                        if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
+                        {
+                            dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                            if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                            float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
+                            v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
+                            v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
+                            v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
+                            // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                        }
+
+                        file_input->Close();
+                    } //nbins
+                }
+                else if(total_var_list[ivar].Contains("countExp"))
+                {
+                    xmin_tmp = 0; xmax_tmp = 3; nIndivBins = 3;
+                    h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+
+                    for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                    {
+                        TString cat = "";
+                        if(ibin==1) {cat = "CRWZ";}
+                        else if(ibin==2) {cat = "CRZZ";}
+                        else if(ibin==3) {cat = "SRttZ4l";}
+                        inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_countExp_"+cat+".root";
+                        if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                        file_input = TFile::Open(inputfilename, "READ");
+                        // cout<<"inputfilename "<<inputfilename<<endl;
+
+                        TString dir_hist = total_var_list[ivar] + "_" + cat + "_" + v_lumiYears[iyear] + "_postfit/";
+                        if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
+
+                        h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
+                        h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+
+                        //-- Errors
+                        if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
+                        {
+                            dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                            if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                            float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
+                            v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
+                            v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
+                            v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
+                            // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                        }
+
+                        file_input->Close();
+                    } //nbins
+                }
+
+				//-- Set histo style (use color vector filled in main) //NB: run for all sub-histos... for simplicity
+                //---------------------------------------------------
+				h_tmp->SetFillStyle(1001);
+				if(samplename == "Fakes") {h_tmp->SetFillStyle(3005);}
+		        else if(samplename == "QFlip" ) {h_tmp->SetFillStyle(3006);}
+
+				h_tmp->SetFillColor(color_list[isample]);
+				h_tmp->SetLineColor(kBlack);
+                h_tmp->SetLineColor(color_list[isample]);
+                // cout<<"sample_list[isample] "<<sample_list[isample];
+                // cout<<" => color_list[isample] "<<color_list[isample]<<endl;
+
+				//Check color of previous *used* sample (up to 6, to account for potentially skipped samples)
+				for(int k=1; k<6; k++)
+				{
+					if(isample - k >= 0)
+					{
+						if(v_isSkippedSample[isample-k]) {continue;} //If previous sample was skipped, don't check its color
+						else if(color_list[isample] == color_list[isample-k]) {h_tmp->SetLineColor(color_list[isample]); break;} //If previous sample had same color, don't draw line
+					}
+					else {break;}
+				}
+                //---------------------------------------------------
+
+                //-- Fill vector of MC histograms
+                if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {v_vector_MC_histo[ivar].push_back((TH1F*) h_tmp->Clone());}
+                else if(!v_vector_MC_histo[ivar][index_MC_sample] && h_tmp) {v_vector_MC_histo[ivar][index_MC_sample] = (TH1F*) h_tmp->Clone();}
+                else {v_vector_MC_histo[ivar][index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
+                if(v_vector_MC_histo[ivar][index_MC_sample]) {v_vector_MC_histo[ivar][index_MC_sample]->SetDirectory(0);} //Dis-associate histo from TFile //https://root.cern.ch/root/htmldoc/guides/users-guide/ObjectOwnership.html
+
+				delete h_tmp; h_tmp = NULL; //No crash ? (else only delete if new)
+			} //end sample loop
+
+
+// #####    ##   #####   ##
+// #    #  #  #    #    #  #
+// #    # #    #   #   #    #
+// #    # ######   #   ######
+// #    # #    #   #   #    #
+// #####  #    #   #   #    #
+
+            TString dataname = "data_obs";
+            if(total_var_list[ivar].Contains("mTW"))
+            {
+                xmin_tmp = 0; xmax_tmp = 150; nIndivBins = 15;
+                hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+                for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                {
+                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
+                    if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                    file_input = TFile::Open(inputfilename, "READ");
+                    // cout<<"inputfilename "<<inputfilename<<endl;
+
+                    TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_SRother_" + v_lumiYears[iyear] + "_postfit/";;
+                    // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
+                    if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(dataname) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<dataname<<"' not found ! Skip...")<<endl; continue;}
+
+                    if(isnan(((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(1))) {cout<<FRED("ERROR: NaN data (dir_hist="<<dir_hist<<") !")<<endl; continue;} //Can happen when input data is 0 (?)
+
+                    hdata_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(1)); //Get content/error from individual bin
+                    hdata_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(1));
+
+                    file_input->Close();
+                } //nbins
+            }
+            else if(total_var_list[ivar].Contains("countExp"))
+            {
+                xmin_tmp = 0; xmax_tmp = 3; nIndivBins = 3;
+                hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+                for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                {
+                    TString cat = "";
+                    if(ibin==1) {cat = "CRWZ";}
+                    else if(ibin==2) {cat = "CRZZ";}
+                    else if(ibin==3) {cat = "SRttZ4l";}
+                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_countExp_"+cat+".root";
+                    if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                    file_input = TFile::Open(inputfilename, "READ");
+                    // cout<<"inputfilename "<<inputfilename<<endl;
+
+                    TString dir_hist = total_var_list[ivar] + "_" + cat + "_" + v_lumiYears[iyear] + "_postfit/";
+                    // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
+                    if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(dataname) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<dataname<<"' not found ! Skip...")<<endl; continue;}
+
+                    hdata_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(1)); //Get content/error from individual bin
+                    hdata_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(1));
+
+                    file_input->Close();
+                } //nbins
+            }
+
+            if(v_hdata[ivar] == NULL) {v_hdata[ivar] = (TH1F*) hdata_tmp->Clone();}
+            else {v_hdata[ivar]->Add((TH1F*) hdata_tmp->Clone());}
+            v_hdata[ivar]->SetMarkerStyle(20);
+
+            v_hdata[ivar]->SetDirectory(0); //Dis-associate from TFile
+            delete hdata_tmp; hdata_tmp = NULL; //No crash ? (else only delete if new)
+        } //years loop
+
+        //-- Protection against nan/inf data points
+        for(int ibin=1; ibin<v_hdata[ivar]->GetNbinsX()+1; ibin++)
+        {
+            // cout<<"histo_ratio_data["<<ibin<<"] = "<<histo_ratio_data->GetBinContent(ibin)<<endl;
+            if(std::isnan(v_hdata[ivar]->GetBinContent(ibin)) || std::isinf(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<")="<<v_hdata[ivar]->GetBinContent(ibin)<<" ! May cause plotting bugs !")<<endl; v_hdata[ivar]->SetBinContent(ibin, 0.);}
+        }
+
+
+// ##### #    #  ####  #####   ##    ####  #    #
+//   #   #    # #        #    #  #  #    # #   #
+//   #   ######  ####    #   #    # #      ####
+//   #   #    #      #   #   ###### #      #  #
+//   #   #    # #    #   #   #    # #    # #   #
+//   #   #    #  ####    #   #    #  ####  #    #
+
+    	//-- Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
+        v_stack[ivar] = new THStack;
+
+		for(int i=v_vector_MC_histo[ivar].size()-1; i>=0; i--)
+		{
+			if(!v_vector_MC_histo[ivar][i]) {continue;} //Some templates may be null
+			v_stack[ivar]->Add(v_vector_MC_histo[ivar][i]);
+
+            if(v_histo_total_MC[ivar] == NULL) {v_histo_total_MC[ivar] = (TH1F*) v_vector_MC_histo[ivar][i]->Clone();}
+            else {v_histo_total_MC[ivar]->Add(v_vector_MC_histo[ivar][i]);}
+
+			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_vector_MC_histo[ivar][i]->Integral()<<endl;
+            // cout<<"stack bin 1 content = "<<((TH1*) v_stack[ivar]->GetStack()->Last())->GetBinContent(1)<<endl;
+		}
+
+
+// ###### #####  #####   ####  #####   ####      ####  #####   ##    ####  #    #
+// #      #    # #    # #    # #    # #         #        #    #  #  #    # #   #
+// #####  #    # #    # #    # #    #  ####      ####    #   #    # #      ####
+// #      #####  #####  #    # #####       #         #   #   ###### #      #  #
+// #      #   #  #   #  #    # #   #  #    #    #    #   #   #    # #    # #   #
+// ###### #    # #    #  ####  #    #  ####      ####    #   #    #  ####  #    #
+
+        //-- Use pointers to vectors : need to give the adress of first element (all other elements can then be accessed iteratively)
+        double* eyl = &v_eyl[0];
+        double* eyh = &v_eyh[0];
+        double* exl = &v_exl[0];
+        double* exh = &v_exh[0];
+        double* xx = &v_x[0];
+        double* yy = &v_y[0];
+        // cout<<"v_eyl[0] "<<v_eyl[0]<<endl;
+        // cout<<"v_eyh[0] "<<v_eyh[0]<<endl;
+        // cout<<"v_exl[0] "<<v_exl[0]<<endl;
+        // cout<<"v_exh[0] "<<v_exh[0]<<endl;
+        // cout<<"v_x[0] "<<v_x[0]<<endl;
+        // cout<<"v_y[0] "<<v_y[0]<<endl;
+
+        v_gr_error[ivar] = new TGraphAsymmErrors(nIndivBins,xx,yy,exl,exh,eyl,eyh);
+        v_gr_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_error[ivar]->SetFillColor(kBlack);
+
+
+// #####  #####    ##   #    #
+// #    # #    #  #  #  #    #
+// #    # #    # #    # #    #
+// #    # #####  ###### # ## #
+// #    # #   #  #    # ##  ##
+// #####  #    # #    # #    #
+
+        c1->cd(ivar+1);
+
+        //Draw stack
+        v_stack[ivar]->Draw("hist");
+
+        v_hdata[ivar]->Draw("e0p same");
+
+        v_gr_error[ivar]->Draw("e2 same"); //Superimposes the uncertainties on stack
+
+
+// #   # #    #   ##   #    #
+//  # #  ##  ##  #  #   #  #
+//   #   # ## # #    #   ##
+//   #   #    # ######   ##
+//   #   #    # #    #  #  #
+//   #   #    # #    # #    #
+
+        //-- Set minimum
+        v_stack[ivar]->SetMinimum(0.0001); //Remove '0' label
+        if(total_var_list[ivar].Contains("countExp")) {v_stack[ivar]->SetMinimum(10.);}
+
+        //-- Set Yaxis maximum
+        double ymax = 0;
+        ymax = v_hdata[ivar]->GetMaximum(); //Data ymax
+        if(ymax < v_stack[ivar]->GetMaximum()) {ymax = v_stack[ivar]->GetMaximum();} //MC ymax
+        ymax*= 1.4;
+        v_stack[ivar]->SetMaximum(ymax);
+		if(total_var_list[ivar].Contains("countExp")) //Can't use 0
+		{
+
+			v_stack[ivar]->SetMaximum(v_stack[ivar]->GetMaximum()*20); //Must use higher threshold in log
+		}
+        // else if(total_var_list[ivar].Contains("mTW")) {v_stack[ivar]->SetMinimum(2.5);}
+        c1->Modified();
+
+
+// #####    ##   ##### #  ####
+// #    #  #  #    #   # #    #
+// #    # #    #   #   # #    #
+// #####  ######   #   # #    #
+// #   #  #    #   #   # #    #
+// #    # #    #   #   #  ####
+
+// #####  #       ####  #####
+// #    # #      #    #   #
+// #    # #      #    #   #
+// #####  #      #    #   #
+// #      #      #    #   #
+// #      ######  ####    #
+
+    	//-- create subpad to plot ratio
+        v_tpad_ratio[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
+        v_tpad_ratio[ivar]->SetTopMargin(0.70);
+        if(total_var_list[ivar].Contains("mTW")) {v_tpad_ratio[ivar]->SetRightMargin(0.04);}
+        v_tpad_ratio[ivar]->SetFillColor(0);
+    	v_tpad_ratio[ivar]->SetFillStyle(0);
+    	v_tpad_ratio[ivar]->SetGridy(1);
+    	v_tpad_ratio[ivar]->Draw();
+    	v_tpad_ratio[ivar]->cd(0);
+
+        v_histo_ratio_data[ivar] = (TH1F*) v_hdata[ivar]->Clone();
+
+    	if(!show_pulls_ratio) //Compute ratios (with error bars)
+    	{
+    		//To get correct error bars in ratio plot, must only account for errors from data, not MC ! (MC error shown as separate band)
+    		for(int ibin=1; ibin<v_histo_total_MC[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			v_histo_total_MC[ivar]->SetBinError(ibin, 0.);
+    		}
+
+    		v_histo_ratio_data[ivar]->Divide(v_histo_total_MC[ivar]);
+    	}
+     	else //-- Compute pulls (no error bars)
+    	{
+    		for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			//Add error on signal strength (since we rescale signal manually)
+    			// double bin_error_mu = v_vector_MC_histo[ivar].at(index_tZq_sample)->GetBinError(ibin) * sig_strength_err;
+    			// cout<<"bin_error_mu = "<<bin_error_mu<<endl;
+
+    			double bin_error_mu = 0; //No sig strength uncert. for prefit ! //-- postfit -> ?
+
+    			//Quadratic sum of systs, stat error, and sig strength error
+    			double bin_error = pow(pow(v_histo_total_MC[ivar]->GetBinError(ibin), 2) + pow(v_histo_ratio_data[ivar]->GetBinError(ibin), 2) + pow(bin_error_mu, 2), 0.5);
+
+    			if(!v_histo_total_MC[ivar]->GetBinError(ibin)) {v_histo_ratio_data[ivar]->SetBinContent(ibin,-99);} //Don't draw null markers
+    			else{v_histo_ratio_data[ivar]->SetBinContent(ibin, (v_histo_ratio_data[ivar]->GetBinContent(ibin) - v_histo_total_MC[ivar]->GetBinContent(ibin)) / bin_error );}
+    		}
+    	}
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
+    	else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.15);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.05);
+        if(total_var_list[ivar].Contains("countExp")) {v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.0);}
+        // v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.1);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.045);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.045);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetLabelFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTitleFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(503); //grid draw on primary tick marks only
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.06);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.04);
+    	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
+    	v_histo_ratio_data[ivar]->SetMarkerSize(1.2); //changed from 1.4
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitleSize(0.06);
+
+        if(total_var_list[ivar].Contains("countExp")) {v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.);}
+
+        //-- If a point is outside the y-range of the ratio pad defined by SetMaximum/SetMinimum(), it disappears with its error
+        //-- Trick: fill 2 histos with points either above/below y-range, to plot some markers indicating missing points (cleaner)
+        //NB: only for ratio plot, not pulls
+        float ratiopadmin = 0.4, ratiopadmax = 1.6; //Define ymin/ymax for ratio plot
+
+        //-- Zoom in ratio plot for CR plots (better agreement)
+        if(total_var_list[ivar].Contains("countExp")) {ratiopadmin = 0.8; ratiopadmax = 1.2;}
+
+        TH1F* h_pointsAboveY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsAboveY->SetMarkerStyle(26); //Open triangle pointing up
+        h_pointsAboveY->SetMarkerSize(1.5);
+        TH1F* h_pointsBelowY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsBelowY->SetMarkerStyle(32); //Open triangle pointing down
+        h_pointsBelowY->SetMarkerSize(1.5);
+        if(show_pulls_ratio)
+    	{
+    		v_histo_ratio_data[ivar]->SetMinimum(-2.99);
+    		v_histo_ratio_data[ivar]->SetMaximum(2.99);
+    	}
+    	else
+    	{
+            //-- Default
+            v_histo_ratio_data[ivar]->SetMinimum(ratiopadmin); //NB: removes error bars if data point is below ymin...?
+            v_histo_ratio_data[ivar]->SetMaximum(ratiopadmax);
+
+            //-- Fill histos with points outside yrange
+            for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+            {
+                //-- Default: make point invisible
+                h_pointsAboveY->SetBinContent(ibin, -999);
+                h_pointsBelowY->SetBinContent(ibin, -999);
+
+                if(v_histo_ratio_data[ivar]->GetBinContent(ibin) > ratiopadmax && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (initial_y-ratiopadmax);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsAboveY->SetBinContent(ibin, ratiopadmax-0.05); //Add some padding
+                    h_pointsAboveY->SetBinError(ibin, new_err);
+                }
+                else if(v_histo_ratio_data[ivar]->GetBinContent(ibin) < ratiopadmin && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (ratiopadmin-initial_y);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsBelowY->SetBinContent(ibin, ratiopadmin+(ratiopadmin/10.)); //Add some padding
+                    h_pointsBelowY->SetBinError(ibin, new_err);
+                }
+            }
+    	}
+
+        //-- SET X_AXIS TITLES
+        if(total_var_list[ivar].Contains("mTW")) {v_histo_ratio_data[ivar]->GetXaxis()->SetTitle("m_{T}^{W}");}
+
+        if(total_var_list[ivar].Contains("countExp")) //Vertical text X labels
+		{
+            v_histo_ratio_data[ivar]->GetXaxis()->SetTitle("Counting experiments");
+            v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.07); //Increase x-label size
+            v_histo_ratio_data[ivar]->GetXaxis()->SetLabelOffset(0.025); //Add some x-label offset
+            v_histo_ratio_data[ivar]->LabelsOption("v", "X"); //Make X labels vertical
+            const char *labels[3]  = {"CR WZ", "CR ZZ", "\\text{SR-t}\\bar{\\text{t}}\\text{Z-4}\\ell"};
+            // const char *labels[3]  = {"CR WZ", "CR ZZ", ""};
+            // const char *labels[10]  = {Get_Region_Label("wz", ""), Get_Region_Label("zz", ""), Get_Region_Label("ttz4l", "")};
+            for(int i=1;i<=3;i++) {v_histo_ratio_data[ivar]->GetXaxis()->SetBinLabel(i,labels[i-1]);}
+		}
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->Draw("HIST P");} //Draw ratio points
+        else
+        {
+            v_histo_ratio_data[ivar]->Draw("E1 X0 P"); //Draw ratio points ; E1 : perpendicular lines at end ; X0 : suppress x errors
+
+            h_pointsAboveY->Draw("E1 X0 P same");
+            h_pointsBelowY->Draw("E1 X0 P same");
+        }
+
+
+// ###### #####  #####   ####  #####   ####     #####    ##   ##### #  ####
+// #      #    # #    # #    # #    # #         #    #  #  #    #   # #    #
+// #####  #    # #    # #    # #    #  ####     #    # #    #   #   # #    #
+// #      #####  #####  #    # #####       #    #####  ######   #   # #    #
+// #      #   #  #   #  #    # #   #  #    #    #   #  #    #   #   # #    #
+// ###### #    # #    #  ####  #    #  ####     #    # #    #   #   #  ####
+
+
+		//Copy previous TGraphAsymmErrors, then modify it -> error TGraph for ratio plot
+		TGraphAsymmErrors *thegraph_tmp = NULL;
+		double *theErrorX_h;
+		double *theErrorY_h;
+		double *theErrorX_l;
+		double *theErrorY_l;
+		double *theY;
+		double *theX;
+
+		thegraph_tmp = (TGraphAsymmErrors*) v_gr_error[ivar]->Clone();
+		theErrorX_h = thegraph_tmp->GetEXhigh();
+		theErrorY_h = thegraph_tmp->GetEYhigh();
+		theErrorX_l = thegraph_tmp->GetEXlow();
+		theErrorY_l = thegraph_tmp->GetEYlow();
+		theY        = thegraph_tmp->GetY() ;
+		theX        = thegraph_tmp->GetX() ;
+
+		//Divide error --> ratio
+		for(int i=0; i<thegraph_tmp->GetN(); i++)
+		{
+			theErrorY_l[i] = theErrorY_l[i]/theY[i];
+			theErrorY_h[i] = theErrorY_h[i]/theY[i];
+			theY[i]=1; //To center the filled area around "1"
+		}
+
+		v_gr_ratio_error[ivar] = new TGraphAsymmErrors(thegraph_tmp->GetN(), theX , theY ,  theErrorX_l, theErrorX_h, theErrorY_l, theErrorY_h);
+        v_gr_ratio_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_ratio_error[ivar]->SetFillColor(kBlack); //kBlue+2 //kCyan
+
+		if(!show_pulls_ratio) {v_gr_ratio_error[ivar]->Draw("e2 same");} //Draw error bands in ratio plot
+
+
+//  ####   ####   ####  #    # ###### ##### #  ####   ####
+// #    # #    # #      ##  ## #        #   # #    # #
+// #      #    #  ####  # ## # #####    #   # #       ####
+// #      #    #      # #    # #        #   # #           #
+// #    # #    # #    # #    # #        #   # #    # #    #
+//  ####   ####   ####  #    # ######   #   #  ####   ####
+
+    	//-- Draw ratio y-lines manually
+    	v_hlines1[ivar] = new TH1F("","",this->nbins, v_hdata[ivar]->GetXaxis()->GetXmin(), v_hdata[ivar]->GetXaxis()->GetXmax());
+    	v_hlines2[ivar] = new TH1F("","",this->nbins, v_hdata[ivar]->GetXaxis()->GetXmin(), v_hdata[ivar]->GetXaxis()->GetXmax());
+    	for(int ibin=1; ibin<this->nbins +1; ibin++)
+    	{
+    		if(show_pulls_ratio)
+    		{
+    			v_hlines1[ivar]->SetBinContent(ibin, -1);
+    			v_hlines2[ivar]->SetBinContent(ibin, 1);
+    		}
+    		else
+    		{
+                if(total_var_list[ivar].Contains("countExp"))
+                {
+                    v_hlines1[ivar]->SetBinContent(ibin, 0.90);
+                    v_hlines2[ivar]->SetBinContent(ibin, 1.10);
+                }
+                else
+                {
+                    v_hlines1[ivar]->SetBinContent(ibin, 0.75);
+                    v_hlines2[ivar]->SetBinContent(ibin, 1.25);
+                }
+    		}
+    	}
+    	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
+    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+
+        TString Y_label = "Events"; //Default
+        if(total_var_list[ivar].Contains("mTW")) {Y_label = "Events / " + Convert_Number_To_TString( (v_stack[ivar]->GetXaxis()->GetXmax() - v_stack[ivar]->GetXaxis()->GetXmin()) / v_histo_total_MC[ivar]->GetNbinsX(), 2) + " GeV";}
+
+    	if(v_stack[ivar]!= 0)
+    	{
+    		v_stack[ivar]->GetXaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleSize(0.06);
+            v_stack[ivar]->GetYaxis()->SetTickLength(0.04);
+    		v_stack[ivar]->GetXaxis()->SetLabelSize(0.0);
+    		v_stack[ivar]->GetYaxis()->SetLabelSize(0.048);
+    		v_stack[ivar]->GetXaxis()->SetNdivisions(505);
+    		v_stack[ivar]->GetYaxis()->SetNdivisions(506);
+            v_stack[ivar]->GetYaxis()->SetTitleOffset(1.15);
+            // v_stack[ivar]->GetYaxis()->SetTitleOffset(1.28);
+    		v_stack[ivar]->GetYaxis()->SetTitle(Y_label);
+            v_stack[ivar]->GetXaxis()->SetTickLength(0.);
+    	}
+
+    	//----------------
+    	// CAPTIONS //
+    	//----------------
+    	// -- using https://twiki.cern.ch/twiki/pub/CMS/Internal/FigGuidelines
+        // -- About fonts: https://root.cern.ch/doc/master/classTAttText.html#T5
+
+    	float l = pad->GetLeftMargin();
+    	float t = pad->GetTopMargin();
+
+    	TString cmsText = "CMS";
+    	TLatex latex;
+    	latex.SetNDC();
+    	latex.SetTextColor(kBlack);
+        latex.SetTextFont(62); //Changed
+    	latex.SetTextAlign(11);
+    	latex.SetTextSize(0.06);
+        latex.DrawLatex(l + 0.04, 0.87, cmsText);
+
+    	float lumi = lumiValue;
+    	TString lumi_ts = Convert_Number_To_TString(lumi);
+    	lumi_ts += " fb^{-1} (13 TeV)";
+    	latex.SetTextFont(42);
+    	latex.SetTextAlign(31);
+    	latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.94,lumi_ts);
+
+        if(total_var_list[ivar].Contains("countExp"))
+        {
+            float y1 = 0.8; //Based on yvalues of ratio pad //1.2
+            float y2 = 2.3;
+            tline1 = new TLine(1.,y1,1.,y2);
+            tline1->SetLineColor(kBlack);
+            tline1->SetLineWidth(2);
+            // tline1->SetLineStyle(2);
+            tline1->Draw("same");
+
+            tline2 = new TLine(2.,y1,2.,y2);
+            tline2->SetLineColor(kBlack);
+            tline2->SetLineWidth(2);
+            // tline2->SetLineStyle(2);
+            tline2->Draw("same");
+        }
+
+        pad = NULL;
+    } //Var loop
+//--------------------------------------------
+
+
+// ####### #
+//    #    #       ######  ####  ###### #    # #####
+//    #    #       #      #    # #      ##   # #    #
+//    #    #       #####  #      #####  # #  # #    #
+//    #    #       #      #  ### #      #  # # #    #
+//    #    #       #      #    # #      #   ## #    #
+//    #    ####### ######  ####  ###### #    # #####
+
+    int ivar = 0; //Read first element by default
+
+    int n_columns = ceil(nSampleGroups/2.) > 6 ? 6 : ceil(nSampleGroups/2.); //ceil = upper int
+    float x_left = 0.94-n_columns*0.12; //Each column allocated same x-space //0.12 needed for most crowded plots
+    if(x_left < 0.4) {x_left = 0.4;} //Leave some space for region label
+
+    TLegend* qw = new TLegend(x_left-0.05,0.80,0.94,0.92); //Default /
+    qw->SetTextSize(0.04);
+    qw->SetNColumns(n_columns);
+    qw->SetBorderSize(0);
+    qw->SetFillStyle(0); //transparent
+    qw->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
+    // cout<<"x_left "<<x_left<<endl;
+    // cout<<"ceil(nSampleGroups/2.) "<<ceil(nSampleGroups/2.)<<endl;
+
+    //-- Dummy object, only used to display uncertainty band also in legend
+    TH1F* h_uncert = new TH1F("h_uncert", "h_uncert", 1, 0, 1);
+    h_uncert->SetFillStyle(3254); //3002 //3004
+    h_uncert->SetFillColor(kBlack);
+    h_uncert->SetLineWidth(0.);
+    qw->AddEntry(h_uncert, "Unc.", "F");
+
+	//-- Data on top of legend
+    qw->AddEntry(v_hdata[0], "Data" , "ep");
+
+    TLegend* qw_reduced = (TLegend*) qw->Clone();
+
+	for(int i=0; i<v_vector_MC_histo[ivar].size(); i++)
+	{
+        if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tZq", "f");}
+        else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "t#bar{t}Z", "f");}
+        else if(MC_samples_legend[i].EndsWith("tWZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tWZ", "f");}
+        else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
+        else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
+        else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
+	}
+
+    for(int i=0; i<v_vector_MC_histo[ivar].size(); i++)
+	{
+        if(MC_samples_legend[i] == "WZ") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
+        else if(MC_samples_legend[i] == "VVV") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
+        else if(MC_samples_legend[i] == "tX") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i].Contains("NPL")) {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
+	}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        c1->cd(ivar+1);
+        if(ivar==0) {qw_reduced->Draw("same");}
+        else if(ivar==1) {qw->Draw("same");} //Draw legend
+    }
+
+    // TLatex text2; //Different offset for SRttz4l label ?
+    // text2.DrawTextNDC(-0.4,0.03, "\\text{SR-t}\\bar{\\text{t}}\\text{Z-4}\\ell");
+
+
+// #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
+// #    # #    # #   #   #         #    # #    #   #   #    # #    #   #
+// #    # #    # #   #   #####     #    # #    #   #   #    # #    #   #
+// # ## # #####  #   #   #         #    # #    #   #   #####  #    #   #
+// ##  ## #   #  #   #   #         #    # #    #   #   #      #    #   #
+// #    # #    # #   #   ######     ####   ####    #   #       ####    #
+
+    TString outdir = "plots/paperPlots/";
+    mkdir(outdir.Data(), 0777);
+    TString output_plot_name = outdir + "PostfitTemplates_commonRegions";
+
+    c1->SaveAs(output_plot_name + ".png");
+    c1->SaveAs(output_plot_name + ".eps");
+    c1->SaveAs(output_plot_name + ".pdf");
+
+    delete c1; c1 = NULL;
+    delete qw; qw = NULL;
+    // delete qw_reduced; qw_reduced = NULL;
+    if(h_uncert) {delete h_uncert; h_uncert = NULL;}
+    if(tline1) {delete tline1; tline1 = NULL;}
+    if(tline2) {delete tline2; tline2 = NULL;}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        if(v_gr_error[ivar]) {delete v_gr_error[ivar]; v_gr_error[ivar] = NULL;}
+        if(v_stack[ivar]) {delete v_stack[ivar]; v_stack[ivar] = NULL;}
+        if(v_gr_ratio_error[ivar]) {delete v_gr_ratio_error[ivar]; v_gr_ratio_error[ivar] = NULL;}
+        if(v_hlines1[ivar]) {delete v_hlines1[ivar]; v_hlines1[ivar] = NULL;}
+        if(v_hlines2[ivar]) {delete v_hlines2[ivar]; v_hlines2[ivar] = NULL;}
+        // delete v_tpad_ratio[ivar]; v_tpad_ratio[ivar] = NULL; //Deleteed with c1
+    }
+
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Hard-coded function to produce figures for the paper.
+ * Plot showing the postfit distributions in the regions common to all fits (CRs, SRttZ4l, SRother).
+ */
+void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
+{
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+	cout<<FYEL("--- Producing paper figure [SIGNAL REGIONS] / "<<template_name<<" ---")<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+
+
+//  ####  ###### ##### #    # #####
+// #      #        #   #    # #    #
+//  ####  #####    #   #    # #    #
+//      # #        #   #    # #####
+// #    # #        #   #    # #
+//  ####  ######   #    ####  #
+
+    //--------------------------
+    // DIVIDE CANVAS IN 4 PADS
+    //--------------------------
+
+    //-- Canvas definition
+    Load_Canvas_Style(); //Default top/bottom/left/right margins: 0.07/0.13/0.16/0.03
+    TCanvas* c1 = new TCanvas("c1","c1", 1400, 800);
+    c1->Divide(2, 1, 1E-11, 1E-11); //(x,y)
+
+    //--------------------------
+    // DEFINE 3 VARIABLES TO PLOT
+    //--------------------------
+
+    int nbins_tmp, nIndivBins; float xmin_tmp, xmax_tmp;
+
+    int nvar = 2;
+    vector<TString> total_var_list(nvar);
+    total_var_list[0] = template_name + "_SRtZq";
+    total_var_list[1] = template_name + "_SRttZ";
+
+    //--------------------------
+    // CREATE VECTORS OF OBJECTS
+    //--------------------------
+
+    TH1F *h_tmp = NULL;
+
+    vector<TH1F*> v_hdata(nvar);
+    vector<THStack*> v_stack(nvar);
+    vector<TH1F*> v_histo_total_MC(nvar);
+    vector<vector<TH1F*> > v_vector_MC_histo(nvar); //Store separately the histos for each MC sample --> stack them after loops
+    vector<TH1F*> v_histo_ratio_data(nvar);
+    vector<TH1F*> v_hlines1(nvar), v_hlines2(nvar); //Draw TLinesin ratio plots
+
+    vector<TGraphAsymmErrors*> v_gr_error(nvar);
+    vector<TGraphAsymmErrors*> v_gr_ratio_error(nvar);
+
+
+    vector<TPad*> v_tpad_ratio(nvar);
+    vector<TGaxis*> v_axis(nvar);
+
+    //-- Ratio EFT/SM
+    vector<vector<TH1F*>> v2_histo_ratio_eft(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
+    for(int i=0; i<v2_histo_ratio_eft.size(); i++) {v2_histo_ratio_eft[i].resize(2);}
+    vector<TH1F*> v_histo_ratio_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store SM point
+
+    vector<TPad*> v_tpad_ratio_eft(nvar);
+
+    vector<TString> MC_samples_legend; //List the MC samples to mention in legend
+
+    int nbjets_min =-1, nbjets_max=-1, njets_min=-1, njets_max=-1;
+
+
+// #       ####   ####  #####   ####
+// #      #    # #    # #    # #
+// #      #    # #    # #    #  ####
+// #      #    # #    # #####       #
+// #      #    # #    # #      #    #
+// ######  ####   ####  #       ####
+
+//--------------------------------------------
+	for(int ivar=0; ivar<nvar; ivar++)
+	{
+        cout<<endl<<FBLU("== VARIABLE: "<<total_var_list[ivar]<<"")<<endl;
+
+    	TString primitive_name = "c1_" + Convert_Number_To_TString(ivar+1);
+        TPad* pad = (TPad*) c1->GetPrimitive(primitive_name);
+        TString inputfilename = "";
+    	if(total_var_list[ivar].Contains("SRtZq")) //Left
+    	{
+    		pad->SetPad(0, 0., 0.50, 1); //xlow, ylow, xup, yup
+    	}
+    	else if(total_var_list[ivar].Contains("SRttZ")) //Right
+    	{
+    		pad->SetPad(0.50, 0., 1., 1); //xlow, ylow, xup, yup
+    	}
+        pad->SetLogy();
+        float top_panel_size = 0.6;
+        pad->SetBottomMargin(1-top_panel_size);
+
+        TFile* file_input = NULL;
+        TH1F* h_tmp = NULL; //Tmp storing histo
+        TH1F* hdata_tmp = NULL; //Tmp storing data histo
+
+		//-- Init error vectors
+		double x, y, errory_low, errory_high;
+
+		vector<double> v_eyl, v_eyh, v_exl, v_exh, v_x, v_y; //Contain the systematic errors (used to create the TGraphError)
+
+        float bin_width = -1; //Get bin width of histograms for current variable
+
+        //-- All histos are for given lumiYears and sub-channels --> Need to sum them all for plots
+        for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+        {
+
+
+// #    #  ####
+// ##  ## #    #
+// # ## # #
+// #    # #
+// #    # #    #
+// #    #  ####
+
+			//--- Retrieve all MC samples
+			int nof_skipped_samples = 0; //Get sample index right
+
+			vector<bool> v_isSkippedSample(sample_list.size()); //Get sample index right (some samples are skipped)
+
+			for(int isample = 0; isample < sample_list.size(); isample++)
+			{
+                int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
+
+                // cout<<"sample_list[isample] "<<sample_list[isample]<<endl;
+                // cout<<"index_MC_sample "<<index_MC_sample<<endl;
+
+				//-- In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
+				//-- If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
+				TString samplename = sample_list[isample];
+				if(isample > 0 && sample_groups[isample] == sample_groups[isample-1]) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //if same group as previous sample, skip it
+                else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ" || sample_groups[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
+                else {samplename = sample_groups[isample];}
+
+				//-- Protections, special cases
+				if(sample_list[isample] == "DATA") {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                else if(!make_SMvsEFT_templates_plots && sample_list[isample].Contains("PrivMC")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM configuration --> only stack central samples (not private samples)
+                else if(make_SMvsEFT_templates_plots && (sample_list[isample] == "tZq" || sample_list[isample] == "ttZ" || sample_list[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //EFT configuration --> only stack private samples (at SM point), not central samples
+                else if(sample_list[isample] == "NPL_DATA")  {samplename = "NPL";} //Instead of 'NPL_DATA' and 'NPL_MC', we only want to read the merged histo 'NPL'
+                else if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element //Remove ?
+
+                //-- Add sample name to list (used for legend) //NB: add even if histo was not found and skipped, because expect that it will be found for some other year/channel/... But if not found at all, legend will be wrong
+                if(iyear==0 && ivar==0 && samplename != "DATA")
+                {
+                    if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
+                }
+                if(v_isSkippedSample[isample] == true) {continue;} //Skip this sample
+
+				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
+
+				h_tmp = NULL;
+                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], false, true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, false);
+                h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+                v_eyl.resize(nIndivBins); v_eyh.resize(nIndivBins); v_exl.resize(nIndivBins); v_exh.resize(nIndivBins); v_y.resize(nIndivBins); v_x.resize(nIndivBins);
+                std::fill(v_y.begin(), v_y.end(), -1); //Init errors positions to <0 (invisible)
+
+                for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                {
+                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                    if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                    file_input = TFile::Open(inputfilename, "READ");
+                    // cout<<"inputfilename "<<inputfilename<<endl;
+
+                    TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_postfit/";
+
+                    // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
+                    if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
+
+                    h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
+                    h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+
+                    //-- Errors
+                    if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
+                    {
+                        dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                        if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                        float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
+                        v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
+                        v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
+                        v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
+                        // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                    }
+                    file_input->Close();
+                } //nbins
+
+				//-- Set histo style (use color vector filled in main) //NB: run for all sub-histos... for simplicity
+                //---------------------------------------------------
+				h_tmp->SetFillStyle(1001);
+				if(samplename == "Fakes") {h_tmp->SetFillStyle(3005);}
+		        else if(samplename == "QFlip" ) {h_tmp->SetFillStyle(3006);}
+
+				h_tmp->SetFillColor(color_list[isample]);
+				h_tmp->SetLineColor(kBlack);
+                h_tmp->SetLineColor(color_list[isample]);
+
+				//Check color of previous *used* sample (up to 6, to account for potentially skipped samples)
+				for(int k=1; k<6; k++)
+				{
+					if(isample - k >= 0)
+					{
+						if(v_isSkippedSample[isample-k]) {continue;} //If previous sample was skipped, don't check its color
+						else if(color_list[isample] == color_list[isample-k]) {h_tmp->SetLineColor(color_list[isample]); break;} //If previous sample had same color, don't draw line
+					}
+					else {break;}
+				}
+                //---------------------------------------------------
+
+                //-- Fill vector of MC histograms
+                if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {v_vector_MC_histo[ivar].push_back((TH1F*) h_tmp->Clone());}
+                else if(!v_vector_MC_histo[ivar][index_MC_sample] && h_tmp) {v_vector_MC_histo[ivar][index_MC_sample] = (TH1F*) h_tmp->Clone();}
+                else {v_vector_MC_histo[ivar][index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
+                if(v_vector_MC_histo[ivar][index_MC_sample]) {v_vector_MC_histo[ivar][index_MC_sample]->SetDirectory(0);} //Dis-associate histo from TFile //https://root.cern.ch/root/htmldoc/guides/users-guide/ObjectOwnership.html
+
+				delete h_tmp; h_tmp = NULL; //No crash ? (else only delete if new)
+			} //end sample loop
+
+
+// #####    ##   #####   ##
+// #    #  #  #    #    #  #
+// #    # #    #   #   #    #
+// #    # ######   #   ######
+// #    # #    #   #   #    #
+// #####  #    #   #   #    #
+
+            TString dataname = "data_obs";
+            hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+            for(int ibin=1; ibin<nIndivBins+1; ibin++)
+            {
+                inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                file_input = TFile::Open(inputfilename, "READ");
+                // cout<<"inputfilename "<<inputfilename<<endl;
+
+                TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_postfit/";;
+                // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
+                if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(dataname) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<dataname<<"' not found ! Skip...")<<endl; continue;}
+
+                float bin_content = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(1);
+                float bin_error = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(1);
+                if(isnan(bin_content)) {cout<<FRED("ERROR: NaN data (dir_hist="<<dir_hist<<") !")<<endl; continue;} //Can happen when input data is 0 (?)
+
+                hdata_tmp->SetBinContent(ibin, bin_content); //Get content/error from individual bin
+                hdata_tmp->SetBinError(ibin, bin_error);
+
+                // cout<<"dir_hist "<<dir_hist<<endl;
+                // cout<<"hdata_tmp->GetBinContent(ibin) "<<hdata_tmp->GetBinContent(ibin)<<endl;
+
+                file_input->Close();
+            } //nbins
+
+            if(v_hdata[ivar] == NULL) {v_hdata[ivar] = (TH1F*) hdata_tmp->Clone();}
+            else {v_hdata[ivar]->Add((TH1F*) hdata_tmp->Clone());}
+            v_hdata[ivar]->SetMarkerStyle(20);
+
+            v_hdata[ivar]->SetDirectory(0); //Dis-associate from TFile
+            delete hdata_tmp; hdata_tmp = NULL; //No crash ? (else only delete if new)
+
+
+// #####  #####  # #    #         ####    ##   #    # #####  #      ######
+// #    # #    # # #    #        #       #  #  ##  ## #    # #      #
+// #    # #    # # #    #         ####  #    # # ## # #    # #      #####
+// #####  #####  # #    # ###         # ###### #    # #####  #      #
+// #      #   #  #  #  #  ###    #    # #    # #    # #      #      #
+// #      #    # #   ##   ###     ####  #    # #    # #      ###### ######
+
+            //-- Protection: if want to plot private SMEFT samples, make sure they are included in the main sample list
+            //-- NB: if using Combine file, treat private SMEFT samples like central samples (included in stack); can't rescale & superimpose on plot, because Combine does not store TH1EFT objects !
+            bool PrivMC_sample_found = false;
+            for(int isample=0; isample<sample_list.size(); isample++) {if(sample_list[isample].Contains("PrivMC")) {PrivMC_sample_found = true;}}
+
+            inputfilename = "./outputs/Templates_"+template_name+"_EFT2_Run2.root";
+            if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+            file_input = TFile::Open(inputfilename, "READ");
+            // cout<<"inputfilename "<<inputfilename<<endl;
+
+            TH1EFT* th1eft_tmp = NULL;
+            TH1F* th1f_new = NULL;
+
+            TString samplename = "PrivMC_tZq";
+            if(total_var_list[ivar].Contains("ttZ")) {samplename = "PrivMC_ttZ";}
+            TString histo_name = total_var_list[ivar] + "_" + v_lumiYears[iyear] + "__" + samplename;
+            // cout<<"histo_name "<<histo_name<<endl;
+
+            if(!file_input->GetListOfKeys()->Contains(histo_name) ) {cout<<ITAL(DIM("Histogram '"<<histo_name<<"' : not found ! Skip..."))<<endl; continue;}
+            th1eft_tmp = (TH1EFT*) file_input->Get(histo_name);
+            th1f_new = new TH1F("", "", th1eft_tmp->GetNbinsX(), th1eft_tmp->GetXaxis()->GetXmin(), th1eft_tmp->GetXaxis()->GetXmax());
+            if(v_histo_ratio_sm[ivar] == NULL) {v_histo_ratio_sm[ivar] = (TH1F*) th1eft_tmp->Clone();}
+            else {v_histo_ratio_sm[ivar]->Add((TH1F*) th1eft_tmp->Clone());}
+
+            //FIXME
+            string EFTpoint_name = "";
+            if(total_var_list[ivar].Contains("ctz")) {EFTpoint_name = "rwgt_ctz_1";}
+            else if(total_var_list[ivar].Contains("ctw")) {EFTpoint_name = "rwgt_ctw_1";}
+            else if(total_var_list[ivar].Contains("cpq3")) {EFTpoint_name = "rwgt_cpq3_3";}
+            else if(total_var_list[ivar].Contains("5D")) {EFTpoint_name = "rwgt_ctz_1_ctw_1_cpq3_3";}
+            else if(total_var_list[ivar].Contains("SM")) {EFTpoint_name = "rwgt_cpqm_5";}
+
+            //-- Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
+            WCPoint wcp = WCPoint(EFTpoint_name, 1.);
+            th1eft_tmp->Scale(wcp);
+            for(int ibin=1; ibin<th1f_new->GetNbinsX()+1; ibin++)
+            {
+                // cout<<"ibin "<<ibin<<" / content "<<th1eft_tmp->GetBinContent(ibin)<<" / error "<<th1eft_tmp->GetBinError(ibin)<<endl;
+                th1f_new->SetBinContent(ibin, th1eft_tmp->GetBinContent(ibin));
+                th1f_new->SetBinError(ibin, th1eft_tmp->GetBinError(ibin));
+            }
+            if(v2_histo_ratio_eft[ivar][0] == NULL) {v2_histo_ratio_eft[ivar][0] = (TH1F*) th1f_new->Clone();}
+            else {v2_histo_ratio_eft[ivar][0]->Add((TH1F*) th1f_new->Clone());}
+
+            //FIXME
+            if(total_var_list[ivar].Contains("ctz")) {EFTpoint_name = "rwgt_ctz_3";}
+            else if(total_var_list[ivar].Contains("ctw")) {EFTpoint_name = "rwgt_ctw_3";}
+            else if(total_var_list[ivar].Contains("cpq3")) {EFTpoint_name = "rwgt_cpq3_8";}
+            else if(total_var_list[ivar].Contains("5D")) {EFTpoint_name = "rwgt_ctz_3_ctw_3_cpq3_8";}
+            else if(total_var_list[ivar].Contains("SM")) {EFTpoint_name = "rwgt_cpt_5";}
+
+            wcp = WCPoint(EFTpoint_name, 1.);
+            th1eft_tmp->Scale(wcp);
+            for(int ibin=1; ibin<th1f_new->GetNbinsX()+1; ibin++)
+            {
+                // cout<<"ibin "<<ibin<<" / content "<<th1eft_tmp->GetBinContent(ibin)<<" / error "<<th1eft_tmp->GetBinError(ibin)<<endl;
+                th1f_new->SetBinContent(ibin, th1eft_tmp->GetBinContent(ibin));
+                th1f_new->SetBinError(ibin, th1eft_tmp->GetBinError(ibin));
+            }
+            if(v2_histo_ratio_eft[ivar][1] == NULL) {v2_histo_ratio_eft[ivar][1] = (TH1F*) th1f_new->Clone();}
+            else {v2_histo_ratio_eft[ivar][1]->Add((TH1F*) th1f_new->Clone());}
+
+            if(th1f_new) {delete th1f_new; th1f_new = NULL;}
+        } //years loop
+
+        //-- Protection against nan/inf data points
+        for(int ibin=1; ibin<v_hdata[ivar]->GetNbinsX()+1; ibin++)
+        {
+            // cout<<"histo_ratio_data["<<ibin<<"] = "<<histo_ratio_data->GetBinContent(ibin)<<endl;
+            if(std::isnan(v_hdata[ivar]->GetBinContent(ibin)) || std::isinf(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<")="<<v_hdata[ivar]->GetBinContent(ibin)<<" ! May cause plotting bugs !")<<endl; v_hdata[ivar]->SetBinContent(ibin, 0.);}
+        }
+
+
+// ##### #    #  ####  #####   ##    ####  #    #
+//   #   #    # #        #    #  #  #    # #   #
+//   #   ######  ####    #   #    # #      ####
+//   #   #    #      #   #   ###### #      #  #
+//   #   #    # #    #   #   #    # #    # #   #
+//   #   #    #  ####    #   #    #  ####  #    #
+
+    	//-- Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
+        v_stack[ivar] = new THStack;
+
+		for(int i=v_vector_MC_histo[ivar].size()-1; i>=0; i--)
+		{
+			if(!v_vector_MC_histo[ivar][i]) {continue;} //Some templates may be null
+			v_stack[ivar]->Add(v_vector_MC_histo[ivar][i]);
+
+            if(v_histo_total_MC[ivar] == NULL) {v_histo_total_MC[ivar] = (TH1F*) v_vector_MC_histo[ivar][i]->Clone();}
+            else {v_histo_total_MC[ivar]->Add(v_vector_MC_histo[ivar][i]);}
+
+			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_vector_MC_histo[ivar][i]->Integral()<<endl;
+            // cout<<"stack bin 1 content = "<<((TH1*) v_stack[ivar]->GetStack()->Last())->GetBinContent(1)<<endl;
+		}
+
+
+// ###### #####  #####   ####  #####   ####      ####  #####   ##    ####  #    #
+// #      #    # #    # #    # #    # #         #        #    #  #  #    # #   #
+// #####  #    # #    # #    # #    #  ####      ####    #   #    # #      ####
+// #      #####  #####  #    # #####       #         #   #   ###### #      #  #
+// #      #   #  #   #  #    # #   #  #    #    #    #   #   #    # #    # #   #
+// ###### #    # #    #  ####  #    #  ####      ####    #   #    #  ####  #    #
+
+        //-- Use pointers to vectors : need to give the adress of first element (all other elements can then be accessed iteratively)
+        double* eyl = &v_eyl[0];
+        double* eyh = &v_eyh[0];
+        double* exl = &v_exl[0];
+        double* exh = &v_exh[0];
+        double* xx = &v_x[0];
+        double* yy = &v_y[0];
+
+        v_gr_error[ivar] = new TGraphAsymmErrors(nIndivBins,xx,yy,exl,exh,eyl,eyh);
+        v_gr_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_error[ivar]->SetFillColor(kBlack);
+
+        //-- Debug printouts
+        // for(int ibin=1; ibin<nIndivBins+1; ibin++)
+        // {
+        //     cout<<"-- ibin "<<ibin<<endl;
+        //     cout<<"v_eyh[ibin] "<<v_eyh[ibin]<<" / v_exl[ibin] "<<v_exl[ibin]<<" / v_exh[ibin] "<<v_exh[ibin]<<" / v_x[ibin] "<<v_x[ibin]<<" / v_y[ibin] "<<v_y[ibin]<<endl;
+        //     cout<<"v_hdata[ivar]->GetBinContent(ibin) "<<v_hdata[ivar]->GetBinContent(ibin)<<endl;
+        //     cout<<"v_histo_total_MC[ivar]->GetBinContent(ibin) "<<v_histo_total_MC[ivar]->GetBinContent(ibin)<<endl;
+        // }
+
+        for(int ibin=1; ibin<nIndivBins+1; ibin++)
+        {
+            if(isnan(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<") is nan ! May cause plotting bugs !")<<endl;}
+        }
+
+
+// #####  #####    ##   #    #
+// #    # #    #  #  #  #    #
+// #    # #    # #    # #    #
+// #    # #####  ###### # ## #
+// #    # #   #  #    # ##  ##
+// #####  #    # #    # #    #
+
+        c1->cd(ivar+1);
+
+        //Draw stack
+        v_stack[ivar]->Draw("hist");
+
+        v_hdata[ivar]->Draw("e0p same");
+
+        v_gr_error[ivar]->Draw("e2 same"); //Superimposes the uncertainties on stack
+
+
+// #   # #    #   ##   #    #
+//  # #  ##  ##  #  #   #  #
+//   #   # ## # #    #   ##
+//   #   #    # ######   ##
+//   #   #    # #    #  #  #
+//   #   #    # #    # #    #
+
+        //-- Set minimum
+        v_stack[ivar]->SetMinimum(2.5);
+        // v_stack[ivar]->SetMinimum(3.); //Y starts above 1
+
+        //-- Set Yaxis maximum
+        double ymax = 0;
+        ymax = v_hdata[ivar]->GetMaximum(); //Data ymax
+        if(ymax < v_stack[ivar]->GetMaximum()) {ymax = v_stack[ivar]->GetMaximum();} //MC ymax
+        ymax*= 3.;
+        v_stack[ivar]->SetMaximum(ymax);
+        c1->Modified();
+
+
+// #####    ##   ##### #  ####
+// #    #  #  #    #   # #    #
+// #    # #    #   #   # #    #
+// #####  ######   #   # #    #
+// #   #  #    #   #   # #    #
+// #    # #    #   #   #  ####
+
+// #####  #       ####  #####
+// #    # #      #    #   #
+// #    # #      #    #   #
+// #####  #      #    #   #
+// #      #      #    #   #
+// #      ######  ####    #
+
+    	//-- create subpad to plot ratio
+        v_tpad_ratio[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
+        v_tpad_ratio[ivar]->SetTopMargin(top_panel_size);
+        float middle_panel_size = 0.27; //NB: must adjust middle panel size (margins computed w.r.t. pad height)
+        v_tpad_ratio[ivar]->SetBottomMargin(middle_panel_size);
+        v_tpad_ratio[ivar]->SetFillColor(0);
+    	v_tpad_ratio[ivar]->SetFillStyle(0);
+    	v_tpad_ratio[ivar]->SetGridy(1);
+    	v_tpad_ratio[ivar]->Draw();
+    	v_tpad_ratio[ivar]->cd(0);
+
+        v_histo_ratio_data[ivar] = (TH1F*) v_hdata[ivar]->Clone();
+
+    	if(!show_pulls_ratio) //Compute ratios (with error bars)
+    	{
+    		//To get correct error bars in ratio plot, must only account for errors from data, not MC ! (MC error shown as separate band)
+    		for(int ibin=1; ibin<v_histo_total_MC[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			v_histo_total_MC[ivar]->SetBinError(ibin, 0.);
+    		}
+
+    		v_histo_ratio_data[ivar]->Divide(v_histo_total_MC[ivar]);
+    	}
+     	else //-- Compute pulls (no error bars)
+    	{
+    		for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			//Add error on signal strength (since we rescale signal manually)
+    			// double bin_error_mu = v_vector_MC_histo[ivar].at(index_tZq_sample)->GetBinError(ibin) * sig_strength_err;
+    			// cout<<"bin_error_mu = "<<bin_error_mu<<endl;
+
+    			double bin_error_mu = 0; //No sig strength uncert. for prefit ! //-- postfit -> ?
+
+    			//Quadratic sum of systs, stat error, and sig strength error
+    			double bin_error = pow(pow(v_histo_total_MC[ivar]->GetBinError(ibin), 2) + pow(v_histo_ratio_data[ivar]->GetBinError(ibin), 2) + pow(bin_error_mu, 2), 0.5);
+
+    			if(!v_histo_total_MC[ivar]->GetBinError(ibin)) {v_histo_ratio_data[ivar]->SetBinContent(ibin,-99);} //Don't draw null markers
+    			else{v_histo_ratio_data[ivar]->SetBinContent(ibin, (v_histo_ratio_data[ivar]->GetBinContent(ibin) - v_histo_total_MC[ivar]->GetBinContent(ibin)) / bin_error );}
+    		}
+
+    		//-- Don't draw null data
+    		for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+    		{
+                if(std::isnan(v_histo_ratio_data[ivar]->GetBinContent(ibin)) || std::isinf(v_histo_ratio_data[ivar]->GetBinContent(ibin)) || v_histo_ratio_data[ivar]->GetBinContent(ibin) == 0) {v_histo_ratio_data[ivar]->SetBinContent(ibin, -99);}
+    		}
+    	}
+
+        cout<<"v_histo_ratio_data[ivar]->GetXaxis()->GetXmin() "<<v_histo_ratio_data[ivar]->GetXaxis()->GetXmin()<<endl;
+        cout<<"v_histo_ratio_data[ivar]->GetXaxis()->GetXmax() "<<v_histo_ratio_data[ivar]->GetXaxis()->GetXmax()<<endl;
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
+        else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("#frac{Data}{Pred.}");}
+        // else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.04);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTitleFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(503); //grid draw on primary tick marks only
+        // v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(-505); //'-' to force Ndivisions
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.045);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.5);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.04);
+    	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
+    	v_histo_ratio_data[ivar]->SetMarkerSize(1.2);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitleSize(0.);
+
+        //-- If a point is outside the y-range of the ratio pad defined by SetMaximum/SetMinimum(), it disappears with its error
+        //-- Trick: fill 2 histos with points either above/below y-range, to plot some markers indicating missing points (cleaner)
+        //NB: only for ratio plot, not pulls
+        float ratiopadmin = 0.4, ratiopadmax = 1.6; //Define ymin/ymax for ratio plot
+        TH1F* h_pointsAboveY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsAboveY->SetMarkerStyle(26); //Open triangle pointing up
+        h_pointsAboveY->SetMarkerSize(1.5);
+        TH1F* h_pointsBelowY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsBelowY->SetMarkerStyle(32); //Open triangle pointing down
+        h_pointsBelowY->SetMarkerSize(1.5);
+        if(show_pulls_ratio)
+    	{
+    		v_histo_ratio_data[ivar]->SetMinimum(-2.99);
+    		v_histo_ratio_data[ivar]->SetMaximum(2.99);
+    	}
+    	else
+    	{
+            //-- Default
+            v_histo_ratio_data[ivar]->SetMinimum(ratiopadmin); //NB: removes error bars if data point is below ymin...?
+            v_histo_ratio_data[ivar]->SetMaximum(ratiopadmax);
+
+            //-- Fill histos with points outside yrange
+            for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+            {
+                //-- Default: make point invisible
+                h_pointsAboveY->SetBinContent(ibin, -999);
+                h_pointsBelowY->SetBinContent(ibin, -999);
+
+                if(v_histo_ratio_data[ivar]->GetBinContent(ibin) > ratiopadmax && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (initial_y-ratiopadmax);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsAboveY->SetBinContent(ibin, ratiopadmax-0.05); //Add some padding
+                    h_pointsAboveY->SetBinError(ibin, new_err);
+                }
+                else if(v_histo_ratio_data[ivar]->GetBinContent(ibin) < ratiopadmin && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (ratiopadmin-initial_y);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsBelowY->SetBinContent(ibin, ratiopadmin+(ratiopadmin/10.)); //Add some padding
+                    h_pointsBelowY->SetBinError(ibin, new_err);
+                }
+            }
+    	}
+
+        //-- SET X_AXIS TITLES
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar]));
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->Draw("HIST P");} //Draw ratio points
+        else
+        {
+            v_histo_ratio_data[ivar]->Draw("E1 X0 P"); //Draw ratio points ; E1 : perpendicular lines at end ; X0 : suppress x errors
+
+            h_pointsAboveY->Draw("E1 X0 P same");
+            h_pointsBelowY->Draw("E1 X0 P same");
+        }
+
+
+// ###### #####  #####   ####  #####   ####     #####    ##   ##### #  ####
+// #      #    # #    # #    # #    # #         #    #  #  #    #   # #    #
+// #####  #    # #    # #    # #    #  ####     #    # #    #   #   # #    #
+// #      #####  #####  #    # #####       #    #####  ######   #   # #    #
+// #      #   #  #   #  #    # #   #  #    #    #   #  #    #   #   # #    #
+// ###### #    # #    #  ####  #    #  ####     #    # #    #   #   #  ####
+
+
+		//Copy previous TGraphAsymmErrors, then modify it -> error TGraph for ratio plot
+		TGraphAsymmErrors *thegraph_tmp = NULL;
+		double *theErrorX_h;
+		double *theErrorY_h;
+		double *theErrorX_l;
+		double *theErrorY_l;
+		double *theY;
+		double *theX;
+
+		thegraph_tmp = (TGraphAsymmErrors*) v_gr_error[ivar]->Clone();
+		theErrorX_h = thegraph_tmp->GetEXhigh();
+		theErrorY_h = thegraph_tmp->GetEYhigh();
+		theErrorX_l = thegraph_tmp->GetEXlow();
+		theErrorY_l = thegraph_tmp->GetEYlow();
+		theY        = thegraph_tmp->GetY() ;
+		theX        = thegraph_tmp->GetX() ;
+
+		//Divide error --> ratio
+		for(int i=0; i<thegraph_tmp->GetN(); i++)
+		{
+			theErrorY_l[i] = theErrorY_l[i]/theY[i];
+			theErrorY_h[i] = theErrorY_h[i]/theY[i];
+			theY[i]=1; //To center the filled area around "1"
+		}
+
+		v_gr_ratio_error[ivar] = new TGraphAsymmErrors(thegraph_tmp->GetN(), theX , theY ,  theErrorX_l, theErrorX_h, theErrorY_l, theErrorY_h);
+        v_gr_ratio_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_ratio_error[ivar]->SetFillColor(kBlack); //kBlue+2 //kCyan
+
+		if(!show_pulls_ratio) {v_gr_ratio_error[ivar]->Draw("e2 same");} //Draw error bands in ratio plot
+
+
+// ###### ###### #####    #####    ##   ##### #  ####
+// #      #        #      #    #  #  #    #   # #    #
+// #####  #####    #      #    # #    #   #   # #    #
+// #      #        #      #####  ######   #   # #    #
+// #      #        #      #   #  #    #   #   # #    #
+// ###### #        #      #    # #    #   #   #  ####
+
+        //-- Create subpad to plot ratio
+        v_tpad_ratio_eft[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
+        v_tpad_ratio_eft[ivar]->SetTopMargin(1-middle_panel_size); //+0.02 to add space
+        v_tpad_ratio_eft[ivar]->SetFillColor(0);
+    	v_tpad_ratio_eft[ivar]->SetFillStyle(0);
+        v_tpad_ratio_eft[ivar]->SetGridy(1); //Drawn on primary divisions only
+    	v_tpad_ratio_eft[ivar]->Draw();
+    	v_tpad_ratio_eft[ivar]->cd(0);
+        // v_tpad_ratio_eft[ivar]->SetLogy();
+
+        //-- Debug printouts
+        // cout<<"v2_histo_ratio_eft[ivar][0]->GetBinContent(1) "<<v2_histo_ratio_eft[ivar][0]->GetBinContent(1)<<endl;
+        // cout<<"v_histo_ratio_sm[ivar]->GetBinContent(1) "<<v_histo_ratio_sm[ivar]->GetBinContent(1)<<endl;
+
+        v2_histo_ratio_eft[ivar][0]->Divide(v_histo_ratio_sm[ivar]);
+        v2_histo_ratio_eft[ivar][1]->Divide(v_histo_ratio_sm[ivar]);
+
+        //-- Debug printouts
+        for(int ibin=1; ibin<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1; ibin++)
+        {
+            cout<<"bin "<<ibin<<" --> "<<v2_histo_ratio_eft[ivar][0]->GetBinContent(ibin)<<endl;
+        }
+
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitle("#frac{SM+EFT}{SM}");
+
+    	v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleOffset(1.5);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.05);
+        if(total_var_list[ivar].Contains("ttZ")) {v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(0.95);} //Takes more space
+        // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.045);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.04);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelSize(0.045);
+    	v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelFont(42);
+    	v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelFont(42);
+    	v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleFont(42);
+    	v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleFont(42);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(505); //grid drawn on primary tick marks only
+        // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
+    	v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(505);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.04);
+        // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.06);
+    	v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTickLength(0.04);
+    	v2_histo_ratio_eft[ivar][0]->SetMarkerStyle(20);
+    	v2_histo_ratio_eft[ivar][0]->SetMarkerSize(1.2); //changed from 1.4
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.06);
+
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar]));
+
+        v2_histo_ratio_eft[ivar][0]->SetMinimum(1.01);
+        // v2_histo_ratio_eft[ivar][0]->SetMinimum(0.8);
+        v2_histo_ratio_eft[ivar][0]->SetMaximum(9.99);
+
+        //FIXME
+        v2_histo_ratio_eft[ivar][0]->SetLineColor(kRed);
+        v2_histo_ratio_eft[ivar][0]->SetLineWidth(3.);
+        v2_histo_ratio_eft[ivar][1]->SetLineColor(kBlue);
+        v2_histo_ratio_eft[ivar][1]->SetLineWidth(3.);
+
+        v2_histo_ratio_eft[ivar][0]->Draw("hist");
+        v2_histo_ratio_eft[ivar][1]->Draw("hist same");
+
+
+//  ####   ####   ####  #    # ###### ##### #  ####   ####
+// #    # #    # #      ##  ## #        #   # #    # #
+// #      #    #  ####  # ## # #####    #   # #       ####
+// #      #    #      # #    # #        #   # #           #
+// #    # #    # #    # #    # #        #   # #    # #    #
+//  ####   ####   ####  #    # ######   #   #  ####   ####
+
+    	//-- Draw ratio y-lines manually
+        v_tpad_ratio[ivar]->cd();
+    	v_hlines1[ivar] = new TH1F("","",this->nbins, xmin_tmp, xmax_tmp);
+    	v_hlines2[ivar] = new TH1F("","",this->nbins, xmin_tmp, xmax_tmp);
+    	for(int ibin=1; ibin<this->nbins +1; ibin++)
+    	{
+    		if(show_pulls_ratio)
+    		{
+    			v_hlines1[ivar]->SetBinContent(ibin, -1);
+    			v_hlines2[ivar]->SetBinContent(ibin, 1);
+    		}
+    		else
+    		{
+                v_hlines1[ivar]->SetBinContent(ibin, 0.75);
+                v_hlines2[ivar]->SetBinContent(ibin, 1.25);
+    		}
+    	}
+    	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
+    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+
+        TString Y_label = "Events / bin";
+        // TString Y_label = "Events / " + Convert_Number_To_TString(  + " GeV";
+
+    	if(v_stack[ivar]!= 0)
+    	{
+    		v_stack[ivar]->GetXaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleSize(0.06);
+            v_stack[ivar]->GetYaxis()->SetTickLength(0.04);
+    		v_stack[ivar]->GetXaxis()->SetLabelSize(0.0);
+    		v_stack[ivar]->GetYaxis()->SetLabelSize(0.048);
+    		v_stack[ivar]->GetXaxis()->SetNdivisions(505);
+    		v_stack[ivar]->GetYaxis()->SetNdivisions(506);
+            v_stack[ivar]->GetYaxis()->SetTitleOffset(1.15);
+    		v_stack[ivar]->GetYaxis()->SetTitle(Y_label);
+            v_stack[ivar]->GetXaxis()->SetTickLength(0.);
+    	}
+
+    	//----------------
+    	// CAPTIONS //
+    	//----------------
+    	// -- using https://twiki.cern.ch/twiki/pub/CMS/Internal/FigGuidelines
+        // -- About fonts: https://root.cern.ch/doc/master/classTAttText.html#T5
+
+    	float l = pad->GetLeftMargin();
+    	float t = pad->GetTopMargin();
+
+    	TString cmsText = "CMS";
+    	TLatex latex;
+    	latex.SetNDC();
+    	latex.SetTextColor(kBlack);
+        latex.SetTextFont(62); //Changed
+    	latex.SetTextAlign(11);
+    	latex.SetTextSize(0.06);
+        latex.DrawLatex(l + 0.04, 0.87, cmsText);
+
+    	float lumi = lumiValue;
+    	TString lumi_ts = Convert_Number_To_TString(lumi);
+    	lumi_ts += " fb^{-1} (13 TeV)";
+    	latex.SetTextFont(42);
+    	latex.SetTextAlign(31);
+    	latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.94,lumi_ts);
+
+        pad = NULL;
+    } //Var loop
+//--------------------------------------------
+
+
+// ####### #
+//    #    #       ######  ####  ###### #    # #####
+//    #    #       #      #    # #      ##   # #    #
+//    #    #       #####  #      #####  # #  # #    #
+//    #    #       #      #  ### #      #  # # #    #
+//    #    #       #      #    # #      #   ## #    #
+//    #    ####### ######  ####  ###### #    # #####
+
+    int ivar = 0; //Read first element by default
+
+    int n_columns = ceil(nSampleGroups/2.) > 6 ? 6 : ceil(nSampleGroups/2.); //ceil = upper int
+    float x_left = 0.94-n_columns*0.12; //Each column allocated same x-space //0.12 needed for most crowded plots
+    if(x_left < 0.4) {x_left = 0.4;} //Leave some space for region label
+
+    TLegend* qw = new TLegend(x_left-0.05,0.80,0.94,0.92); //Default /
+    qw->SetTextSize(0.04);
+    qw->SetNColumns(n_columns);
+    qw->SetBorderSize(0);
+    qw->SetFillStyle(0); //transparent
+    qw->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
+    // cout<<"x_left "<<x_left<<endl;
+    // cout<<"ceil(nSampleGroups/2.) "<<ceil(nSampleGroups/2.)<<endl;
+
+    //-- Dummy object, only used to display uncertainty band also in legend
+    TH1F* h_uncert = new TH1F("h_uncert", "h_uncert", 1, 0, 1);
+    h_uncert->SetFillStyle(3254); //3002 //3004
+    h_uncert->SetFillColor(kBlack);
+    h_uncert->SetLineWidth(0.);
+    qw->AddEntry(h_uncert, "Unc.", "F");
+
+	//-- Data on top of legend
+    qw->AddEntry(v_hdata[0], "Data" , "ep");
+
+	for(int i=0; i<v_vector_MC_histo[ivar].size(); i++)
+	{
+        if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tZq", "f");}
+        else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "t#bar{t}Z", "f");}
+        else if(MC_samples_legend[i].EndsWith("tWZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tWZ", "f");}
+        else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
+        else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
+        else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
+	}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        c1->cd(ivar+1);
+        qw->Draw("same");
+    }
+
+
+// #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
+// #    # #    # #   #   #         #    # #    #   #   #    # #    #   #
+// #    # #    # #   #   #####     #    # #    #   #   #    # #    #   #
+// # ## # #####  #   #   #         #    # #    #   #   #####  #    #   #
+// ##  ## #   #  #   #   #         #    # #    #   #   #      #    #   #
+// #    # #    # #   #   ######     ####   ####    #   #       ####    #
+
+    TString outdir = "plots/paperPlots/";
+    mkdir(outdir.Data(), 0777);
+    TString output_plot_name = outdir + "PostfitTemplates_signalRegions_";
+    output_plot_name+= template_name;
+    c1->SaveAs(output_plot_name + ".png");
+    c1->SaveAs(output_plot_name + ".eps");
+    c1->SaveAs(output_plot_name + ".pdf");
+
+    delete c1; c1 = NULL;
+    delete qw; qw = NULL;
+    if(h_uncert) {delete h_uncert; h_uncert = NULL;}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        if(v_gr_error[ivar]) {delete v_gr_error[ivar]; v_gr_error[ivar] = NULL;}
+        if(v_stack[ivar]) {delete v_stack[ivar]; v_stack[ivar] = NULL;}
+        if(v_gr_ratio_error[ivar]) {delete v_gr_ratio_error[ivar]; v_gr_ratio_error[ivar] = NULL;}
+        if(v_hlines1[ivar]) {delete v_hlines1[ivar]; v_hlines1[ivar] = NULL;}
+        if(v_hlines2[ivar]) {delete v_hlines2[ivar]; v_hlines2[ivar] = NULL;}
+    }
+
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 //--------------------------------------------
-// ######## ########  ######  ######## #### ##    ##  ######
-//    ##    ##       ##    ##    ##     ##  ###   ## ##    ##
-//    ##    ##       ##          ##     ##  ####  ## ##
-//    ##    ######    ######     ##     ##  ## ## ## ##   ####
-//    ##    ##             ##    ##     ##  ##  #### ##    ##
-//    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
-//    ##    ########  ######     ##    #### ##    ##  ######
+//  #######  ######## ##     ## ######## ########   ######
+// ##     ##    ##    ##     ## ##       ##     ## ##    ##
+// ##     ##    ##    ##     ## ##       ##     ## ##
+// ##     ##    ##    ######### ######   ########   ######
+// ##     ##    ##    ##     ## ##       ##   ##         ##
+// ##     ##    ##    ##     ## ##       ##    ##  ##    ##
+//  #######     ##    ##     ## ######## ##     ##  ######
 //--------------------------------------------
 
 /**
  * Create output file containing the MVA scores for different NNs for a given process (e.g. to compute correlations between different NN scores)
  */
-void TopEFT_analysis::test()
+void TopEFT_analysis::Dump_Scores_allNNs()
 {
 //--------------------------------------------
     TString process = "PrivMC_tZq";
@@ -5944,3 +7681,743 @@ void TopEFT_analysis::test()
 
     return;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//--------------------------------------------
+// ######## ########  ######  ######## #### ##    ##  ######
+//    ##    ##       ##    ##    ##     ##  ###   ## ##    ##
+//    ##    ##       ##          ##     ##  ####  ## ##
+//    ##    ######    ######     ##     ##  ## ## ## ##   ####
+//    ##    ##             ##    ##     ##  ##  #### ##    ##
+//    ##    ##       ##    ##    ##     ##  ##   ### ##    ##
+//    ##    ########  ######     ##    #### ##    ##  ######
+//--------------------------------------------
+
+
+
+
+
+/*
+void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
+{
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+	cout<<FYEL("--- Producing paper figure [SIGNAL REGIONS] / "<<template_name<<" ---")<<endl;
+    cout<<endl<<BYEL("                          ")<<endl<<endl;
+
+
+//  ####  ###### ##### #    # #####
+// #      #        #   #    # #    #
+//  ####  #####    #   #    # #    #
+//      # #        #   #    # #####
+// #    # #        #   #    # #
+//  ####  ######   #    ####  #
+
+    //--------------------------
+    // DIVIDE CANVAS IN 4 PADS
+    //--------------------------
+
+    //-- Canvas definition
+    Load_Canvas_Style(); //Default top/bottom/left/right margins: 0.07/0.13/0.16/0.03
+    TCanvas* c1 = new TCanvas("c1","c1", 1400, 600);
+    c1->Divide(2, 1, 1E-11, 1E-11); //(x,y)
+
+    //--------------------------
+    // DEFINE 3 VARIABLES TO PLOT
+    //--------------------------
+
+    int nbins_tmp, nIndivBins; float xmin_tmp, xmax_tmp;
+
+    int nvar = 2;
+    vector<TString> total_var_list(nvar);
+    total_var_list[0] = template_name + "_SRtZq";
+    total_var_list[1] = template_name + "_SRttZ";
+
+    //--------------------------
+    // CREATE VECTORS OF OBJECTS
+    //--------------------------
+
+    TH1F *h_tmp = NULL;
+
+    vector<TH1F*> v_hdata(nvar);
+    vector<THStack*> v_stack(nvar);
+    vector<TH1F*> v_histo_total_MC(nvar);
+    vector<vector<TH1F*> > v_vector_MC_histo(nvar); //Store separately the histos for each MC sample --> stack them after loops
+    vector<TH1F*> v_histo_ratio_data(nvar);
+    vector<TH1F*> v_hlines1(nvar), v_hlines2(nvar); //Draw TLinesin ratio plots
+
+    vector<TGraphAsymmErrors*> v_gr_error(nvar);
+    vector<TGraphAsymmErrors*> v_gr_ratio_error(nvar);
+
+    vector<TPad*> v_tpad_ratio(nvar);
+    vector<TGaxis*> v_axis(nvar);
+
+    vector<TString> MC_samples_legend; //List the MC samples to mention in legend
+
+    TLine* tline1; TLine* tline2;
+
+    int nbjets_min =-1, nbjets_max=-1, njets_min=-1, njets_max=-1;
+
+
+// #       ####   ####  #####   ####
+// #      #    # #    # #    # #
+// #      #    # #    # #    #  ####
+// #      #    # #    # #####       #
+// #      #    # #    # #      #    #
+// ######  ####   ####  #       ####
+
+//--------------------------------------------
+	for(int ivar=0; ivar<nvar; ivar++)
+	{
+        cout<<endl<<FBLU("== VARIABLE: "<<total_var_list[ivar]<<"")<<endl;
+
+    	TString primitive_name = "c1_" + Convert_Number_To_TString(ivar+1);
+        TPad* pad = (TPad*) c1->GetPrimitive(primitive_name);
+        TString inputfilename = "";
+    	if(total_var_list[ivar].Contains("SRtZq")) //Left
+    	{
+    		pad->SetPad(0, 0., 0.50, 1); //xlow, ylow, xup, yup
+    	}
+    	else if(total_var_list[ivar].Contains("SRttZ")) //Right
+    	{
+    		pad->SetPad(0.50, 0., 1., 1); //xlow, ylow, xup, yup
+            // pad->SetRightMargin(0.04);
+    	}
+        pad->SetLogy();
+        pad->SetBottomMargin(0.30);
+
+        TFile* file_input = NULL;
+        TH1F* h_tmp = NULL; //Tmp storing histo
+        TH1F* hdata_tmp = NULL; //Tmp storing data histo
+
+		//-- Init error vectors
+		double x, y, errory_low, errory_high;
+
+		vector<double> v_eyl, v_eyh, v_exl, v_exh, v_x, v_y; //Contain the systematic errors (used to create the TGraphError)
+
+        float bin_width = -1; //Get bin width of histograms for current variable
+
+        //-- All histos are for given lumiYears and sub-channels --> Need to sum them all for plots
+        for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
+        {
+
+
+// #    #  ####
+// ##  ## #    #
+// # ## # #
+// #    # #
+// #    # #    #
+// #    #  ####
+
+			//--- Retrieve all MC samples
+			int nof_skipped_samples = 0; //Get sample index right
+
+			vector<bool> v_isSkippedSample(sample_list.size()); //Get sample index right (some samples are skipped)
+
+			for(int isample = 0; isample < sample_list.size(); isample++)
+			{
+                int index_MC_sample = isample - nof_skipped_samples; //Sample index, but not counting data/skipped sample
+
+                // cout<<"sample_list[isample] "<<sample_list[isample]<<endl;
+                // cout<<"index_MC_sample "<<index_MC_sample<<endl;
+
+				//-- In Combine, some individual contributions are merged as "Rares"/"EWK", etc.
+				//-- If using Combine file, change the names of the samples we look for, and look only once for histogram of each "group"
+				TString samplename = sample_list[isample];
+				if(isample > 0 && sample_groups[isample] == sample_groups[isample-1]) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //if same group as previous sample, skip it
+                else if(make_SMvsEFT_templates_plots && (sample_groups[isample] == "tZq" || sample_groups[isample] == "ttZ" || sample_groups[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM vs EFT --> use private signal samples
+                else {samplename = sample_groups[isample];}
+
+				//-- Protections, special cases
+				if(sample_list[isample] == "DATA") {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;}
+                else if(!make_SMvsEFT_templates_plots && sample_list[isample].Contains("PrivMC")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //SM configuration --> only stack central samples (not private samples)
+                else if(make_SMvsEFT_templates_plots && (sample_list[isample] == "tZq" || sample_list[isample] == "ttZ" || sample_list[isample] == "tWZ")) {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //EFT configuration --> only stack private samples (at SM point), not central samples
+                else if(sample_list[isample] == "NPL_DATA")  {samplename = "NPL";} //Instead of 'NPL_DATA' and 'NPL_MC', we only want to read the merged histo 'NPL'
+                else if(sample_list[isample] == "NPL_MC")  {v_isSkippedSample[isample] = true; nof_skipped_samples++; continue;} //NPL_MC gets substracted from NPL histograms and deleted --> Ignore this vector element //Remove ?
+
+                //-- Add sample name to list (used for legend) //NB: add even if histo was not found and skipped, because expect that it will be found for some other year/channel/... But if not found at all, legend will be wrong
+                if(iyear==0 && ivar==0 && samplename != "DATA")
+                {
+                    if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {MC_samples_legend.push_back(samplename);}
+                }
+                if(v_isSkippedSample[isample] == true) {continue;} //Skip this sample
+
+				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
+
+				h_tmp = NULL;
+                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], false, true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, false);
+                h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+                v_eyl.resize(nIndivBins); v_eyh.resize(nIndivBins); v_exl.resize(nIndivBins); v_exh.resize(nIndivBins); v_y.resize(nIndivBins); v_x.resize(nIndivBins);
+                std::fill(v_y.begin(), v_y.end(), -1); //Init errors positions to <0 (invisible)
+
+                for(int ibin=1; ibin<nIndivBins+1; ibin++)
+                {
+                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                    if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                    file_input = TFile::Open(inputfilename, "READ");
+                    // cout<<"inputfilename "<<inputfilename<<endl;
+
+                    TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_postfit/";
+
+                    // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
+                    if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
+
+                    h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
+                    h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+
+                    //-- Errors
+                    if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
+                    {
+                        dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                        if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                        float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
+                        v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
+                        v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
+                        v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
+                        // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                    }
+                    file_input->Close();
+                } //nbins
+
+				//-- Set histo style (use color vector filled in main) //NB: run for all sub-histos... for simplicity
+                //---------------------------------------------------
+				h_tmp->SetFillStyle(1001);
+				if(samplename == "Fakes") {h_tmp->SetFillStyle(3005);}
+		        else if(samplename == "QFlip" ) {h_tmp->SetFillStyle(3006);}
+
+				h_tmp->SetFillColor(color_list[isample]);
+				h_tmp->SetLineColor(kBlack);
+                h_tmp->SetLineColor(color_list[isample]);
+
+				//Check color of previous *used* sample (up to 6, to account for potentially skipped samples)
+				for(int k=1; k<6; k++)
+				{
+					if(isample - k >= 0)
+					{
+						if(v_isSkippedSample[isample-k]) {continue;} //If previous sample was skipped, don't check its color
+						else if(color_list[isample] == color_list[isample-k]) {h_tmp->SetLineColor(color_list[isample]); break;} //If previous sample had same color, don't draw line
+					}
+					else {break;}
+				}
+                //---------------------------------------------------
+
+                //-- Fill vector of MC histograms
+                if(v_vector_MC_histo[ivar].size() <=  index_MC_sample) {v_vector_MC_histo[ivar].push_back((TH1F*) h_tmp->Clone());}
+                else if(!v_vector_MC_histo[ivar][index_MC_sample] && h_tmp) {v_vector_MC_histo[ivar][index_MC_sample] = (TH1F*) h_tmp->Clone();}
+                else {v_vector_MC_histo[ivar][index_MC_sample]->Add((TH1F*) h_tmp->Clone());}
+                if(v_vector_MC_histo[ivar][index_MC_sample]) {v_vector_MC_histo[ivar][index_MC_sample]->SetDirectory(0);} //Dis-associate histo from TFile //https://root.cern.ch/root/htmldoc/guides/users-guide/ObjectOwnership.html
+
+				delete h_tmp; h_tmp = NULL; //No crash ? (else only delete if new)
+			} //end sample loop
+
+
+// #####    ##   #####   ##
+// #    #  #  #    #    #  #
+// #    # #    #   #   #    #
+// #    # ######   #   ######
+// #    # #    #   #   #    #
+// #####  #    #   #   #    #
+
+            TString dataname = "data_obs";
+            hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+            for(int ibin=1; ibin<nIndivBins+1; ibin++)
+            {
+                inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                file_input = TFile::Open(inputfilename, "READ");
+                // cout<<"inputfilename "<<inputfilename<<endl;
+
+                TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_postfit/";;
+                // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
+                if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(dataname) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<dataname<<"' not found ! Skip...")<<endl; continue;}
+
+                float bin_content = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(1);
+                float bin_error = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(1);
+                if(isnan(bin_content)) {cout<<FRED("ERROR: NaN data (dir_hist="<<dir_hist<<") !")<<endl; continue;} //Can happen when input data is 0 (?)
+
+                hdata_tmp->SetBinContent(ibin, bin_content); //Get content/error from individual bin
+                hdata_tmp->SetBinError(ibin, bin_error);
+
+                // cout<<"dir_hist "<<dir_hist<<endl;
+                // cout<<"hdata_tmp->GetBinContent(ibin) "<<hdata_tmp->GetBinContent(ibin)<<endl;
+
+                file_input->Close();
+            } //nbins
+
+            if(v_hdata[ivar] == NULL) {v_hdata[ivar] = (TH1F*) hdata_tmp->Clone();}
+            else {v_hdata[ivar]->Add((TH1F*) hdata_tmp->Clone());}
+            v_hdata[ivar]->SetMarkerStyle(20);
+
+            v_hdata[ivar]->SetDirectory(0); //Dis-associate from TFile
+            delete hdata_tmp; hdata_tmp = NULL; //No crash ? (else only delete if new)
+        } //years loop
+
+        //-- Protection against nan/inf data points
+        for(int ibin=1; ibin<v_hdata[ivar]->GetNbinsX()+1; ibin++)
+        {
+            // cout<<"histo_ratio_data["<<ibin<<"] = "<<histo_ratio_data->GetBinContent(ibin)<<endl;
+            if(std::isnan(v_hdata[ivar]->GetBinContent(ibin)) || std::isinf(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<")="<<v_hdata[ivar]->GetBinContent(ibin)<<" ! May cause plotting bugs !")<<endl; v_hdata[ivar]->SetBinContent(ibin, 0.);}
+        }
+
+
+// ##### #    #  ####  #####   ##    ####  #    #
+//   #   #    # #        #    #  #  #    # #   #
+//   #   ######  ####    #   #    # #      ####
+//   #   #    #      #   #   ###### #      #  #
+//   #   #    # #    #   #   #    # #    # #   #
+//   #   #    #  ####    #   #    #  ####  #    #
+
+    	//-- Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
+        v_stack[ivar] = new THStack;
+
+		for(int i=v_vector_MC_histo[ivar].size()-1; i>=0; i--)
+		{
+			if(!v_vector_MC_histo[ivar][i]) {continue;} //Some templates may be null
+			v_stack[ivar]->Add(v_vector_MC_histo[ivar][i]);
+
+            if(v_histo_total_MC[ivar] == NULL) {v_histo_total_MC[ivar] = (TH1F*) v_vector_MC_histo[ivar][i]->Clone();}
+            else {v_histo_total_MC[ivar]->Add(v_vector_MC_histo[ivar][i]);}
+
+			// cout<<"Stacking sample "<<MC_samples_legend[i]<<" / integral "<<v_vector_MC_histo[ivar][i]->Integral()<<endl;
+            // cout<<"stack bin 1 content = "<<((TH1*) v_stack[ivar]->GetStack()->Last())->GetBinContent(1)<<endl;
+		}
+
+
+// ###### #####  #####   ####  #####   ####      ####  #####   ##    ####  #    #
+// #      #    # #    # #    # #    # #         #        #    #  #  #    # #   #
+// #####  #    # #    # #    # #    #  ####      ####    #   #    # #      ####
+// #      #####  #####  #    # #####       #         #   #   ###### #      #  #
+// #      #   #  #   #  #    # #   #  #    #    #    #   #   #    # #    # #   #
+// ###### #    # #    #  ####  #    #  ####      ####    #   #    #  ####  #    #
+
+        //-- Use pointers to vectors : need to give the adress of first element (all other elements can then be accessed iteratively)
+        double* eyl = &v_eyl[0];
+        double* eyh = &v_eyh[0];
+        double* exl = &v_exl[0];
+        double* exh = &v_exh[0];
+        double* xx = &v_x[0];
+        double* yy = &v_y[0];
+        // cout<<"v_eyh[0] "<<v_eyh[0]<<endl;
+        // cout<<"v_exl[0] "<<v_exl[0]<<endl;
+        // cout<<"v_exh[0] "<<v_exh[0]<<endl;
+        // cout<<"v_x[0] "<<v_x[0]<<endl;
+        // cout<<"v_y[0] "<<v_y[0]<<endl;
+
+        v_gr_error[ivar] = new TGraphAsymmErrors(nIndivBins,xx,yy,exl,exh,eyl,eyh);
+        v_gr_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_error[ivar]->SetFillColor(kBlack);
+
+        //-- Debug printouts
+        // for(int ibin=1; ibin<nIndivBins+1; ibin++)
+        // {
+        //     cout<<"-- ibin "<<ibin<<endl;
+        //     cout<<"v_eyh[ibin] "<<v_eyh[ibin]<<" / v_exl[ibin] "<<v_exl[ibin]<<" / v_exh[ibin] "<<v_exh[ibin]<<" / v_x[ibin] "<<v_x[ibin]<<" / v_y[ibin] "<<v_y[ibin]<<endl;
+        //     cout<<"v_hdata[ivar]->GetBinContent(ibin) "<<v_hdata[ivar]->GetBinContent(ibin)<<endl;
+        //     cout<<"v_histo_total_MC[ivar]->GetBinContent(ibin) "<<v_histo_total_MC[ivar]->GetBinContent(ibin)<<endl;
+        // }
+
+        for(int ibin=1; ibin<nIndivBins+1; ibin++)
+        {
+            if(isnan(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<") is nan ! May cause plotting bugs !")<<endl;}
+        }
+
+
+// #####  #####    ##   #    #
+// #    # #    #  #  #  #    #
+// #    # #    # #    # #    #
+// #    # #####  ###### # ## #
+// #    # #   #  #    # ##  ##
+// #####  #    # #    # #    #
+
+        c1->cd(ivar+1);
+
+        //Draw stack
+        v_stack[ivar]->Draw("hist");
+
+        v_hdata[ivar]->Draw("e0p same");
+
+        v_gr_error[ivar]->Draw("e2 same"); //Superimposes the uncertainties on stack
+
+
+// #   # #    #   ##   #    #
+//  # #  ##  ##  #  #   #  #
+//   #   # ## # #    #   ##
+//   #   #    # ######   ##
+//   #   #    # #    #  #  #
+//   #   #    # #    # #    #
+
+        //-- Set minimum
+        v_stack[ivar]->SetMinimum(2.5);
+        // v_stack[ivar]->SetMinimum(3.); //Y starts above 1
+
+        //-- Set Yaxis maximum
+        double ymax = 0;
+        ymax = v_hdata[ivar]->GetMaximum(); //Data ymax
+        if(ymax < v_stack[ivar]->GetMaximum()) {ymax = v_stack[ivar]->GetMaximum();} //MC ymax
+        ymax*= 3.;
+        v_stack[ivar]->SetMaximum(ymax);
+        c1->Modified();
+
+
+// #####    ##   ##### #  ####
+// #    #  #  #    #   # #    #
+// #    # #    #   #   # #    #
+// #####  ######   #   # #    #
+// #   #  #    #   #   # #    #
+// #    # #    #   #   #  ####
+
+// #####  #       ####  #####
+// #    # #      #    #   #
+// #    # #      #    #   #
+// #####  #      #    #   #
+// #      #      #    #   #
+// #      ######  ####    #
+
+    	//-- create subpad to plot ratio
+        v_tpad_ratio[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
+        v_tpad_ratio[ivar]->SetTopMargin(0.70);
+        // if(total_var_list[ivar].Contains("SRttZ")) {v_tpad_ratio[ivar]->SetRightMargin(0.04);}
+        v_tpad_ratio[ivar]->SetFillColor(0);
+    	v_tpad_ratio[ivar]->SetFillStyle(0);
+    	v_tpad_ratio[ivar]->SetGridy(1);
+    	v_tpad_ratio[ivar]->Draw();
+    	v_tpad_ratio[ivar]->cd(0);
+
+        v_histo_ratio_data[ivar] = (TH1F*) v_hdata[ivar]->Clone();
+
+    	if(!show_pulls_ratio) //Compute ratios (with error bars)
+    	{
+    		//To get correct error bars in ratio plot, must only account for errors from data, not MC ! (MC error shown as separate band)
+    		for(int ibin=1; ibin<v_histo_total_MC[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			v_histo_total_MC[ivar]->SetBinError(ibin, 0.);
+    		}
+
+    		v_histo_ratio_data[ivar]->Divide(v_histo_total_MC[ivar]);
+    	}
+     	else //-- Compute pulls (no error bars)
+    	{
+    		for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+    		{
+    			//Add error on signal strength (since we rescale signal manually)
+    			// double bin_error_mu = v_vector_MC_histo[ivar].at(index_tZq_sample)->GetBinError(ibin) * sig_strength_err;
+    			// cout<<"bin_error_mu = "<<bin_error_mu<<endl;
+
+    			double bin_error_mu = 0; //No sig strength uncert. for prefit ! //-- postfit -> ?
+
+    			//Quadratic sum of systs, stat error, and sig strength error
+    			double bin_error = pow(pow(v_histo_total_MC[ivar]->GetBinError(ibin), 2) + pow(v_histo_ratio_data[ivar]->GetBinError(ibin), 2) + pow(bin_error_mu, 2), 0.5);
+
+    			if(!v_histo_total_MC[ivar]->GetBinError(ibin)) {v_histo_ratio_data[ivar]->SetBinContent(ibin,-99);} //Don't draw null markers
+    			else{v_histo_ratio_data[ivar]->SetBinContent(ibin, (v_histo_ratio_data[ivar]->GetBinContent(ibin) - v_histo_total_MC[ivar]->GetBinContent(ibin)) / bin_error );}
+    		}
+
+    		//-- Don't draw null data
+    		for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+    		{
+                if(std::isnan(v_histo_ratio_data[ivar]->GetBinContent(ibin)) || std::isinf(v_histo_ratio_data[ivar]->GetBinContent(ibin)) || v_histo_ratio_data[ivar]->GetBinContent(ibin) == 0) {v_histo_ratio_data[ivar]->SetBinContent(ibin, -99);}
+    		}
+    	}
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
+    	else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.15);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.05);
+        if(total_var_list[ivar].Contains("ttZ")) {v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(0.95);} //Takes more space
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.045);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.045);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetLabelFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTitleFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(503); //grid draw on primary tick marks only
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.06);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.04);
+    	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
+    	v_histo_ratio_data[ivar]->SetMarkerSize(1.2); //changed from 1.4
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitleSize(0.06);
+
+        //-- If a point is outside the y-range of the ratio pad defined by SetMaximum/SetMinimum(), it disappears with its error
+        //-- Trick: fill 2 histos with points either above/below y-range, to plot some markers indicating missing points (cleaner)
+        //NB: only for ratio plot, not pulls
+        float ratiopadmin = 0.4, ratiopadmax = 1.6; //Define ymin/ymax for ratio plot
+        TH1F* h_pointsAboveY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsAboveY->SetMarkerStyle(26); //Open triangle pointing up
+        h_pointsAboveY->SetMarkerSize(1.5);
+        TH1F* h_pointsBelowY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
+        h_pointsBelowY->SetMarkerStyle(32); //Open triangle pointing down
+        h_pointsBelowY->SetMarkerSize(1.5);
+        if(show_pulls_ratio)
+    	{
+    		v_histo_ratio_data[ivar]->SetMinimum(-2.99);
+    		v_histo_ratio_data[ivar]->SetMaximum(2.99);
+    	}
+    	else
+    	{
+            //-- Default
+            v_histo_ratio_data[ivar]->SetMinimum(ratiopadmin); //NB: removes error bars if data point is below ymin...?
+            v_histo_ratio_data[ivar]->SetMaximum(ratiopadmax);
+
+            //-- Fill histos with points outside yrange
+            for(int ibin=1; ibin<v_histo_ratio_data[ivar]->GetNbinsX()+1; ibin++)
+            {
+                //-- Default: make point invisible
+                h_pointsAboveY->SetBinContent(ibin, -999);
+                h_pointsBelowY->SetBinContent(ibin, -999);
+
+                if(v_histo_ratio_data[ivar]->GetBinContent(ibin) > ratiopadmax && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (initial_y-ratiopadmax);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsAboveY->SetBinContent(ibin, ratiopadmax-0.05); //Add some padding
+                    h_pointsAboveY->SetBinError(ibin, new_err);
+                }
+                else if(v_histo_ratio_data[ivar]->GetBinContent(ibin) < ratiopadmin && v_hdata[ivar]->GetBinContent(ibin) >= 1)
+                {
+                    //Adjust error
+                    float initial_y = v_histo_ratio_data[ivar]->GetBinContent(ibin);
+                    float initial_err = v_histo_ratio_data[ivar]->GetBinError(ibin);
+                    float new_err = initial_err - (ratiopadmin-initial_y);
+                    if(new_err<0) {new_err=0.;}
+
+                    h_pointsBelowY->SetBinContent(ibin, ratiopadmin+(ratiopadmin/10.)); //Add some padding
+                    h_pointsBelowY->SetBinError(ibin, new_err);
+                }
+            }
+    	}
+
+        //-- SET X_AXIS TITLES
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar]));
+
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->Draw("HIST P");} //Draw ratio points
+        else
+        {
+            v_histo_ratio_data[ivar]->Draw("E1 X0 P"); //Draw ratio points ; E1 : perpendicular lines at end ; X0 : suppress x errors
+
+            h_pointsAboveY->Draw("E1 X0 P same");
+            h_pointsBelowY->Draw("E1 X0 P same");
+        }
+
+
+// ###### #####  #####   ####  #####   ####     #####    ##   ##### #  ####
+// #      #    # #    # #    # #    # #         #    #  #  #    #   # #    #
+// #####  #    # #    # #    # #    #  ####     #    # #    #   #   # #    #
+// #      #####  #####  #    # #####       #    #####  ######   #   # #    #
+// #      #   #  #   #  #    # #   #  #    #    #   #  #    #   #   # #    #
+// ###### #    # #    #  ####  #    #  ####     #    # #    #   #   #  ####
+
+
+		//Copy previous TGraphAsymmErrors, then modify it -> error TGraph for ratio plot
+		TGraphAsymmErrors *thegraph_tmp = NULL;
+		double *theErrorX_h;
+		double *theErrorY_h;
+		double *theErrorX_l;
+		double *theErrorY_l;
+		double *theY;
+		double *theX;
+
+		thegraph_tmp = (TGraphAsymmErrors*) v_gr_error[ivar]->Clone();
+		theErrorX_h = thegraph_tmp->GetEXhigh();
+		theErrorY_h = thegraph_tmp->GetEYhigh();
+		theErrorX_l = thegraph_tmp->GetEXlow();
+		theErrorY_l = thegraph_tmp->GetEYlow();
+		theY        = thegraph_tmp->GetY() ;
+		theX        = thegraph_tmp->GetX() ;
+
+		//Divide error --> ratio
+		for(int i=0; i<thegraph_tmp->GetN(); i++)
+		{
+			theErrorY_l[i] = theErrorY_l[i]/theY[i];
+			theErrorY_h[i] = theErrorY_h[i]/theY[i];
+			theY[i]=1; //To center the filled area around "1"
+		}
+
+		v_gr_ratio_error[ivar] = new TGraphAsymmErrors(thegraph_tmp->GetN(), theX , theY ,  theErrorX_l, theErrorX_h, theErrorY_l, theErrorY_h);
+        v_gr_ratio_error[ivar]->SetFillStyle(3254); //3002 //3004
+        v_gr_ratio_error[ivar]->SetFillColor(kBlack); //kBlue+2 //kCyan
+
+		if(!show_pulls_ratio) {v_gr_ratio_error[ivar]->Draw("e2 same");} //Draw error bands in ratio plot
+
+
+//  ####   ####   ####  #    # ###### ##### #  ####   ####
+// #    # #    # #      ##  ## #        #   # #    # #
+// #      #    #  ####  # ## # #####    #   # #       ####
+// #      #    #      # #    # #        #   # #           #
+// #    # #    # #    # #    # #        #   # #    # #    #
+//  ####   ####   ####  #    # ######   #   #  ####   ####
+
+    	//-- Draw ratio y-lines manually
+    	v_hlines1[ivar] = new TH1F("","",this->nbins, v_hdata[ivar]->GetXaxis()->GetXmin(), v_hdata[ivar]->GetXaxis()->GetXmax());
+    	v_hlines2[ivar] = new TH1F("","",this->nbins, v_hdata[ivar]->GetXaxis()->GetXmin(), v_hdata[ivar]->GetXaxis()->GetXmax());
+    	for(int ibin=1; ibin<this->nbins +1; ibin++)
+    	{
+    		if(show_pulls_ratio)
+    		{
+    			v_hlines1[ivar]->SetBinContent(ibin, -1);
+    			v_hlines2[ivar]->SetBinContent(ibin, 1);
+    		}
+    		else
+    		{
+                v_hlines1[ivar]->SetBinContent(ibin, 0.75);
+                v_hlines2[ivar]->SetBinContent(ibin, 1.25);
+    		}
+    	}
+    	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
+    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+
+        TString Y_label = "Events / bin";
+        // TString Y_label = Y_label = "Events / " + Convert_Number_To_TString(  + " GeV";
+
+    	if(v_stack[ivar]!= 0)
+    	{
+    		v_stack[ivar]->GetXaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetLabelFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleFont(42);
+    		v_stack[ivar]->GetYaxis()->SetTitleSize(0.06);
+            v_stack[ivar]->GetYaxis()->SetTickLength(0.04);
+    		v_stack[ivar]->GetXaxis()->SetLabelSize(0.0);
+    		v_stack[ivar]->GetYaxis()->SetLabelSize(0.048);
+    		v_stack[ivar]->GetXaxis()->SetNdivisions(505);
+    		v_stack[ivar]->GetYaxis()->SetNdivisions(506);
+            v_stack[ivar]->GetYaxis()->SetTitleOffset(1.15);
+    		v_stack[ivar]->GetYaxis()->SetTitle(Y_label);
+            v_stack[ivar]->GetXaxis()->SetTickLength(0.);
+    	}
+
+    	//----------------
+    	// CAPTIONS //
+    	//----------------
+    	// -- using https://twiki.cern.ch/twiki/pub/CMS/Internal/FigGuidelines
+        // -- About fonts: https://root.cern.ch/doc/master/classTAttText.html#T5
+
+    	float l = pad->GetLeftMargin();
+    	float t = pad->GetTopMargin();
+
+    	TString cmsText = "CMS";
+    	TLatex latex;
+    	latex.SetNDC();
+    	latex.SetTextColor(kBlack);
+        latex.SetTextFont(62); //Changed
+    	latex.SetTextAlign(11);
+    	latex.SetTextSize(0.06);
+        latex.DrawLatex(l + 0.04, 0.87, cmsText);
+
+    	float lumi = lumiValue;
+    	TString lumi_ts = Convert_Number_To_TString(lumi);
+    	lumi_ts += " fb^{-1} (13 TeV)";
+    	latex.SetTextFont(42);
+    	latex.SetTextAlign(31);
+    	latex.SetTextSize(0.04);
+        latex.DrawLatex(0.96, 0.94,lumi_ts);
+
+        pad = NULL;
+    } //Var loop
+//--------------------------------------------
+
+
+// ####### #
+//    #    #       ######  ####  ###### #    # #####
+//    #    #       #      #    # #      ##   # #    #
+//    #    #       #####  #      #####  # #  # #    #
+//    #    #       #      #  ### #      #  # # #    #
+//    #    #       #      #    # #      #   ## #    #
+//    #    ####### ######  ####  ###### #    # #####
+
+    int ivar = 0; //Read first element by default
+
+    int n_columns = ceil(nSampleGroups/2.) > 6 ? 6 : ceil(nSampleGroups/2.); //ceil = upper int
+    float x_left = 0.94-n_columns*0.12; //Each column allocated same x-space //0.12 needed for most crowded plots
+    if(x_left < 0.4) {x_left = 0.4;} //Leave some space for region label
+
+    TLegend* qw = new TLegend(x_left-0.05,0.80,0.94,0.92); //Default /
+    qw->SetTextSize(0.04);
+    qw->SetNColumns(n_columns);
+    qw->SetBorderSize(0);
+    qw->SetFillStyle(0); //transparent
+    qw->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
+    // cout<<"x_left "<<x_left<<endl;
+    // cout<<"ceil(nSampleGroups/2.) "<<ceil(nSampleGroups/2.)<<endl;
+
+    //-- Dummy object, only used to display uncertainty band also in legend
+    TH1F* h_uncert = new TH1F("h_uncert", "h_uncert", 1, 0, 1);
+    h_uncert->SetFillStyle(3254); //3002 //3004
+    h_uncert->SetFillColor(kBlack);
+    h_uncert->SetLineWidth(0.);
+    qw->AddEntry(h_uncert, "Unc.", "F");
+
+	//-- Data on top of legend
+    qw->AddEntry(v_hdata[0], "Data" , "ep");
+
+	for(int i=0; i<v_vector_MC_histo[ivar].size(); i++)
+	{
+        if(MC_samples_legend[i].Contains("tZq")) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tZq", "f");}
+        else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "t#bar{t}Z", "f");}
+        else if(MC_samples_legend[i].EndsWith("tWZ") ) {qw->AddEntry(v_vector_MC_histo[ivar][i], "tWZ", "f");}
+        else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
+        else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
+        else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
+	}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        c1->cd(ivar+1);
+        qw->Draw("same");
+    }
+
+
+// #    # #####  # ##### ######     ####  #    # ##### #####  #    # #####
+// #    # #    # #   #   #         #    # #    #   #   #    # #    #   #
+// #    # #    # #   #   #####     #    # #    #   #   #    # #    #   #
+// # ## # #####  #   #   #         #    # #    #   #   #####  #    #   #
+// ##  ## #   #  #   #   #         #    # #    #   #   #      #    #   #
+// #    # #    # #   #   ######     ####   ####    #   #       ####    #
+
+    TString outdir = "plots/paperPlots/";
+    mkdir(outdir.Data(), 0777);
+    TString output_plot_name = outdir + "PostfitTemplates_signalRegions";
+
+    c1->SaveAs(output_plot_name + ".png");
+    c1->SaveAs(output_plot_name + ".eps");
+    c1->SaveAs(output_plot_name + ".pdf");
+
+    delete c1; c1 = NULL;
+    delete qw; qw = NULL;
+    if(h_uncert) {delete h_uncert; h_uncert = NULL;}
+
+    for(int ivar=0; ivar<nvar; ivar++)
+    {
+        if(v_gr_error[ivar]) {delete v_gr_error[ivar]; v_gr_error[ivar] = NULL;}
+        if(v_stack[ivar]) {delete v_stack[ivar]; v_stack[ivar] = NULL;}
+        if(v_gr_ratio_error[ivar]) {delete v_gr_ratio_error[ivar]; v_gr_ratio_error[ivar] = NULL;}
+        if(v_hlines1[ivar]) {delete v_hlines1[ivar]; v_hlines1[ivar] = NULL;}
+        if(v_hlines2[ivar]) {delete v_hlines2[ivar]; v_hlines2[ivar] = NULL;}
+    }
+
+    return;
+}
+*/

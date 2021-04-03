@@ -88,7 +88,10 @@ class TopEFT_analysis
 
     bool Get_VectorAllEvents_passMVACut(vector<int>&, vector<vector<float>>&, TString, TString, TTree*, TString, float, bool, bool, int, bool, int, TString="", bool=false, bool=false);
 
-    void test();
+    void Make_PaperPlot_CommonRegions();
+    void Make_PaperPlot_SignalRegions(TString);
+
+    void Dump_Scores_allNNs();
 
 //--- MEMBERS
 	bool stop_program;

@@ -27,6 +27,7 @@ from pandas.plotting import scatter_matrix
 # from ann_visualizer.visualize import ann_viz #Requires installation
 from tensorflow.keras.utils import plot_model
 from scipy import optimize
+import tensorflow as tf
 
 # //--------------------------------------------
 # //--------------------------------------------
@@ -219,7 +220,7 @@ def Make_Default_Validation_Plots(opts, list_features, list_labels, list_predict
         Make_Pull_Plot(opts, weight_dir, list_yTest_allClasses, list_predictions_test_allNodes_allClasses, list_truth_Test_allClasses, list_PhysicalWeightsTest_allClasses, list_xTest_allClasses)
         doEvaluationPlots(list_yTest_allClasses[0], list_predictions_test_allNodes_allClasses[0][0], list_PhysicalWeightsTest_allClasses[0], weight_dir)
 
-    if opts["shapPlots"]: Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features)
+    if opts["shapPlots"]: Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features, list_labels)
 
     if opts["strategy"] in ["RASCAL", "CASCAL"]:Test_Make_Score_Plot(weight_dir, scores_allClasses_eachOperator, y_process, x)
 
@@ -941,7 +942,7 @@ def Make_Correlation_Plot(opts, x, list_features, outname):
     '''
 
 # //--------------------------------------------
-    doNotPlotP4 = True #FIXME #Can choose to only consider high-level variables (not p4 variables) to improve readability
+    doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 # //--------------------------------------------
 
     # sns.set(font_scale=1.4) #Scale up label font size #NB : also sets plotting options to seaborn's default
@@ -1182,7 +1183,7 @@ def Visualize_NN_architecture(weight_dir):
 # //--------------------------------------------
 # //--------------------------------------------
 
-def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features):
+def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_allClasses, list_features, list_labels=None):
     '''
     Use SHAP library to produce validation and control plots related to neural network.
     See: https://github.com/slundberg/shap
@@ -1192,26 +1193,45 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
 # //--------------------------------------------
     is_NAF = True #If running on NAF
+    if tf.__version__ == '2.3.0': is_NAF = False #Trick: my local TF version is 2.3.0 for now --> Can automatically recognize if running locally (else <-> server)
 
-    plot_importance_allFeatures = True #True <-> create importance plot for each single input feature (very slow !)
-    nmax=1000 #Max nof events *per process class* #None <-> use all events #SLOW !
+    plot_importance_allFeatures = False #True <-> create importance plot for each single input feature (very slow !)
+    nmax = 500 #Max nof events *per process class* #None <-> use all events #SLOW !
+
+    doNotPlotP4 = True #Can choose to only consider high-level variables (not p4 variables) to improve readability
 
 # //--------------------------------------------
 
-    if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
+    # if opts["nofOutputNodes"] > 1: return #Don't make SHAP plots for multiclass for now (less interpretable)
 
-    if is_NAF: shap.initjs() #Load Javascript library #Obsolete
+    if is_NAF: shap.initjs() #Load Javascript library
     else: shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #Fix -- does not work on NAF ?
 
     if not isinstance(list_features, list): list_features = list_features.tolist() #Fix
     if opts['activInputLayer'] == 'lrelu' or opts['activHiddenLayers'] == 'lrelu': return #Not compatible
 
+    #Can avoid plotting p4 variables
+    #list_features = np.array(list_features)
+    indices = []
+    for ivar in range(len(list_features)):
+        if doNotPlotP4 and len(list_features) > 5 and list_features[ivar].endswith(('_pt','_eta','_phi','_DeepCSV','_DeepJet')): indices.append(ivar) #Substrings corresponding to p4 vars (hardcoded)
+
+    mask = np.ones(len(list_features), np.bool) #Default
+    if len(indices) < len(list_features): #Protection: ignore doNotPlotP4 if only low-level vars are included
+        indices = np.array(indices, dtype=int)
+        mask[indices] = 0
+
     #== Use 'Kernel SHAP' to explain test set predictions #Meant to approximate SHAP values for deep learning models.
     #-- model: The model to be explained. The output of the model can be a vector of size n_samples or a matrix of size [n_samples x n_output] (for a classification model).
     #-- data: Background dataset to generate the perturbed dataset required for training surrogate models. We simulate missing data by replacing the feature with the values it takes in the background dataset. So if the background dataset is a simple sample of all zeros, then we would approximate a feature being missing by setting it to zero. For small problems this background dataset can be the whole training set, but for larger problems consider using a single reference value or using the kmeans function to summarize the dataset.
     #-- link: A function to connect feature contribution values to the model output. For a classification model, we generally explain the logit of the predicted probability as a sum of feature contributions. Hence, if the output of the model (the first argument) is a probability, we set link = 'logit' to get the feature contributions in logit form.
-    if is_NAF: explainer = shap.GradientExplainer(model,np.concatenate([list[:nmax] for list in list_xTest_allClasses])) #FIXME
-    else: explainer = shap.DeepExplainer(model, data=np.concatenate([list[:nmax] for list in list_xTrain_allClasses]))
+    X = np.concatenate([list[:nmax] for list in list_xTest_allClasses])
+    if is_NAF:
+        explainer = shap.GradientExplainer(model, data=X)
+        if opts["nofOutputNodes"] > 1: explainer_multiclass = shap.GradientExplainer(model, data=list_xTest_allClasses)
+    else:
+        explainer = shap.DeepExplainer(model, data=X)
+        if opts["nofOutputNodes"] > 1: explainer_multiclass = shap.DeepExplainer(model, data=list_xTest_allClasses)
 
     # print('[SHAP] Number of classes: ', len(explainer.expected_value.numpy()))
     # print('[SHAP] Base value for first class:', explainer.expected_value.numpy()[0])
@@ -1219,11 +1239,16 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
     #== Get SHAP values
     #-- X: Dataset on which to explain the model output.
     #-- nsamples: Nof samples to draw to build the surrogate model for explaining each prediction.
-    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:nmax]) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
-    shap_values = explainer.shap_values(X=np.concatenate([list[:nmax] for list in list_xTest_allClasses])) #Returns a list of size n_classes. For binary classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
-    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0][:100])#Returns a list of size n_classes. For binar classification model, n_classes=2. Each object of this list is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
-    # shap_values = explainer.shap_values(X=list_xTest_allClasses[0]) #Compute 'shap values'
-    # print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
+    #print(list_xTest_allClasses[0].shape)
+    shap_values = explainer.shap_values(X=np.concatenate([list[:nmax] for list in list_xTest_allClasses])) #Returns a list of size 1 (mix events from all classes). Inside is an array of size [n_samples, n_features] and corresponds to the SHAP values for the respective class. For regression models, we get a single set of shap values of size [n_samples, n_features].
+    if doNotPlotP4:
+        for idx,tmp in enumerate(list_xTest_allClasses): list_xTest_allClasses[idx] = tmp[:,mask] #Mask some features if needed
+        for idx,tmp in enumerate(shap_values): shap_values[idx] = tmp[:,mask] #Mask some features if needed
+        list_features = np.array(list_features)[mask]
+    #print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
+    #print(shap_values[0][:,mask])
+    #print('[SHAP] Shape of shap value for each class: ', shap_values[0].shape)
+    #print(len(shap_values)); print(len(list_xTest_allClasses)); print(len(list_features))
 
     #== Plot SHAP values for first event, for specific investigation
     #-- See: https://github.com/slundberg/shap/blob/06c9d18f3dd014e9ed037a084f48bfaf1bc8f75a/shap/plots/force.py#L31
@@ -1245,18 +1270,21 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
 
     #-- Feature importance plot
     # See: https://github.com/slundberg/shap/blob/master/shap/plots/_summary.py#L18
-    fig = plt.figure('shap_summary')
-    if opts["nofOutputNodes"]==1: shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=25)
-    else: shap_summary = shap.summary_plot(shap_values=shap_values, features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=25)
-    plt.savefig(weight_dir+"shap_summary.png", bbox_inches='tight', dpi=1000)
-    plt.close('shap_summary')
-    print(colors.fg.lightgrey, "Saved shap_summary plot as :", colors.reset, weight_dir+"shap_summary.png")
-
+    #-- Show relative importance of variables with bars <-> main plot
     fig = plt.figure('shap_summary_bar')
-    shap_summary_bar = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=30)
+    if opts["nofOutputNodes"]==1: shap_summary_bar = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=30)
+    else: shap_summary_bar_multiclass = shap.summary_plot(plot_type="bar", shap_values=shap_values, features=list_xTest_allClasses, show=False, feature_names=list_features, max_display=30, class_names=list_labels) #NB: do not concatenate lists in arguments, so that nmax events from each class are read
+    #else: shap_summary_bar_multiclass = shap.summary_plot(plot_type="bar", shap_values=np.concatenate(shap_values)[:,mask], features=np.concatenate(list_xTest_allClasses)[:,mask], show=False, feature_names=list_features[mask], max_display=30, class_names=list_labels) #NB: do not concatenate lists in arguments, so that nmax events from each class are read
     plt.savefig(weight_dir+"shap_summary_bar.png", bbox_inches='tight', dpi=1000)
     plt.close('shap_summary_bar')
     print(colors.fg.lightgrey, "Saved shap_summary_bar plot as :", colors.reset, weight_dir+"shap_summary_bar.png")
+
+    #-- Show SHAP values as a function of each variable -- per-event!
+    fig = plt.figure('shap_summary')
+    if opts["nofOutputNodes"]==1: shap_summary = shap.summary_plot(shap_values=np.concatenate(shap_values), features=np.concatenate([list[:nmax] for list in list_xTest_allClasses]), show=False, feature_names=list_features, max_display=25)
+    plt.savefig(weight_dir+"shap_summary.png", bbox_inches='tight', dpi=1000)
+    plt.close('shap_summary')
+    print(colors.fg.lightgrey, "Saved shap_summary plot as :", colors.reset, weight_dir+"shap_summary.png")
 
     #-- Identical to 'shap_summary'
     # fig = plt.figure('shap_summary_singleClass')
@@ -1296,27 +1324,27 @@ def Make_SHAP_Plots(opts, model, weight_dir, list_xTrain_allClasses, list_xTest_
         if feature1 in list_features:
             fig = plt.figure('dependence_plot')
             shap.dependence_plot(feature1, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-            plt.savefig(weight_dir+"dependence_plot.png", bbox_inches='tight', dpi=600)
+            plt.savefig(weight_dir+"shap_dependence_plot.png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot')
-            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"dependence_plot.png")
+            print(colors.fg.lightgrey, "Saved dependence_plot plot as :", colors.reset, weight_dir+"shap_dependence_plot.png")
 
         #Second dependence plot
         feature2 = "recoZ_Pt"
         if feature2 in list_features:
             fig = plt.figure('dependence_plot2')
             shap.dependence_plot(feature2, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False) #'interaction_index=inds[i]' shows interaction with 2nd variable on z-axis
-            plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+            plt.savefig(weight_dir+"shap_dependence_plot2.png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot2')
-            print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"dependence_plot2.png")
+            print(colors.fg.lightgrey, "Saved dependence_plot2 plot as :", colors.reset, weight_dir+"shap_dependence_plot2.png")
 
         #Third dependence plot
         feature3 = "recoZ_Eta"
         if feature3 in list_features:
             fig = plt.figure('dependence_plot3')
             shap.dependence_plot(feature3, shap_values[0], np.concatenate([list[:nmax] for list in list_xTest_allClasses]), feature_names=list_features, alpha=0.5, interaction_index=None, show=False)
-            plt.savefig(weight_dir+"dependence_plot2.png", bbox_inches='tight', dpi=600)
+            plt.savefig(weight_dir+"shap_dependence_plot3.png", bbox_inches='tight', dpi=600)
             plt.close('dependence_plot3')
-            print(colors.fg.lightgrey, "Saved dependence_plot3 plot as :", colors.reset, weight_dir+"dependence_plot3.png")
+            print(colors.fg.lightgrey, "Saved dependence_plot3 plot as :", colors.reset, weight_dir+"shap_dependence_plot3.png")
 
     return
 
