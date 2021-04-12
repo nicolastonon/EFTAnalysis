@@ -839,7 +839,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
         else if(arg1 == "dy") {region_choice = "dy";}
         else if(arg1 == "tx") {region_choice = "tX";} //Obsolete
 
-        else if(arg1.Contains("nn")) {template_name = (TString) argv[1];}
+        else if(arg1.Contains("nn") || arg1=="Zpt") {template_name = (TString) argv[1];}
 
         else
         {
@@ -877,7 +877,7 @@ bool Apply_CommandArgs_Choices(int argc, char **argv, vector<TString>& v_lumiYea
             else if(arg2 == "dy") {region_choice = "dy";}
             else if(arg2 == "tx") {region_choice = "tx";} //Obsolete
 
-            else if(arg2.Contains("nn")) {template_name = (TString) argv[2];}
+            else if(arg2.Contains("nn") || arg2=="Zpt") {template_name = (TString) argv[2];}
 
 			else
 			{
@@ -1244,8 +1244,9 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             xmin = 0.3; nbins = 10; //Default
 
             //-- Changed: better boundaries
-            if(template_name.Contains("tZq")) {nbins = 10; xmin = 0.4;}
-            if(template_name.Contains("ttZ")) {nbins = 10; xmin = 0.4; xmax = 0.9;}
+            if(template_name.Contains("tZq")) {nbins = 10; xmin = 0.4;} //Very few events below 0.4
+            if(template_name.Contains("ttZ")) {nbins = 10; xmin = 0.4; xmax = 0.9;} //Very few events above 0.9
+            if(template_name.Contains("other")) {nbins = 10; xmin = 0.4; xmax = 0.9;} //Idem
         }
     }
     else if(template_name.Contains("categ")) {nbins = (nbjets_max-nbjets_min+1)*(njets_max-njets_min+1); xmin = 0; xmax = nbins;} //1 bin per sub-category
@@ -1288,22 +1289,20 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
                 max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
             }
 
-            //-- Hard-coded ranges (training-dependent !)
+            //-- Hard-coded ranges (training-dependent !) //FIXME
             nbins = 8;
 
             //Better than 10 bins
-            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //Could use 0.70
+            if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //May use 0.70
             else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;}
 
-            else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.85;}
+            else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.80;} //Changed from 0.85 (4Apr21)
             else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.65;} //0.75 --> last 2 bins empty
 
             else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
 
-            else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 10; min_tmp = 0.30; max_tmp = 0.90;}
+            else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 8; min_tmp = 0.30; max_tmp = 0.90;} //Changed from 10bins (4Apr21)
             else if(template_name.Contains("NN_5D_SRttZ")) {nbins = 10; min_tmp = 0.40; max_tmp = 0.70;}
-            //else if(template_name.Contains("NN_5D_SRtZq")) {min_tmp = 0.35; max_tmp = 0.85;} //0.95
-            //else if(template_name.Contains("NN_5D_SRttZ")) {min_tmp = 0.45; max_tmp = 0.70;}
 
             // cout<<"minmax_bounds[0] "<<minmax_bounds[0]<<" / minmax_bounds[1] "<<minmax_bounds[1]<<endl;
             // cout<<"min_tmp "<<min_tmp<<" / max_tmp "<<max_tmp<<endl;
@@ -2113,7 +2112,8 @@ float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iy
 
 
 //-- Hardcode template naming conventions for plot's X-axis
-TString Get_Template_XaxisTitle(TString variable)
+//NB: 'paperStyle' <-> display NN bin number instead of score itself --> adapt X title //Default = false
+TString Get_Template_XaxisTitle(TString variable, bool paperStyle)
 {
     TString title = variable;
 
@@ -2128,12 +2128,20 @@ TString Get_Template_XaxisTitle(TString variable)
     else if(variable.Contains("countExp")) {title = "Counting experiment";}
 
     //NN-SM/EFT conventions
-    if(variable.Contains("NN_SM"))
+    if(variable.Contains("NN_SM") || variable.Contains("NN_cpq3_SRttZ"))
     {
         title = "NN-SM output";
+        // if(paperStyle) {title+= " bin";}
         if(variable.Contains("SRtZq")) {title+= " (tZq node)";}
         else if(variable.Contains("SRttZ")) {title+= " (t#bar{t}Z node)";}
         else if(variable.Contains("SRother")) {title+= " (Backgrounds node)";}
+
+        //-- Can use this version to avoid annoying space before antitop... but also changes the font style !
+        // title = "\\text{NN-SM output}";
+        // if(paperStyle) {title+= "\\text{ bin}";}
+        // if(variable.Contains("SRtZq")) {title+= "\\text{ (tZq node)}";}
+        // else if(variable.Contains("SRttZ")) {title+= "\\text{ (t}\\bar{\\text{t}}\\text{Z node)}";}
+        // else if(variable.Contains("SRother")) {title+= "\\text{ (Backgrounds node)}";}
     }
     else if(variable.Contains("NN_ctz"))
     {
@@ -2143,6 +2151,7 @@ TString Get_Template_XaxisTitle(TString variable)
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
         title+= " output";
+        // if(paperStyle) {title+= " bin";}
 
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // title = "NN-#mathcal{O}_{tZ}"; //Does not work
@@ -2155,6 +2164,7 @@ TString Get_Template_XaxisTitle(TString variable)
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
         title+= " output";
+        // if(paperStyle) {title+= " bin";}
     }
     else if(variable.Contains("NN_cpq3"))
     {
@@ -2164,8 +2174,7 @@ TString Get_Template_XaxisTitle(TString variable)
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
         title+= " output";
-
-        if(variable.Contains("SRttZ")) {title = "NN-SM (t#bar{t}Z node)";} //Actually using NN-sM for cpq3/ttZ
+        // if(paperStyle) {title+= " bin";}
     }
     else if(variable.Contains("NN_5D"))
     {
@@ -2175,6 +2184,7 @@ TString Get_Template_XaxisTitle(TString variable)
         // if(variable.Contains("SRtZq")) {title+= "^{tZq}";}
         // else if(variable.Contains("SRttZ")) {title+= "^{t#bar{t}Z}";}
         title+= " output";
+        // if(paperStyle) {title+= " bin";}
     }
 
     return title;

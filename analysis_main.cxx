@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-    bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
+    bool use_paperStyle = true; //true <-> Add 'preliminary' label on plots
 
 
 //-----------------------------------------------------------------------------------------
@@ -564,10 +564,10 @@ int main(int argc, char **argv)
     if(make_paperPlot_signalRegions)
     {
         theAnalysis->Make_PaperPlot_SignalRegions("NN_ctz");
-        // theAnalysis->Make_PaperPlot_SignalRegions("NN_ctw");
-        // theAnalysis->Make_PaperPlot_SignalRegions("NN_cpq3");
-        // theAnalysis->Make_PaperPlot_SignalRegions("NN_SM");
-        // theAnalysis->Make_PaperPlot_SignalRegions("NN_5D");
+        theAnalysis->Make_PaperPlot_SignalRegions("NN_ctw");
+        theAnalysis->Make_PaperPlot_SignalRegions("NN_cpq3");
+        theAnalysis->Make_PaperPlot_SignalRegions("NN_5D");
+        theAnalysis->Make_PaperPlot_SignalRegions("NN_SM");
     }
 
     //#############################################

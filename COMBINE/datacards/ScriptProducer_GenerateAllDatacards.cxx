@@ -447,6 +447,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
         if(systChoice == "noShape") output_name+= "_noShape";
         if(statChoice == "noStat") output_name+= "_noStat";
         if(mode_histoBins==3) output_name+= "_countExp";
+        output_name+= "_" + v_templates[0]; //-- Make name template-specific //CHANGED
         if(scan_operator_hardcoded) {output_name+= "_" + operator_scan1 + "_" + v_WCs_operator_scan1[ipt_EFT];}
         output_name+= "_" + lumiName;
         if(use_rph) {output_name+= "_rph";}
@@ -497,7 +498,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
 
             for(int itemplate=0; itemplate<v_templates.size(); itemplate++) //Loop over templates
             {
-                if(itemplate != iregion) {continue;} //NEW -- associate templates/regions 1 to 1 for more flexibility
+                if(itemplate != iregion) {continue;} //-- Associate templates/regions 1 to 1 for more flexibility
 
                 for(int iyear=0; iyear<v_lumiYears.size(); iyear++)
                 {
@@ -542,6 +543,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
             if(systChoice == "noShape") output_name+= "_noShape";
             if(statChoice == "noStat") output_name+= "_noStat";
             if(mode_histoBins==3) output_name+= "_countExp";
+            output_name+= "_" + v_templates[0]; //-- Make region card name template-specific
         	output_name+= "_" + v_regions[iregion] + "_" + lumiName + ".txt";
             file_out<<"> "<<output_name<<endl<<endl;
             file_out<<"mv "<<output_name<<" datacards_TemplateFit/"<<endl<<endl;

@@ -131,7 +131,7 @@ class EFTFit(object):
  ##  ## #    # #   #  #   #  #    # #      #    # #    # #
  #    #  ####  #    # #    #  ####  #      #    #  ####  ######
 
-    def makeWorkspace(self, ws_output, SM=False, datacard='datacard.txt', verbosity=0, wcs=[]):
+    def makeWorkspace(self, ws_output, SM=False, datacard='datacard.txt', verbosity=0, wcs=[], onlylinear=False, onlyquadratic=False):
         ### Generates a workspace from a datacard and fit parameterization file ###
         logging.info(colors.fg.lightblue + "Creating workspace" + colors.reset)
         if not os.path.isfile(datacard):
@@ -152,6 +152,9 @@ class EFTFit(object):
         if verbosity>0: args.extend(['-v', str(verbosity)])
         args.extend(['--channel-masks']) #Creates additional parameters allowing to later mask specific channels
 
+        if onlylinear: args.extend(['--PO', 'onlylinear=1'])
+        if onlyquadratic: args.extend(['--PO', 'onlyquadratic=1'])
+
         # Remove pre-existing WS
         sp.call(['rm',ws])
 
@@ -170,7 +173,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False):
+    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False, freezenuisancegroups=[]):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -228,6 +231,7 @@ class EFTFit(object):
         else: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
         if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
         if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
+        if len(freezenuisancegroups)>0: args.extend(['--freezeNuisanceGroups',','.join('{}'.format(group) for group in freezenuisancegroups)]) #Freeze groups of nuisances (as defined in datacard)
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -248,7 +252,7 @@ class EFTFit(object):
  #    # #   #  # #    #    #    # #    # #    # #   ##
   ####  #    # # #####      ####   ####  #    # #    #
 
-    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False):
+    def gridScan(self, datacard='./EFTWorkspace.root', SM=False, name='', batch='', freeze=False, scan_params=['ctz'], startValuesString='', params_tracked=[], points=1000, exp=False, other=[], verbosity=0, collect=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False, freezenuisancegroups=[]):
 
         ### Runs deltaNLL Scan in two parameters using CRAB or Condor ###
         logging.info(colors.fg.lightblue + "Enter function gridScan()\n" + colors.reset) #'You need to supply shell=True to execute the command through a shell interpreter. If you do that however, you can no longer supply a list as the first argument, because the arguments will get quoted then. Instead, specify the raw commandline as you want it to be passed to the shell'
@@ -336,6 +340,7 @@ class EFTFit(object):
             if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
             args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Remove default offset in NLL (which depends on the scan-dependent bestfit value)
             args.extend(['--saveNLL']) #Store absolute NLL values (needed to stich multiple scans with different bestfits together, etc.)
+            if len(freezenuisancegroups)>0: args.extend(['--freezeNuisanceGroups',','.join('{}'.format(group) for group in freezenuisancegroups)]) #Freeze groups of nuisances (as defined in datacard)
 
             if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','50'])
             if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50']) #Run jobs directly
@@ -384,11 +389,14 @@ class EFTFit(object):
             else: outfilename+= '5D'
             outfilename+= '.root'
             print(colors.fg.orange + '-- Collecting grid scan output files --> [{}] ...'.format(outfilename) + colors.reset)
-            #hadd_cmd = 'hadd -f {} higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(outfilename,name)
-            #proc = sp.Popen(hadd_cmd, shell=True)
-            proc = sp.Popen(['hadd','-f','test','test'], shell=True)
-            #print('hadd_cmd', hadd_cmd)
-            #proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE) #FIXME -- NOT WORKING ANYMORE
+            hadd_cmd = 'hadd -f {} higgsCombine{}.POINTS*.MultiDimFit.mH120.root'.format(outfilename,name)
+            proc = sp.Popen(hadd_cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+            print('hadd_cmd', hadd_cmd)
+            with proc.stdout,proc.stderr:
+                self.log_subprocess_output(proc.stdout,'info')
+                self.log_subprocess_output(proc.stderr,'err')
+            proc.wait()
+
             outdir_batch = 'condor{}'.format(name)
             print(colors.fg.orange + '-- Moving all output files and HTCondor files to dedicated diretory --> [{}] ...'.format(outdir_batch) + colors.reset)
             sp.call(['mkdir','{}'.format(outdir_batch)])
@@ -1176,7 +1184,7 @@ class EFTFit(object):
         process.wait()
 	#'''
 
-	thelabel = 'Observed'	
+	thelabel = 'Observed'
 	if exp: thelabel = 'Expected'
 
         args_plot=['plot1DScan.py','higgsCombine{}.MultiDimFit.mH120.root'.format(name1),'-o','statsyst_{}'.format(name.replace('.','')),'--others','higgsCombine{}.MultiDimFit.mH120.root:Stat. only:2'.format(name3),'--POI',param,'--main-label',thelabel,'--breakdown','syst,stat']
@@ -1243,6 +1251,10 @@ if __name__ == "__main__":
     ntoys = -1
     track = False #True <-> track all (constrained) nuisance parameters
     filepath = []
+    onlylinear = False # True <-> Only consider linear terms in EFT expression
+    onlyquadratic = False # True <-> Only consider quadratic terms in EFT expression
+    freezenuisancegroups = []
+
 
 # Set up the command line arguments
 # //--------------------------------------------
@@ -1272,6 +1284,9 @@ if __name__ == "__main__":
     parser.add_argument("-t", metavar="number of MC toys", help="Number of MC toys")
     parser.add_argument("--track", metavar="track nuisances", help="Track all nuisance parameters", nargs='?', const=1)
     parser.add_argument("-f", metavar="file path(s)", nargs='+', help="Path(s) to the rootfile(s) containing the object(s) to plot", required=False)
+    parser.add_argument("--onlylinear", metavar="onlylinear", help="Only consider linear EFT terms in workspace", nargs='?', const=1)
+    parser.add_argument("--onlyquadratic", metavar="onlyquadratic", help="Only consider quadratic EFT terms in workspace", nargs='?', const=1)
+    parser.add_argument('-freezenuisancegroups','--freezenuisancegroups', metavar="freezenuisancegroups", nargs='+', help='Groups of nuisances to freeze', required=False) #Takes >=0 args
 
     args = parser.parse_args()
     if args.sm: SM = True
@@ -1301,6 +1316,9 @@ if __name__ == "__main__":
     if args.t and not exp: ntoys = args.t
     if args.track: track = args.track
     if args.f: filepath = args.f
+    if args.onlylinear: onlylinear = True
+    if args.onlyquadratic: onlyquadratic = True
+    if args.freezenuisancegroups: freezenuisancegroups = args.freezenuisancegroups
 
     fitter = EFTFit(opts) #Create EFTFit object
 
@@ -1321,45 +1339,45 @@ if __name__ == "__main__":
 # //--------------------------------------------
     if SM:
         if ws=='EFTWorkspace.root': ws = 'SMWorkspace.root' #SM name
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, ws_output=ws)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, ws_output=ws, onlylinear=onlylinear, onlyquadratic=onlyquadratic)
         if createWS==1: exit(1)
         if name == '': name = '.SM' #Default
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
         elif mode is 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
             exit(1)
 
         if mode in ['','grid','scan']:
-            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track) #1D
-            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=50*50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track) #2D
+            if scan_dim=='1D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=[opts["SM_mu"]], points=50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups) #1D
+            elif scan_dim=='2D': fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=opts["SM_mus"], points=50*50, exp=exp, verbosity=verb, batch=batch, collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups) #2D
 
 # SMEFT fit
 # //--------------------------------------------
     else:
         #-- Create Combine Workspace
-        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, wcs=wcs, ws_output=ws)
+        if '.root' not in datacard_path and (createWS<2 or '.txt' in datacard_path) and only_collect_outputs == False and mode not in ['other','reduce']: fitter.makeWorkspace(SM=SM, datacard=datacard_path, verbosity=verb, wcs=wcs, ws_output=ws, onlylinear=onlylinear, onlyquadratic=onlyquadratic)
         if createWS==1: exit(1)
         if name == '': name = '.EFT' #Default
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         #-- Maximum Likelihood Fit
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
         elif mode == 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
 
         #-- Grid Scan
-        elif not fixedPointNLL and mode in ['','grid','scan']:
+        if not fixedPointNLL and mode in ['','grid','scan']:
             if scan_dim=='1D':
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
                 points = points if points != -1 else 50
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
 
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
                 points = points if points != -1 else 100*100 #10K points looks fine (40K probably finest); 2500 pts <-> fast but not fine enough
-                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track)
+                fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
 
         #-- Reduce n-D scan to (n-1)-D scan
         elif mode == 'reduce':

@@ -179,7 +179,7 @@ void Choose_Arguments_From_CommandLine(TString& signal, bool& use_rph)
  * @param v_normSystValue    value of these systematics
  * @param v_shapeSyst    list of shape systematics
  */
-void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<TString> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, bool use_rph, TString outfile_name="Template_Datacard.txt")
+void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector<TString> v_sampleUncert, vector<TString> v_normSyst, vector<TString> v_normSystValue, vector<TString> v_shapeSyst, TString signal, vector<bool> v_shapeSyst_isCorrelYears, bool use_rph, bool group_nuisances, vector<TString> v_nuis_groups, vector<TString> v_normSyst_group, vector<TString> v_shapeSyst_group, TString outfile_name="Template_Datacard.txt")
 {
     //TString outfile_name = "Template_Datacard.txt";
     ofstream outfile(outfile_name.Data());
@@ -568,6 +568,32 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 
     outfile<<"---------------------------------------------------"<<endl;
 
+    //-- Groups of nuisances (see doc: https://cms-analysis.github.io/HiggsAnalysis-CombinedLimit/part2/settinguptheanalysis/#groups-of-nuisances)
+    for(int igroup=0; igroup<v_nuis_groups.size(); igroup++)
+    {
+        if(v_nuis_groups[igroup] == "tzq_rate") {outfile<<v_nuis_groups[igroup]<<" group = PrivMC_tZq_rate"<<endl;}
+        else if(v_nuis_groups[igroup] == "ttz_rate") {outfile<<v_nuis_groups[igroup]<<" group = PrivMC_ttZ_rate"<<endl;}
+        else if(v_nuis_groups[igroup] == "twz_rate") {outfile<<v_nuis_groups[igroup]<<" group = PrivMC_tWZ_rate"<<endl;}
+        else if(v_nuis_groups[igroup] == "bkg_rate") {outfile<<v_nuis_groups[igroup]<<" group = WZ_rate tX_rate VVV_rate XG_rate NPL_rate"<<endl;}
+        else
+        {
+            TString ts_freeze = ""; //List of systs to freeze in current group
+            for(int isyst=0; isyst<v_shapeSyst.size(); isyst++)
+            {
+                if(v_shapeSyst_group[isyst] == v_nuis_groups[igroup])
+                {
+                    ts_freeze+= " " + v_shapeSyst[isyst];
+                    if(!v_shapeSyst_isCorrelYears[isyst]) {ts_freeze+= "[YEAR]";}
+                }
+            }
+            for(int isyst=0; isyst<v_normSyst.size(); isyst++)
+            {
+                if(v_normSyst_group[isyst] == v_nuis_groups[igroup]) {ts_freeze+= " " + v_normSyst[isyst];}
+            }
+            outfile<<v_nuis_groups[igroup]<<" group = "<<ts_freeze<<endl;
+        }
+    }
+
 //--------------------------------------------
 
     cout<<endl<<endl<<"---> File ./"<<outfile_name<<" created..."<<endl<<endl<<endl;
@@ -617,6 +643,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
 int main()
 {
     bool use_rph = false; //true <-> will also produce template datacard for using RooParametricHist
+    bool group_nuisances = false; //true <-> define nuisance groups (hardcoded) at the end of datacard (so that multiple nuisances can be frozen at once)
 
 //-- Read command line arguments
 //--------------------------------------------
@@ -722,19 +749,19 @@ int main()
 //For a 5%/10% lnN asymmetric syst, write : "1.05/1.10"
 //-1 <-> values must be hardcoded (to allow for correlations with different values per year)
 //--------------------------------------------
-    vector<TString> v_normSyst; vector<TString> v_normSystValue;
-    v_normSyst.push_back("Lumi16"); v_normSystValue.push_back("1.022");
-    v_normSyst.push_back("Lumi17"); v_normSystValue.push_back("1.020");
-    v_normSyst.push_back("Lumi18"); v_normSystValue.push_back("1.015");
-    v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1");
-    v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1");
-    v_normSyst.push_back("LumiXY"); v_normSystValue.push_back("-1");
+    vector<TString> v_normSyst; vector<TString> v_normSystValue; vector<TString> v_normSyst_group;
+    v_normSyst.push_back("Lumi16"); v_normSystValue.push_back("1.022"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi17"); v_normSystValue.push_back("1.020"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi18"); v_normSystValue.push_back("1.015"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("LumiXY"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
 
-    v_normSyst.push_back("Trigger16"); v_normSystValue.push_back("1.02");
-    v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02");
-    v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02");
+    v_normSyst.push_back("Trigger16"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Trigger18"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
 
-    v_normSyst.push_back("WZ_HF_extrap"); v_normSystValue.push_back("1.06");
+    v_normSyst.push_back("WZ_HF_extrap"); v_normSystValue.push_back("1.06"); v_normSyst_group.push_back("bkg_rate");
 
     //-- Obsolete...
     // v_normSyst.push_back("N_CRZZ_extrap"); v_normSystValue.push_back("1.05");
@@ -748,90 +775,112 @@ int main()
 // #    # #    # #    # #      #         #    #   #   #    #   #
 //  ####  #    # #    # #      ######     ####    #    ####    #
 
-//-- Name of shape systematic / Whether syst is correlated between years (single nuisance) or not (1 per year)
+//-- Name of shape systematic / Whether syst is correlated between years (single nuisance) or not (1 per year) / Nuisance group to which the syst belongs
 //--------------------------------------------
-    vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears;
-    v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(true);
+    vector<TString> v_shapeSyst; vector<bool> v_shapeSyst_isCorrelYears; vector<TString> v_shapeSyst_group;
+    v_shapeSyst.push_back("PU"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("other_exp");
+    v_shapeSyst.push_back("prefire"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("other_exp");
+    v_shapeSyst.push_back("BtagHF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagLF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagHFstats1"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagHFstats2"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagLFstats1"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagLFstats2"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagCFerr1"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("btag");
+    v_shapeSyst.push_back("BtagCFerr2"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("btag");
 
-    //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
-    //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
+    v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
+    v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
+    v_shapeSyst.push_back("FRm_be"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
+    v_shapeSyst.push_back("FRe_norm"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
+    v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
+    v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("fr");
 
-    v_shapeSyst.push_back("FRm_norm"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FRm_pt"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FRm_be"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FRe_norm"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FRe_pt"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FRe_be"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("lep_eff");
+    v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("lep_eff");
+    v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("lep_eff");
+    v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("lep_eff");
 
-    v_shapeSyst.push_back("LepEff_muLoose"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("LepEff_muTight"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("LepEff_elLoose"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("LepEff_elTight"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("");
 
-    v_shapeSyst.push_back("njets_tZq"); v_shapeSyst_isCorrelYears.push_back(true);
+    v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
+    v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("theory");
 
-    v_shapeSyst.push_back("PDF"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("alphas"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("MEtZq"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("MEttZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("MEtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
-
-    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false);
-    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false);
+    v_shapeSyst.push_back("JER"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jer");
+    v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("met");
 
     //-- JEC //Default: single source uncorrelated between years
     bool use_split_JEC = false;
     if(!use_split_JEC) //Total JEC
     {
-        v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(false);
-        //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        //v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
     }
     else //Split JEC
     {
-        v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false);
-        v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true);
-        v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true);
+        v_shapeSyst.push_back("AbsoluteStat"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("AbsoluteScale"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("AbsoluteMPFBias"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("Fragmentation"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("SinglePionECAL"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("SinglePionHCAL"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("FlavorQCD"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("TimePtEta"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeJEREC1"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeJEREC2"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeJERHF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativePtBB"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativePtEC1"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativePtEC2"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativePtHF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeBal"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeSample"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeFSR"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeStatFSR"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeStatEC"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("RelativeStatHF"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpDataMC"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpPtRef"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpPtBB"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpPtEC1"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpPtEC2"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
+        v_shapeSyst.push_back("PileUpPtHF"); v_shapeSyst_isCorrelYears.push_back(true); v_shapeSyst_group.push_back("jes");
     }
 
-    // /*
-    v_shapeSyst.push_back("ISRtZq"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("ISRttZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("ISRtWZ"); v_shapeSyst_isCorrelYears.push_back(true);
-    v_shapeSyst.push_back("FSR"); v_shapeSyst_isCorrelYears.push_back(true);
-    // */
+    //-- Obsolete
+    //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
+    //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
+
+
+ //  ####  #####   ####  #    # #####   ####
+ // #    # #    # #    # #    # #    # #
+ // #      #    # #    # #    # #    #  ####
+ // #  ### #####  #    # #    # #####       #
+ // #    # #   #  #    # #    # #      #    #
+ //  ####  #    #  ####   ####  #       ####
+
+//-- Groups of nuisances (to be frozen together) --> To be defined at the end of the template datacard
+//--------------------------------------------
+    vector<TString> v_nuis_groups;
+    v_nuis_groups.push_back("tzq_rate");
+    v_nuis_groups.push_back("ttz_rate");
+    v_nuis_groups.push_back("twz_rate");
+    v_nuis_groups.push_back("bkg_rate");
+    v_nuis_groups.push_back("jes");
+    v_nuis_groups.push_back("jer");
+    v_nuis_groups.push_back("met");
+    v_nuis_groups.push_back("btag");
+    v_nuis_groups.push_back("other_exp");
+    v_nuis_groups.push_back("fr");
+    v_nuis_groups.push_back("lep_eff");
+    v_nuis_groups.push_back("theory");
 
 
 //  ####    ##   #      #       ####
@@ -844,9 +893,9 @@ int main()
 //Function calls
 //--------------------------------------------
     //Generate the template datacard
-    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, false);
+    Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, false, group_nuisances, v_nuis_groups, v_normSyst_group, v_shapeSyst_group);
 
-    if(use_rph) {Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, true, "Template_Datacard_RPH.txt");}
+    if(use_rph) {Generate_Datacard(v_samples, v_isSignal, v_sampleUncert, v_normSyst, v_normSystValue, v_shapeSyst, signal, v_shapeSyst_isCorrelYears, true, group_nuisances, v_nuis_groups, v_normSyst_group, v_shapeSyst_group, "Template_Datacard_RPH.txt");}
 
     return 0;
 }

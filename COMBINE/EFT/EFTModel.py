@@ -59,6 +59,8 @@ class EFTModel(PhysicsModel):
         wcs_override = [] # WCs specified by arguments
         self.procbins = [] # Process+bin combinations (tuple) that we have events for
         procbin_override = [] # Process+bin combinations (tuple) specified by arguments
+        self.onlylinear = False # True <-> Only consider linear terms in EFT expression
+        self.onlyquadratic = False # True <-> Only consider quadratic terms in EFT expression
 
         # Option specified when creating workspace, e.g.: '... EFTModel:eftmodel --PO fits=./xxx.npy'
         for option, value in [x.split('=') for x in options]:
@@ -68,6 +70,10 @@ class EFTModel(PhysicsModel):
                 wcs_override = value.split(',')
             elif option == 'procbins': # Override to fit only a subset of proc+category combinations
                 procbin_override = value.split(',')
+            elif option == 'onlylinear':
+                self.onlylinear = True
+            elif option == 'onlyquadratic':
+                self.onlyquadratic = True
             else:
                 print "Unknown option", option
 
@@ -120,7 +126,7 @@ class EFTModel(PhysicsModel):
                         # print('wc1', wc1, 'wc2', wc2)
                         if (wc1,wc2) not in fits[procbin]:
                             print(colors.fg.red + "ERROR: WCs " + str((wc1,wc2)) + " not found in EFT parameterization... Did you run [DumpEFTParametrization.py] on the proper template file ?" + colors.reset); exit(1)
-                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= min_threshold): #(idy >= idx) <-> if term (wc1,wc2) already included, don't include (wc2,wc1)
+                        elif (idy >= idx) and (abs(fits[procbin][(wc1,wc2)]) >= min_threshold): #(idy >= idx) <-> if term (wc1,wc2) already included, don't include (wc2,wc1) --> Will have the first expression xxx_Q0 with all WCs, then xxx_Q1 with (n-1) WCs, etc.
                             quartic_terms[idx].append('{0}*{1}*{2}'.format(round(fits[procbin][(wc1,wc2)],4),wc1,wc2))
                             quartic_args[idx].extend([wc1,wc2])
 
@@ -128,19 +134,21 @@ class EFTModel(PhysicsModel):
                 if verbose: print('quartic_terms', quartic_terms)
 
                 # Compile linear function for combine
-                if lin_term:
-                    lin_expr = "expr::{lin_name}('{lin_term}',{lin_args})".format(lin_name=lin_name,lin_term="+".join(lin_term),lin_args=",".join(lin_args))
-                    lin_func = self.modelBuilder.factory_(lin_expr)
-                    self.modelBuilder.out._import(lin_func)
-                    fit_terms.append(lin_name)
+                if self.onlyquadratic == False:
+                    if lin_term:
+                        lin_expr = "expr::{lin_name}('{lin_term}',{lin_args})".format(lin_name=lin_name,lin_term="+".join(lin_term),lin_args=",".join(lin_args))
+                        lin_func = self.modelBuilder.factory_(lin_expr)
+                        self.modelBuilder.out._import(lin_func)
+                        fit_terms.append(lin_name)
 
                 # Compile quartic functions separately first
-                for idx,fn in enumerate(quartic_terms):
-                    if not fn: continue # Skip empty quartic functions
-                    quartic_expr = "expr::{quartic_names}('{quartic_terms}',{quartic_args})".format(quartic_names=quartic_names[idx], quartic_terms="+".join(fn), quartic_args=",".join(list(set(quartic_args[idx]))))
-                    quartic_func = self.modelBuilder.factory_(quartic_expr)
-                    self.modelBuilder.out._import(quartic_func)
-                    fit_terms.append(quartic_names[idx])
+                if self.onlylinear == False:
+                    for idx,fn in enumerate(quartic_terms):
+                        if not fn: continue # Skip empty quartic functions
+                        quartic_expr = "expr::{quartic_names}('{quartic_terms}',{quartic_args})".format(quartic_names=quartic_names[idx], quartic_terms="+".join(fn), quartic_args=",".join(list(set(quartic_args[idx]))))
+                        quartic_func = self.modelBuilder.factory_(quartic_expr)
+                        self.modelBuilder.out._import(quartic_func)
+                        fit_terms.append(quartic_names[idx])
 
                 # Compile the full function
                 fit_function = "expr::{name}('{fit_terms}',{fit_args})".format(name=name,fit_terms="+".join(fit_terms),fit_args=",".join(fit_terms[1:]))

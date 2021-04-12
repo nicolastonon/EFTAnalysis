@@ -113,7 +113,7 @@ def makeWorkspace(SM=False, datacard='datacard.txt', verbosity=0):
 
 #=====================================
 
-def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False, only_collect_outputs=False, name='', ntoys=0, SM=False):
+def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=False, only_collect_outputs=False, name='', ntoys=0, SM=False, batch=''):
     '''
     Generate impact plots. Can choose to run the per-nuisance fits on the grid.
 
@@ -144,8 +144,9 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         exit(1)
 
     if name == '':
-        if SM: name = '.SM'
-        else: name = '.EFT'
+        if SM: name = 'SM'
+        else: name = 'EFT'
+    # elif name[0] != '.': name = '.{}'.format(name) #Convention: add a '.' before custom name
 
     if only_collect_outputs == False:
 
@@ -243,7 +244,8 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
         if batch != '': return #If we just submitted jobs, need to wait that they finish before we collect outputs
 
     #-- Create a json file using as input the files generated in the previous two steps
-    args = ['combineTool.py','-M','Impacts','-o','impacts.json','-d',workspace,'-m','125']
+    json_filename = 'impacts_'+name+'.json'
+    args = ['combineTool.py','-M','Impacts','-o',json_filename,'-d',workspace,'-m','125']
     args.extend(['--redefineSignalPOIs',','.join('{}'.format(poi) for poi in POIs)])
     if exp:
         if ntoys == 0: args.extend(['-t','-1']) #Assume MC expected
@@ -260,11 +262,11 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
     process.wait()
 
     #-- Create the impact plot pdf file
-    outfilename = 'impacts'
-    if name != '': outfilename+= '_'+name
+    outfilename_tmp = 'impacts_'+name
     for poi in POIs:
+        outfilename = outfilename_tmp
         if outfilename=='impacts' or len(POIs)>1: outfilename+= '_'+str(poi)
-        args = ['plotImpacts.py','-i','impacts.json','--POI','%s' % (poi),'-o',outfilename,'--per-page','20','--translate','../Plotting/rename.json','--cms-label','Internal']
+        args = ['plotImpacts.py','-i',json_filename,'--POI','%s' % (poi),'-o',outfilename,'--per-page','20','--translate','../Plotting/rename.json','--cms-label','Internal']
 
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
         process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -398,7 +400,7 @@ if __name__ == "__main__":
     nuisance = '' #Name of single nuisance parameter to scan
     npoints = 50 #Number of points to scan nuisance(s)
     only_collect_outputs = False #True <-> for impact plot, only collect output files previously produced e.g. on the grid
-    batch = False #True <-> condor #Can choose to run jobs on 'crab' or 'condor'
+    batch = '' #'' (interactive) or 'condor'
     ntoys = 0 # >0 <-> will generate MC toys rather than Asimov dataset
     SM = False #True <-> consider SM scenario (rather than SMEFT)
 
@@ -455,7 +457,7 @@ if __name__ == "__main__":
         if SM == True: datacard_path = 'SMWorkspace.root'
 	else: datacard_path = 'EFTWorkspace.root'
 
-    if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name, ntoys=ntoys, SM=SM)
+    if mode in ['impact','impacts']: Make_Impact_Plots(POIs, workspace=datacard_path, freeze=freeze, verbosity=verb, other='', exp=exp, only_collect_outputs=only_collect_outputs, name=name, ntoys=ntoys, SM=SM, batch=batch)
 
     elif mode == 'scan_nuisance': Make_NLL_Scan_NuisancePar(datacard_path, nuisance, POIs, npoints=npoints, range=[-4,4], freeze=freeze, verbosity=verb, exp=exp, other='', ntoys=ntoys)
 
