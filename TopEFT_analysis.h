@@ -90,6 +90,7 @@ class TopEFT_analysis
 
     void Make_PaperPlot_CommonRegions();
     void Make_PaperPlot_SignalRegions(TString);
+    void Make_PaperPlot_ControlPlots();
 
     void Dump_Scores_allNNs();
 

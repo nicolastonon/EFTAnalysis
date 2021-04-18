@@ -1162,7 +1162,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     //Categories are either 0 or 1 (NB : encoded in Char_t!)
     if(var.BeginsWith("is_") || var.BeginsWith("passed") ) {nbins = 2; xmin = 0; xmax = 2;}
 
-    else if(var == "metEt") {nbins = 20; xmin = 0; xmax = 250;}
+    else if(var == "metEt") {nbins = 20; xmin = 0; xmax = 200;}
 	else if(var == "dEtaFwdJetBJet") {nbins = 20; xmin = 0; xmax = 4;}
 	else if(var == "dEtaFwdJetClosestLep") {nbins = 20; xmin = 0; xmax = 4;}
 	else if(var == "minDRll") {nbins = 15; xmin = 0; xmax = 3.5;}
@@ -1182,12 +1182,12 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "maxDiJet_M") {nbins = 10; xmin = 100; xmax = 1000;}
     else if(var == "maxDiJet_Pt") {nbins = 10; xmin = 100; xmax = 400;}
     else if(var == "maxDijet_dPhi") {nbins = 20; xmin = 0.; xmax = 3.5;}
-    else if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {nbins = 10; xmin = 0; xmax = 3.5;}
+    else if(var == "maxDelPhiLL" || var == "recoZ_dPhill") {nbins = 10; xmin = 0; xmax = 3.2;}
     else if(var == "m3l" || var == "Mass_3l") {nbins = 20; xmin = 50; xmax = 500;}
     else if(var == "leptonCharge") {nbins = 3; xmin = -1.5; xmax = 1.5;}
-    else if(var == "mTW") {nbins = 20; xmin = 0.; xmax = 200;}
+    else if(var == "mTW") {nbins = 20; xmin = 0.; xmax = 150;}
     else if(var == "recoZ_Mass") {nbins = 20; xmin = 75.; xmax = 110;}
-    else if(var == "lAsymmetry") {nbins = 20; xmin = -3.; xmax = 3.;}
+    else if(var == "lAsymmetry") {nbins = 20; xmin = -2.5; xmax = 2.5;}
     else if(var == "Mass_tZ" || var == "TopZsystem_M") {nbins = 15; xmin = 200; xmax = 1000;}
     else if(var.Contains("DeepJet", TString::kIgnoreCase)) {nbins = 15; xmin = 0.3; xmax = 1.;}
     else if(var == "maxDelRbL") {nbins = 20; xmin = 1.; xmax = 5;}
@@ -1197,13 +1197,14 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
     else if(var == "recoLepTop_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var == "recoLepTop_Pt") {nbins = 20; xmin = 0.; xmax = 300.;}
     else if(var == "dR_blW" || var == "dR_bW") {nbins = 20; xmin = 0.; xmax = 4.;}
-    else if(var == "jprime_Pt") {nbins = 20; xmin = 25.; xmax = 225.;}
+    else if(var == "jprime_Pt") {nbins = 20; xmin = 25.; xmax = 300.;}
+    else if(var == "dR_tZ") {nbins = 10; xmin = 0.; xmax = 5.;}
 
     else if(var == "jet1_pt") {nbins = 20; xmin = 25.; xmax = 400.;}
     else if(var == "jet2_pt") {nbins = 20; xmin = 25.; xmax = 200.;}
     else if(var == "jet3_pt") {nbins = 20; xmin = 25.; xmax = 120.;}
     else if(var == "lep1_pt" || var == "lep2_pt" || var == "lep3_pt") {nbins = 20; xmin = 30.; xmax = 230.;}
-    else if(var == "recoZ_Pt") {nbins = 15; xmin = 0.; xmax = 300.;} //500
+    else if(var == "recoZ_Pt") {nbins = 15; xmin = 0.; xmax = 300.;} //300
     else if(var == "recoZ_Eta") {nbins = 20; xmin = -3.; xmax = 3.;}
     else if(var.BeginsWith("jet") && var.Contains("eta", TString::kIgnoreCase)) {nbins = 20; xmin = -5.; xmax = 5.;}
 
@@ -1360,7 +1361,7 @@ TString Get_Variable_Name(TString var)
     if(var == "mbjMax") {return "max. m_{b,j}";}
     if(var == "maxDelPhiLL") {return "max. #Delta#varphi(l,l)";}
     if(var == "recoZ_dPhill") {return "#Delta#varphi(l,l)_{Z}";}
-    if(var == "metEt") {return "E_{T}^{miss}";}
+    if(var == "metEt") {return "p_{T}^{miss}";} //"E_{T}^{miss}"
     if(var == "recoZ_Mass") {return "m_{Z}";}
     if(var == "Mass_tZ") {return "m_{tZ}";}
     if(var == "maxDijetPt" || var == "maxDiJet_Pt") {return "max. p_{T}(j,j)";}
@@ -1926,7 +1927,7 @@ TString Get_Region_Label(TString region, TString variable)
 
     //-- Region-dependent label //Order matters
     region.ToLower();
-    if(region=="signal") {label = "SR-3\\ell";}
+    if(region=="signal" || region=="sr") {label = "\\text{SR-3}\\ell";} //Main SR
     else if(region=="ttz4l") {label = "\\text{SR-t}\\bar{\\text{t}}\\text{Z-4}\\ell";} //NB: if using a TMathText (like \ell), must use TMathText for all math symbols
     else if(region=="tzq") {label = "SR-tZq";}
     else if(region=="ttz") {label = "SR-t#bar{t}Z";}
@@ -2208,15 +2209,15 @@ TString Get_EFToperator_label(TString operator_name)
 //cf. https://twiki.cern.ch/twiki/bin/view/CMS/Internal/PubGuidelines#Figures_and_tables
 TString Get_Unit_Variable(TString var)
 {
-    TString unit = " GeV"; //Default //Must include space
+    TString unit = " units"; //Default //Must include space
 
     //-- Dimensionless x-axis
-    if(var.Contains("njets", TString::kIgnoreCase)
-    || var.Contains("nbjets", TString::kIgnoreCase)
-    || var.Contains("cosThetaStar", TString::kIgnoreCase)
-    || var.Contains("NN", TString::kIgnoreCase)
-    || var.Contains("BDT", TString::kIgnoreCase)
-    ) {unit = " units";} //Must include space
+    if(var.Contains("pt", TString::kIgnoreCase)
+    || var.Contains("metEt", TString::kIgnoreCase)
+    || var.Contains("mTW", TString::kIgnoreCase)
+    || var.Contains("m_", TString::kIgnoreCase)
+    || var.Contains("mass", TString::kIgnoreCase)
+    ) {unit = " GeV";} //Must include space
 
     return unit;
 }

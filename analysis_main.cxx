@@ -439,6 +439,7 @@ int main(int argc, char **argv)
 
     bool make_paperPlot_commonRegions = false;
     bool make_paperPlot_signalRegions = true;
+    bool make_paperPlot_controlPlots = false;
 
 //-----------------    OTHER
 
@@ -569,6 +570,8 @@ int main(int argc, char **argv)
         theAnalysis->Make_PaperPlot_SignalRegions("NN_5D");
         theAnalysis->Make_PaperPlot_SignalRegions("NN_SM");
     }
+    if(make_paperPlot_controlPlots) {theAnalysis->Make_PaperPlot_ControlPlots();}
+
 
     //#############################################
     //  OTHER FUNCTIONS

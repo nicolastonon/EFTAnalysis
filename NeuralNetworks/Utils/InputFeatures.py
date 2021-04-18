@@ -1,7 +1,7 @@
 # //--------------------------------------------
-#FIXME -- remove mbjmax ? cf. different correl data/mc
 
 #-- CARL tZq
+#-- NB: tried removing mTW/dR_tClosestLep (low shap values), but ROCs decreased by ~1% --> Keep them
 
 #-- ctz
 features_CARL_tZq_ctz = []
@@ -13,23 +13,23 @@ features_CARL_tZq_ctz.append("dR_tZ")
 features_CARL_tZq_ctz.append("recoLepTop_Eta")
 features_CARL_tZq_ctz.append("recoLepTop_Pt")
 features_CARL_tZq_ctz.append("dEta_Zjprime")
-features_CARL_tZq_ctz.append("dR_tClosestLep")
+features_CARL_tZq_ctz.append("jprime_Pt")
 features_CARL_tZq_ctz.append("mTW")
-features_CARL_tZq_ctz.append("jprime_Pt") #Added
+features_CARL_tZq_ctz.append("dR_tClosestLep")
 
 #-- ctw
 features_CARL_tZq_ctw = []
 features_CARL_tZq_ctw.append("recoZ_Pt")
-features_CARL_tZq_ctw.append("recoZ_Eta")
 features_CARL_tZq_ctw.append("recoZ_dPhill")
 features_CARL_tZq_ctw.append("dR_tClosestLep")
 features_CARL_tZq_ctw.append("dR_tZ")
 features_CARL_tZq_ctw.append("lAsymmetry")
-features_CARL_tZq_ctw.append("cosThetaStarPolTop")
 features_CARL_tZq_ctw.append("jprime_Pt")
 features_CARL_tZq_ctw.append("recoLepTop_Eta")
 features_CARL_tZq_ctw.append("dR_blW")
 
+#features_CARL_tZq_ctw.append("recoZ_Eta") #Removed 4Apr21 (low shap)
+#features_CARL_tZq_ctw.append("cosThetaStarPolTop") #Removed 4Apr21 (low shap)
 #features_CARL_tZq_ctw.append("dEta_bjprime") #7mar21
 #features_CARL_tZq_ctw.append("jPrimeAbsEta") #7mar21
 #features_CARL_tZq_ctw.append("mHT")
@@ -55,13 +55,13 @@ features_CARL_tZq_cpq3.append("recoZ_Pt")
 features_CARL_tZq_cpq3.append("recoZ_Eta")
 features_CARL_tZq_cpq3.append("recoZ_dPhill")
 features_CARL_tZq_cpq3.append("cosThetaStarPolZ")
-features_CARL_tZq_cpq3.append("dR_blW")
-features_CARL_tZq_cpq3.append("dR_tClosestLep")
 features_CARL_tZq_cpq3.append("recoLepTop_Eta")
 features_CARL_tZq_cpq3.append("dR_tZ")
 features_CARL_tZq_cpq3.append("recoLepTop_Pt")
-features_CARL_tZq_cpq3.append("jprime_Pt")
-#features_CARL_tZq_cpq3.append("Mass_3l")
+
+#features_CARL_tZq_cpq3.append("dR_blW") #Removed 4Apr21 (low shap)
+#features_CARL_tZq_cpq3.append("dR_tClosestLep")  #Removed 4Apr21 (low shap)
+#features_CARL_tZq_cpq3.append("jprime_Pt") #Removed 4Apr21 (low shap)
 
 #-- cpt
 features_CARL_tZq_cpt = []
@@ -75,21 +75,22 @@ features_CARL_tZq_cpt.append("TopZsystem_M")
 #-- Multiple operators
 features_CARL_tZq_5D = []
 features_CARL_tZq_5D.append("recoZ_Pt")
-features_CARL_tZq_5D.append("recoZ_Eta")
 features_CARL_tZq_5D.append("recoZ_dPhill")
-features_CARL_tZq_5D.append("dR_blW") #data/mc
-features_CARL_tZq_5D.append("dR_tZ")
+features_CARL_tZq_5D.append("dR_blW")
 features_CARL_tZq_5D.append("recoLepTop_Pt")
 features_CARL_tZq_5D.append("dEta_Zjprime")
-features_CARL_tZq_5D.append("jPrimeAbsEta") #FIXME -- remove ?
+features_CARL_tZq_5D.append("jPrimeAbsEta")
+features_CARL_tZq_5D.append("jprime_Pt")
+
+#-- Removed 30Mar21 (based on SHAP value -- no loss in ROC)
+#features_CARL_tZq_5D.append("dR_jprimeClosestLep")
+#features_CARL_tZq_5D.append("lAsymmetry")
+#features_CARL_tZq_5D.append("dR_tZ")
+#features_CARL_tZq_5D.append("recoLepTop_Eta")
+#features_CARL_tZq_5D.append("recoZ_Eta")
+
 #features_CARL_tZq_5D.append("dR_tClosestLep")
 #features_CARL_tZq_5D.append("cosThetaStarPolZ") #diff behaviours for diff operators...?
-
-#CHANGED 6Mar21
-features_CARL_tZq_5D.append("dR_jprimeClosestLep")
-features_CARL_tZq_5D.append("jprime_Pt")
-features_CARL_tZq_5D.append("recoLepTop_Eta")
-features_CARL_tZq_5D.append("lAsymmetry")
 #features_CARL_tZq_5D.append("mHT") #correl Zpt
 #features_CARL_tZq_5D.append("dEta_bjprime") #poor discr
 #features_CARL_tZq_5D.append("Mass_3l") #~ data/mc
@@ -201,11 +202,9 @@ features_SM.append("mTW")
 features_SM.append("recoLepTop_Pt")
 
 #-- removed to improve data/mc in SRtZq
-#features_SM.append("mbjMax") #~ #OK
 #features_SM.append("recoZ_Pt") #OK #OK #Imperfect data/MC, correlated with recoZ_dPhill
 #features_SM.append("maxDiJet_M") #? imperfect data/mc
 #features_SM.append("dR_blW") #NO! #OK
-
 #-- Testing
 # features_SM.append("maxDelRbL")
 # features_SM.append("maxDiJet_Pt")
