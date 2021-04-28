@@ -40,7 +40,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool use_SMdiffAnalysis_strategy, bool make_fixedRegions_templates, bool process_samples_byGroup, bool split_EFTtemplates_perBin, bool use_paperStyle, bool use_NN_SRother)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool make_fixedRegions_templates, bool process_samples_byGroup, bool split_EFTtemplates_perBin, bool use_paperStyle, bool use_NN_SRother)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -361,7 +361,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
             if(this->operator_scan1 == "" || !this->v_WCs_operator_scan1.size()) {cout<<BOLD(FRED("Warning: option [v_WCs_operator_scan1] is true, but you did not specify [operator_scan1] or [v_WCs_operator_scan1] ---> No MVA scan ! Abort !"))<<endl; stop_program = true;}
             if(!this->make_SMvsEFT_templates_plots) {cout<<BOLD(FRED("ERROR: option [scanOperators_paramNN=true] can only be used with option [make_SMvsEFT_templates_plots=true] ! Abort !"))<<endl; stop_program = true;}
             if( (this->operator_scan1 != "" && !this->v_WCs_operator_scan1.size()) || (this->operator_scan2 != "" && !this->v_WCs_operator_scan2.size()) ) {cout<<BOLD(FRED("ERROR: option [operator_scan1] or [operator_scan2] is non-empty, but the corresponding list of WC values is empty ! Abort !"))<<endl; stop_program = true;}
-            if(use_SMdiffAnalysis_strategy || make_fixedRegions_templates) {cout<<BOLD(FRED("ERROR: options [scanOperators_paramNN=true] / [make_fixedRegions_templates=true] / [use_SMdiffAnalysis_strategy=true] are incompatible ! Abort !"))<<endl; stop_program = true;}
+            if(make_fixedRegions_templates) {cout<<BOLD(FRED("ERROR: options [scanOperators_paramNN=true] / [make_fixedRegions_templates=true] are incompatible ! Abort !"))<<endl; stop_program = true;}
         }
     }
 
@@ -378,14 +378,6 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
     {
         if(region != "") {cout<<FRED("Warning: you have set option [make_fixedRegions_templates=true] but set a value to the [region] option ! This option will be overriden (hardcoded region selection) ")<<endl; region = "";}
         if(v_cut_name.size()) {cout<<FRED("Warning: you have set option [make_fixedRegions_templates=true] but set some manual cuts in the main()... is this intended ? Make sure that you don't cut on the same category flags used by this hardcoded strategy !")<<endl;}
-    }
-
-    this->use_SMdiffAnalysis_strategy = use_SMdiffAnalysis_strategy;
-    if(use_SMdiffAnalysis_strategy)
-    {
-        if(region != "tzq" && region != "ttz" && region != "wz" && region != "zz" && region != "xg") {cout<<"ERROR: you have set option [use_SMdiffAnalysis_strategy=true] but selected wrong region "<<region<<endl; stop_program = true;}
-        if(make_fixedRegions_templates) {cout<<BOLD(FRED("ERROR: options [make_fixedRegions_templates=true] and [use_SMdiffAnalysis_strategy=true] are incompatible ! Abort !"))<<endl; stop_program = true;}
-        if(v_cut_name.size()) {cout<<FRED("Warning: you have set option [use_SMdiffAnalysis_strategy=true] but set some manual cuts in the main()... is this intended ? Make sure that you don't cut on the same category flags used by this hardcoded strategy !")<<endl;}
     }
 
     //-- Hard-coded: for njet-PrivMC_tZq shape systematics, need to read pre-existing histos
@@ -916,7 +908,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     //-- Hardcoded
     bool make_njetstZqSF_file = false; //true <-> create hardcoded file containing njets histograms for tZq and PrivMC_tZq (to compute njets_tZq shape systematic)
-    bool make_histos_forControlPlotsPaper = true; //true <-> hardcoded to make only the necessary histograms needed to produce the control plots for the paper
+    bool make_histos_forControlPlotsPaper = false; //true <-> hardcoded to make only the necessary histograms needed to produce the control plots for the paper
 //--------------------------------------------
 //--------------------------------------------
 
@@ -924,7 +916,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     if(template_name=="") {template_name = classifier_name;}
     if(!makeHisto_inputVars && !make_SMvsEFT_templates_plots && categorization_strategy>0 && template_name!="BDT" && !template_name.Contains("NN")) {cout<<BOLD(FRED("Error : template_name value ["<<template_name<<"] not supported for this strategy !"))<<endl; return;} //Special case: if want to produce SM vs SM classifier plots, make sure we consider NN templates (for BDT, must specify in main)
     if(this->make_fixedRegions_templates && makeHisto_inputVars) {cout<<FRED("Warning: option [make_fixedRegions_templates] is incompatible with control plots for input variables... Setting it to false !")<<endl; this->make_fixedRegions_templates = false;}
-    // if(this->make_fixedRegions_templates || this->use_SMdiffAnalysis_strategy) {template_name = "";} //Irrelevant variable //But useful for output file name... ?
     if(template_name.Contains("NN") && template_name!="NN" && template_name!="NN_ctz" && template_name!="NN_ctw" && template_name!="NN_cpq3" && template_name!="NN_5D" && template_name!="NN_SM") {cout<<BOLD(FRED("Error : template_name value ["<<template_name<<"] not recognized !"))<<endl; return;}
 
     cout<<endl<<BYEL("                          ")<<endl<<endl;
@@ -954,7 +945,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
     bool use_maxNode_events = false;
     bool apply_MVASM_cut = false;
     TString MVA_type = "";
-    if(categorization_strategy > 0 && !this->use_SMdiffAnalysis_strategy && ((!makeHisto_inputVars && !this->make_fixedRegions_templates) || (makeHisto_inputVars && make_controlPlots_inSRsubregion != ""))) //Only for templates, an for SR-3l (--> used to subdivide into SRtZq/SRttZ/SRother subregions)
+    if(categorization_strategy > 0 && ((!makeHisto_inputVars && !this->make_fixedRegions_templates) || (makeHisto_inputVars && make_controlPlots_inSRsubregion != ""))) //Only for templates, an for SR-3l (--> used to subdivide into SRtZq/SRttZ/SRother subregions)
     {
         use_predefined_EFT_strategy = true;
 
@@ -1218,7 +1209,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         	else //Templates
         	{
                 //-- Could use this helper function to fill the (hardcoded) list of variables to consider, based on user-options
-                Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates);
+                Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->make_fixedRegions_templates);
         	} //Templates
 
             // total_var_floats.resize(total_var_list.size());
@@ -1696,8 +1687,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             }
                             else //Templates
                             {
-                                if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
-                                else {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
+                                if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
+                                else {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
                             }
                             // cout<<"nbins "<<nbins<<" / xmin "<<xmin<<" / xmax "<<xmax<<endl;
 
@@ -1831,8 +1822,6 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             NN_iMaxNode = -1;
                             for(int inode=0; inode<NN_nNodes; inode++)
                             {
-                                if(this->use_SMdiffAnalysis_strategy && region == "ttz") {*total_var_pfloats[0] = clfy1_outputs[1]; break;} //Hard-coded: we want to read the ttZ node of the multiclass SM MVA
-
                                 // total_var_floats[inode] = clfy1_outputs[inode];
                                 // if(clfy1_outputs[inode] > mva_tmp) {mva_tmp = clfy1_outputs[inode]; NN_iMaxNode = inode;} //Store max. node info
                                 *total_var_pfloats[inode] = clfy1_outputs[inode];
@@ -2571,7 +2560,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     if(template_name == "" && classifier_name != "BDT" && classifier_name != "NN") {cout<<BOLD(FRED("Error : classifier_name value ["<<classifier_name<<"] not supported !"))<<endl; return;}
     if(template_name == "") {template_name = classifier_name;}
     if(!drawInputVars && !make_SMvsEFT_templates_plots && categorization_strategy>0 && template_name!="BDT") {template_name = "NN_SM";} //Special case: if want to produce SM vs SM classifier plots, make sure we consider NN_SM templates (for BDT, must specify in main) //"NN"?
-    if(this->make_fixedRegions_templates || this->use_SMdiffAnalysis_strategy) {template_name = "";} //Irrelevant
+    if(this->make_fixedRegions_templates) {template_name = "";} //Irrelevant
 
     //-- For parameterized NN, can produce plots for *each EFT point* considered in the scan (adapt histo name accordingly, etc.)
     if(EFTpoint != "")
@@ -2614,7 +2603,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     TString cat_tmp = region;
 
     bool use_predefined_EFT_strategy = false;
-    if(!drawInputVars && this->categorization_strategy > 0 && !this->use_SMdiffAnalysis_strategy) {use_predefined_EFT_strategy = true;}
+    if(!drawInputVars && this->categorization_strategy > 0) {use_predefined_EFT_strategy = true;}
 
     if(use_predefined_EFT_strategy && make_SMvsEFT_templates_plots && cat_tmp == "signal") {cat_tmp = "";} //Don't need this info in filename (default)
 	if(!prefit) {use_combine_file = true;}
@@ -2648,7 +2637,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         }
 
         //-- Can now fill the list of variables (templates names)
-        Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates, use_combine_file);
+        Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->make_fixedRegions_templates, use_combine_file);
 
         //-- If reading a combine file with split bins, will need to build 'full' template from individual bins --> Must read info files for NN1 & NN2, so that we know about the ranges, etc. //But actually we can read this hardcoded info from Get_Template_Range()
         /*
@@ -2814,7 +2803,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             file_input = TFile::Open(inputFile_path, "READ");
 
-            if(combineIndividualBins) {Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
+            if(combineIndividualBins) {Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
             // cout<<"nIndivBins "<<nIndivBins<<endl;
             // if(file_input->GetDirectory(hpath_tmp)) {combineIndividualBins = true;} //Seems like we have fitted individual bins, so in this chode we'll need to combine them all together again //Look for dummy bin (must be present if templates are split per bins)
             // if(combineIndividualBins) //Now, need to infer from the file how many individual bins will need to be combined
@@ -2928,8 +2917,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				TString histo_name = "";
                     if(!drawInputVars && use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
                     {
-                        if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
-                        else {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
+                        if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
+                        else {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
 
                         if(template_name.Contains("NN") && make_SMvsEFT_templates_plots) {xmin_tmp = 0; xmax_tmp = nIndivBins;} //NN template range may have been auto-adapted based on the NN info (to avoid empty bins at boundaries), or it may have been 'discarded' voluntarily if we split the template into individual bins; since this info can't be propagated through Combine fit, we can't infer the initial range here --> Need to hardcode it case-by-case !
 
@@ -3735,7 +3724,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_MC_histo[i], "t(#bar{t})X", "f");}
             else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_MC_histo[i], "WZ", "f");}
             else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_MC_histo[i], "VV(V)", "f");}
-            else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_MC_histo[i], "X+#gamma", "f");}
+            else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_MC_histo[i], "X#gamma", "f");}
             else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_MC_histo[i], "NPL", "f");}
 		}
 
@@ -4238,7 +4227,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                 int nbins=1; float xmin=0, xmax=0;
                 int nbjets_min = 1, nbjets_max=2, njets_min=2, njets_max=6;
                 vector<float> dummy;
-                Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, dummy, use_NN_SRother);
+                Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, dummy, use_NN_SRother);
 
                 //Arbitrary bins
                 if(total_var_list[ivar].Contains("NN") || total_var_list[ivar].Contains("BDT"))
@@ -4451,8 +4440,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         {
             int nbins = 0; float xmin = 0, xmax = 0;
             if(drawInputVars) {Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax);}
-            else {int nbjets_min=0,nbjets_max=0,njets_min=0,njets_max=0; vector<float> minmax_bounds; Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother);} //NB: for NNs the binning is anyway arbitrary (would need to read NN_settings file, etc.)
-            // else if(!template_name.Contains("NN_")) {int nbjets_min=0,nbjets_max=0,njets_min=0,njets_max=0; vector<float> minmax_bounds; Get_Template_Range(nbins, xmin, xmax, template_name, this->use_SMdiffAnalysis_strategy, this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother);} //NB: for NNs the binning is anyway arbitrary (would need to read NN_settings file, etc.)
+            else {int nbjets_min=0,nbjets_max=0,njets_min=0,njets_max=0; vector<float> minmax_bounds; Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother);} //NB: for NNs the binning is anyway arbitrary (would need to read NN_settings file, etc.)
 
             if(xmax != 0)
             {
@@ -4766,7 +4754,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
 //--------------------------------------------
 
     bool use_predefined_EFT_strategy = false;
-    if(!drawInputVars && categorization_strategy > 0 && !this->use_SMdiffAnalysis_strategy && !this->make_fixedRegions_templates) {use_predefined_EFT_strategy = true;}
+    if(!drawInputVars && categorization_strategy > 0 && !this->make_fixedRegions_templates) {use_predefined_EFT_strategy = true;}
 
     if(!drawInputVars)
     {
@@ -4781,7 +4769,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         //     }
         // }
 
-        Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->use_SMdiffAnalysis_strategy, this->make_fixedRegions_templates);
+        Fill_Variables_List(total_var_list, use_predefined_EFT_strategy, template_name, this->region, this->scanOperators_paramNN, this->NN_nNodes, this->make_SMvsEFT_templates_plots, operator_scan1, operator_scan2, v_WCs_operator_scan1, v_WCs_operator_scan2, this->make_fixedRegions_templates);
     }
 
     cout<<endl<<BYEL("                          ")<<endl<<endl;
@@ -4979,7 +4967,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
         			else if(v_groups[isample] == "Fakes") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "Non-prompt", "L");}
         			else if(v_groups[isample] == "QFlip") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "Flip", "L");}
                     else if(v_groups[isample] == "GammaConv") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "#gamma-conv.", "L");}
-                    else if(v_groups[isample] == "TTGamma_Dilep") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "X+#gamma", "L");}
+                    else if(v_groups[isample] == "TTGamma_Dilep") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "X#gamma", "L");}
                     else if(v_groups[isample] == "DY" ) {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "V+jets", "L");}
                     else if(v_groups[isample] == "TTbar_DiLep" || v_groups[isample] == "NPL") {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], "t#bar{t}", "L");}
                     else {qw->AddEntry(v3_histos_var_sample_syst[ivar][isample][isyst], v_groups[isample], "L");}
@@ -6675,7 +6663,7 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
         else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
         else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
         else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
-        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X#gamma", "f");}
         else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
 	}
 
@@ -6684,7 +6672,7 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
         if(MC_samples_legend[i] == "WZ") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
         else if(MC_samples_legend[i] == "VVV") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
         else if(MC_samples_legend[i] == "tX") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
-        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "X#gamma", "f");}
         else if(MC_samples_legend[i].Contains("NPL")) {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
         else if(MC_samples_legend[i].EndsWith("ttZ") ) {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "t#bar{t}Z", "f");}
         else if(MC_samples_legend[i].EndsWith("tWZ") ) {qw_reduced->AddEntry(v_vector_MC_histo[ivar][i], "tWZ", "f");}
@@ -6821,7 +6809,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     vector<TPad*> v_tpad_ratio_eft(nvar);
 
     vector<TLegend*> v_tlegend_ratio_eft(nvar);
-    vector<vector<TH1F*>> v_tlegend_dummy(nvar);
+    vector<vector<TH1F*>> v_tlegend_dummy(nvar); //Dummy object to fill legend
     for(int i=0; i<v_tlegend_dummy.size(); i++) {v_tlegend_dummy[i].resize(2);}
 
     vector<TLatex*> v_tlatex_legend_eft(nvar);
@@ -6950,7 +6938,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
 
 				h_tmp = NULL;
-                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], false, true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, false);
+                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, false);
                 h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
                 v_eyl.resize(nIndivBins); v_eyh.resize(nIndivBins); v_exl.resize(nIndivBins); v_exh.resize(nIndivBins); v_y.resize(nIndivBins); v_x.resize(nIndivBins);
                 std::fill(v_y.begin(), v_y.end(), -1); //Init errors positions to <0 (invisible)
@@ -7536,7 +7524,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             v_tpad_ratio_eft[ivar]->SetTopMargin(1-middle_panel_size); //+0.02 to add space
             v_tpad_ratio_eft[ivar]->SetFillColor(0);
             v_tpad_ratio_eft[ivar]->SetFillStyle(0);
-            // v_tpad_ratio_eft[ivar]->SetGridy(1); //FIXME //Drawn on primary divisions only
+            // v_tpad_ratio_eft[ivar]->SetGridy(1);
             v_tpad_ratio_eft[ivar]->Draw();
             v_tpad_ratio_eft[ivar]->cd(0);
             // v_tpad_ratio_eft[ivar]->SetLogy();
@@ -7585,7 +7573,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.045); //changed from 0.06 //NB: when using 0.05, got extra space before tbar in cpq3_SRttZ, for no reason...
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(-v2_histo_ratio_eft[ivar][0]->GetNbinsX()); //'-' to force Ndivisions
 
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.1); //FIXME
+            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.1);
             // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
 
             //-- SET X_AXIS TITLES
@@ -7685,8 +7673,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 {
                     if(EFTpointlabel1 != "") {EFTpointlabel1+= ",";}
                     if(total_var_list[ivar].Contains("5D")) {EFTpointlabel1+= Convert_Number_To_TString(v[i].second);}
-                    else {EFTpointlabel1+= Get_EFToperator_label((TString) v[i].first) + "=" + Convert_Number_To_TString(v[i].second);}
-
+                    else {EFTpointlabel1+= Convert_Number_To_TString(v[i].second);}
+                    // else {EFTpointlabel1+= Get_EFToperator_label((TString) v[i].first) + "=" + Convert_Number_To_TString(v[i].second);}
                 }
             }
             v = Parse_EFTreweight_ID(EFTpoint_name2);
@@ -7696,7 +7684,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 {
                     if(EFTpointlabel2 != "") {EFTpointlabel2+= ",";}
                     if(total_var_list[ivar].Contains("5D")) {EFTpointlabel2+= Convert_Number_To_TString(v[i].second);}
-                    else {EFTpointlabel2+= Get_EFToperator_label((TString) v[i].first) + "=" + Convert_Number_To_TString(v[i].second);}
+                    else {EFTpointlabel2+= Convert_Number_To_TString(v[i].second);}
+                    // else {EFTpointlabel2+= Get_EFToperator_label((TString) v[i].first) + "=" + Convert_Number_To_TString(v[i].second);}
                 }
             }
             if(total_var_list[ivar].Contains("5D"))
@@ -7721,21 +7710,35 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                     v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.16,0.86,0.27);
                 }
                 // v_tlegend_ratio_eft[ivar]->SetTextSize(0.03);
-                v_tlegend_ratio_eft[ivar]->SetHeader("("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+", "+Get_EFToperator_label("cpq3")+")");
-                if(total_var_list[ivar].Contains("ttZ")) {v_tlegend_ratio_eft[ivar]->SetHeader("("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+")");}
+
+                // TString header = "("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+", "+Get_EFToperator_label("cpq3")+")";
+                // if(total_var_list[ivar].Contains("ttZ")) {header = "("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+")";}
+
+                TString header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2}, "+Get_EFToperator_label("cpq3")+" /#Lambda^{2})";
+                if(total_var_list[ivar].Contains("ttZ")) {header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2})";}
+                header+= " [TeV^{-2}]";
+
+                v_tlegend_ratio_eft[ivar]->SetHeader(header);
                 v_tlegend_ratio_eft[ivar]->SetNColumns(4);
                 v_tlegend_ratio_eft[ivar]->SetTextSize(0.04);
                 // v_tlegend_ratio_eft[ivar]->SetTextSize(0.035);
             }
             else //Default
             {
-                v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.74,0.26);
+                v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.80,0.27);
                 // v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.65,0.26);
                 v_tlegend_ratio_eft[ivar]->SetTextSize(0.04);
+                // v_tlegend_ratio_eft[ivar]->SetNColumns(2);
+                v_tlegend_ratio_eft[ivar]->SetNColumns(4);
+
+                TString header = Get_EFToperator_label("ctz")+" /#Lambda^{2}";
+                if(total_var_list[ivar].Contains("ctw")) {header = Get_EFToperator_label("ctw")+" /#Lambda^{2}";}
+                else if(total_var_list[ivar].Contains("cpq3")) {header = Get_EFToperator_label("cpq3")+" /#Lambda^{2}";}
+                header+= " [TeV^{-2}]";
+                v_tlegend_ratio_eft[ivar]->SetHeader(header);
             }
             // v_tlegend_ratio_eft[ivar]->SetTextSize(0.035);
             // v_tlegend_ratio_eft[ivar]->SetMargin(0.2); //x-axis fractional size of legend entry symbol //Default 0.25
-            if(!total_var_list[ivar].Contains("5D")) {v_tlegend_ratio_eft[ivar]->SetNColumns(2.);}
             v_tlegend_ratio_eft[ivar]->SetBorderSize(0);
             v_tlegend_ratio_eft[ivar]->SetFillStyle(0); //transparent
             v_tlegend_ratio_eft[ivar]->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
@@ -7748,15 +7751,15 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             v_tlegend_dummy[ivar][1]->SetLineStyle(2.);
             v_tlegend_dummy[ivar][0]->SetLineWidth(2);
             v_tlegend_dummy[ivar][1]->SetLineWidth(2);
-            // v_tlegend_dummy[ivar][0]->SetLineWidth(3.);
-            // v_tlegend_dummy[ivar][1]->SetLineWidth(3.);
+
+            v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][0], EFTpointlabel1, "L");
+            v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][1], EFTpointlabel2, "L");
+            // v_tlegend_ratio_eft[ivar]->AddEntry((TObject*)0, "", "");
+
             v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][0], proc_tmp, "L");
             // v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][0], proc_tmp+" only", "L");
             if(total_var_list[ivar].Contains("5D")) {v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][1], "Total pred.", "L");}
             else {v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][1], "Total prediction", "L");}
-
-            v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][0], EFTpointlabel1, "L");
-            v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][1], EFTpointlabel2, "L");
 
             v_tlegend_ratio_eft[ivar]->Draw("same");
 
@@ -7925,7 +7928,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[ivar][i], "t(#bar{t})X", "f");}
         else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[ivar][i], "WZ", "f");}
         else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[ivar][i], "VV(V)", "f");}
-        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[ivar][i], "X#gamma", "f");}
         else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[ivar][i], "NPL", "f");}
 	}
 
@@ -8467,10 +8470,11 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
         //-- NB: function Get_Variable_Name() (uses 'l' instead of '\ell') --> Hardcode var names here if needed
         TString xtitle = Get_Variable_Name(total_var_list[ivar]);
         if(total_var_list[ivar] == "lAsymmetry") {xtitle = "Lepton asymmetry";}
-        else if(total_var_list[ivar] == "recoZ_dPhill") {xtitle = "\\Delta\\phi(\\ell_{1}^{Z},\\ell_{2}^{Z})";}
-        else if(total_var_list[ivar] == "maxDeepJet") {xtitle = "Max. DeepJet discriminant";}
+        else if(total_var_list[ivar] == "recoZ_dPhill") {xtitle = "\\Delta\\phi(\\ell_{1}^{\\text{Z}},\\ell_{2}^{\\text{Z}})";}
+        else if(total_var_list[ivar] == "maxDeepJet") {xtitle = "Maximum DeepJet discriminant";}
+        // else if(total_var_list[ivar] == "maxDeepJet") {xtitle = "Max. DeepJet discriminant";}
         // if(total_var_list[ivar] == "lAsymmetry") {xtitle = "\\text{q}_{\\ell} \\centerdot \\left|\\eta(\\ell)\\right|";}
-        // else if(total_var_list[ivar] == "recoZ_dPhill") {xtitle = "\\Delta\\varphi(\\ell_{1}^{Z},\\ell_{2}^{Z})";}
+        // else if(total_var_list[ivar] == "recoZ_dPhill") {xtitle = "\\Delta\\varphi(\\ell_{1}^{\\text{Z}},\\ell_{2}^{\\text{Z}})";}
 
         v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(xtitle);
 
@@ -8726,7 +8730,7 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
         else if(MC_samples_legend[i] == "ttW" || MC_samples_legend[i] == "tX") {qw->AddEntry(v_vector_MC_histo[0][i], "t(#bar{t})X", "f");}
         else if(MC_samples_legend[i] == "WZ") {qw->AddEntry(v_vector_MC_histo[0][i], "WZ", "f");}
         else if(MC_samples_legend[i] == "WWZ" || MC_samples_legend[i] == "VVV") {qw->AddEntry(v_vector_MC_histo[0][i], "VV(V)", "f");}
-        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[0][i], "X+#gamma", "f");}
+        else if(MC_samples_legend[i] == "TTGamma_Dilep" || MC_samples_legend[i] == "XG") {qw->AddEntry(v_vector_MC_histo[0][i], "X#gamma", "f");}
         else if(MC_samples_legend[i] == "TTbar_DiLep" || MC_samples_legend[i] == "NPL" || MC_samples_legend[i] == "NPL_DATA") {qw->AddEntry(v_vector_MC_histo[0][i], "NPL", "f");}
 	}
 

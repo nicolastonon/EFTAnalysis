@@ -12,12 +12,11 @@ process	PrivMC_tZq	PrivMC_ttZ	PrivMC_tWZ	tX	WZ	VVV	XG	NPL
 process	0	-1	-2	3	4	5	6	7
 rate 	-1	-1	-1	-1	-1	-1	-1	-1
 ---------------------------------------------------
-[2016]Lumi16	lnN	1.022	1.022	1.022	1.022	1.022	1.022	1.022	-
-[2017]Lumi17	lnN	1.020	1.020	1.020	1.020	1.020	1.020	1.020	-
+[2016]Lumi16	lnN	1.01	1.01	1.01	1.01	1.01	1.01	1.01	-
+[2017]Lumi17	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
 [2018]Lumi18	lnN	1.015	1.015	1.015	1.015	1.015	1.015	1.015	-
-[201617]Lumi1617	lnN	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	[Lumi1617]	-
 [201718]Lumi1718	lnN	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	[Lumi1718]	-
-LumiXY	lnN	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	[LumiXY]	-
+Lumi161718	lnN	[Lumi161718]	[Lumi161718]	[Lumi161718]	[Lumi161718]	[Lumi161718]	[Lumi161718]	[Lumi161718]	-
 [2016]Trigger16	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
 [2017]Trigger17	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
 [2018]Trigger18	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
@@ -42,8 +41,6 @@ NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 [SHAPE]BtagLFstats2[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]BtagCFerr1	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]BtagCFerr2	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
-[SHAPE]jetPUIDEff	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
-[SHAPE]jetPUIDMT	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]FRm_norm	shape	-	-	-	-	-	-	-	1
 [SHAPE]FRm_pt	shape	-	-	-	-	-	-	-	1
 [SHAPE]FRm_be	shape	-	-	-	-	-	-	-	1
@@ -60,6 +57,10 @@ NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 [SHAPE]MEtZq	shape	[PrivMC_CR]	-	-	-	-	-	-	-
 [SHAPE]MEttZ	shape	-	[PrivMC_CR]	-	-	-	-	-	-
 [SHAPE]MEtWZ	shape	-	-	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]ISRtZq	shape	[PrivMC_CR]	-	-	-	-	-	-	-
+[SHAPE]ISRttZ	shape	-	[PrivMC_CR]	-	-	-	-	-	-
+[SHAPE]ISRtWZ	shape	-	-	[PrivMC_CR]	-	-	-	-	-
+[SHAPE]FSR	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	-	-	-	-	-
 [SHAPE]JER[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]MET[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	-	-	-	-	-
 [SHAPE]JES[YEAR]	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
@@ -68,3 +69,15 @@ NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 [STAT]	*	autoMCStats	10
 ---------------------------------------------------
 ---------------------------------------------------
+tzq_rate group = PrivMC_tZq_rate
+ttz_rate group = PrivMC_ttZ_rate
+twz_rate group = PrivMC_tWZ_rate
+bkg_rate group = WZ_rate tX_rate VVV_rate XG_rate NPL_rate
+jes group =  JES[YEAR]
+jer group =  JER[YEAR]
+met group =  MET[YEAR]
+btag group =  BtagHF BtagLF BtagHFstats1[YEAR] BtagHFstats2[YEAR] BtagLFstats1[YEAR] BtagLFstats2[YEAR] BtagCFerr1 BtagCFerr2
+other_exp group =  PU prefire Lumi16 Lumi17 Lumi18 Lumi1718 Lumi161718 Trigger16 Trigger17 Trigger18
+fr group =  FRm_norm FRm_pt FRm_be FRe_norm FRe_pt FRe_be
+lep_eff group =  LepEff_muLoose LepEff_muTight LepEff_elLoose LepEff_elTight
+theory group =  PDF alphas MEtZq MEttZ MEtWZ ISRtZq ISRttZ ISRtWZ FSR

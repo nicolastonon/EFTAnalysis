@@ -98,19 +98,19 @@ elif year=="2018":
     is201718=""
 
 #-- Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
-Lumi1617 = "-"
+#Lumi1617 = "-"
 Lumi1718 = "-"
-LumiXY = "-"
+Lumi161718 = "-" #LumiXY
 if year=="2016":
-    Lumi1617 = "1.008"
-    LumiXY = "1.009"
+    #Lumi1617 = "1.008"
+    Lumi161718 = "1.006"
 elif year=="2017":
-    Lumi1617 = "1.006"
-    Lumi1718 = "1.004"
-    LumiXY = "1.008"
+    #Lumi1617 = "1.006"
+    Lumi1718 = "1.006"
+    Lumi161718 = "1.009"
 elif year=="2018":
-    Lumi1718 = "1.003"
-    LumiXY = "1.02"
+    Lumi1718 = "1.002"
+    Lumi161718 = "1.02"
 
 #-- Region-specific flags
 isSRtZq = '#'; isWZextrap = '#' #Disactive corresponding systematics by default (unless in these specific regions)
@@ -138,16 +138,15 @@ rateVal = "1" #or '2' to double the rate of the process ? (verify)
 
 #--------------------------------------------
 
-#-- REPLACE KEYWORDS
+#-- REPLACE KEYWORDS #Order may be important (if subkeywords are included in larger keywords, etc.)
 file = file.replace("[YEAR]", year)
 file = file.replace("[2016]", is2016)
 file = file.replace("[2017]", is2017)
 file = file.replace("[2018]", is2018)
 file = file.replace("[201617]", is201617)
 file = file.replace("[201718]", is201718)
-file = file.replace("[Lumi1617]", Lumi1617)
+file = file.replace("[Lumi161718]", Lumi161718) #Was: LumiXY
 file = file.replace("[Lumi1718]", Lumi1718)
-file = file.replace("[LumiXY]", LumiXY)
 file = file.replace("[SHAPE]", shape)
 file = file.replace("[STAT]", stat)
 file = file.replace("filetoread", theFiletoRead)
@@ -171,6 +170,7 @@ file = file.replace("[WZext]", isWZextrap)
 # file = file.replace("[CRWZ]", isCRWZ)
 # file = file.replace("[CRZZ]", isCRZZ)
 # file = file.replace("[CRDY]", isCRDY)
+#file = file.replace("[Lumi1617]", Lumi1617)
 
 #--------------------------------------------
 

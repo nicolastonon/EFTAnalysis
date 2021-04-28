@@ -307,7 +307,8 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
     for(int isyst=0; isyst<v_normSyst.size(); isyst++)
     {
         //-- Year-specific markers
-        if(v_normSyst[isyst].EndsWith("1617")) {outfile<<"[201617]";}
+        if(v_normSyst[isyst].EndsWith("161718")) {} //Special case: no need for year-specific marker (shall apply to all years)
+        else if(v_normSyst[isyst].EndsWith("1617")) {outfile<<"[201617]";}
         else if(v_normSyst[isyst].EndsWith("1718")) {outfile<<"[201718]";}
         else if(v_normSyst[isyst].EndsWith("1618")) {outfile<<"[201618]";}
         else if(v_normSyst[isyst].EndsWith("16")) {outfile<<"[2016]";}
@@ -339,7 +340,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
                 //-- Hard-coded special cases: e.g. if a lN syst. is correlated between years with different values, use a marker replaced with year-specific values by parsing code
                 if(v_normSyst[isyst] == "Lumi1617") {outfile<<"[Lumi1617]";}
                 else if(v_normSyst[isyst] == "Lumi1718") {outfile<<"[Lumi1718]";}
-                else if(v_normSyst[isyst] == "LumiXY") {outfile<<"[LumiXY]";}
+                else if(v_normSyst[isyst] == "Lumi161718") {outfile<<"[Lumi161718]";} //LumiXY
 
 				else {outfile<<v_normSystValue[isyst];} //Normal cases
 			}
@@ -750,12 +751,11 @@ int main()
 //-1 <-> values must be hardcoded (to allow for correlations with different values per year)
 //--------------------------------------------
     vector<TString> v_normSyst; vector<TString> v_normSystValue; vector<TString> v_normSyst_group;
-    v_normSyst.push_back("Lumi16"); v_normSystValue.push_back("1.022"); v_normSyst_group.push_back("other_exp");
-    v_normSyst.push_back("Lumi17"); v_normSystValue.push_back("1.020"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi16"); v_normSystValue.push_back("1.01"); v_normSyst_group.push_back("other_exp"); //Was: 1.022
+    v_normSyst.push_back("Lumi17"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
     v_normSyst.push_back("Lumi18"); v_normSystValue.push_back("1.015"); v_normSyst_group.push_back("other_exp");
-    v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
-    v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
-    v_normSyst.push_back("LumiXY"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp");
+    v_normSyst.push_back("Lumi1718"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp"); //Value defined in parser code
+    v_normSyst.push_back("Lumi161718"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp"); //Was: LumiXY //Value defined in parser code
 
     v_normSyst.push_back("Trigger16"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
     v_normSyst.push_back("Trigger17"); v_normSystValue.push_back("1.02"); v_normSyst_group.push_back("other_exp");
@@ -855,8 +855,9 @@ int main()
     }
 
     //-- Obsolete
-    //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
-    //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //REMOVED
+    //v_shapeSyst.push_back("jetPUIDEff"); v_shapeSyst_isCorrelYears.push_back(true); //OBSOLETE
+    //v_shapeSyst.push_back("jetPUIDMT"); v_shapeSyst_isCorrelYears.push_back(true); //OBSOLETE
+    //v_normSyst.push_back("Lumi1617"); v_normSystValue.push_back("-1"); v_normSyst_group.push_back("other_exp"); //OBSOLETE
 
 
  //  ####  #####   ####  #    # #####   ####

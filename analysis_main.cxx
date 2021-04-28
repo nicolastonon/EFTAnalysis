@@ -17,10 +17,9 @@ int main(int argc, char **argv)
     //-- M A I N    A N A L Y S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
-    bool use_systematics = false; //true <-> will compute/store systematics selected below
+    bool use_systematics = true; //true <-> will compute/store systematics selected below
     bool is_blind = false; //true <-> don't read/store data events
     bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
-    bool use_SMdiffAnalysis_strategy = false; //Obsolete //true <-> overrides some options, to enforce the creation of templates corresponding to what is done in the main (differential) SM tZq->3l analysis
 
     //-- N T U P L E S --
     bool use_DD_NPL = true; //true <-> use data-driven fakes sample; otherwise use MC (ttbar+DY)
@@ -39,7 +38,7 @@ int main(int argc, char **argv)
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
 
     bool scanOperators_paramNN = false; //true <-> if considering a parameterized NN, multiple templates and plots will be created on a 1D or 2D grid of points (instead of a single point)
-        TString operator1 = "ctw"; //First operator to scan (required)
+        TString operator1 = ""; //First operator to scan (required)
         TString operator2 = ""; //Second operator to scan (optional)
         // vector<float> v_W = {-3, -2, -1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3}; //Grid points for first operator (required)
         vector<float> v_WCs_operator_scan1 = {-1.5, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.5}; //Grid points for first operator (required)
@@ -137,21 +136,6 @@ int main(int argc, char **argv)
 //-- List of sample names (as found in ./input_ntuples) //thesamplegroups <-> can merge multiple ntuples into same group (plotting)
     vector<TString> thesamplelist, thesamplegroups;
 
-/*
-    thesamplelist.push_back("tZq"); thesamplegroups.push_back("tZq");
-    thesamplelist.push_back("PrivMC_tZq"); thesamplegroups.push_back("PrivMC_tZq");
-    // thesamplelist.push_back("PrivMC_tZq_v3"); thesamplegroups.push_back("PrivMC_tZq_v3");
-    // thesamplelist.push_back("PrivMC_tZq_TOP19001"); thesamplegroups.push_back("PrivMC_tZq_TOP19001");
-
-    thesamplelist.push_back("ttZ"); thesamplegroups.push_back("ttZ");
-    thesamplelist.push_back("PrivMC_ttZ"); thesamplegroups.push_back("PrivMC_ttZ");
-    // thesamplelist.push_back("PrivMC_ttZ_TOP19001"); thesamplegroups.push_back("PrivMC_ttZ_TOP19001");
-
-    thesamplelist.push_back("tWZ"); thesamplegroups.push_back("tWZ");
-    thesamplelist.push_back("PrivMC_tWZ"); thesamplegroups.push_back("PrivMC_tWZ");
-*/
-
-// /*
     //DATA (single sample, in first position)
     thesamplelist.push_back("DATA"); thesamplegroups.push_back("DATA");
 
@@ -212,7 +196,6 @@ int main(int argc, char **argv)
         thesamplelist.push_back("DY"); thesamplegroups.push_back("NPL");
         thesamplelist.push_back("TTba"); thesamplegroups.push_back("NPL");
     }
-// */
 
 
 //---------------------------------------------------------------------------
@@ -438,7 +421,7 @@ int main(int argc, char **argv)
 //-----------------    PAPER PLOTS
 
     bool make_paperPlot_commonRegions = false;
-    bool make_paperPlot_signalRegions = true;
+    bool make_paperPlot_signalRegions = false;
     bool make_paperPlot_controlPlots = false;
 
 //-----------------    OTHER
@@ -484,7 +467,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, use_SMdiffAnalysis_strategy, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle, use_NN_SRother);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle, use_NN_SRother);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

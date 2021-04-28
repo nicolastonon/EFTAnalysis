@@ -774,7 +774,7 @@ class EFTPlot(object):
             crossings = main_scan['crossings'][yvals[1]][ig]
             if legentry_95 == '': legentry_95 = "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
             else: legentry_95+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
-        if legentry_95 != '': leg.AddEntry(v_graph95[0], legentry_95, "F")
+        if legentry_95 != '' and len(v_graph95)>0: leg.AddEntry(v_graph95[0], legentry_95, "F")
 
         leg.Draw("same")
 
@@ -786,8 +786,8 @@ class EFTPlot(object):
         # graph.GetXaxis().SetTitle(param)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
         # graph.GetYaxis().SetTitle("-2#Deltalog(L)") #2 #Delta log(L)
-        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
-        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        #graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        graph.GetYaxis().SetTitle("-2\\Delta\\ln(\\mathscr{L})")
         graph.GetXaxis().SetTitleOffset(1.1)
         graph.GetYaxis().SetTitleOffset(1.1)
 
@@ -936,7 +936,7 @@ class EFTPlot(object):
         graph.SetMarkerSize(1)
         graph.GetXaxis().SetTitle(Get_Parameter_LegName(param))
         # graph.GetYaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
-        graph.GetYaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        graph.GetYaxis().SetTitle("-2\\Delta\\ln(\\mathscr{L})")
 
         cmsText = "CMS";
         latex = ROOT.TLatex()
@@ -1030,6 +1030,8 @@ class EFTPlot(object):
         rootFile = ROOT.TFile.Open(filepath_tmp)
         limitTree = rootFile.Get('limit')
         minZ = limitTree.GetMinimum('deltaNLL')
+
+	#-- Ranges for the x/y variables #Read from the user-defined settings, must use same ranges as for the scan
         xmin = limitTree.GetMinimum(xvar)
         xmax = limitTree.GetMaximum(xvar)
         ymin = limitTree.GetMinimum(yvar)
@@ -1039,6 +1041,7 @@ class EFTPlot(object):
             elif params[0] == 'cpqm' and params[1] == 'cpt': ymax+= 10. 
         #print('ymax', ymax)
         # xmin = -40; xmax = 40; ymin = -40; ymax = 40
+	#print('xmin={} / xmax={} / ymin={} / ymax={} / '.format(xmin,xmax,ymin,ymax))
 
         # maxZ = 20 #Max z-axis threshold
         maxZ = 1000 #Max z-axis threshold #If want whole plot to be colored
@@ -1071,8 +1074,10 @@ class EFTPlot(object):
                         # print('--> newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
                     elif xbin>1:
                         newhist.SetBinContent(xbin,ybin, newhist.GetBinContent(xbin-1,ybin))
-		    #print('newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
-
+		    else: newhist.SetBinContent(xbin,ybin,maxZ) #Trick: sometimes bins at the plot boundaries are empty for some reason --> set to maxZ <-> bkg color
+    	        #if xbin==1: print('hist.GetBinContent({},{})'.format(xbin,ybin), hist.GetBinContent(xbin,ybin))
+		#if xbin==1: print('newhist.GetBinContent({},{})'.format(xbin,ybin), newhist.GetBinContent(xbin,ybin))
+	
         hist = newhist #Reuse default name
         hist.Draw('colz') #Clean draw
 
@@ -1129,7 +1134,7 @@ class EFTPlot(object):
         hist.GetXaxis().SetTitle(Get_Parameter_LegName(params[0]))
         hist.GetYaxis().SetTitle(Get_Parameter_LegName(params[1]))
         # hist.GetZaxis().SetTitle("-2#Deltalog(L)") #-2 #Delta log(L)
-        hist.GetZaxis().SetTitle("-2\\Delta\\text{log}(\\mathscr{L})")
+        hist.GetZaxis().SetTitle("-2\\Delta\\ln(\\mathscr{L})")
         hist.GetXaxis().SetTitleOffset(1.)
         hist.GetYaxis().SetTitleOffset(1.)
         hist.SetMaximum(20.) #If want to cut z-axis below

@@ -1229,7 +1229,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
 
 //Return the binning of the variable passed in arg
 //NB: use Contains() function because I am passing full variable names as arguments (e.g. 'NN_SRtZq')
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool use_SManalysis_strategy, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds, bool use_NN_SRother)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds, bool use_NN_SRother)
 {
     nbins = 15; //Default
 
@@ -1263,13 +1263,11 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     if(template_name.Contains("mTW"))
     {
         nbins=15; xmin=0; xmax=150;
-        if(use_SManalysis_strategy) {nbins=10; xmax=150;} //Keep my binning //Obsolete
 
         if(use_NN_SRother) {nbins = 10; xmin = 0.4; xmax = 0.9;} //Can chose to plot NN-bkg node in SRother instead
     }
     if(template_name.Contains("countExp")) {nbins=1; xmin=0; xmax=1;}
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
-    if(use_SManalysis_strategy) {xmin = 0;}
 
     //-- NN-EFT: read minmax_bounds from NN_settings to auto-adjust the x-range //To be improved
     if(template_name.Contains("NN") && !template_name.Contains("NN_SM") && !template_name.Contains("NN_cpq3_SRttZ"))
@@ -1952,7 +1950,7 @@ TString Get_Region_Label(TString region, TString variable)
 }
 
 //Set the list of variables based on arguments
-void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool use_SManalysis_strategy, bool make_fixedRegions_templates, bool use_combine_file)
+void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT_strategy, TString template_name, TString region, bool scanOperators_paramNN, int NN_nNodes, bool make_SMvsEFT_templates_plots, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_fixedRegions_templates, bool use_combine_file)
 {
     // TString template_basename = template_name; if(template_name.Contains("NN_")) {template_basename = template_name;}
     variable_list.push_back(template_name);
@@ -2009,16 +2007,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
         for(int inode=0; inode<NN_nNodes; inode++) {variable_list.push_back("NN" + (NN_nNodes == 1? "" : Convert_Number_To_TString(inode)));} //1 template per output node
     }
 
-    if(use_SManalysis_strategy) //Hard-coded, following SM analysis strategy
-    {
-        variable_list.clear();
-        if(region == "tZq" || region == "ttZ") {variable_list.push_back("NN");}
-        else if(region == "wz") {variable_list.push_back("mTW");}
-        else if(region == "zz") {variable_list.push_back("countExp");}
-        else if(region == "xg") {variable_list.push_back("channel");}
-        template_name = variable_list[0];
-    }
-    else if(make_fixedRegions_templates) //NB: order is important !
+    if(make_fixedRegions_templates) //NB: order is important !
     {
         variable_list.clear();
         variable_list.push_back("countExp_SRttZ4l");
@@ -2121,7 +2110,8 @@ TString Get_Template_XaxisTitle(TString variable, bool paperStyle)
     //-- Previous conventions
     if(variable == "NN0") {title = "NN output (tZq node)";}
     else if(variable == "NN1") {title = "NN output (t#bar{t}Z node)";}
-    else if(variable == "NN2") {title = "NN output (Backgrounds node)";}
+    else if(variable == "NN2") {title = "NN output (Others node)";}
+    // else if(variable == "NN2") {title = "NN output (Backgrounds node)";}
     else if(variable.Contains("NN")) {title = "NN output";}
 
     //Other region templates conventions
@@ -2135,7 +2125,8 @@ TString Get_Template_XaxisTitle(TString variable, bool paperStyle)
         // if(paperStyle) {title+= " bin";}
         if(variable.Contains("SRtZq")) {title+= " (tZq node)";}
         else if(variable.Contains("SRttZ")) {title+= " (t#bar{t}Z node)";}
-        else if(variable.Contains("SRother")) {title+= " (Backgrounds node)";}
+        else if(variable.Contains("SRother")) {title+= " (Others node)";}
+        // else if(variable.Contains("SRother")) {title+= " (Backgrounds node)";}
 
         //-- Can use this version to avoid annoying space before antitop... but also changes the font style !
         // title = "\\text{NN-SM output}";
