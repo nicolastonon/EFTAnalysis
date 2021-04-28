@@ -1,7 +1,7 @@
-for j in {1..100}
+for j in {1..50}
 do
-	NAME=1ktoys_v2_cpt_part${j}.POINTS.0.49
-	NAME2=1ktoys_v2_cpt_part${j}_POINTS_0_49
+	NAME=1ktoys_v3_cpt_part${j}.POINTS.0.39
+	NAME2=1ktoys_v3_cpt_part${j}_POINTS_0_39
 
 	dir=v2_plots_$NAME
 	mkdir $dir

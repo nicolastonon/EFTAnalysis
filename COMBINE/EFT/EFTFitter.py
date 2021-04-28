@@ -332,11 +332,11 @@ class EFTFit(object):
                 else: frozen_pois = [par for par in self.wcs if par not in scan_params]
                 if len(frozen_pois)>0: args.extend(['--freezeParameters',','.join('{}'.format(par) for par in frozen_pois if par not in scan_params)]) #Freeze other parameters
             else: args.extend(['--floatOtherPOIs','1']) #Float other parameters defined in the physics model
-            if exp:               args.extend(['-t -1'])
+            if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
+            elif exp:               args.extend(['-t -1'])
             if verbosity>0:           args.extend(['-v', str(verbosity)])
             if other:             args.extend(other)
             # args.extend(['--fastScan']) #No profiling (speed up) of nuisances, kept to best fit value
-            if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
             if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
             args.extend(['--X-rtd','REMOVE_CONSTANT_ZERO_POINT=1']) #Remove default offset in NLL (which depends on the scan-dependent bestfit value)
             args.extend(['--saveNLL']) #Store absolute NLL values (needed to stich multiple scans with different bestfits together, etc.)
@@ -1313,7 +1313,8 @@ if __name__ == "__main__":
     if args.collect: only_collect_outputs = True
     if args.wcs: wcs = args.wcs
     if args.o: ws = args.o
-    if args.t and not exp: ntoys = args.t
+    if args.t: ntoys = args.t
+    #if args.t and not exp: ntoys = args.t
     if args.track: track = args.track
     if args.f: filepath = args.f
     if args.onlylinear: onlylinear = True
