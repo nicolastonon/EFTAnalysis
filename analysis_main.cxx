@@ -18,6 +18,7 @@ int main(int argc, char **argv)
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
+    bool split_JEC = true; //true <-> store all split JEC variations (in addition to total JEC -- much slower!)
     bool is_blind = false; //true <-> don't read/store data events
     bool make_fixedRegions_templates = false; //true <-> overrides some options, to enforce the creation of templates in SR/CR regions which are not expected to change (for now: ttZ 4l SR / WZ CR / ZZ CR / DY CR)
 
@@ -45,7 +46,8 @@ int main(int argc, char **argv)
         vector<float> v_WCs_operator_scan2 = {}; //Grid points for second operator (optional)
 
     //-- T E M P L A T E S --
-    bool use_NN_SRother = false; //Use NN-bkg node instead of mTW in SRother (testing)
+    bool use_NN_cpq3_SRttZ = true; //true <-> use a dedicated NN-cpq3-SRttZ (instead of the ttZ output node of NN-SM, previous default)
+    bool use_NN_SRother = false; //true <-> use NN-bkg node instead of mTW in SRother
     bool split_EFTtemplates_perBin = true; //true <-> will also store separately each individual bin of SMvsEFT templates (--> for easy EFT parameterization in combine)
     bool split_analysis_by_channel = false; //true <-> will *also* produce templates/histos/plots for each subchannel (defined below)
     TString template_name = "NN_SM"; //Ex: 'BDT', 'NN', 'categ' (nbjet/njet bins), 'Zpt', 'ZptCos', 'NN_ctz', 'NN_all', 'NN_SM', ...
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-    bool use_paperStyle = true; //true <-> Add 'preliminary' label on plots
+    bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
 
 
 //-----------------------------------------------------------------------------------------
@@ -316,36 +318,37 @@ int main(int argc, char **argv)
         theSystTree.push_back("JERDown"); theSystTree.push_back("JERUp");
         theSystTree.push_back("METDown"); theSystTree.push_back("METUp");
 
-        /*
         //* Split JEC sources
-        theSystTree.push_back("AbsoluteStatDown"); theSystTree.push_back("AbsoluteStatUp");
-        theSystTree.push_back("AbsoluteScaleDown"); theSystTree.push_back("AbsoluteScaleUp");
-        theSystTree.push_back("AbsoluteMPFBiasDown"); theSystTree.push_back("AbsoluteMPFBiasUp");
-        theSystTree.push_back("FragmentationDown"); theSystTree.push_back("FragmentationUp");
-        theSystTree.push_back("SinglePionECALDown"); theSystTree.push_back("SinglePionECALUp");
-        theSystTree.push_back("SinglePionHCALDown"); theSystTree.push_back("SinglePionHCALUp");
-        theSystTree.push_back("FlavorQCDDown"); theSystTree.push_back("FlavorQCDUp");
-        theSystTree.push_back("TimePtEtaDown"); theSystTree.push_back("TimePtEtaUp");
-        theSystTree.push_back("RelativeJEREC1Down"); theSystTree.push_back("RelativeJEREC1Up");
-        theSystTree.push_back("RelativeJEREC2Down"); theSystTree.push_back("RelativeJEREC2Up");
-        theSystTree.push_back("RelativeJERHFDown"); theSystTree.push_back("RelativeJERHFUp");
-        theSystTree.push_back("RelativePtBBDown"); theSystTree.push_back("RelativePtBBUp");
-        theSystTree.push_back("RelativePtEC1Down"); theSystTree.push_back("RelativePtEC1Up");
-        theSystTree.push_back("RelativePtEC2Down"); theSystTree.push_back("RelativePtEC2Up");
-        theSystTree.push_back("RelativePtHFDown"); theSystTree.push_back("RelativePtHFUp");
-        theSystTree.push_back("RelativeBalDown"); theSystTree.push_back("RelativeBalUp");
-        theSystTree.push_back("RelativeSampleDown"); theSystTree.push_back("RelativeSampleUp");
-        theSystTree.push_back("RelativeFSRDown"); theSystTree.push_back("RelativeFSRUp");
-        theSystTree.push_back("RelativeStatFSRDown"); theSystTree.push_back("RelativeStatFSRUp");
-        theSystTree.push_back("RelativeStatECDown"); theSystTree.push_back("RelativeStatECUp");
-        theSystTree.push_back("RelativeStatHFDown"); theSystTree.push_back("RelativeStatHFUp");
-        theSystTree.push_back("PileUpDataMCDown"); theSystTree.push_back("PileUpDataMCUp");
-        theSystTree.push_back("PileUpPtRefDown"); theSystTree.push_back("PileUpPtRefUp");
-        theSystTree.push_back("PileUpPtBBDown"); theSystTree.push_back("PileUpPtBBUp");
-        theSystTree.push_back("PileUpPtEC1Down"); theSystTree.push_back("PileUpPtEC1Up");
-        theSystTree.push_back("PileUpPtEC2Down"); theSystTree.push_back("PileUpPtEC2Up");
-        theSystTree.push_back("PileUpPtHFDown"); theSystTree.push_back("PileUpPtHFUp");
-        */
+        if(split_JEC)
+        {
+            theSystTree.push_back("AbsoluteStatDown"); theSystTree.push_back("AbsoluteStatUp");
+            theSystTree.push_back("AbsoluteScaleDown"); theSystTree.push_back("AbsoluteScaleUp");
+            theSystTree.push_back("AbsoluteMPFBiasDown"); theSystTree.push_back("AbsoluteMPFBiasUp");
+            theSystTree.push_back("FragmentationDown"); theSystTree.push_back("FragmentationUp");
+            theSystTree.push_back("SinglePionECALDown"); theSystTree.push_back("SinglePionECALUp");
+            theSystTree.push_back("SinglePionHCALDown"); theSystTree.push_back("SinglePionHCALUp");
+            theSystTree.push_back("FlavorQCDDown"); theSystTree.push_back("FlavorQCDUp");
+            theSystTree.push_back("TimePtEtaDown"); theSystTree.push_back("TimePtEtaUp");
+            theSystTree.push_back("RelativeJEREC1Down"); theSystTree.push_back("RelativeJEREC1Up");
+            theSystTree.push_back("RelativeJEREC2Down"); theSystTree.push_back("RelativeJEREC2Up");
+            theSystTree.push_back("RelativeJERHFDown"); theSystTree.push_back("RelativeJERHFUp");
+            theSystTree.push_back("RelativePtBBDown"); theSystTree.push_back("RelativePtBBUp");
+            theSystTree.push_back("RelativePtEC1Down"); theSystTree.push_back("RelativePtEC1Up");
+            theSystTree.push_back("RelativePtEC2Down"); theSystTree.push_back("RelativePtEC2Up");
+            theSystTree.push_back("RelativePtHFDown"); theSystTree.push_back("RelativePtHFUp");
+            theSystTree.push_back("RelativeBalDown"); theSystTree.push_back("RelativeBalUp");
+            theSystTree.push_back("RelativeSampleDown"); theSystTree.push_back("RelativeSampleUp");
+            theSystTree.push_back("RelativeFSRDown"); theSystTree.push_back("RelativeFSRUp");
+            theSystTree.push_back("RelativeStatFSRDown"); theSystTree.push_back("RelativeStatFSRUp");
+            theSystTree.push_back("RelativeStatECDown"); theSystTree.push_back("RelativeStatECUp");
+            theSystTree.push_back("RelativeStatHFDown"); theSystTree.push_back("RelativeStatHFUp");
+            theSystTree.push_back("PileUpDataMCDown"); theSystTree.push_back("PileUpDataMCUp");
+            theSystTree.push_back("PileUpPtRefDown"); theSystTree.push_back("PileUpPtRefUp");
+            theSystTree.push_back("PileUpPtBBDown"); theSystTree.push_back("PileUpPtBBUp");
+            theSystTree.push_back("PileUpPtEC1Down"); theSystTree.push_back("PileUpPtEC1Up");
+            theSystTree.push_back("PileUpPtEC2Down"); theSystTree.push_back("PileUpPtEC2Up");
+            theSystTree.push_back("PileUpPtHFDown"); theSystTree.push_back("PileUpPtHFUp");
+        }
 
         //-- Implementend as event weights
 
@@ -420,8 +423,8 @@ int main(int argc, char **argv)
 
 //-----------------    PAPER PLOTS
 
-    bool make_paperPlot_commonRegions = false;
-    bool make_paperPlot_signalRegions = false;
+    bool make_paperPlot_commonRegions = true;
+    bool make_paperPlot_signalRegions = true;
     bool make_paperPlot_controlPlots = false;
 
 //-----------------    OTHER
@@ -467,7 +470,7 @@ int main(int argc, char **argv)
     //  CREATE INSTANCE OF CLASS & INITIALIZE
     //#############################################
 
-    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle, use_NN_SRother);
+    TopEFT_analysis* theAnalysis = new TopEFT_analysis(thesamplelist, thesamplegroups, theSystWeights, theSystTree, thechannellist, thevarlist, set_v_cut_name, set_v_cut_def, set_v_cut_IsUsedForBDT, set_v_add_var_names, plot_extension, set_lumi_years, show_pulls_ratio, region, signal_process, classifier_name, scanOperators_paramNN, operator1, operator2, v_WCs_operator_scan1, v_WCs_operator_scan2, make_SMvsEFT_templates_plots, is_blind, categorization_strategy, use_specificMVA_eachYear, nominal_tree_name, use_DD_NPL, make_fixedRegions_templates, process_samples_byGroup, split_EFTtemplates_perBin, use_paperStyle, use_NN_SRother, use_NN_cpq3_SRttZ);
     if(theAnalysis->stop_program) {cout<<"=== 'stop_program=true' ---> Exiting... "<<endl; return 1;}
 
     //#############################################

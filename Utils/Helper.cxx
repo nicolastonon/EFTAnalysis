@@ -1229,7 +1229,7 @@ bool Get_Variable_Range(TString var, int& nbins, float& xmin, float& xmax)
 
 //Return the binning of the variable passed in arg
 //NB: use Contains() function because I am passing full variable names as arguments (e.g. 'NN_SRtZq')
-void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds, bool use_NN_SRother)
+void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_name, bool make_SMvsEFT_templates_plots, int categorization_strategy, bool plot_onlyMaxNodeEvents, int& nbjets_min, int& nbjets_max, int& njets_min, int& njets_max, vector<float> minmax_bounds, bool use_NN_SRother, bool use_NN_cpq3_SRttZ)
 {
     nbins = 15; //Default
 
@@ -1270,7 +1270,7 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
     if(template_name.Contains("channel")) {nbins=2; xmax=2;}
 
     //-- NN-EFT: read minmax_bounds from NN_settings to auto-adjust the x-range //To be improved
-    if(template_name.Contains("NN") && !template_name.Contains("NN_SM") && !template_name.Contains("NN_cpq3_SRttZ"))
+    if(template_name.Contains("NN") && !template_name.Contains("NN_SM") && (!template_name.Contains("NN_cpq3_SRttZ") || use_NN_cpq3_SRttZ))
     {
         if(make_SMvsEFT_templates_plots) //Ex: min=0.253 -> 0.2 ; max = 0.856 -> 0.9
         {
@@ -1295,12 +1295,14 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             if(template_name.Contains("NN_ctz_SRtZq")) {min_tmp = 0.45; max_tmp = 0.65;} //May use 0.70
             else if(template_name.Contains("NN_ctz_SRttZ")) {min_tmp = 0.45; max_tmp = 0.75;}
 
-            else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.80;} //Changed from 0.85 (4Apr21)
-            else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.65;} //0.75 --> last 2 bins empty
+            else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.80;}
+            else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.65;} //(if use 0.75 --> last 2 bins empty)
 
-            else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;}
+            else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 8; min_tmp = 0.37; max_tmp = 0.77;}
+            //else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;} //V2 default
+            else if(template_name.Contains("NN_cpq3_SRttZ")) {nbins = 6; min_tmp = 0.49; max_tmp = 0.54;}
 
-            else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 8; min_tmp = 0.30; max_tmp = 0.90;} //Changed from 10bins (4Apr21)
+            else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 8; min_tmp = 0.30; max_tmp = 0.90;}
             else if(template_name.Contains("NN_5D_SRttZ")) {nbins = 10; min_tmp = 0.40; max_tmp = 0.70;}
 
             // cout<<"minmax_bounds[0] "<<minmax_bounds[0]<<" / minmax_bounds[1] "<<minmax_bounds[1]<<endl;
@@ -1695,7 +1697,7 @@ float Get_x_ZptCosCategory(float Zpt, float cosThetaStarPolZ)
 }
 
 //Get the path of the relevant MVA input file (.xml for BDT, .pb for NN), depending on specific analysis options. Intended for use in Produce_Templates() function
-TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy, bool paramNN)
+TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString year, bool use_specificMVA_eachYear, bool MVA_EFT, bool load_NN_info, int categorization_strategy, bool paramNN, bool use_NN_cpq3_SRttZ)
 {
     TString MVA_basename = MVA_type; if(MVA_type.Contains("NN")) {MVA_basename = "NN";}
     TString EFToperator = "";
@@ -1716,7 +1718,7 @@ TString Get_MVAFile_InputPath(TString MVA_type, TString signal_process, TString 
         if(categorization_strategy==0) {path_suffix = "tmp/";} //TEST dir.
         else //SM or EFT
         {
-            if(!MVA_EFT || MVA_type == "NN_SM" || (MVA_type=="NN_cpq3" && signal_process=="ttZ")) //SM vs SM //Also used for cpqm/cpt ('NN_SM') and cpq3/ttZ
+            if(!MVA_EFT || MVA_type == "NN_SM" || (!use_NN_cpq3_SRttZ && MVA_type=="NN_cpq3" && signal_process=="ttZ")) //SM vs SM //Also used for cpqm/cpt ('NN_SM') and cpq3-ttZ (by default)
             {
                 path_suffix = "SM/";
                 if(categorization_strategy==1) {path_suffix+= signal_process + "/";} //Read MVA-tZq or MVA-ttZ

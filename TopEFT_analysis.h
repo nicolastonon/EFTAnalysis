@@ -74,7 +74,7 @@ class TopEFT_analysis
 	public :
 
 	TopEFT_analysis(); //Default constructor
-    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool, bool);
+    TopEFT_analysis(vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<TString>, vector<bool>, vector<TString>, TString, vector<TString>, bool, TString, TString, TString, bool, TString, TString, vector<float>, vector<float>, bool, bool, int, bool, TString, bool, bool, bool, bool, bool, bool, bool);
 	~TopEFT_analysis(); //Default destructor
 
 //--- METHODS
@@ -208,6 +208,7 @@ class TopEFT_analysis
     bool use_paperStyle; //Enforce CMS paper styles
 
     bool use_NN_SRother; //Use NN-bkg node instead of mTW in SRother (testing)
+    bool use_NN_cpq3_SRttZ; //Use a dedicated NN-cpq3-SRttZ (instead of the ttZ output node of NN-SM, previous default)
 };
 
 #endif

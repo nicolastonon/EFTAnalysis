@@ -40,7 +40,7 @@ using namespace std;
 /////////////////////////////////////////////////////////
 
 //Overloaded constructor
-TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool make_fixedRegions_templates, bool process_samples_byGroup, bool split_EFTtemplates_perBin, bool use_paperStyle, bool use_NN_SRother)
+TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> thesamplegroups, vector<TString> thesystlist, vector<TString> thesystTreelist, vector<TString> thechannellist, vector<TString> thevarlist, vector<TString> set_v_cut_name, vector<TString> set_v_cut_def, vector<bool> set_v_cut_IsUsedForBDT, vector<TString> set_v_add_var_names, TString theplotextension, vector<TString> set_lumi_years, bool show_pulls, TString region, TString signal_process, TString classifier_name, bool scanOperators_paramNN, TString operator_scan1, TString operator_scan2, vector<float> v_WCs_operator_scan1, vector<float> v_WCs_operator_scan2, bool make_SMvsEFT_templates_plots, bool is_blind, int categorization_strategy, bool use_specificMVA_eachYear, TString nominal_tree_name, bool use_DD_NPL, bool make_fixedRegions_templates, bool process_samples_byGroup, bool split_EFTtemplates_perBin, bool use_paperStyle, bool use_NN_SRother, bool use_NN_cpq3_SRttZ)
 {
     //Canvas definition
     Load_Canvas_Style();
@@ -63,6 +63,7 @@ TopEFT_analysis::TopEFT_analysis(vector<TString> thesamplelist, vector<TString> 
 
     this->use_paperStyle = use_paperStyle;
     this->use_NN_SRother = use_NN_SRother;
+    this->use_NN_cpq3_SRttZ = use_NN_cpq3_SRttZ;
 
     if(region == "" && !make_fixedRegions_templates)
     {
@@ -976,7 +977,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
     //-- Don't make systematics shifted histos for input vars (too long)
     //Force removal of systematics ; restore values at end of this func
-    if(make_histos_forControlPlotsPaper) {noSysts_inputVars = false;} //Must include systematics
+    if(make_histos_forControlPlotsPaper) {noSysts_inputVars = false; make_histos_forControlPlotsPaper = true;} //Must include systematics
     vector<TString> restore_syst_list = syst_list;
     vector<TString> restore_systTree_list = systTree_list;
     if(makeHisto_inputVars && noSysts_inputVars)
@@ -1110,7 +1111,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
         if(!makeHisto_inputVars && (template_name == "BDT" || template_name.Contains("NN")) && (use_specificMVA_eachYear || !MVA_alreadyLoaded)) //Read MVA input file
         {
             MVA_alreadyLoaded = true;
-            TString MVA_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[iyear], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, false, categorization_strategy, this->scanOperators_paramNN);
+            TString MVA_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[iyear], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, false, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
             if(MVA_input_path == "") {return;} //MVA file not found
 
             if(template_name == "BDT") //Book TMVA reader from .xml weight file
@@ -1121,7 +1122,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
             {
                 //-- Get path of NN info text file --> Read list of input variables (and more)
                 var_list_NN.resize(0); NN_iMaxNode = -1; NN_strategy = ""; NN_inputLayerName = ""; NN_outputLayerName = ""; NN_nNodes = -1; minmax_bounds.clear();
-                TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[iyear], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, categorization_strategy, this->scanOperators_paramNN);
+                TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[iyear], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
                 if(NNinfo_input_path == "") {return;} //MVA file not found
 
                 if(Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds, &NN_strategy)) {clfy1 = new TFModel(MVA_input_path.Data(), var_list_NN.size(), NN_inputLayerName.Data(), NN_nNodes, NN_outputLayerName.Data());} //Load neural network model
@@ -1136,12 +1137,12 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
 
                 //-- If making NN-EFT templates using strategy 1 or 2, need to access 2 MVA-EFTs (1 for tZq + 1 for ttZ)
                 // if(this->make_SMvsEFT_templates_plots && use_predefined_EFT_strategy >= 1 && cat_tmp != "tZq" && template_name != "NN_SM")
-                if(this->make_SMvsEFT_templates_plots && use_predefined_EFT_strategy >= 1 && cat_tmp != "tZq" && template_name != "NN_SM" && template_name != "NN_cpq3") //Don't need clfy2 for cpq3
+                if(this->make_SMvsEFT_templates_plots && use_predefined_EFT_strategy >= 1 && cat_tmp != "tZq" && template_name != "NN_SM" && (use_NN_cpq3_SRttZ || template_name != "NN_cpq3")) //Don't need clfy2 for cpq3 by default
                 {
-                    TString MVA_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, false, categorization_strategy, this->scanOperators_paramNN);
+                    TString MVA_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, false, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
                     if(MVA_input_path == "") {return;} //MVA file not found
 
-                    TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, true, categorization_strategy, this->scanOperators_paramNN);
+                    TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, "ttZ", v_lumiYears[iyear], use_specificMVA_eachYear, true, true, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
                     if(NNinfo_input_path == "") {return;} //MVA file not found
 
                     //-- Read info file for second NN //NB: it is assumed that the NN strategy (e.g. parametrized NN) is the same as for the first NN !
@@ -1163,7 +1164,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         }
                     }
 
-                    if(template_name == "NN_cpq3") {inode_clfy2 = 1;} //Special case: ttZ/cpq3 --> Read NN-SM (ttZ node) in SRttZ //Obsolete
+                    // if(template_name == "NN_cpq3") {inode_clfy2 = 1;} //Special case: ttZ/cpq3 --> Read NN-SM (ttZ node) in SRttZ //Obsolete ?
                 }
 
                 //-- Extend variable names (1 variable per EFT point)
@@ -1687,8 +1688,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                             }
                             else //Templates
                             {
-                                if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
-                                else {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
+                                if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother, use_NN_cpq3_SRttZ);}
+                                else {Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother, use_NN_cpq3_SRttZ);}
                             }
                             // cout<<"nbins "<<nbins<<" / xmin "<<xmin<<" / xmax "<<xmax<<endl;
 
@@ -1816,8 +1817,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         if(template_name == "BDT") {*total_var_pfloats[0] = reader->EvaluateMVA(BDT_method_name);} //BDT output value
                         else if(template_name.Contains("NN") && !use_predefined_EFT_strategy) //NN output value //Default
                         {
-                            // clfy1_outputs = clfy1->evaluate(var_list_floats); //Evaluate output node(s) value(s) //TODO: check that the 'session...' line in the TFModel function is the slow part (when the model is actually read/evaluated)
-                            clfy1_outputs = clfy1->evaluate(var_list_pfloats); //Evaluate output node(s) value(s) //TODO: check that the 'session...' line in the TFModel function is the slow part (when the model is actually read/evaluated)
+                            // clfy1_outputs = clfy1->evaluate(var_list_floats); //Evaluate output node(s) value(s)
+                            clfy1_outputs = clfy1->evaluate(var_list_pfloats); //Evaluate output node(s) value(s)
                             float mva_tmp = -1;
                             NN_iMaxNode = -1;
                             for(int inode=0; inode<NN_nNodes; inode++)
@@ -1998,7 +1999,7 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                         if(make_SMvsEFT_templates_plots && template_name != "NN_SM") //SM vs EFT --> use EFT MVA or mTW)
                                         {
                                             if(idx_EFT_var==0) {*total_var_pfloats[ivar] = clfy1->evaluate(var_list_pfloats)[0];} //MVA-EFT-tZq
-                                            else if(idx_EFT_var==1 && template_name.Contains("cpq3")) {*total_var_pfloats[ivar] = v_nodes_multiclass[ientry][1];} //Use MVA-SM-ttZnode for cpq3 operator
+                                            else if(idx_EFT_var==1 && template_name.Contains("cpq3") && !use_NN_cpq3_SRttZ) {*total_var_pfloats[ivar] = v_nodes_multiclass[ientry][1];} //Can choose to use MVA-SM ttZ node for cpq3 operator in SRttZ
                                             else if(idx_EFT_var==1) {*total_var_pfloats[ivar] = clfy2->evaluate(var_list_pfloats_2)[inode_clfy2];} //MVA-EFT-ttZ
                                             else if(idx_EFT_var==2 && use_NN_SRother) {*total_var_pfloats[ivar] = v_nodes_multiclass[ientry][2];} //SRother --> Use NN-bkg node
                                             else if(idx_EFT_var==2) {*total_var_pfloats[ivar] = *mTW;} //SRother --> mTW
@@ -2507,7 +2508,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     bool superimpose_GENhisto = false; //true <-> superimpose corresponding GEN-level EFT histogram, for shape comparison... //Experimental
 
     //-- Hardcoded
-    bool make_histos_forControlPlotsPaper = true; //true <-> plot the histograms produced when activating this option in Produce_Templates()
+    bool make_histos_forControlPlotsPaper = false; //true <-> plot the histograms produced when activating this option in Produce_Templates()
 
     bool superimpose_EFThist = true; //true <-> superimpose shape of EFT hists
         bool normalize_EFThist = false; //true <-> normalize EFT hists (arbitrary)
@@ -2632,7 +2633,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         //-- Read the relevant NN info file, just to know if we are dealing with multiclass NN templates or not !
         if(template_name.Contains("NN") && !this->categorization_strategy && !use_combine_file)
         {
-            TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[0], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, this->categorization_strategy, this->scanOperators_paramNN);
+            TString NNinfo_input_path = Get_MVAFile_InputPath(template_name, signal_process, v_lumiYears[0], use_specificMVA_eachYear, make_SMvsEFT_templates_plots, true, this->categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
             if(!Extract_Values_From_NNInfoFile(NNinfo_input_path, var_list_NN, v_NN_nodeLabels, NN_inputLayerName, NN_outputLayerName, NN_iMaxNode, NN_nNodes, minmax_bounds)) {return;} //Error: missing NN infos
         }
 
@@ -2732,7 +2733,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
         if(this->make_SMvsEFT_templates_plots && !drawInputVars && !drawInputVars)
         {
-            if(total_var_list[ivar].Contains("SRt") && !total_var_list[ivar].Contains("NN_SM") && !total_var_list[ivar].Contains("Zpt") && !total_var_list[ivar].Contains("countExp") && !total_var_list[ivar].Contains("NN_cpq3_SRttZ")) {draw_logarithm = true;} //Force log y-scale
+            if(total_var_list[ivar].Contains("SRt") && !total_var_list[ivar].Contains("NN_SM") && !total_var_list[ivar].Contains("Zpt") && !total_var_list[ivar].Contains("countExp") && (!total_var_list[ivar].Contains("NN_cpq3_SRttZ") || use_NN_cpq3_SRttZ)) {draw_logarithm = true;} //Force log y-scale
             else {draw_logarithm = false;}
         }
         // draw_logarithm = false; //Force use of linear y-scale
@@ -2803,7 +2804,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             file_input = TFile::Open(inputFile_path, "READ");
 
-            if(combineIndividualBins) {Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
+            if(combineIndividualBins) {Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother, use_NN_cpq3_SRttZ);}
             // cout<<"nIndivBins "<<nIndivBins<<endl;
             // if(file_input->GetDirectory(hpath_tmp)) {combineIndividualBins = true;} //Seems like we have fitted individual bins, so in this chode we'll need to combine them all together again //Look for dummy bin (must be present if templates are split per bins)
             // if(combineIndividualBins) //Now, need to infer from the file how many individual bins will need to be combined
@@ -2917,8 +2918,8 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
     				TString histo_name = "";
                     if(!drawInputVars && use_combine_file && combineIndividualBins) //Build 'full' template from individual bins
                     {
-                        if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother);}
-                        else {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother);}
+                        if(total_var_list[ivar].Contains("SRtZq")) {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, use_NN_SRother, use_NN_cpq3_SRttZ);}
+                        else {Get_Template_Range(nbins_tmp, xmin_tmp, xmax_tmp, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds2, use_NN_SRother, use_NN_cpq3_SRttZ);}
 
                         if(template_name.Contains("NN") && make_SMvsEFT_templates_plots) {xmin_tmp = 0; xmax_tmp = nIndivBins;} //NN template range may have been auto-adapted based on the NN info (to avoid empty bins at boundaries), or it may have been 'discarded' voluntarily if we split the template into individual bins; since this info can't be propagated through Combine fit, we can't infer the initial range here --> Need to hardcode it case-by-case !
 
@@ -4227,7 +4228,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                 int nbins=1; float xmin=0, xmax=0;
                 int nbjets_min = 1, nbjets_max=2, njets_min=2, njets_max=6;
                 vector<float> dummy;
-                Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, dummy, use_NN_SRother);
+                Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, dummy, use_NN_SRother, use_NN_cpq3_SRttZ);
 
                 //Arbitrary bins
                 if(total_var_list[ivar].Contains("NN") || total_var_list[ivar].Contains("BDT"))
@@ -4440,7 +4441,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         {
             int nbins = 0; float xmin = 0, xmax = 0;
             if(drawInputVars) {Get_Variable_Range(total_var_list[ivar], nbins, xmin, xmax);}
-            else {int nbjets_min=0,nbjets_max=0,njets_min=0,njets_max=0; vector<float> minmax_bounds; Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother);} //NB: for NNs the binning is anyway arbitrary (would need to read NN_settings file, etc.)
+            else {int nbjets_min=0,nbjets_max=0,njets_min=0,njets_max=0; vector<float> minmax_bounds; Get_Template_Range(nbins, xmin, xmax, total_var_list[ivar], this->make_SMvsEFT_templates_plots, this->categorization_strategy, plot_onlyMaxNodeEvents, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother, this->use_NN_cpq3_SRttZ);} //NB: for NNs the binning is anyway arbitrary (would need to read NN_settings file, etc.)
 
             if(xmax != 0)
             {
@@ -5681,7 +5682,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v_maxNode, vec
     vector<TString> var_list_tmp;
     vector<float> var_floats_tmp;
 
-    TString MVA_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, false, categorization_strategy, this->scanOperators_paramNN);
+    TString MVA_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, false, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
     if(MVA_input_path == "") {cout<<"MVA input file not found ! "<<endl; return false;} //MVA file not found
 
     //Use local variables to avoid conflict with class members (different MVAs)
@@ -5707,7 +5708,7 @@ bool TopEFT_analysis::Get_VectorAllEvents_passMVACut(vector<int>& v_maxNode, vec
     else //NN
     {
         //-- Get path of NN info text file --> Read list of input variables (and more) //NB: only use local variables to avoid conflicts
-        TString NNinfo_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, true, categorization_strategy, this->scanOperators_paramNN);
+        TString NNinfo_input_path = Get_MVAFile_InputPath(classifier_name, signal, year, use_specificMVA_eachYear, MVA_EFT, true, categorization_strategy, this->scanOperators_paramNN, this->use_NN_cpq3_SRttZ);
         if(NNinfo_input_path == "") {cout<<"MVA info file not found ! "<<endl; return false;} //MVA file not found
 
         //-- Load neural network model
@@ -6352,8 +6353,9 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
     	}
 
     	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
-    	else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
-    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
+    	// else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
+        else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("#frac{Data}{Pred.}");}
+        // v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
         v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.15);
         v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.05);
         if(total_var_list[ivar].Contains("countExp")) {v_histo_ratio_data[ivar]->GetXaxis()->SetTitleOffset(1.0);}
@@ -6371,6 +6373,9 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
     	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
     	v_histo_ratio_data[ivar]->SetMarkerSize(1.2); //changed from 1.4
         v_histo_ratio_data[ivar]->GetXaxis()->SetTitleSize(0.06);
+
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.15);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(303);
 
         if(total_var_list[ivar].Contains("countExp")) {v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.);}
 
@@ -6528,7 +6533,7 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
     		}
     	}
     	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
-    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+    	// v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same"); //Removed extra lines
 
         TString Y_label = "Events"; //Default
         if(total_var_list[ivar].Contains("mTW")) {Y_label = "Events / " + Convert_Number_To_TString( (v_stack[ivar]->GetXaxis()->GetXmax() - v_stack[ivar]->GetXaxis()->GetXmin()) / v_histo_total_MC[ivar]->GetNbinsX(), 2) + " GeV";}
@@ -6806,6 +6811,17 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     for(int i=0; i<v2_histo_ratio_eft.size(); i++) {v2_histo_ratio_eft[i].resize(2);}
     vector<TH1F*> v_histo_ratio_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store SM point
 
+    //-- Can also plot SM+EFT/SM ratio when considering total sum of MC, not only signal
+    vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
+    vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_smeft(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
+    vector<vector<vector<float>>> v3_EFTsig_binContents(nvar); //for each var and each EFT hypothesis, store 2 float per histo bin
+    for(int i=0; i<nvar; i++)
+    {
+        v2_histo_ratio_eft_totalProcs_sm[i].resize(2);
+        v2_histo_ratio_eft_totalProcs_smeft[i].resize(2);
+        v3_EFTsig_binContents[i].resize(2);
+    }
+
     vector<TPad*> v_tpad_ratio_eft(nvar);
 
     vector<TLegend*> v_tlegend_ratio_eft(nvar);
@@ -6820,18 +6836,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     int nIndivBins; float xmin_tmp, xmax_tmp;
 
     TString fit_type = "postfit"; //Default
-    if(template_name.Contains("SM")) {fit_type = "prefit";} //Do prefit SM plots?
-
-    //-- Can also plot SM+EFT/SM ratio when considering total sum of MC, not only signal
-    vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
-    vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_smeft(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
-    vector<vector<vector<float>>> v3_EFTsig_binContents(nvar); //for each var and each EFT hypothesis, store 2 float per histo bin
-    for(int i=0; i<nvar; i++)
-    {
-        v2_histo_ratio_eft_totalProcs_sm[i].resize(2);
-        v2_histo_ratio_eft_totalProcs_smeft[i].resize(2);
-        v3_EFTsig_binContents[i].resize(2);
-    }
+    if(template_name.Contains("SM")) {fit_type = "prefit";} //Do prefit SM plots !
 
 
 // #       ####   ####  #####   ####
@@ -6874,7 +6879,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         else {pad->SetBottomMargin(1-top_panel_size);}
 
         bool isLogY = true; //Default
-        if(total_var_list[ivar].Contains("SM") || (total_var_list[ivar].Contains("cpq3") && total_var_list[ivar].Contains("ttZ"))) {isLogY = false;}
+        if(total_var_list[ivar].Contains("SM") || (total_var_list[ivar].Contains("cpq3") && total_var_list[ivar].Contains("ttZ") && !this->use_NN_cpq3_SRttZ)) {isLogY = false;}
         if(isLogY) {pad->SetLogy();}
 
         TFile* file_input = NULL;
@@ -6938,7 +6943,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 				// cout<<endl<<UNDL(FBLU("-- Sample : "<<sample_list[isample]<<" : "))<<endl;
 
 				h_tmp = NULL;
-                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, false);
+                Get_Template_Range(nIndivBins, xmin_tmp, xmax_tmp, total_var_list[ivar], true, 2, true, nbjets_min, nbjets_max, njets_min, njets_max, minmax_bounds, this->use_NN_SRother, this->use_NN_cpq3_SRttZ);
                 h_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
                 v_eyl.resize(nIndivBins); v_eyh.resize(nIndivBins); v_exl.resize(nIndivBins); v_exh.resize(nIndivBins); v_y.resize(nIndivBins); v_x.resize(nIndivBins);
                 std::fill(v_y.begin(), v_y.end(), -1); //Init errors positions to <0 (invisible)
@@ -7109,7 +7114,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 else if(total_var_list[ivar].Contains("5D"))
                 {
                     EFTpoint_name1 = "rwgt_ctz_0.5_ctw_0.5_cpq3_1";
-                    if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name1 = "rwgt_ctz_0.5_ctw_0.5";}
+                    // if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name1 = "rwgt_ctz_0.5_ctw_0.5";}
+                    // if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name1 = "rwgt_cpq3_2";} //Testing
                 }
                 else if(total_var_list[ivar].Contains("SM")) {EFTpoint_name1 = "rwgt_cpqm_5";}
 
@@ -7142,7 +7148,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 else if(total_var_list[ivar].Contains("5D"))
                 {
                     EFTpoint_name2 = "rwgt_ctz_1_ctw_1_cpq3_3";
-                    if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name2 = "rwgt_ctz_1_ctw_1";}
+                    // if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name2 = "rwgt_ctz_1_ctw_1";}
+                    // if(total_var_list[ivar].Contains("SRttZ")) {EFTpoint_name2 = "rwgt_cpq3_4";} //Testing
                 }
                 else if(total_var_list[ivar].Contains("SM")) {EFTpoint_name2 = "rwgt_cpt_5";}
                 wcp = WCPoint(EFTpoint_name2, 1.);
@@ -7379,7 +7386,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("#frac{Data}{Pred.}");}
         // else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
         v_histo_ratio_data[ivar]->GetYaxis()->CenterTitle(true);
-    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
+    	// v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
         v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
         v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.04);
     	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
@@ -7391,16 +7398,30 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.01); //0.4
     	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
     	v_histo_ratio_data[ivar]->SetMarkerSize(1.2);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.15);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(303);
 
-        if(template_name.Contains("SM"))
+        if(template_name.Contains("SM")) //SM vs SM --> Display title in this panel
         {
             //-- SET X_AXIS TITLES
             v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true));
             v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.05);
             v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.30);
             v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.05);
+
+            //-- Arbitrary bin names
+            v_histo_ratio_data[ivar]->GetXaxis()->SetLabelOffset(0.02); //Add some x-label offset
+            for(int i=1;i<v_histo_ratio_data[ivar]->GetNbinsX()+1;i++)
+            {
+                TString label = Convert_Number_To_TString(i);
+                v_histo_ratio_data[ivar]->GetXaxis()->SetBinLabel(i, label);
+            }
+
+            v_histo_ratio_data[ivar]->GetXaxis()->SetLabelSize(0.09);
+            v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.02);
+            v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(-v_histo_ratio_data[ivar]->GetNbinsX()); //'-' to force Ndivisions
         }
-        else
+        else //SM vs EFT --> Will display title via additional bottom panel
         {
             v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(-v2_histo_ratio_eft[ivar][0]->GetNbinsX()); //'-' to force Ndivisions //NB: must use same pattern as bottom TPad (if present) !
             v_histo_ratio_data[ivar]->GetXaxis()->SetTitleSize(0.);
@@ -7552,19 +7573,15 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.05);
             if(total_var_list[ivar].Contains("cpq3_SRtZq")) {v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.04);}
             if(total_var_list[ivar].Contains("ttZ")) {v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(0.95);} //Takes more space
-            // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.045);
             v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.04);
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelSize(0.07);
-            // v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelSize(0.045);
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelFont(42);
             v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelFont(42);
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleFont(42);
             v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleFont(42);
             v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(505); //grid drawn on primary tick marks only
-            // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(505);
             v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.04);
-            // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.06);
             v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTickLength(0.01); //0.4
             v2_histo_ratio_eft[ivar][0]->SetMarkerStyle(20);
             v2_histo_ratio_eft[ivar][0]->SetMarkerSize(1.2); //changed from 1.4
@@ -7620,7 +7637,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             }
             else if(total_var_list[ivar].Contains("cpq3_SRttZ"))
             {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(1.069);
+                if(!this->use_NN_cpq3_SRttZ) {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.069);}
+                else {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.129);}
 
                 // v2_histo_ratio_eft[ivar][0]->SetMaximum(1.139);
                 v2_histo_ratio_eft[ivar][0]->SetMinimum(1.);
@@ -7628,7 +7646,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             else if(total_var_list[ivar].Contains("5D_SRttZ"))
             {
                 // v2_histo_ratio_eft[ivar][0]->SetMaximum(1.99);
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(1.79);
+                if(!this->use_NN_cpq3_SRttZ) {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.79);}
+                else {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.99);}
                 v2_histo_ratio_eft[ivar][0]->SetMinimum(0.95);
             }
             else if(total_var_list[ivar].Contains("5D_SRtZq"))
@@ -7701,9 +7720,9 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 
             if(total_var_list[ivar].Contains("5D")) //5D: more text = more space
             {
-                if(total_var_list[ivar].Contains("SRttZ"))
+                if(total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ)
                 {
-                    v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.16,0.80,0.27);
+                    v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.16,0.80,0.27); //Smaller x
                 }
                 else
                 {
@@ -7715,7 +7734,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 // if(total_var_list[ivar].Contains("ttZ")) {header = "("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+")";}
 
                 TString header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2}, "+Get_EFToperator_label("cpq3")+" /#Lambda^{2})";
-                if(total_var_list[ivar].Contains("ttZ")) {header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2})";}
+                if(total_var_list[ivar].Contains("ttZ") && !this->use_NN_cpq3_SRttZ) {header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2})";}
                 header+= " [TeV^{-2}]";
 
                 v_tlegend_ratio_eft[ivar]->SetHeader(header);
@@ -7813,7 +7832,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     		}
     	}
     	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
-    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+    	// v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same"); //Removed extra lines
 
         TString Y_label = "Events / bin";
         if(v_stack[ivar]) //Must be drawn first
@@ -8448,24 +8467,6 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
     		}
     	}
 
-    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
-        else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("#frac{Data}{Pred.}");}
-        // else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
-        v_histo_ratio_data[ivar]->GetYaxis()->CenterTitle(true);
-    	v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.);
-        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
-        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.04);
-    	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
-    	v_histo_ratio_data[ivar]->GetYaxis()->SetTitleFont(42);
-        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(503); //grid draw on primary tick marks only
-        v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505); //'-' to force Ndivisions
-        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.04);
-        v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.01); //0.4
-    	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
-    	v_histo_ratio_data[ivar]->SetMarkerSize(1.2);
-
-        if(total_var_list[ivar] == "nbjets" || total_var_list[ivar] == "njets") {v_histo_ratio_data[ivar]->GetXaxis()->CenterLabels(true);}
-
         //-- SET X_AXIS TITLES
         //-- NB: function Get_Variable_Name() (uses 'l' instead of '\ell') --> Hardcode var names here if needed
         TString xtitle = Get_Variable_Name(total_var_list[ivar]);
@@ -8478,10 +8479,31 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
 
         v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(xtitle);
 
+        //-- AXES OPTIONS
+    	if(show_pulls_ratio) {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Pulls");}
+        else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("#frac{Data}{Pred.}");}
+        // else {v_histo_ratio_data[ivar]->GetYaxis()->SetTitle("Data/MC");}
+        v_histo_ratio_data[ivar]->GetYaxis()->CenterTitle(true);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.05);
+    	v_histo_ratio_data[ivar]->GetXaxis()->SetTitleFont(42);
+    	v_histo_ratio_data[ivar]->GetYaxis()->SetTitleFont(42);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(303); //grid draw on primary tick marks only
+        v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505); //'-' to force Ndivisions //NB: based on previous CMS publications, it does not matter whether ticks are placed at bin boundaries
         v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.05);
         v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.35);
-        v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.05);
+        v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.04);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.15);
+    	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
+    	v_histo_ratio_data[ivar]->SetMarkerSize(1.2);
 
+        if(total_var_list[ivar] == "nbjets" || total_var_list[ivar] == "njets")
+        {
+            v_histo_ratio_data[ivar]->GetXaxis()->CenterLabels(true); //Special case: want to have label (nof jets) at center of bin
+            v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(-v_histo_ratio_data[ivar]->GetNbinsX()); //'-' to force Ndivisions //NB: must use same pattern as bottom TPad (if present) !
+        }
+
+        //-- OPEN-HEADED TRIANGLES
         //-- If a point is outside the y-range of the ratio pad defined by SetMaximum/SetMinimum(), it disappears with its error
         //-- Trick: fill 2 histos with points either above/below y-range, to plot some markers indicating missing points (cleaner)
         //NB: only for ratio plot, not pulls
@@ -8612,7 +8634,7 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
     		}
     	}
     	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
-    	v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same");
+    	// v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same"); //Removed extra lines
 
         TString Y_label = "Events / bin";
         Y_label = "Events / " + Convert_Number_To_TString( (xmax_tmp - xmin_tmp) / nIndivBins, 2); //Automatically get the Y label depending on binning
@@ -8832,8 +8854,8 @@ void TopEFT_analysis::Dump_Scores_allNNs()
 
         vector<TString> var_list_NN, v_NN_nodeLabels; int NN_iMaxNode = -1; TString NN_strategy = "", NN_inputLayerName = "", NN_outputLayerName = ""; int NN_nNodes = -1; std::vector<float> minmax_bounds;
 
-        TString NNinfo_input_path = Get_MVAFile_InputPath(v_templates[itemplate], "tZq", "Run2", false, true, true, 2, false);
-        TString MVA_input_path = Get_MVAFile_InputPath(v_templates[itemplate], "tZq", "Run2", false, true, false, 2, false);
+        TString NNinfo_input_path = Get_MVAFile_InputPath(v_templates[itemplate], "tZq", "Run2", false, true, true, 2, false, this->use_NN_cpq3_SRttZ);
+        TString MVA_input_path = Get_MVAFile_InputPath(v_templates[itemplate], "tZq", "Run2", false, true, false, 2, false, this->use_NN_cpq3_SRttZ);
         TFModel* clfy_tmp = NULL;
 
         //-- Load neural network model
