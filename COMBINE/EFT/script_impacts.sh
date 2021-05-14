@@ -20,7 +20,7 @@
 #python Plot_Syst_Impacts_EFT.py --exp --freeze -P ctz -n ctzExp -d ./EFTWorkspace_ctz.root -m impacts --collect
 #python Plot_Syst_Impacts_EFT.py --exp --freeze -P ctw -n ctwExp -d ./EFTWorkspace_ctw.root -m impacts --collect
 #python Plot_Syst_Impacts_EFT.py --exp --freeze -P cpq3 -n cpq3Exp -d ./EFTWorkspace_cpq3.root -m impacts --collect
-python Plot_Syst_Impacts_EFT.py --exp --freeze -P cpqm -n cpqmExp -d ./EFTWorkspace_SM.root -m impacts --collect
+#python Plot_Syst_Impacts_EFT.py --exp --freeze -P cpqm -n cpqmExp -d ./EFTWorkspace_SM.root -m impacts --collect
 #python Plot_Syst_Impacts_EFT.py --exp --freeze -P cpt -n cptExp -d ./EFTWorkspace_SM.root -m impacts --collect
 
 #python Plot_Syst_Impacts_EFT.py --freeze -P ctz -n ctzObs -d ./EFTWorkspace_ctz.root -m impacts --collect

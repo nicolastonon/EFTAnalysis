@@ -24,7 +24,7 @@ import ROOT
 from ROOT import TCanvas, TGraph, gStyle, TMath
 import logging
 import os
-import sys
+import sys 
 import numpy
 import itertools
 import subprocess as sp
@@ -378,10 +378,10 @@ class EFTPlot(object):
         self.extraText.SetTextFont(52)
         self.extraText.SetTextSize(0.05)
 
-        self.lumiText = ROOT.TLatex(0.95, top, "137 fb^{-1} (13 TeV)")
+        self.lumiText = ROOT.TLatex(0.95, top, "138 fb^{-1} (13 TeV)") #Preliminary lumi was: 137 fb-1
         if mode == '2D': 
-            if paperStyle: self.lumiText = ROOT.TLatex(0.82, top, "137 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-            else: self.lumiText = ROOT.TLatex(0.36, 0.93, "137 fb^{-1} (13 TeV)")    
+            if paperStyle: self.lumiText = ROOT.TLatex(0.82, top, "138 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+            else: self.lumiText = ROOT.TLatex(0.36, 0.93, "138 fb^{-1} (13 TeV)")    
         self.lumiText.SetNDC()
         self.lumiText.SetTextFont(42)
         self.lumiText.SetTextAlign(31)
@@ -803,10 +803,10 @@ class EFTPlot(object):
             graph.SetLogz()
             outname+= '_log'
 
-        if paper: outname+= '_paper.eps' #.pdf
-        else: outname+= '.png'
-
-        c.Print(outname)
+        if paper: 
+            c.Print(outname+'_paper.eps') #Paper: need eps format
+            c.Print(outname+'_paper.png')
+        else: c.Print(outname+'.png')
 
         return
 
@@ -958,8 +958,10 @@ class EFTPlot(object):
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
         outname = 'scan1D_manual{}'.format(name.replace('.','_'))
-        if paper: outname+= '_paper.eps' #.pdf
-        else: outname+= '.png'
+        if paper: 
+            c.Print(outname+'_paper.eps') #Paper: need eps format
+            c.Print(outname+'_paper.png')
+        else: c.Print(outname+'.png')
 
         c.Print(outname)
 
@@ -974,7 +976,7 @@ class EFTPlot(object):
  #    ## #       #          #       #      #    #   #      #       #     #
  #     # ####### #######    #       ######  ####    #      ####### ######
 
-    def Plot_NLLscan_2D(self, mode='EFT', params=[], ceiling=1, log=False, paper=False, filepath=[], name=''):
+    def Plot_NLLscan_2D(self, mode='EFT', params=[], ceiling=1, log=False, paper=False, filepath=[], name='', palette=57):
         '''
         Plot the NLL function versus 2 POIs (2D scan).
 
@@ -983,8 +985,12 @@ class EFTPlot(object):
         ceiling: maximum NLL value
         '''
 
-        ROOT.gStyle.SetPalette(57) #kBird (default, blue to yellow)
+        #-- Examples of suitable predefined palette choices: 56 (white yellow to black), 57 (default), 70 (red to violet blue), 71 (kBlueGreenYellow), 81 (violet), 112 (like default but darker)
+        #palette = ROOT.kViridis        
+        palette = 112
+        ROOT.gStyle.SetPalette(palette)
 
+        # ROOT.gStyle.SetPalette(57) #kBird (default, blue to yellow)
         # ROOT.gStyle.SetPalette(ROOT.kDeepSea) #Dark blues
         # ROOT.gStyle.SetPalette(ROOT.kOcean) #Dark greens/blues
         # ROOT.gStyle.SetPalette(ROOT.kDarkBodyRadiator) #Dark to light
@@ -994,6 +1000,7 @@ class EFTPlot(object):
 
         drawContours = True #True <-> superimpose contours (default)
         valCont = [2.30, 5.99] #1sigma and 95% contours
+        color_contour = ROOT.kRed+1 #ROOT.kBlack
 
         if filepath == '': filepath_tmp = './higgsCombine.'+mode+'.MultiDimFit.mH120.root'
         else: filepath_tmp = filepath[0]
@@ -1013,8 +1020,8 @@ class EFTPlot(object):
         c = ROOT.TCanvas('','',1000,800)
         # c.SetGrid(1)
         # c.SetTopMargin(0.1)
-        l = c.GetLeftMargin()
 
+        l = c.GetLeftMargin()
         c.SetRightMargin(0.17) #Override default margin
         if paper==False: c.SetTopMargin(0.15) #Override default margin
 
@@ -1031,7 +1038,7 @@ class EFTPlot(object):
         limitTree = rootFile.Get('limit')
         minZ = limitTree.GetMinimum('deltaNLL')
 
-	#-- Ranges for the x/y variables #Read from the user-defined settings, must use same ranges as for the scan
+        #-- Ranges for the x/y variables #Read from the user-defined settings, must use same ranges as for the scan
         xmin = limitTree.GetMinimum(xvar)
         xmax = limitTree.GetMaximum(xvar)
         ymin = limitTree.GetMinimum(yvar)
@@ -1040,16 +1047,17 @@ class EFTPlot(object):
             if params[0] == 'ctz' and params[1] == 'ctw': ymax+= 1. 
             elif params[0] == 'cpqm' and params[1] == 'cpt': ymax+= 10. 
         #print('ymax', ymax)
-        # xmin = -40; xmax = 40; ymin = -40; ymax = 40
-	#print('xmin={} / xmax={} / ymin={} / ymax={} / '.format(xmin,xmax,ymin,ymax))
+        #xmin = -2; xmax = 2; ymin = -1.5; ymax = 1.5
+        print('xmin={} / xmax={} / ymin={} / ymax={} / '.format(xmin,xmax,ymin,ymax))
 
         # maxZ = 20 #Max z-axis threshold
         maxZ = 1000 #Max z-axis threshold #If want whole plot to be colored
-        nbins = 150
 
-    	#-- Auto-binning
-    	nbins = (int) (math.sqrt(limitTree.GetEntries())) #If there are N^2 points, will use N bins in each axis
-    	# print('nbins', nbins)
+    	#-- Binning #-- NB: make sure binning is correct, hence will get empty bins !
+        nbins = 200
+    	#nbins = (int) (math.sqrt(limitTree.GetEntries())) #If there are N^2 points, will use N bins in each axis
+        print('nbins', nbins)
+        if nbins != (int) (math.sqrt(limitTree.GetEntries())): print(colors.fg.red + 'WARNING: are you sure the binning is correct ?' + colors.reset)
 
         #-- WARNING: zvar:yvar:xvar (cf. https://root.cern.ch/doc/master/classTTree.html... although it says different?)
         expr = '2*(deltaNLL-{}):{}:{}>>{}({},{},{},{},{},{})'.format(minZ, yvar, xvar, hname, nbins, xmin, xmax, nbins, ymin, ymax)
@@ -1061,20 +1069,30 @@ class EFTPlot(object):
         #-- Trick: can happen that just few points fail, an corresponding bins set 0 contents
         #--> set bin content to same value as neighbouring bin (usually safe because happens far away from minimum)
         #NB: for some reason, can't use SetBinContent on 'hist' object directly; so duplicate it in new, modificable TH2F object
+        debug_printout = False
         newhist = ROOT.TH2F('', '', nbins, xmin, xmax, nbins, ymin, ymax)
         for xbin in range(1,hist.GetNbinsX()+1):
-            # print('-- xbin', xbin)
+            if debug_printout: print('-- xbin', xbin, 'lowEdge', hist.GetXaxis().GetBinLowEdge(xbin))
             for ybin in range(1,hist.GetNbinsY()+1):
-                # print('- ybin', ybin)
+                if debug_printout: print('- ybin', ybin, 'lowEdge', hist.GetYaxis().GetBinLowEdge(ybin))
                 newhist.SetBinContent(xbin, ybin, hist.GetBinContent(xbin,ybin))
-                if newhist.GetBinContent(xbin,ybin)==0:
+
+                if newhist.GetBinContent(xbin,ybin)==0: #Trick -- special cases in which a bin content is zero whenit should not be (missing file, ...) #Also needed to fill background points not actually scanned to zmax value, etc.
+                    #print('-- xbin', xbin, 'lowEdge', hist.GetXaxis().GetBinLowEdge(xbin))
+                    #print('- ybin', ybin, 'lowEdge', hist.GetYaxis().GetBinLowEdge(ybin))
+
+                    #if ybin>1 and xbin>1: newhist.SetBinContent(xbin,ybin, newhist.GetBinContent(xbin-1,ybin-1))
                     if ybin>1:
-                        # print('newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
+                        if debug_printout: print('newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
                         newhist.SetBinContent(xbin,ybin, newhist.GetBinContent(xbin,ybin-1))
-                        # print('--> newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
+                        #newhist.SetBinContent(xbin,ybin, 30)
+                        #avg = (newhist.GetBinContent(xbin-1,ybin-1)+newhist.GetBinContent(xbin,ybin-1)+newhist.GetBinContent(xbin,ybin+1)+newhist.GetBinContent(xbin-1,ybin)+newhist.GetBinContent(xbin+1,ybin)+newhist.GetBinContent(xbin-1,ybin+1)+newhist.GetBinContent(xbin,ybin+1)+newhist.GetBinContent(xbin+1,ybin+1) ) / 8
+                        #newhist.SetBinContent(xbin,ybin,avg)
+                        if debug_printout: print('--> newhist.GetBinContent(xbin,ybin)', newhist.GetBinContent(xbin,ybin))
+
                     elif xbin>1:
                         newhist.SetBinContent(xbin,ybin, newhist.GetBinContent(xbin-1,ybin))
-		    else: newhist.SetBinContent(xbin,ybin,maxZ) #Trick: sometimes bins at the plot boundaries are empty for some reason --> set to maxZ <-> bkg color
+                    else: newhist.SetBinContent(xbin,ybin,maxZ) #Trick: sometimes bins at the plot boundaries are empty for some reason --> set to maxZ <-> bkg color
     	        #if xbin==1: print('hist.GetBinContent({},{})'.format(xbin,ybin), hist.GetBinContent(xbin,ybin))
 		#if xbin==1: print('newhist.GetBinContent({},{})'.format(xbin,ybin), newhist.GetBinContent(xbin,ybin))
 	
@@ -1095,16 +1113,16 @@ class EFTPlot(object):
 
             for conts in [cont_p1]:
                 for cont in conts:
-                    #cont.SetLineColor(ROOT.kBlue-6)
-                    cont.SetLineColor(ROOT.kBlack)
+                    #print(cont)
+                    cont.SetLineColor(ROOT.kAzure+2) #ROOT.kOrange+1, kAzure+2, kMagenta-2
                     cont.SetLineWidth(3)
-                    cont.SetLineStyle(self.linestyle)
+                    #cont.SetLineStyle(self.linestyle) #self.linestyle
                     cont.Draw("L same") #Draw second contour
                     h_cont68 = cont.Clone()
             for conts in [cont_p2]:
                 for cont in conts:
-                    cont.SetLineColor(ROOT.kBlack)
-                    cont.SetLineWidth(3)
+                    cont.SetLineColor(color_contour) #color_contour
+                    cont.SetLineWidth(5)
                     cont.Draw("L same") #Draw first contour
                     h_cont95 = cont.Clone()
 
@@ -1112,7 +1130,7 @@ class EFTPlot(object):
         marker_SM = ROOT.TMarker()
         marker_SM.SetMarkerSize(3.)
         marker_SM.SetMarkerStyle(34)
-        marker_SM.SetMarkerColor(ROOT.kBlack)
+        marker_SM.SetMarkerColor(ROOT.kGray+1) #ROOT.kBlack
         marker_SM.DrawMarker(0,0) #SM=(0,0)
 
         #-- Draw best fit point from grid scan (for observed fit only)
@@ -1125,7 +1143,7 @@ class EFTPlot(object):
                     # print(bestfit_x, bestfit_y)
                     break #The minimum may be included multiple times in the file (if stitched scans together) --> only read once
             best_fit = ROOT.TMarker()
-            best_fit.SetMarkerSize(2)
+            best_fit.SetMarkerSize(3)
             best_fit.SetMarkerStyle(47) #34 full +, 47 full cross, 2 slim +, 5 slim cross, 28 empty +, 46 empty cross, 4 empty circle, 8 full circle
             best_fit.SetMarkerColor(ROOT.kRed+1)
             if bestfit_x != 0. or bestfit_y != 0.: best_fit.DrawMarker(bestfit_x, bestfit_y)
@@ -1160,8 +1178,11 @@ class EFTPlot(object):
 
         #-- Save plot
         outname = hname
-        if paper: outname+= '_paper.eps' #.pdf
-        else: outname+= '.png'
+        #outname+= "_" + str(palette)
+        if paper: 
+            c.Print(outname+'_paper.eps') #Paper: need eps format
+            c.Print(outname+'_paper.png')
+        else: c.Print(outname+'.png')
 
         c.Print(outname)
 
@@ -1594,8 +1615,10 @@ class EFTPlot(object):
         c.SetGrid()
 
         outname = '{}_2Dcontour'.format(name.replace('.','_'))
-        if paper: outname+= '_paper'
-        outname+= '.png'
+        if paper: 
+            c.Print(outname+'_paper.eps') #Paper: need eps format
+            c.Print(outname+'_paper.png')
+        else: c.Print(outname+'.png')
 
         c.Print(outname)
 
@@ -2071,6 +2094,8 @@ if __name__ == "__main__":
         elif mode=='2D':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False, paper=paper, filepath=filepath, name=name)
+            #for i in range(51,114): plotter.Plot_NLLscan_2D(mode='EFT', params=param_tmp, ceiling=100, log=False, paper=paper, filepath=filepath, name=name, palette=i) #Test all palettes
+
         elif mode=='contour':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
             plotter.ContourPlotEFT(mode='EFT', params=param_tmp, paper=paper, filepath=filepath, name=name)

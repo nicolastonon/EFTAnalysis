@@ -140,7 +140,7 @@ TString Get_Region_Label(TString, TString);
 void Fill_Variables_List(vector<TString>&, bool, TString, TString, bool, int, bool, TString, TString, vector<float>, vector<float>, bool, bool=false);
 vector<vector<float>> Get_nJets_SF(TString, TString, TString, vector<TString>);
 float Apply_nJets_SF(vector<vector<float>>&, int, int, TString);
-TString Get_Template_XaxisTitle(TString,bool=false);
+TString Get_Template_XaxisTitle(TString, bool=false, bool=false);
 TString Get_EFToperator_label(TString);
 TString Get_Unit_Variable(TString);
 void Print_Yields_fromHistograms(TString, TString, vector<TString>, vector<TString>, vector<TString>);

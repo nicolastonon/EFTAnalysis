@@ -12,15 +12,16 @@ filter=""
 if [ "$#" -eq 2 ]; then
     fitresult=$1
     filter=$2
-elif [ "$#" -eq 1 ]; then
+#elif [ "$#" -eq 1 ]; then
+else
     if [[ $1 == *"multidimfit"* ]]; then
         fitresult=$1
     else
         filter=$1
     fi
-else
-    echo "Illegal number of parameters"
-    exit 2
+#else
+#    echo "Illegal number of parameters"
+#    exit 2
 fi
 
 # //--------------------------------------------
@@ -73,6 +74,19 @@ fi
 if [[ ${postfit} == "" ]]; then #Use different 'card prefix' for NN_SM prefit shapes, because not splitting into individual bins (full templates <-> SM only)
     card_prefix="COMBINED_Datacard_TemplateFit_"
 fi
+
+
+#FIXME
+
+#-- Freeze WC + split JEC
+freeze=$freeze",RelativeSample2018=0,RelativePtEC22018=0,RelativePtEC12018=0,FlavorQCD=0,RelativeSample2017=0,RelativeSample2016=0,RelativeFSR=0,RelativeStatHF2018=0,TimePtEta2018=0,RelativeStatHF2017=0,RelativeStatHF2016=0,PileUpDataMC=0,SinglePionHCAL=0,RelativeJEREC22016=0,RelativeJEREC22017=0,RelativeJEREC22018=0,SinglePionECAL=0,RelativeStatEC2018=0,RelativeStatFSR2018=0,PileUpPtHF=0,RelativeStatEC2017=0,RelativeStatFSR2016=0,PileUpPtRef=0,Fragmentation=0,RelativePtBB=0,RelativePtEC12017=0,RelativePtEC12016=0,TimePtEta2017=0,TimePtEta2016=0,RelativePtEC22016=0,RelativePtEC22017=0,AbsoluteMPFBias=0,PileUpPtEC2=0,RelativePtHF=0,PileUpPtEC1=0,RelativeJERHF=0,AbsoluteStat2016=0,AbsoluteStat2017=0,AbsoluteStat2018=0,RelativeJEREC12017=0,RelativeJEREC12016=0,RelativeStatFSR2017=0,AbsoluteScale=0,PileUpPtBB=0,RelativeBal=0,RelativeStatEC2016=0,RelativeJEREC12018=0"
+
+#-- Freeze only split JEC
+#freeze="--freeze RelativeSample2018=0,RelativePtEC22018=0,RelativePtEC12018=0,FlavorQCD=0,RelativeSample2017=0,RelativeSample2016=0,RelativeFSR=0,RelativeStatHF2018=0,TimePtEta2018=0,RelativeStatHF2017=0,RelativeStatHF2016=0,PileUpDataMC=0,SinglePionHCAL=0,RelativeJEREC22016=0,RelativeJEREC22017=0,RelativeJEREC22018=0,SinglePionECAL=0,RelativeStatEC2018=0,RelativeStatFSR2018=0,PileUpPtHF=0,RelativeStatEC2017=0,RelativeStatFSR2016=0,PileUpPtRef=0,Fragmentation=0,RelativePtBB=0,RelativePtEC12017=0,RelativePtEC12016=0,TimePtEta2017=0,TimePtEta2016=0,RelativePtEC22016=0,RelativePtEC22017=0,AbsoluteMPFBias=0,PileUpPtEC2=0,RelativePtHF=0,PileUpPtEC1=0,RelativeJERHF=0,AbsoluteStat2016=0,AbsoluteStat2017=0,AbsoluteStat2018=0,RelativeJEREC12017=0,RelativeJEREC12016=0,RelativeStatFSR2017=0,AbsoluteScale=0,PileUpPtBB=0,RelativeBal=0,RelativeStatEC2016=0,RelativeJEREC12018=0"
+
+#-- Don't freeze any parameter
+#freeze=""
+
 
 echo "[fitresult=${fitresult}]"
 echo "[filter=${filter}]"

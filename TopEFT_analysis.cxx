@@ -420,13 +420,13 @@ TopEFT_analysis::~TopEFT_analysis()
  */
 void TopEFT_analysis::Set_Luminosity(TString luminame)
 {
-    if(luminame == "2016") {lumiValue = 35.92;}
+    if(luminame == "2016") {lumiValue = 36.33;} //Preliminary was: 35.92
 	else if(luminame == "2017") {lumiValue = 41.53;}
     else if(luminame == "2018") {lumiValue = 59.74;}
-    else if(luminame == "201617") {lumiValue = 35.92+41.53;}
-    else if(luminame == "201618") {lumiValue = 35.92+59.74;}
+    else if(luminame == "201617") {lumiValue = 36.33+41.53;}
+    else if(luminame == "201618") {lumiValue = 36.33+59.74;}
     else if(luminame == "201718") {lumiValue = 41.53+59.74;}
-    else if(luminame == "Run2") {lumiValue = 35.92+41.53+59.74;}
+    else if(luminame == "Run2") {lumiValue = 36.33+41.53+59.74;}
 
 	assert(lumiValue > 0 && "Using wrong lumi reference -- FIX IT !"); //Make sure we use a sensible lumi value
 
@@ -1865,6 +1865,8 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                         //NB: no need to set anything more for Zpt/mTW/... templates: variable address already set before event loop
                     } //Templates
 
+                    if(v_lumiYears[iyear] =="2016") {eventMCFactor*= 36.33/35.92;} //Quick fix: account here for the updated 2016 luminosity (current NTuples produced with preliminary value) //FIXME
+
                     double weight_tmp = eventWeight * eventMCFactor; //Fill histo with this weight ; manipulate differently depending on syst
                     // cout<<"eventWeight "<<eventWeight<<" / eventMCFactor "<<eventMCFactor<<" / weight_tmp "<<weight_tmp<<endl;
 
@@ -2084,10 +2086,10 @@ void TopEFT_analysis::Produce_Templates(TString template_name, bool makeHisto_in
                                 //-- F i l l     h i s t o
                                 if(isPrivMC && (systTree_list[itree] == "" || systTree_list[itree] == nominal_tree_name) && syst_list[isyst] == "" && (!this->make_fixedRegions_templates || total_var_list[ivar].Contains("ttZ4l")) && (include_EFTparam_inControlHist || !makeHisto_inputVars) ) //Only fill/store TH1EFTs for nominal private SMEFT samples in SRs //For all the rest, can use regular TH1s
                                 {
+                                    Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], *total_var_pfloats[ivar], w_SMpoint, *eft_fit);
+
                                     // if(syst_list[isyst] == "") {Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], w_SMpoint, *eft_fit);} //Nominal --> need TH1EFT to store WCFit objects
                                     // else {Fill_TH1F_UnderOverflow(v3_histo_chan_syst_var[ichan][isyst][ivar], total_var_floats[ivar], weight_tmp);} //Weight systematics --> can use regular TH1F objects
-
-                                    Fill_TH1EFT_UnderOverflow(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar], *total_var_pfloats[ivar], w_SMpoint, *eft_fit);
 
                                     //-- Can count the signal nentries in each histo bin here (for xchecks)
                                     int bin = (int)(v3_TH1EFT_chan_syst_var[ichan][isyst][ivar]->GetXaxis()->FindBin(*total_var_pfloats[ivar]))-1;
@@ -2545,14 +2547,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             v_EFT_points.clear();
             v_EFT_points.push_back("rwgt_ctz_0"); //SM
-            v_EFT_points.push_back("rwgt_ctz_5");
+            v_EFT_points.push_back("rwgt_ctz_5"); //For NN-ctz
 
             v_EFT_points.push_back("rwgt_ctw_0"); //SM
-            v_EFT_points.push_back("rwgt_ctw_5");
+            v_EFT_points.push_back("rwgt_ctw_5"); //For NN-ctw
 
             v_EFT_points.push_back("rwgt_cpq3_0"); //SM
-            v_EFT_points.push_back("rwgt_cpq3_5");
-            // v_EFT_points.push_back("rwgt_cpq3_0.7");
+            v_EFT_points.push_back("rwgt_cpq3_5"); //For NN-cpq3
         }
 
 //--------------------------------------------
@@ -2690,16 +2691,12 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
         v_EFT_points.clear();
         v_EFT_points.push_back("rwgt_ctz_0"); //SM
 
-        if(!prefit && use_combine_file && bestfit_string != "") {v_EFT_points.push_back(bestfit_string);}
-        else
+        if(!prefit && use_combine_file && bestfit_string != "") {v_EFT_points.push_back(bestfit_string);} //For postfit plot, should shown signal lines for SM and bestfit (bestfit point must have been hardcoded)
+        else //For NN-5D, show signal lines for 3 relevant WCs
         {
             v_EFT_points.push_back("rwgt_ctz_5");
             v_EFT_points.push_back("rwgt_ctw_5");
             v_EFT_points.push_back("rwgt_cpq3_5");
-
-            // v_EFT_points.push_back("rwgt_cpq3_10");
-            // v_EFT_points.push_back("rwgt_cpqm_10");
-            // v_EFT_points.push_back("rwgt_cpt_10");
         }
     }
 
@@ -3381,12 +3378,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                             {
                                 if(!total_var_list[ivar].Contains("NN_all") && !total_var_list[ivar].Contains("NN_5D"))
                                 {
-                                    if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || total_var_list[ivar].Contains("SRttZ"))) {continue;}
+                                    if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || (total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ))) {continue;}
                                     if(total_var_list[ivar].Contains("cpq3") && !v_EFT_points[ipoint].Contains("cpq3")) {continue;}
                                     if(total_var_list[ivar].Contains("ctz") && !v_EFT_points[ipoint].Contains("ctz")) {continue;}
                                     if(total_var_list[ivar].Contains("ctw") && !v_EFT_points[ipoint].Contains("ctw")) {continue;}
                                 }
-                                if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                                // if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                                if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3") && !this->use_NN_cpq3_SRttZ) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
                                 if(total_var_list[ivar].Contains("SRtZq") && !v_EFT_samples[isample].Contains("tZq")) {continue;}
                                 if(total_var_list[ivar].Contains("SRttZ") && !v_EFT_samples[isample].Contains("ttZ")) {continue;}
                             }
@@ -3458,6 +3456,9 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
                                 //-- Rescale TH1EFT accordingly to current reweight //Pay attention to operator exact names !
                                 WCPoint wcp = WCPoint((string) v_EFT_points[ipoint], 1.);
+
+                                if((total_var_list[ivar] == "NN_5D_SRttZ" || total_var_list[ivar] == "NN_cpq3_SRttZ") && v_EFT_points[ipoint] == "rwgt_cpq3_5") {wcp = WCPoint((string) "rwgt_cpq3_10", 1.);} //Hardcoded: use larger value cpq3=10 for NN-5D and NN-cpq3 in SRttZ
+
                                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
                                 th1eft_tmp->Scale(wcp);
                                 // cout<<"th1eft_tmp->Integral() "<<th1eft_tmp->Integral()<<endl;
@@ -3473,6 +3474,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
                                 //-- Get/save corresponding label
                                 vector<pair<TString,float>> v = Parse_EFTreweight_ID(v_EFT_points[ipoint]);
+                                if((total_var_list[ivar] == "NN_5D_SRttZ" || total_var_list[ivar] == "NN_cpq3_SRttZ") && v_EFT_points[ipoint] == "rwgt_cpq3_5") {v = Parse_EFTreweight_ID("rwgt_cpq3_10");} //Hardcoded: use larger value cpq3=10 for NN-5D and NN-cpq3 in SRttZ
                                 TString EFTpointlabel = "";
                                 for(int i=0; i<v.size(); i++)
                                 {
@@ -3619,12 +3621,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                     {
                         if(!total_var_list[ivar].Contains("NN_all") && !total_var_list[ivar].Contains("NN_5D"))
                         {
-                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || total_var_list[ivar].Contains("SRttZ"))) {continue;}
+                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || (total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ))) {continue;}
                             if(total_var_list[ivar].Contains("cpq3") && !v_EFT_points[ipoint].Contains("cpq3")) {continue;}
                             if(total_var_list[ivar].Contains("ctz") && !v_EFT_points[ipoint].Contains("ctz")) {continue;}
                             if(total_var_list[ivar].Contains("ctw") && !v_EFT_points[ipoint].Contains("ctw")) {continue;}
                         }
-                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;}
+                        // if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3") && !this->use_NN_cpq3_SRttZ) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
                         if(total_var_list[ivar].Contains("SRtZq") && !v_EFT_samples[isample].Contains("tZq")) {continue;}
                         if(total_var_list[ivar].Contains("SRttZ") && !v_EFT_samples[isample].Contains("ttZ")) {continue;}
                     }
@@ -3753,12 +3756,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                     {
                         if(!total_var_list[ivar].Contains("NN_all") && !total_var_list[ivar].Contains("NN_5D"))
                         {
-                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || total_var_list[ivar].Contains("SRttZ"))) {continue;}
+                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || (total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ))) {continue;}
                             if(total_var_list[ivar].Contains("cpq3") && !v_EFT_points[ipoint].Contains("cpq3")) {continue;}
                             if(total_var_list[ivar].Contains("ctz") && !v_EFT_points[ipoint].Contains("ctz")) {continue;}
                             if(total_var_list[ivar].Contains("ctw") && !v_EFT_points[ipoint].Contains("ctw")) {continue;}
                         }
-                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;}
+                        // if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3") && !this->use_NN_cpq3_SRttZ) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
                         if(total_var_list[ivar].Contains("SRtZq") && !v_EFT_samples[isample].Contains("tZq")) {continue;}
                         if(total_var_list[ivar].Contains("SRttZ") && !v_EFT_samples[isample].Contains("ttZ")) {continue;}
                     }
@@ -3863,12 +3867,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                     {
                         if(!total_var_list[ivar].Contains("NN_all") && !total_var_list[ivar].Contains("NN_5D"))
                         {
-                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || total_var_list[ivar].Contains("SRttZ"))) {continue;}
+                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || (total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ))) {continue;}
                             if(total_var_list[ivar].Contains("cpq3") && !v_EFT_points[ipoint].Contains("cpq3")) {continue;}
                             if(total_var_list[ivar].Contains("ctz") && !v_EFT_points[ipoint].Contains("ctz")) {continue;}
                             if(total_var_list[ivar].Contains("ctw") && !v_EFT_points[ipoint].Contains("ctw")) {continue;}
                         }
-                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;}
+                        // if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3") && !this->use_NN_cpq3_SRttZ) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
                         if(total_var_list[ivar].Contains("SRtZq") && !v_EFT_samples[isample].Contains("tZq")) {continue;}
                         if(total_var_list[ivar].Contains("SRttZ") && !v_EFT_samples[isample].Contains("ttZ")) {continue;}
                     }
@@ -4206,7 +4211,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
             //-- Hardcoded x-titles
             TString varname = total_var_list[ivar];
             if(use_NN_SRother && varname.Contains("SRother")) {varname = "NN_SM_SRother";} //Special case
-            TString xtitle = Get_Template_XaxisTitle(varname);
+            TString xtitle = Get_Template_XaxisTitle(varname, this->use_paperStyle, this->use_NN_cpq3_SRttZ);
             histo_ratio_data->GetXaxis()->SetTitle(xtitle);
 
 			if(total_var_list[ivar].Contains("categ")) //Vertical text X labels (categories names)
@@ -4353,12 +4358,13 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
                     {
                         if(!total_var_list[ivar].Contains("NN_all") && !total_var_list[ivar].Contains("NN_5D"))
                         {
-                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || total_var_list[ivar].Contains("SRttZ"))) {continue;}
+                            if(!total_var_list[ivar].Contains("ctz") && !total_var_list[ivar].Contains("ctw") && (!total_var_list[ivar].Contains("cpq3") || (total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ))) {continue;}
                             if(total_var_list[ivar].Contains("cpq3") && !v_EFT_points[ipoint].Contains("cpq3")) {continue;}
                             if(total_var_list[ivar].Contains("ctz") && !v_EFT_points[ipoint].Contains("ctz")) {continue;}
                             if(total_var_list[ivar].Contains("ctw") && !v_EFT_points[ipoint].Contains("ctw")) {continue;}
                         }
-                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;}
+                        // if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3")) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
+                        if(total_var_list[ivar].Contains("NN_5D") && total_var_list[ivar].Contains("SRttZ") && v_EFT_points[ipoint].Contains("rwgt_cpq3") && !this->use_NN_cpq3_SRttZ) {continue;} //NB: specify full substring 'rwgt_cpq3...' because only want to ignore cases where cpq3 is the only operator in the string (not e.g. strings containing the 5 WCs)
                         if(total_var_list[ivar].Contains("SRtZq") && !v_EFT_samples[isample].Contains("tZq")) {continue;}
                         if(total_var_list[ivar].Contains("SRttZ") && !v_EFT_samples[isample].Contains("ttZ")) {continue;}
                     }
@@ -4434,7 +4440,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 		{
 			double xmax = histo_total_MC->GetXaxis()->GetXmax();
 			double xmin = histo_total_MC->GetXaxis()->GetXmin();
-			Y_label = "Events / " + Convert_Number_To_TString( (xmax - xmin) / histo_total_MC->GetNbinsX(), 2); //Automatically get the Y label depending on binning
+			Y_label = "Events / " + Convert_Number_To_TString( (xmax - xmin) / histo_total_MC->GetNbinsX(), 3); //Automatically get the Y label depending on binning
             Y_label+= Get_Unit_Variable(total_var_list[ivar]);
         }
         else //combine ruins x-axis info, so can't rely on binning of the TH1F; call same functions as used to produce the histos to get the same binning
@@ -4445,7 +4451,7 @@ void TopEFT_analysis::Draw_Templates(bool drawInputVars, TString channel, bool p
 
             if(xmax != 0)
             {
-                Y_label = "Events / " + Convert_Number_To_TString( (xmax - xmin) / nbins, 2); //Automatically get the Y label depending on binning
+                Y_label = "Events / " + Convert_Number_To_TString( (xmax - xmin) / nbins, 3); //Automatically get the Y label depending on binning
                 Y_label+= Get_Unit_Variable(total_var_list[ivar]);
             }
         }
@@ -4682,7 +4688,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     TString type = "ttZ"; //'' / 'tZq' / 'ttZ' / 'tWZ' --> Compare corresponding private/central samples
 
     vector<TString> v_years; float lumi = 0.; TString luminame_tmp = ""; //Select 1 or multiple years
-    v_years.push_back("2016"); lumi+= 35.92; luminame_tmp = "2016";
+    v_years.push_back("2016"); lumi+= 36.33; luminame_tmp = "2016";
     v_years.push_back("2017"); lumi+= 41.53; luminame_tmp = luminame_tmp=="2016"? "201617":"2017";
     v_years.push_back("2018"); lumi+= 59.74; luminame_tmp = (luminame_tmp=="2016"? "201618":(luminame_tmp=="201617"? "Run2":(luminame_tmp=="2017"? "201718":"2018")) );
 
@@ -5067,7 +5073,7 @@ void TopEFT_analysis::Compare_TemplateShapes_Processes(TString template_name, TS
     		if(drawInputVars) {v_histos_ratio[0]->GetXaxis()->SetTitle(Get_Variable_Name(total_var_list[ivar]));}
     		else
     		{
-                v_histos_ratio[0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar])); //Default
+                v_histos_ratio[0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], this->use_paperStyle, this->use_NN_cpq3_SRttZ)); //Default
 
     			if(template_name == "categ") //Vertical text X labels (categories names)
     			{
@@ -5920,6 +5926,9 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
 
     TLine* tline1; TLine* tline2;
 
+    TString path_dir_shapes_binContent = "./outputs/dir_shapes_tmp/binContent/"; //Path of dir. containing shapes (with correct bin contents <-> did not freeze any parameter)
+    TString path_dir_shapes_binError = "./outputs/dir_shapes_tmp/binError/"; //Path of dir. containing shapes (with correct bin errors <-> froze WC and problematic split JEC)
+
 
 // #       ####   ####  #####   ####
 // #      #    # #    # #    # #
@@ -6027,34 +6036,43 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
 
                     for(int ibin=1; ibin<nIndivBins+1; ibin++)
                     {
-                        inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
+                        //-- Read bin content
+                        //--------------------------------------------
+                        inputfilename = path_dir_shapes_binContent + "shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
                         if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                         file_input = TFile::Open(inputfilename, "READ");
                         // cout<<"inputfilename "<<inputfilename<<endl;
-
                         TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_SRother_" + v_lumiYears[iyear] + "_postfit/";
-
                         // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
                         if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
-
                         h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
-                        h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+                        // h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+                        file_input->Close();
+                        //--------------------------------------------
+
+                        //-- Read bin error
+                        //--------------------------------------------
+                        dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                        inputfilename = path_dir_shapes_binError + "shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
+                        if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                        file_input = TFile::Open(inputfilename, "READ");
+                        if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                        float bincontent = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1); //Now read total yield (for error vector)
+                        float binerror = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        file_input->Close();
+                        //--------------------------------------------
 
                         //-- Errors
                         if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
                         {
-                            dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
-                            if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
                             float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
                             v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
-                            v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
-                            v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
-                            v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_y[ibin-1] = bincontent;
+                            v_eyl[ibin-1] = binerror;
+                            v_eyh[ibin-1] = binerror;
                             v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
-                            // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                            // cout<<"bin "<<ibin<<" / "<<v_y[ibin-1]<<" / "<<v_eyl[ibin-1]<<endl;
                         }
-
-                        file_input->Close();
                     } //nbins
                 }
                 else if(total_var_list[ivar].Contains("countExp"))
@@ -6070,32 +6088,44 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
                         if(ibin==1) {cat = "CRWZ";}
                         else if(ibin==2) {cat = "CRZZ";}
                         else if(ibin==3) {cat = "SRttZ4l";}
-                        inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_countExp_"+cat+".root";
+
+                        //-- Read bin content
+                        //--------------------------------------------
+                        inputfilename = path_dir_shapes_binContent + "shapes_postfit_datacard_countExp_"+cat+".root";
                         if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                         file_input = TFile::Open(inputfilename, "READ");
                         // cout<<"inputfilename "<<inputfilename<<endl;
-
                         TString dir_hist = total_var_list[ivar] + "_" + cat + "_" + v_lumiYears[iyear] + "_postfit/";
+                        // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
                         if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
-
                         h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(1)); //Get content/error from individual bin
-                        h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+                        // h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(1));
+                        file_input->Close();
+                        //--------------------------------------------
+
+                        //-- Read bin error
+                        //--------------------------------------------
+                        dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                        inputfilename = path_dir_shapes_binError + "shapes_postfit_datacard_countExp_"+cat+".root";
+                        if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                        file_input = TFile::Open(inputfilename, "READ");
+                        if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                        float bincontent = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1); //Now read total yield (for error vector)
+                        float binerror = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                        file_input->Close();
+                        //--------------------------------------------
 
                         //-- Errors
                         if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
                         {
-                            dir_hist = "postfit/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
-                            if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
                             float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
                             v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
-                            v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1);
-                            v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
-                            v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(1);
+                            v_y[ibin-1] = bincontent;
+                            v_eyl[ibin-1] = binerror;
+                            v_eyh[ibin-1] = binerror;
                             v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
-                            // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                            // cout<<"bin "<<ibin<<" / "<<v_y[ibin-1]<<endl;
                         }
-
-                        file_input->Close();
                     } //nbins
                 }
 
@@ -6147,7 +6177,7 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
                 hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
                 for(int ibin=1; ibin<nIndivBins+1; ibin++)
                 {
-                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
+                    inputfilename = path_dir_shapes_binContent + "shapes_postfit_datacard_bin"+Convert_Number_To_TString(ibin)+"_mTW_SRother.root";
                     if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                     file_input = TFile::Open(inputfilename, "READ");
                     // cout<<"inputfilename "<<inputfilename<<endl;
@@ -6174,7 +6204,7 @@ void TopEFT_analysis::Make_PaperPlot_CommonRegions()
                     if(ibin==1) {cat = "CRWZ";}
                     else if(ibin==2) {cat = "CRZZ";}
                     else if(ibin==3) {cat = "SRttZ4l";}
-                    inputfilename = "./outputs/dir_shapes_tmp/shapes_postfit_datacard_countExp_"+cat+".root";
+                    inputfilename = path_dir_shapes_binContent + "shapes_postfit_datacard_countExp_"+cat+".root";
                     if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                     file_input = TFile::Open(inputfilename, "READ");
                     // cout<<"inputfilename "<<inputfilename<<endl;
@@ -6838,6 +6868,15 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     TString fit_type = "postfit"; //Default
     if(template_name.Contains("SM")) {fit_type = "prefit";} //Do prefit SM plots !
 
+    TString path_dir_shapes_binContent = "./outputs/dir_shapes_tmp/binContent/"; //Path of dir. containing shapes (with correct bin contents <-> did not freeze any parameter)
+    TString path_dir_shapes_binError = "./outputs/dir_shapes_tmp/binError/"; //Path of dir. containing shapes (with correct bin errors <-> froze WC and problematic split JEC)
+
+    if(template_name.Contains("SM")) //For prefit plots, get bin content/error from same file in common folder
+    {
+        path_dir_shapes_binContent = "./outputs/dir_shapes_tmp/";
+        path_dir_shapes_binError = path_dir_shapes_binContent;
+    }
+
 
 // #       ####   ####  #####   ####
 // #      #    # #    # #    # #
@@ -6950,36 +6989,49 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 
                 for(int ibin=1; ibin<nIndivBins+1; ibin++)
                 {
-                    inputfilename = "./outputs/dir_shapes_tmp/shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
-                    if(template_name.Contains("SM")) {inputfilename = "./outputs/dir_shapes_tmp/shapes_"+fit_type+"_COMBINED_Datacard_TemplateFit_"+total_var_list[ivar]+"_Run2.root";} //Special case: for prefit NN-SM plots, consider full templates directly
+                    int bin_to_read = 1; //Default (for split-per-bin postfit plots, always need to read bin1); but for prefit NN_SM templates, need to read current ibin (because we are reading full templates directly, not 1 bin at a time)
+                    if(template_name.Contains("SM")) {bin_to_read=ibin;}
+
+                    //-- Read bin content
+                    //--------------------------------------------
+                    inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                    if(template_name.Contains("SM")) {inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_COMBINED_Datacard_TemplateFit_"+total_var_list[ivar]+"_Run2.root";} //Special case: for prefit NN-SM plots, consider full templates directly
                     if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                     file_input = TFile::Open(inputfilename, "READ");
                     // cout<<"inputfilename "<<inputfilename<<endl;
-
                     TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_"+fit_type+"/";
                     if(template_name.Contains("SM")) {dir_hist = total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_"+fit_type+"/";}
                     if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(samplename) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<samplename<<"' not found ! Skip...")<<endl; continue;}
                     // cout<<"dir_hist/samplename "<<dir_hist<<samplename<<endl;
+                    h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(bin_to_read));
+                    file_input->Close();
+                    //--------------------------------------------
 
-                    int bin_to_read = 1; //Default (for split-per-bin postfit plots, always need to read bin1); but for prefit NN_SM templates, need to read current ibin (because we are reading full templates directly, not 1 bin at a time)
-                    if(template_name.Contains("SM")) {bin_to_read=ibin;}
-                    h_tmp->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinContent(bin_to_read)); //Get content/error from individual bin
-                    h_tmp->SetBinError(ibin, ((TH1F*) file_input->Get(dir_hist+samplename))->GetBinError(bin_to_read));
+                    //-- Read bin error
+                    //--------------------------------------------
+                    dir_hist = fit_type+"/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+                    inputfilename = path_dir_shapes_binError + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                    if(template_name.Contains("SM")) {inputfilename = path_dir_shapes_binError + "shapes_"+fit_type+"_COMBINED_Datacard_TemplateFit_"+total_var_list[ivar]+"_Run2.root";} //Special case: for prefit NN-SM plots, consider full templates directly
+                    if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+                    file_input = TFile::Open(inputfilename, "READ");
+                    // cout<<"inputfilename "<<inputfilename<<endl;
+                    if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+                    float binerror = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(bin_to_read);
+                    float bincontent = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(bin_to_read); //Now read total yield (for error vector)
+                    file_input->Close();
+                    //--------------------------------------------
 
                     //-- Errors
                     if(v_y[ibin-1] < 0) //Need to fill total error only once (not for each process)
                     {
-                        dir_hist = fit_type+"/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
-                        if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
                         float bin_width = (xmax_tmp-xmin_tmp) / nIndivBins;
                         v_x[ibin-1] = xmin_tmp + ((ibin-1)*bin_width) + (bin_width/2.);
-                        v_y[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(bin_to_read);
-                        v_eyl[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(bin_to_read);
-                        v_eyh[ibin-1] = ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinError(bin_to_read);
+                        v_y[ibin-1] = bincontent;
+                        v_eyl[ibin-1] = binerror;
+                        v_eyh[ibin-1] = binerror;
                         v_exl[ibin-1] = bin_width / 2; v_exh[ibin-1] = bin_width / 2;
-                        // cout<<"bin "<<ibin<<" / error = "<<v_eyh[ibin-1]<<endl;
+                        // cout<<"bin "<<ibin<<" / "<<v_y[ibin-1]<<endl;
                     }
-                    file_input->Close();
                 } //nbins
 
 				//-- Set histo style (use color vector filled in main) //NB: run for all sub-histos... for simplicity
@@ -7025,30 +7077,32 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             hdata_tmp = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
             for(int ibin=1; ibin<nIndivBins+1; ibin++)
             {
-                inputfilename = "./outputs/dir_shapes_tmp/shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
-                if(template_name.Contains("SM")) {inputfilename = "./outputs/dir_shapes_tmp/shapes_"+fit_type+"_COMBINED_Datacard_TemplateFit_"+total_var_list[ivar]+"_Run2.root";} //Special case: for prefit NN-SM plots, consider full templates directly
+                int bin_to_read = 1; //Default (for split-per-bin postfit plots, always need to read bin1); but for prefit NN_SM templates, need to read current ibin (because we are reading full templates directly, not 1 bin at a time)
+                if(template_name.Contains("SM")) {bin_to_read=ibin;}
+
+                //NB: sum per-year histograms, but could as well read directly the total summed histo !
+                //-- Read bin content
+                //--------------------------------------------
+                inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                if(template_name.Contains("SM")) {inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_COMBINED_Datacard_TemplateFit_"+total_var_list[ivar]+"_Run2.root";} //Special case: for prefit NN-SM plots, consider full templates directly
                 if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                 file_input = TFile::Open(inputfilename, "READ");
                 // cout<<"inputfilename "<<inputfilename<<endl;
-
                 TString dir_hist = "bin" + Convert_Number_To_TString(ibin) + "_" + total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_"+fit_type+"/";
                 if(template_name.Contains("SM")) {dir_hist = total_var_list[ivar] + "_" + v_lumiYears[iyear] + "_"+fit_type+"/";}
-                // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
                 if(!file_input->GetDirectory(dir_hist) || !file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains(dataname) ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<dataname<<"' not found ! Skip...")<<endl; continue;}
+                // cout<<"dir_hist/dataname "<<dir_hist<<dataname<<endl;
+                float bincontent = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(bin_to_read);
+                float binerror = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(bin_to_read);
+                file_input->Close();
+                //--------------------------------------------
 
-                int bin_to_read = 1; //Default (for split-per-bin postfit plots, always need to read bin1); but for prefit NN_SM templates, need to read current ibin (because we are reading full templates directly, not 1 bin at a time)
-                if(template_name.Contains("SM")) {bin_to_read=ibin;}
-                float bin_content = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinContent(bin_to_read);
-                float bin_error = ((TH1F*) file_input->Get(dir_hist+dataname))->GetBinError(bin_to_read);
-
-                if(isnan(bin_content)) {cout<<FRED("ERROR: NaN data (dir_hist="<<dir_hist<<") !")<<endl; continue;} //Can happen when input data is 0 (?)
-                hdata_tmp->SetBinContent(ibin, bin_content); //Get content/error from individual bin
-                hdata_tmp->SetBinError(ibin, bin_error);
+                if(isnan(bincontent)) {cout<<FRED("ERROR: NaN data (dir_hist="<<dir_hist<<") !")<<endl; continue;} //Can happen when input data is 0 (?)
+                hdata_tmp->SetBinContent(ibin, bincontent); //Get content/error from individual bin
+                hdata_tmp->SetBinError(ibin, binerror);
 
                 // cout<<"dir_hist "<<dir_hist<<endl;
                 // cout<<"hdata_tmp->GetBinContent(ibin) "<<hdata_tmp->GetBinContent(ibin)<<endl;
-
-                file_input->Close();
             } //nbins
 
             if(v_hdata[ivar] == NULL) {v_hdata[ivar] = (TH1F*) hdata_tmp->Clone();}
@@ -7191,7 +7245,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             v2_histo_ratio_eft_totalProcs_smeft[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
             for(int ibin=1; ibin<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1; ibin++)
             {
-                inputfilename = "./outputs/dir_shapes_tmp/shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+                inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
                 if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
                 file_input = TFile::Open(inputfilename, "READ");
                 TString dir_hist = fit_type+"/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
@@ -7404,7 +7458,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         if(template_name.Contains("SM")) //SM vs SM --> Display title in this panel
         {
             //-- SET X_AXIS TITLES
-            v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true));
+            v_histo_ratio_data[ivar]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true, this->use_NN_cpq3_SRttZ));
             v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.05);
             v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.30);
             v_histo_ratio_data[ivar]->GetYaxis()->SetLabelSize(0.05);
@@ -7594,7 +7648,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
             // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
 
             //-- SET X_AXIS TITLES
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true));
+            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true, this->use_NN_cpq3_SRttZ));
 
             //-- Arbitrary bin names
             // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetMoreLogLabels();
@@ -8491,7 +8545,7 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
         v_histo_ratio_data[ivar]->GetYaxis()->SetNdivisions(303); //grid draw on primary tick marks only
         v_histo_ratio_data[ivar]->GetXaxis()->SetNdivisions(505); //'-' to force Ndivisions //NB: based on previous CMS publications, it does not matter whether ticks are placed at bin boundaries
         v_histo_ratio_data[ivar]->GetYaxis()->SetTitleSize(0.05);
-        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.35);
+        v_histo_ratio_data[ivar]->GetYaxis()->SetTitleOffset(1.40); //1.35
         v_histo_ratio_data[ivar]->GetXaxis()->SetTickLength(0.04);
         v_histo_ratio_data[ivar]->GetYaxis()->SetTickLength(0.15);
     	v_histo_ratio_data[ivar]->SetMarkerStyle(20);
@@ -8637,7 +8691,7 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
     	// v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same"); //Removed extra lines
 
         TString Y_label = "Events / bin";
-        Y_label = "Events / " + Convert_Number_To_TString( (xmax_tmp - xmin_tmp) / nIndivBins, 2); //Automatically get the Y label depending on binning
+        Y_label = "Events / " + Convert_Number_To_TString( (xmax_tmp - xmin_tmp) / nIndivBins, 3); //Automatically get the Y label depending on binning
         Y_label+= Get_Unit_Variable(total_var_list[ivar]);
         if(total_var_list[ivar] == "nbjets") {Y_label = "Events / 1 unit";}
 
@@ -8649,7 +8703,7 @@ void TopEFT_analysis::Make_PaperPlot_ControlPlots()
             v_stack[ivar]->GetYaxis()->SetTickLength(0.04);
     		v_stack[ivar]->GetYaxis()->SetLabelSize(0.048);
     		v_stack[ivar]->GetYaxis()->SetNdivisions(506);
-            v_stack[ivar]->GetYaxis()->SetTitleOffset(1.30); //1.15
+            v_stack[ivar]->GetYaxis()->SetTitleOffset(1.40); //1.30
     		v_stack[ivar]->GetYaxis()->SetTitle(Y_label);
             v_stack[ivar]->GetXaxis()->SetLabelSize(0.);
             v_stack[ivar]->GetXaxis()->SetTickLength(0.);

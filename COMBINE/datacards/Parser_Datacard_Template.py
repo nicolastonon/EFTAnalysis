@@ -9,7 +9,7 @@ import os
 
 # //--------------------------------------------
 total = len(sys.argv)
-cmdargs = str(sys.argv)
+#cmdargs = str(sys.argv)
 
 theVar = str(sys.argv[1])
 channel = str(sys.argv[2])
@@ -117,6 +117,9 @@ isSRtZq = '#'; isWZextrap = '#' #Disactive corresponding systematics by default 
 if 'SRtZq' in theVar: isSRtZq = ''
 if 'SR' in theVar: isWZextrap = '' #Apply WZ extrapolation uncertainties in all SR, since they have b jet requirements not present in the WZ CR
 
+theorygroup = ''
+if 'CR' in theVar: theorygroup = '#' #'theory' systematics only apply to signals; but signals' nom/variation are ignored in CRs -> can't define theory nuisance group in CRs
+
 #-- Obsolete, to remove
 # isCRWZ = '#'; isCRZZ = '#'; isCRDY = '#'
 # if 'CRWZ' in theVar: isCRWZ = ''
@@ -161,6 +164,8 @@ file = file.replace("[PrivMC_CR]", PrivMC_CR)
 #For region-specific uncertainties (e.g. CR extrapolation uncertainties)
 file = file.replace("[SRtZq]", isSRtZq)
 file = file.replace("[WZext]", isWZextrap)
+
+file = file.replace("[THEORY]", theorygroup)
 
 #Testing: make some nuisance unique in each bin
 # if 'SRttZ' in theVar:

@@ -28,16 +28,16 @@ hist_file_otherRegion_arg = '../templates/Templates_otherRegions_Run2.root' if l
 fits = {} #Dict that will hold the parameterizations of the cross-sections
 # //--------------------------------------------
 
-for iter in [1,2,3]: #-- Also need to dump content of 'otherRegions' rootfile ! Because it contains SRttZ4l #Trick: loop over code twice, once for selected rootfile, second time for otherRegions file !
+for iter in [1,2]: #-- Also need to dump content of 'otherRegions' rootfile ! Because it contains SRttZ4l #Trick: loop over code twice, once for selected rootfile, second time for otherRegions file !
 
     hist_file = hist_file_arg #Main iteration for SR histo file
 
     if iter==2: hist_file = hist_file_otherRegion_arg #Filepath to 'otherRegions' file
-    #FIXME -- obsolete when will reproduce cpq3 file
+
+    #-- Can hardcode the use of a specific disribution (e.g. for cpq3 SRttZ) here (NB: what gets read depends on the card's contents)
     elif iter==3: #Trick: even if reading NN_cpq3 file (for SRtZq), want to read different distribution for SRttZ --> Also dump corresponding parameterizations
     	if 'cpq3' not in hist_file_arg: continue
-    	hist_file = '../templates/Templates_NN_SM_EFT2_Run2.root' #Hardcoded filepath for 'NN_SM' file
-        # hist_file = '../templates/Templates_Zpt_EFT2_Run2.root' #Hardcoded filepath for 'Zpt' file
+    	hist_file = '../templates/Templates_NN_5D_EFT2_Run2.root' #Hardcoded filepath
 
     if not os.path.exists(hist_file):
         print(colors.bg.red + "File {} does not exist!".format(hist_file) + colors.reset)
@@ -71,7 +71,7 @@ for iter in [1,2,3]: #-- Also need to dump content of 'otherRegions' rootfile ! 
         if(len(histname)==2): [full_bin_name,process] = histname
         #process = process.replace('tllq','tZq')
 
-        #Skip systematic histograms (only use nominal histograms for parametrization) #FIXME -- should consider dedicated EFT param. for JetMET variations ?
+        #Skip systematic histograms (only use nominal histograms for parametrization)
         if systematic != '': continue
 
         # if verbose:

@@ -40,7 +40,6 @@ opts = {
 "wcs_pairs": ['ctz','ctw'], #Default pair of operators for 2D plots
 
 #-- List of SM processes
-#"processes": ['tZq'],
 "processes": ['PrivMC_tZq'],
 #"processes": ['PrivMC_tZq','PrivMC_ttZ','PrivMC_tWZ'], #Names of signal processes
 #"processes": ['tZq','ttZ','tWZ'], #SM signal processes

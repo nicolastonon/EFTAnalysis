@@ -275,6 +275,21 @@ def Make_Impact_Plots(POIs, workspace, freeze=True, verbosity=0, other='', exp=F
             log_subprocess_output(process.stderr,'err')
         process.wait()
 
+    #-- Create the impact plot png file (only first page -- for easier inclusion in powerpoints, etc.)
+    outfilename_tmp = 'impacts_'+name
+    for poi in POIs:
+        outfilename = outfilename_tmp
+        if outfilename=='impacts' or len(POIs)>1: outfilename+= '_'+str(poi)
+        outfilename+= '.png'
+        args = ['plotImpacts.py','-i',json_filename,'--POI','%s' % (poi),'-o',outfilename,'--per-page','10','--max-pages','1','--translate','../Plotting/rename.json','--cms-label','Internal']
+
+        logging.info(colors.fg.purple + " ".join(args) + colors.reset)
+        process = sp.Popen(args, stdout=sp.PIPE, stderr=sp.PIPE)
+        with process.stdout,process.stderr:
+            log_subprocess_output(process.stdout,'info')
+            log_subprocess_output(process.stderr,'err')
+        process.wait()
+
     return
 
 

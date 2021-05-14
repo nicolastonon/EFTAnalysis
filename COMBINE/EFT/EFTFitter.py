@@ -342,8 +342,10 @@ class EFTFit(object):
             args.extend(['--saveNLL']) #Store absolute NLL values (needed to stich multiple scans with different bestfits together, etc.)
             if len(freezenuisancegroups)>0: args.extend(['--freezeNuisanceGroups',','.join('{}'.format(group) for group in freezenuisancegroups)]) #Freeze groups of nuisances (as defined in datacard)
 
+	    #points_per_job = 50 #Default
+	    points_per_job = 40 #Avoid having few jobs held due to "excess memory"
             if batch=='crab': args.extend(['--job-mode','crab3','--task-name',name.replace('.',''),'--custom-crab','Utils/custom_crab.py','--split-points','50'])
-            if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50']) #Run jobs directly
+            if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points',str(points_per_job)]) #Run jobs directly
             #if batch=='condor': args.extend(['--job-mode','condor','--task-name',name.replace('.',''),'--split-points','50','--dry-run']) #Use dry-run to create script, give it permission, and submit it below #Obsolete
 
             if debug: print('args --> ', args)
@@ -462,7 +464,7 @@ class EFTFit(object):
         # Now make a new .root file with the new TTree
         # Only the WC and deltaNLL will be branches
         # These can be directly used by EFTPlotter
-        outname = './higgsCombine{}.{}reduced.MultiDimFit.root'.format(name,param)
+        outname = './higgsCombine{}.{}reduced.MultiDimFit.mH120.root'.format(name,param)
         outFile = []
         outFile = ROOT.TFile.Open(outname, 'RECREATE')
         outTree = ROOT.TTree('limit','limit')
@@ -1225,6 +1227,7 @@ class EFTFit(object):
 # //--------------------------------------------
 if __name__ == "__main__":
 
+#FIXME -- add option to freeze groups at runtime
 # User options -- Default values
 # //--------------------------------------------
     SM = False #True <-> consider SM scenario (rather than SMEFT)
@@ -1372,18 +1375,20 @@ if __name__ == "__main__":
         if not fixedPointNLL and mode in ['','grid','scan']:
             if scan_dim=='1D':
                 param_tmp = POI if len(POI) == 1 else [opts['wc']]
-                points = points if points != -1 else 50
+                if points == -1: #Default
+                    if POI == ['cpt']: points = 100 #Need more points for smooth cpt scan
+                    else: points = 50
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
 
             elif scan_dim=='2D':
                 param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']]
-                points = points if points != -1 else 100*100 #10K points looks fine (40K probably finest); 2500 pts <-> fast but not fine enough
+                points = points if points != -1 else 200*200 #40K very fine #10K points fine #2500 pts <-> fast but not fine enough
                 fitter.gridScan(datacard=datacard_path, SM=SM, name=name, scan_params=param_tmp, exp=exp, points=points, verbosity=verb, freeze=freeze, batch=batch, other=[dryrun,], collect=only_collect_outputs, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
 
         #-- Reduce n-D scan to (n-1)-D scan
         elif mode == 'reduce':
             param_tmp = POI if len(POI) == 2 else [opts['wcs_pairs']] #Convention: the first POI is the one we care about
-            fitter.reductionFitEFT(name='.test', from_wcs=param_tmp, filepath=filepath)
+            fitter.reductionFitEFT(name=name, from_wcs=param_tmp, filepath=filepath) #Can then plot the output scan file (example: python EFTPlotter.py -P cpqm -n .cpqmcptObs.cpqmreduced)
 
         elif mode == 'syststat' or mode == 'statsyst':
             param_tmp = POI if len(POI) == 1 else [opts['wc']]

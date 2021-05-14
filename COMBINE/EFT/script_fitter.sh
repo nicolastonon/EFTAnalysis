@@ -59,11 +59,11 @@
 # //--------------------------------------------
 # 2D SCANS (obs. only)
 
-#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --batch
-#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P cpqm cpt -m scan -n cpqmcptObs  --batch
+#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --batch #FIXME need to freeze jes group ?
+#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P cpqm cpt -m scan -n cpqmcptObs --batch
 
 #python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --collect
-#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P cpqm cpt -m scan -n cpqmcptObs  --collect
+#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P cpqm cpt -m scan -n cpqmcptObs --collect
 
 # //--------------------------------------------
 # STAT/SYST SCAN+PLOT
@@ -80,4 +80,21 @@
 #python EFTFitter.py -d ./EFTWorkspace_SM.root --freeze -P cpqm -m statsyst -n cpqmObs -points 40
 #python EFTFitter.py -d ./EFTWorkspace_SM.root --freeze -P cpt -m statsyst -n cptObs -points 40
 
+# //--------------------------------------------
+# Comparison with Zpt results
+
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze --exp -P ctz -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze --exp -P ctw -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze --exp -P cpq3 -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze --exp -P cpqm -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze --exp -P cpt -m bestfit
+
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze -P ctz -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze -P ctw -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze -P cpq3 -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze -P cpqm -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --freeze -P cpt -m bestfit
+
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root --exp -P ctz ctw cpq3 cpqm cpt -m bestfit
+#python EFTFitter.py -d ./EFTWorkspace_Zpt.root -P ctz ctw cpq3 cpqm cpt -m bestfit
 # //--------------------------------------------

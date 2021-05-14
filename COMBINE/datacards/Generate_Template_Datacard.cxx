@@ -102,7 +102,7 @@ bool Is_Syst_Match_Sample(TString syst, TString sample, bool use_rph)
     else if(syst.Contains("CRZZ", TString::kIgnoreCase) && !sample.Contains("VVV") && !sample.Contains("ZZ")) {return false;}
     else if(syst.Contains("CRDY", TString::kIgnoreCase) && sample != "WZ" && !sample.Contains("VVV") && !sample.Contains("ZZ") && !sample.Contains("XG") && !sample.Contains("NPL") && !sample.Contains("DY") && !sample.Contains("TTbar")) {return false;}
 
-    else if((syst == "PDF" || syst == "alphas" || syst.BeginsWith("ME") || syst.BeginsWith("ISR") || syst.BeginsWith("FSR")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ") {return false;} //For signal samples only
+    else if((syst == "PDF" || syst == "alphas" || (syst.BeginsWith("ME") && !syst.BeginsWith("MET")) || syst.BeginsWith("ISR") || syst.BeginsWith("FSR")) && !sample.Contains("PrivMC") && sample != "tZq" && sample != "ttZ") {return false;} //For signal samples only
 
     //else if((syst=="JES" || syst.Contains("JER") || syst.Contains("MET")) && !sample.Contains("PrivMC")) {return false;}
 
@@ -591,6 +591,7 @@ void Generate_Datacard(vector<TString> v_samples, vector<int> v_isSignal, vector
             {
                 if(v_normSyst_group[isyst] == v_nuis_groups[igroup]) {ts_freeze+= " " + v_normSyst[isyst];}
             }
+            if(v_nuis_groups[igroup] == "theory") {outfile<<"[THEORY]";}
             outfile<<v_nuis_groups[igroup]<<" group = "<<ts_freeze<<endl;
         }
     }
@@ -817,7 +818,7 @@ int main()
     v_shapeSyst.push_back("MET"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("met");
 
     //-- JEC //Default: single source uncorrelated between years
-    bool use_split_JEC = false;
+    bool use_split_JEC = true;
     if(!use_split_JEC) //Total JEC
     {
         v_shapeSyst.push_back("JES"); v_shapeSyst_isCorrelYears.push_back(false); v_shapeSyst_group.push_back("jes");
@@ -882,6 +883,8 @@ int main()
     v_nuis_groups.push_back("fr");
     v_nuis_groups.push_back("lep_eff");
     v_nuis_groups.push_back("theory");
+
+    if(signal != "eft") {v_nuis_groups.resize(0);} //Special case: don't need this
 
 
 //  ####    ##   #      #       ####

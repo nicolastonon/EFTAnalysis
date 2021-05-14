@@ -63,8 +63,12 @@ int CopyFile(TString origin_path, TString dest_path)
 //NB: alternatively, can simply use TString::Form(format,var). Ex: Form("%d", (int) a), Form("%f", (float) f), ...
 TString Convert_Number_To_TString(double number, int precision/*=3*/)
 {
+    //-- NB: setprecision rounding may not be correct, cf. https://stackoverflow.com/questions/10922366/does-setprecision-in-c-round-if-so-why-am-i-seeing-this
+    //==> Manual rounding
+    float nearest = roundf(number * pow(10,precision)) / pow(10,precision);
+
 	stringstream ss;
-	ss << std::setprecision(precision) << number;
+	ss << std::setprecision(precision) << nearest;
 	TString ts = ss.str();
 	return ts;
 }
@@ -1288,7 +1292,7 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
                 max_tmp = ((int) (minmax_bounds[1]*100)+5); max_tmp-= ((int) max_tmp%5); max_tmp/= 100.; if(max_tmp>1.) {max_tmp=1.;}
             }
 
-            //-- Hard-coded ranges (training-dependent !) //FIXME
+            //-- Hard-coded ranges (training-dependent !)
             nbins = 8;
 
             //Better than 10 bins
@@ -1298,8 +1302,7 @@ void Get_Template_Range(int& nbins, float& xmin, float& xmax, TString template_n
             else if(template_name.Contains("NN_ctw_SRtZq")) {nbins = 10; min_tmp = 0.35; max_tmp = 0.80;}
             else if(template_name.Contains("NN_ctw_SRttZ")) {nbins = 10; min_tmp = 0.45; max_tmp = 0.65;} //(if use 0.75 --> last 2 bins empty)
 
-            else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 8; min_tmp = 0.37; max_tmp = 0.77;}
-            //else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 5; min_tmp = 0.40; max_tmp = 0.80;} //V2 default
+            else if(template_name.Contains("NN_cpq3_SRtZq")) {nbins = 8; min_tmp = 0.37; max_tmp = 0.77;} //Paper v2 default: n=5, [0.4,0.8]
             else if(template_name.Contains("NN_cpq3_SRttZ")) {nbins = 6; min_tmp = 0.49; max_tmp = 0.54;}
 
             else if(template_name.Contains("NN_5D_SRtZq")) {nbins = 8; min_tmp = 0.30; max_tmp = 0.90;}
@@ -2105,7 +2108,7 @@ float Apply_nJets_SF(vector<vector<float>>& v_njets_SF_tZq, int njet_val, int iy
 
 //-- Hardcode template naming conventions for plot's X-axis
 //NB: 'paperStyle' <-> display NN bin number instead of score itself --> adapt X title //Default = false
-TString Get_Template_XaxisTitle(TString variable, bool paperStyle)
+TString Get_Template_XaxisTitle(TString variable, bool paperStyle, bool use_NN_cpq3_SRttZ)
 {
     TString title = variable;
 
@@ -2121,7 +2124,7 @@ TString Get_Template_XaxisTitle(TString variable, bool paperStyle)
     else if(variable.Contains("countExp")) {title = "Counting experiment";}
 
     //NN-SM/EFT conventions
-    if(variable.Contains("NN_SM") || variable.Contains("NN_cpq3_SRttZ"))
+    if(variable.Contains("NN_SM") || (!use_NN_cpq3_SRttZ && variable.Contains("NN_cpq3_SRttZ")))
     {
         title = "NN-SM output";
         // if(paperStyle) {title+= " bin";}

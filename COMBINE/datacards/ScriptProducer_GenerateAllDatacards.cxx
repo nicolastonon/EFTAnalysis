@@ -144,8 +144,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
     {
         for(int iregion=0; iregion<v_regions.size(); iregion++)
         {
-            if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "NN_SM";}
-            // if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "Zpt";}
+            if(v_templates[itemplate] == "NN_cpq3" && v_regions[iregion] == "SRttZ") {v_templates[iregion] = "NN_5D";}
         }
     }*/
 
@@ -320,6 +319,7 @@ void Script_Datacards_TemplateFit(char include_systematics, char include_statist
                     TString file_histos_pathFromHere = "./../templates/Templates_"+ v_templates[0] + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_"; //For use within this code
                     if(isOtherRegion) {file_histos_pathFromHere = "./../templates/Templates_otherRegions"+(selection != ""? "_"+selection:"")+"_";} //Read a different file for templates with 'fixed' observables (only change SR templates)
                     else if(v_templates[itemplate] == "NN_SM") {file_histos_pathFromHere = "./../templates/Templates_NN_SM" + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Trick: when reading NN_cpq3 file (for SRtZq), we need to read the NN_SM file for SRttZ (<-> NN_SM template) and SRother (<-> mTW template) !
+			        else if(v_templates[itemplate] == "NN_5D") {file_histos_pathFromHere = "./../templates/Templates_NN_5D" + (filename_template_suffix != ""? "_"+filename_template_suffix:"") + (selection != ""? "_"+selection:"") + "_";} //Idem for NN_5D
                     TString file_histos_pathFromHere_Run2 = file_histos_pathFromHere + "Run2.root"; //In case year-dependent file is not found, will look for Run2 file by default
                     file_histos_pathFromHere+= lumiName+".root";
                     if(hardcoded_spectator_variables) {file_histos_pathFromHere = "./../templates/ControlPlotsPaper.root"; file_histos_pathFromHere_Run2 = file_histos_pathFromHere;} //Hardcoded filename (for control plots)
@@ -868,7 +868,6 @@ int main()
     bool use_rph = false; //true <-> will also produce datacards for using RooParametric
     TString path_tmp_workspace = "../../../EFT/WS.root"; //Hard-coded path to the temporary workspace potentially containing RooParametricHists, etc. //Must be provided to card parser so that the WS contents get read
 
-    //FIXME
     bool hardcoded_spectator_variables = false; //true <-> some params are hardcoded to create cards for spectator variables (to make prefit/postfit plots with total uncertainties)
 
     TString scriptname = "makeDatacardsForTemplateFit.sh"; //Name of output script to create and run
