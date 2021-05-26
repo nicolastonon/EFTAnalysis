@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-    bool use_paperStyle = true; //true <-> Add 'preliminary' label on plots
+    bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
 
 
 //-----------------------------------------------------------------------------------------
@@ -423,9 +423,11 @@ int main(int argc, char **argv)
 
 //-----------------    PAPER PLOTS
 
-    bool make_paperPlot_commonRegions = true;
-    bool make_paperPlot_signalRegions = true;
-    bool make_paperPlot_controlPlots = true;
+    bool make_paperPlot_commonRegions = false;
+    bool make_paperPlot_signalRegions = false;
+    bool make_paperPlot_controlPlots = false;
+
+    bool make_animation = true;
 
 //-----------------    OTHER
 
@@ -562,6 +564,39 @@ int main(int argc, char **argv)
     //#############################################
     //  OTHER FUNCTIONS
     //#############################################
+
+    if(make_animation)
+    {
+        TString outdir = "./plots/animations/";
+        TString cmd = "rm " + outdir + "*png";
+        system(cmd.Data());
+
+        vector<TString> v_eftpoints;
+        for(float ipt=0; ipt<4; ipt+=0.5)
+        {
+            TString pt = "rwgt_ctz_" + Convert_Number_To_TString(ipt);
+            v_eftpoints.push_back(pt);
+        }
+        // v_eftpoints.push_back("rwgt_ctz_0");
+        // v_eftpoints.push_back("rwgt_ctz_1");
+        // v_eftpoints.push_back("rwgt_ctz_2");
+        // v_eftpoints.push_back("rwgt_ctz_3");
+        // v_eftpoints.push_back("rwgt_ctz_4");
+
+        for(int ipt=0; ipt<v_eftpoints.size(); ipt++)
+        {
+            theAnalysis->Make_Animation_PhysicsBriefing(v_eftpoints[ipt]);
+        }
+
+        cmd = "convert -delay 100 -loop 0 "; //delay in 1/100th of seconds
+        for(int ipt=0; ipt<v_eftpoints.size(); ipt++)
+        {
+            cmd+= "./plots/animations/" + v_eftpoints[ipt] + ".png ";
+        }
+        cmd+= outdir + "test.gif";
+        cout<<"cmd = "<<cmd<<endl;
+        system(cmd.Data());
+    }
 
     if(compare_template_shapes) {theAnalysis->Compare_TemplateShapes_Processes(template_name, plotChannel);}
 

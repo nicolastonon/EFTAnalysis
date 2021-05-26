@@ -92,6 +92,8 @@ class TopEFT_analysis
     void Make_PaperPlot_SignalRegions(TString);
     void Make_PaperPlot_ControlPlots();
 
+    void Make_Animation_PhysicsBriefing(TString);
+
     void Dump_Scores_allNNs();
 
 //--- MEMBERS
