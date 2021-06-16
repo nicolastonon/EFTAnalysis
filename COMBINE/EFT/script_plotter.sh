@@ -1,20 +1,20 @@
 # //--------------------------------------------
 # SCANS 1D OBS
 
-python EFTPlotter.py -P ctz -n ctzObs -m 1D
-python EFTPlotter.py -P ctz -n ctzObs -m 1D --paper
+#python EFTPlotter.py -P ctz -n ctzObs -m 1D
+#python EFTPlotter.py -P ctz -n ctzObs -m 1D --paper
 
-python EFTPlotter.py -P ctw -n ctwObs -m 1D
-python EFTPlotter.py -P ctw -n ctwObs -m 1D --paper
+#python EFTPlotter.py -P ctw -n ctwObs -m 1D
+#python EFTPlotter.py -P ctw -n ctwObs -m 1D --paper
 
-python EFTPlotter.py -P cpq3 -n cpq3Obs -m 1D
-python EFTPlotter.py -P cpq3 -n cpq3Obs -m 1D --paper
+#python EFTPlotter.py -P cpq3 -n cpq3Obs -m 1D
+#python EFTPlotter.py -P cpq3 -n cpq3Obs -m 1D --paper
 
-python EFTPlotter.py -P cpqm -n cpqmObs -m 1D
-python EFTPlotter.py -P cpqm -n cpqmObs -m 1D --paper
+#python EFTPlotter.py -P cpqm -n cpqmObs -m 1D
+#python EFTPlotter.py -P cpqm -n cpqmObs -m 1D --paper
 
-python EFTPlotter.py -P cpt -n cptObs -m 1D
-python EFTPlotter.py -P cpt -n cptObs -m 1D --paper
+#python EFTPlotter.py -P cpt -n cptObs -m 1D
+#python EFTPlotter.py -P cpt -n cptObs -m 1D --paper
 
 # //--------------------------------------------
 # SCANS 1D EXP

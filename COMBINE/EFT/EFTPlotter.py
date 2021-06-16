@@ -21,7 +21,7 @@
 
 
 import ROOT
-from ROOT import TCanvas, TGraph, gStyle, TMath
+from ROOT import TCanvas, TGraph, gStyle, TMath, TColor
 import logging
 import os
 import sys 
@@ -38,6 +38,7 @@ from functools import partial
 from settings import opts #Custom dictionnary of settings
 import CombineHarvester.CombineTools.plotting as plot #Combine plotting utils
 import ctypes
+from array import array
 
 
  #    # ###### #      #####  ###### #####
@@ -243,6 +244,24 @@ def Eval(obj, x, params):
 
 def Load_Canvas_Style():
 
+    #-- Trick to get smoother color palette on z-axis (rather than coarse steps)
+    NRGBs = 6 #5
+    NCont = 255
+    #stops = [ 0.00, 0.34, 0.61, 0.84, 1.00 ]
+    #red   = [ 0.00, 0.00, 0.87, 1.00, 0.51 ]
+    #green = [ 0.00, 0.81, 1.00, 0.20, 0.00 ]
+    #blue  = [ 0.51, 1.00, 0.12, 0.00, 0.00 ]
+    stops = [ 0.00, 0.02, 0.34, 0.51, 0.64, 1.00 ]
+    red = [ 1.00, 0.00, 0.00, 0.87, 1.00, 0.51 ]
+    green = [ 1.00, 0.00, 0.81, 1.00, 0.20, 0.00 ]
+    blue = [ 1.00, 0.51, 1.00, 0.12, 0.00, 0.00 ]
+    stopsArray = array('d', stops)
+    redArray = array('d', red)
+    greenArray = array('d', green)
+    blueArray = array('d', blue)
+    TColor.CreateGradientColorTable(NRGBs, stopsArray, redArray, greenArray, blueArray, NCont)
+    gStyle.SetNumberContours(NCont)
+
     gStyle.SetCanvasBorderMode(0)
     gStyle.SetCanvasColor(0)
     gStyle.SetCanvasDefH(600)
@@ -365,7 +384,7 @@ class EFTPlot(object):
 
         self.CMS_text = ROOT.TLatex(left, top, "CMS")
         if paperStyle: self.CMS_text = ROOT.TLatex(left+0.03, 0.85, "CMS")
-        elif mode == '2D': self.CMS_text = ROOT.TLatex(left, 0.86, "CMS")
+        elif mode == '2D': self.CMS_text = ROOT.TLatex(left+0.03, 0.85, "CMS")
         self.CMS_text.SetNDC()
         self.CMS_text.SetTextColor(ROOT.kBlack)
         self.CMS_text.SetTextFont(61)
@@ -373,15 +392,16 @@ class EFTPlot(object):
         self.CMS_text.SetTextSize(0.06)
 
         self.extraText = ROOT.TLatex(left+0.11, top, "Preliminary")
-        if mode == '2D' and not paperStyle: self.extraText = ROOT.TLatex(left+0.11, 0.86, "Preliminary")
+        if mode == '2D' and not paperStyle: self.extraText = ROOT.TLatex(left+0.14, 0.85, "Preliminary")
         self.extraText.SetNDC()
         self.extraText.SetTextFont(52)
         self.extraText.SetTextSize(0.05)
 
         self.lumiText = ROOT.TLatex(0.95, top, "138 fb^{-1} (13 TeV)") #Preliminary lumi was: 137 fb-1
         if mode == '2D': 
-            if paperStyle: self.lumiText = ROOT.TLatex(0.82, top, "138 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
-            else: self.lumiText = ROOT.TLatex(0.36, 0.93, "138 fb^{-1} (13 TeV)")    
+	    self.lumiText = ROOT.TLatex(0.82, top, "138 fb^{-1} (13 TeV)")
+            #if paperStyle: self.lumiText = ROOT.TLatex(0.82, top, "138 fb^{-1} (13 TeV)") #Need more space on right side for z-axis
+            #else: self.lumiText = ROOT.TLatex(0.36, 0.93, "138 fb^{-1} (13 TeV)")    
         self.lumiText.SetNDC()
         self.lumiText.SetTextFont(42)
         self.lumiText.SetTextAlign(31)
@@ -803,10 +823,10 @@ class EFTPlot(object):
             graph.SetLogz()
             outname+= '_log'
 
-        if paper: 
-            c.Print(outname+'_paper.eps') #Paper: need eps format
-            c.Print(outname+'_paper.png')
-        else: c.Print(outname+'.png')
+        if paper: outname+= '_paper'
+
+	c.Print(outname+'.png')
+	c.Print(outname+'.eps')
 
         return
 
@@ -958,12 +978,11 @@ class EFTPlot(object):
         latex.DrawLatex(0.96, 0.92, "41.5 fb^{-1} (13 TeV)");
 
         outname = 'scan1D_manual{}'.format(name.replace('.','_'))
-        if paper: 
-            c.Print(outname+'_paper.eps') #Paper: need eps format
-            c.Print(outname+'_paper.png')
-        else: c.Print(outname+'.png')
+        
+	if paper: outname+= '_paper'
 
-        c.Print(outname)
+	c.Print(outname+'.png')
+	c.Print(outname+'.eps')
 
         return
 
@@ -1023,7 +1042,7 @@ class EFTPlot(object):
 
         l = c.GetLeftMargin()
         c.SetRightMargin(0.17) #Override default margin
-        if paper==False: c.SetTopMargin(0.15) #Override default margin
+        #if paper==False: c.SetTopMargin(0.15) #Override default margin #Obsolete
 
         hname = 'scan2D'
         hname+= name.replace('.','_') if name not in ['','EFT','SM'] else params[0]+'_'+params[1]
@@ -1043,9 +1062,9 @@ class EFTPlot(object):
         xmax = limitTree.GetMaximum(xvar)
         ymin = limitTree.GetMinimum(yvar)
         ymax = limitTree.GetMaximum(yvar)
-        if paper: #For paper style (legend within frame), need more space on top #Hardcoded
-            if params[0] == 'ctz' and params[1] == 'ctw': ymax+= 1. 
-            elif params[0] == 'cpqm' and params[1] == 'cpt': ymax+= 10. 
+        #if paper: #For paper style (legend within frame), need more space on top #Hardcoded
+	if params[0] == 'ctz' and params[1] == 'ctw': ymax+= 1. 
+	elif params[0] == 'cpqm' and params[1] == 'cpt': ymax+= 10. 
         #print('ymax', ymax)
         #xmin = -2; xmax = 2; ymin = -1.5; ymax = 1.5
         print('xmin={} / xmax={} / ymin={} / ymax={} / '.format(xmin,xmax,ymin,ymax))
@@ -1103,7 +1122,7 @@ class EFTPlot(object):
             histsForCont = hist.Clone() #Clone histo
             c_contlist = ((ctypes.c_double)*(len(valCont)))(*valCont) #Define contour thresholds ('levels')
             histsForCont.SetContour(len(c_contlist), c_contlist) #Set the contours
-            histsForCont.Draw("cont z list") #Get the contour in memory
+            histsForCont.Draw("cont z list same") #Get the contour in memory
             c.Update()
             conts = ROOT.gROOT.GetListOfSpecials().FindObject("contours") #Retrieve the object
             cont_p1 = conts.At(0).Clone()
@@ -1128,8 +1147,8 @@ class EFTPlot(object):
 
         #-- Marker for SM point
         marker_SM = ROOT.TMarker()
-        marker_SM.SetMarkerSize(3.)
-        marker_SM.SetMarkerStyle(34)
+        marker_SM.SetMarkerSize(4) #3
+        marker_SM.SetMarkerStyle(33) #34 #29
         marker_SM.SetMarkerColor(ROOT.kGray+1) #ROOT.kBlack
         marker_SM.DrawMarker(0,0) #SM=(0,0)
 
@@ -1165,7 +1184,8 @@ class EFTPlot(object):
 
         #-- Legend
         legend = ROOT.TLegend(0.60,0.86,0.83,0.99)
-        if paper: legend = ROOT.TLegend(0.55,0.75,0.85,0.90)
+        #if paper: legend = ROOT.TLegend(0.55,0.75,0.85,0.90)
+	legend = ROOT.TLegend(0.55,0.75,0.85,0.90)
         legend.AddEntry(h_cont68, "68% CL",'L')
         legend.AddEntry(h_cont95, "95% CL",'L')
         legend.AddEntry(marker_SM, "SM",'p')
@@ -1179,12 +1199,10 @@ class EFTPlot(object):
         #-- Save plot
         outname = hname
         #outname+= "_" + str(palette)
-        if paper: 
-            c.Print(outname+'_paper.eps') #Paper: need eps format
-            c.Print(outname+'_paper.png')
-        else: c.Print(outname+'.png')
+        if paper: outname+= '_paper'
 
-        c.Print(outname)
+        c.Print(outname+'.png')
+        c.Print(outname+'.eps')
 
         #-- Save to root file
         if not log:
@@ -1615,10 +1633,11 @@ class EFTPlot(object):
         c.SetGrid()
 
         outname = '{}_2Dcontour'.format(name.replace('.','_'))
-        if paper: 
-            c.Print(outname+'_paper.eps') #Paper: need eps format
-            c.Print(outname+'_paper.png')
-        else: c.Print(outname+'.png')
+
+        if paper: outname+= '_paper'
+
+	c.Print(outname+'.png')
+	c.Print(outname+'.eps')
 
         c.Print(outname)
 

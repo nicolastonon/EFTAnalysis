@@ -6846,7 +6846,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
     //-- Can also plot SM+EFT/SM ratio when considering total sum of MC, not only signal
     vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
     vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_smeft(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
-    vector<vector<vector<float>>> v3_EFTsig_binContents(nvar); //for each var and each EFT hypothesis, store 2 float per histo bin
+    vector<vector<vector<float>>> v3_EFTsig_binContents(nvar); //For each var and each histo bin, store 2 floats per histo bin <-> 2 EFT hypotheses
     for(int i=0; i<nvar; i++)
     {
         v2_histo_ratio_eft_totalProcs_sm[i].resize(2);
@@ -7150,10 +7150,12 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 
                 // cout<<"SM Integral = "<<th1eft_tmp->Integral()<<endl;
 
+                //-- Resize v3_EFTsig_binContents -> consider 2 EFT hypotheses
                 for(int j=0; j<v3_EFTsig_binContents[ivar].size(); j++)
                 {
                     if(v3_EFTsig_binContents[ivar][j].size()==0) {v3_EFTsig_binContents[ivar][j].resize(th1eft_tmp->GetNbinsX());}
                 }
+                //-- First: substract SM signal yield
                 for(int ibin=1; ibin<th1eft_tmp->GetNbinsX()+1; ibin++)
                 {
                     v3_EFTsig_binContents[ivar][0][ibin-1]-= th1eft_tmp->GetBinContent(ibin);
@@ -7189,6 +7191,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 else {v2_histo_ratio_eft[ivar][0]->Add((TH1F*) th1f_new->Clone());}
 
                 //-- EFT scenario 1
+                //... Second: add (SM+EFT) yield (--> amounts to EFT-only contribution)
                 for(int ibin=1; ibin<th1eft_tmp->GetNbinsX()+1; ibin++)
                 {
                     v3_EFTsig_binContents[ivar][0][ibin-1]+= th1eft_tmp->GetBinContent(ibin);
@@ -7220,7 +7223,7 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
                 if(v2_histo_ratio_eft[ivar][1] == NULL) {v2_histo_ratio_eft[ivar][1] = (TH1F*) th1f_new->Clone();}
                 else {v2_histo_ratio_eft[ivar][1]->Add((TH1F*) th1f_new->Clone());}
 
-                //-- EFT scenario 2
+                //-- EFT scenario 2 (see comment for scenario 1)
                 for(int ibin=1; ibin<th1eft_tmp->GetNbinsX()+1; ibin++)
                 {
                     v3_EFTsig_binContents[ivar][1][ibin-1]+= th1eft_tmp->GetBinContent(ibin);
@@ -7240,7 +7243,9 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
 
         if(!template_name.Contains("SM"))
         {
-            //-- Sum MC - (signal_SM) + (signal_SMEFT)
+            //-- Sum MC - (signal_SM_prefit) + (signal_SMEFT_prefit) //For ratio panel
+            //... Third: add relevant bin content to sum of all MC --> In this way we have the best-fit total MC yield, to which we sum only the additional signal contribution due to EFT
+            //NB: should rather do (total_sum_best_fit - ttZ_best_fit + ttZ_prefit_smeft)... ? //But then need to sum manually the ttz_postfit for each year
             v2_histo_ratio_eft_totalProcs_sm[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
             v2_histo_ratio_eft_totalProcs_sm[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
             v2_histo_ratio_eft_totalProcs_smeft[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
@@ -7488,6 +7493,8 @@ void TopEFT_analysis::Make_PaperPlot_SignalRegions(TString template_name)
         //-- Trick: fill 2 histos with points either above/below y-range, to plot some markers indicating missing points (cleaner)
         //NB: only for ratio plot, not pulls
         float ratiopadmin = 0.4, ratiopadmax = 1.6; //Define ymin/ymax for ratio plot
+        if(!total_var_list[ivar].Contains("SM")) {ratiopadmin = 0.3, ratiopadmax = 1.8;} //CHANGED
+
         TH1F* h_pointsAboveY = (TH1F*) v_histo_ratio_data[ivar]->Clone();
         h_pointsAboveY->SetMarkerStyle(26); //Open triangle pointing up
         h_pointsAboveY->SetMarkerSize(1.5);
@@ -9049,6 +9056,12 @@ void TopEFT_analysis::Dump_Scores_allNNs()
 void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
 {
 //--------------------------------------------
+    bool ratio_signal_only = true; //true <-> only show the yield increase for ttZ (else, for MC sum)
+    int color_fill_signal = kAzure-9;
+    int linestyle_signal = 7; //2
+    int linewidth_signal = 5; //4
+
+//--------------------------------------------
 
     cout<<endl<<BYEL("                          ")<<endl<<endl;
 	cout<<FYEL("--- Producing animation for physics briefing")<<endl;
@@ -9076,7 +9089,8 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
     //-- Canvas definition
     Load_Canvas_Style(); //Default top/bottom/left/right margins: 0.07/0.13/0.16/0.03
     TCanvas* c1 = NULL;
-    c1 = new TCanvas("c1","c1", 700, 1000);
+    // c1 = new TCanvas("c1","c1", 700, 1000);
+    c1 = new TCanvas("c1","c1", 800, 800);
 
 
     //--------------------------
@@ -9099,6 +9113,9 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
     vector<vector<TH1F*>> v2_histo_ratio_eft(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
     for(int i=0; i<v2_histo_ratio_eft.size(); i++) {v2_histo_ratio_eft[i].resize(2);}
     vector<TH1F*> v_histo_ratio_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store SM point
+
+    vector<TH1F*> v2_th1eft(nvar);
+    vector<TH1F*> v2_th1eft_fill(nvar); //Duplicate, just to have a fill color
 
     //-- Can also plot SM+EFT/SM ratio when considering total sum of MC, not only signal
     vector<vector<TH1F*>> v2_histo_ratio_eft_totalProcs_sm(nvar); //1 vector per variable; 1 vector element per scenario //Store EFT points
@@ -9150,15 +9167,11 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
         cout<<endl<<FBLU("== VARIABLE: "<<total_var_list[ivar]<<"")<<endl;
 
         TString inputfilename = "";
-        float rightmargin = -1; //Default (use default right margin)
 
-        if(rightmargin>0) {c1->SetRightMargin(rightmargin);}
-        float top_panel_size = 0.6;
-        if(template_name.Contains("SM")) {c1->SetBottomMargin(0.30);}
-        else {c1->SetBottomMargin(1-top_panel_size);}
+        float top_panel_size = 0.7;
+        c1->SetBottomMargin(1-top_panel_size);
 
-        bool isLogY = true; //Default
-        if(total_var_list[ivar].Contains("SM") || (total_var_list[ivar].Contains("cpq3") && total_var_list[ivar].Contains("ttZ") && !this->use_NN_cpq3_SRttZ)) {isLogY = false;}
+        bool isLogY = true;
         if(isLogY) {c1->SetLogy();}
 
         TFile* file_input = NULL;
@@ -9413,10 +9426,19 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
                 if(v2_histo_ratio_eft[ivar][0] == NULL) {v2_histo_ratio_eft[ivar][0] = (TH1F*) th1f_new->Clone();}
                 else {v2_histo_ratio_eft[ivar][0]->Add((TH1F*) th1f_new->Clone());}
 
+                if(!v2_th1eft[ivar]) //Initialize if needed
+                {
+                    v2_th1eft[ivar] = new TH1F("", "", th1eft_tmp->GetNbinsX(), th1eft_tmp->GetXaxis()->GetXmin(), th1eft_tmp->GetXaxis()->GetXmax());
+                    v2_th1eft_fill[ivar] = new TH1F("", "", th1eft_tmp->GetNbinsX(), th1eft_tmp->GetXaxis()->GetXmin(), th1eft_tmp->GetXaxis()->GetXmax());
+                }
+
                 //-- EFT scenario 1
                 for(int ibin=1; ibin<th1eft_tmp->GetNbinsX()+1; ibin++)
                 {
                     v3_EFTsig_binContents[ivar][0][ibin-1]+= th1eft_tmp->GetBinContent(ibin);
+
+                    v2_th1eft[ivar]->SetBinContent(ibin, v2_th1eft[ivar]->GetBinContent(ibin) + th1eft_tmp->GetBinContent(ibin)); //Increment bin content for each year
+                    v2_th1eft_fill[ivar]->SetBinContent(ibin, v2_th1eft_fill[ivar]->GetBinContent(ibin) + th1eft_tmp->GetBinContent(ibin)); //Increment bin content for each year
                 }
 
                 if(th1f_new) {delete th1f_new; th1f_new = NULL;}
@@ -9431,35 +9453,48 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
             if(std::isnan(v_hdata[ivar]->GetBinContent(ibin)) || std::isinf(v_hdata[ivar]->GetBinContent(ibin))) {cout<<FRED("ERROR: v_hdata["<<ivar<<"]->GetBinContent("<<ibin<<")="<<v_hdata[ivar]->GetBinContent(ibin)<<" ! May cause plotting bugs !")<<endl; v_hdata[ivar]->SetBinContent(ibin, 0.);}
         }
 
-        if(!template_name.Contains("SM"))
+        //-- Sum MC - (signal_SM) + (signal_SMEFT)
+        v2_histo_ratio_eft_totalProcs_sm[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+        // v2_histo_ratio_eft_totalProcs_sm[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+        v2_histo_ratio_eft_totalProcs_smeft[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+        // v2_histo_ratio_eft_totalProcs_smeft[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
+        for(int ibin=1; ibin<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1; ibin++)
         {
-            //-- Sum MC - (signal_SM) + (signal_SMEFT)
-            v2_histo_ratio_eft_totalProcs_sm[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
-            // v2_histo_ratio_eft_totalProcs_sm[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1] = new TH1F("", "", nIndivBins, xmin_tmp, xmax_tmp);
-            for(int ibin=1; ibin<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1; ibin++)
+            inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
+            if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
+            file_input = TFile::Open(inputfilename, "READ");
+            TString dir_hist = fit_type+"/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
+            if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
+            v2_histo_ratio_eft_totalProcs_sm[ivar][0]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)); //Get content/error from individual bin
+            // v2_histo_ratio_eft_totalProcs_sm[ivar][1]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)); //Get content/error from individual bin
+            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][0][ibin-1]); //Get content/error from individual bin
+            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][1][ibin-1]); //Get content/error from individual bin
+
+            if(!ratio_signal_only) //Total procs --> Modify the default histos
             {
-                inputfilename = path_dir_shapes_binContent + "shapes_"+fit_type+"_datacard_bin"+Convert_Number_To_TString(ibin)+"_"+total_var_list[ivar]+".root";
-                if(!Check_File_Existence(inputfilename)) {cout<<FRED("File "<<inputfilename<<" not found !")<<endl; continue;}
-                file_input = TFile::Open(inputfilename, "READ");
-                TString dir_hist = fit_type+"/"; //Reminder: read per-year histograms to get individual contributions from processes, *but* read total-sum histogram to get full postfit error
-                if(!file_input->GetDirectory(dir_hist)->GetListOfKeys()->Contains("TotalProcs") ) {cout<<FRED("Directory '"<<dir_hist<<"' or histogram '"<<dir_hist<<"TotalProcs' not found ! Skip...")<<endl; continue;}
-                v2_histo_ratio_eft_totalProcs_sm[ivar][0]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)); //Get content/error from individual bin
-                // v2_histo_ratio_eft_totalProcs_sm[ivar][1]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)); //Get content/error from individual bin
-                v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][0][ibin-1]); //Get content/error from individual bin
-                // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][1][ibin-1]); //Get content/error from individual bin
-                file_input->Close();
+                v2_th1eft[ivar]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][0][ibin-1]); //Get content/error from individual bin
+                v2_th1eft_fill[ivar]->SetBinContent(ibin, ((TH1F*) file_input->Get(dir_hist+"TotalProcs"))->GetBinContent(1)+v3_EFTsig_binContents[ivar][0][ibin-1]); //Get content/error from individual bin
+
+                v2_histo_ratio_eft[ivar][0]->SetBinContent(ibin, v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->GetBinContent(ibin));
             }
 
-            // for(int ibin=1; ibin<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1; ibin++)
-            // {
-            //     cout<<"ibin "<<ibin<<" / v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->GetBinContent(ibin) "<<v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->GetBinContent(ibin)<<endl;
-            //     cout<<"ibin "<<ibin<<" / v2_histo_ratio_eft_totalProcs_sm[ivar][0]->GetBinContent(ibin) "<<v2_histo_ratio_eft_totalProcs_sm[ivar][0]->GetBinContent(ibin)<<endl;
-            // }
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->Divide(v2_histo_ratio_eft_totalProcs_sm[ivar][0]);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->Divide(v2_histo_ratio_eft_totalProcs_sm[ivar][1]);
+            file_input->Close();
         }
+
+        v2_th1eft[ivar]->SetLineWidth(linewidth_signal);
+        if(ratio_signal_only) {v2_th1eft[ivar]->SetLineColor(color_list[3]);}
+        // v2_th1eft[ivar]->SetLineColor(kMagenta+2);
+        v2_th1eft[ivar]->SetLineStyle(linestyle_signal);
+
+        v2_th1eft_fill[ivar]->SetFillColor(color_fill_signal);
+        // v2_th1eft_fill[ivar]->SetFillColor(kGray);
+
+        if(!ratio_signal_only)
+        {
+            v2_histo_ratio_eft[ivar][0]->Divide(v2_histo_ratio_eft_totalProcs_sm[ivar][0]);
+        }
+
+        v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->Divide(v2_histo_ratio_eft_totalProcs_sm[ivar][0]);
 
 
 // ##### #    #  ####  #####   ##    ####  #    #
@@ -9472,8 +9507,16 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
     	//-- Add legend entries -- iterate backwards, so that last histo stacked is on top of legend
         v_stack[ivar] = new THStack;
 
+        //-- Trick: want to have the ttZ signal (hardcoded index) added first to the stack in this function
+        v_stack[ivar]->Add(v_vector_MC_histo[ivar][2]);
+        v_stack[ivar]->Add(v_vector_MC_histo[ivar][0]);
+        v_stack[ivar]->Add(v_vector_MC_histo[ivar][1]);
+
 		for(int i=v_vector_MC_histo[ivar].size()-1; i>=0; i--)
 		{
+            //-- Trick: want to have the signals (hardcoded index) added first to the stack in this function
+            if(i<=2) {continue;}
+
 			if(!v_vector_MC_histo[ivar][i]) {continue;} //Some templates may be null
 			v_stack[ivar]->Add(v_vector_MC_histo[ivar][i]);
 
@@ -9527,11 +9570,19 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
 // #####  #    # #    # #    #
 
         //Draw stack
-        v_stack[ivar]->Draw("hist");
+        v_stack[ivar]->Draw("hist"); //Draw first to get axes, etc.
+
+        v2_th1eft_fill[ivar]->Draw("hist same");
+
+        v_stack[ivar]->Draw("hist same"); //Trick: draw again on top, so that dashed lines are not shown below SM predictions, etc.
 
         v_hdata[ivar]->Draw("e0p same");
 
         v_gr_error[ivar]->Draw("e2 same"); //Superimposes the uncertainties on stack
+
+        v2_th1eft[ivar]->Draw("hist same");
+
+        // v_stack[ivar]->Draw("hist same"); //Trick: draw again on top, so that dashed lines are not shown below SM predictions, etc.
 
 
 // #   # #    #   ##   #    #
@@ -9542,8 +9593,8 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
 //   #   #    # #    # #    #
 
         //-- Set minimum
-        v_stack[ivar]->SetMinimum(1.5);
-        // v_stack[ivar]->SetMinimum(2.5);
+        // v_stack[ivar]->SetMinimum(1.5);
+        v_stack[ivar]->SetMinimum(2.);
 
         if(total_var_list[ivar].Contains("ctw_SRtZq")) {v_stack[ivar]->SetMinimum(1.);} //Very low prediction in last bin
 
@@ -9557,6 +9608,7 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
         c1->Modified();
 
 
+/*
 // #####    ##   ##### #  ####
 // #    #  #  #    #   # #    #
 // #    # #    #   #   # #    #
@@ -9767,6 +9819,7 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
         v_gr_ratio_error[ivar]->SetFillColor(kBlack); //kBlue+2 //kCyan
 
 		if(!show_pulls_ratio) {v_gr_ratio_error[ivar]->Draw("e2 same");} //Draw error bands in ratio plot
+*/
 
 
 // ###### ###### #####    #####    ##   ##### #  ####
@@ -9776,247 +9829,141 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
 // #      #        #      #   #  #    #   #   # #    #
 // ###### #        #      #    # #    #   #   #  ####
 
-        if(!template_name.Contains("SM")) //Add second bottom TPad for SMEFT/SM ratio (not for SM prefit plots)
+        //-- Create subpad to plot ratio
+        v_tpad_ratio_eft[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
+        v_tpad_ratio_eft[ivar]->SetTopMargin(top_panel_size);
+        v_tpad_ratio_eft[ivar]->SetFillColor(0);
+        v_tpad_ratio_eft[ivar]->SetFillStyle(0);
+        // v_tpad_ratio_eft[ivar]->SetGridy(1);
+        v_tpad_ratio_eft[ivar]->Draw();
+        v_tpad_ratio_eft[ivar]->cd(0);
+        // v_tpad_ratio_eft[ivar]->SetLogy();
+        v_tpad_ratio_eft[ivar]->SetBottomMargin(0.10); //Decrease from default 0.13
+
+        //-- Debug printouts
+        // cout<<"v2_histo_ratio_eft[ivar][0]->GetBinContent(1) "<<v2_histo_ratio_eft[ivar][0]->GetBinContent(1)<<endl;
+        // cout<<"v_histo_ratio_sm[ivar]->GetBinContent(1) "<<v_histo_ratio_sm[ivar]->GetBinContent(1)<<endl;
+
+        v2_histo_ratio_eft[ivar][0]->Divide(v_histo_ratio_sm[ivar]);
+        // v2_histo_ratio_eft[ivar][1]->Divide(v_histo_ratio_sm[ivar]);
+
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitle("#frac{SM+EFT}{SM}");
+
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleOffset(1.4);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.04);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelSize(0.07);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelFont(42);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelFont(42);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleFont(42);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleFont(42);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(505); //grid drawn on primary tick marks only
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(505);
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.05);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTickLength(0.01); //0.4
+        v2_histo_ratio_eft[ivar][0]->SetMarkerStyle(20);
+        v2_histo_ratio_eft[ivar][0]->SetMarkerSize(1.2); //changed from 1.4
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.05); //changed from 0.06
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->CenterTitle(true);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.045); //changed from 0.06 //NB: when using 0.05, got extra space before tbar in cpq3_SRttZ, for no reason...
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(-v2_histo_ratio_eft[ivar][0]->GetNbinsX()); //'-' to force Ndivisions
+
+        v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.1);
+        // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
+
+        //-- SET X_AXIS TITLES
+        TString xtitle = "Categorization of events by the neural network";
+        // TString xtitle = Get_Template_XaxisTitle(total_var_list[ivar], true, this->use_NN_cpq3_SRttZ);
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitle(xtitle);
+
+        //-- Arbitrary bin names
+        // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetMoreLogLabels();
+        v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelOffset(0.02); //Add some x-label offset
+        for(int i=1;i<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1;i++)
         {
-            //-- Create subpad to plot ratio
-            v_tpad_ratio_eft[ivar] = new TPad("pad_ratio", "pad_ratio", 0.0, 0.0, 1.0, 1.0);
-            v_tpad_ratio_eft[ivar]->SetTopMargin(1-middle_panel_size); //+0.02 to add space
-            v_tpad_ratio_eft[ivar]->SetFillColor(0);
-            v_tpad_ratio_eft[ivar]->SetFillStyle(0);
-            // v_tpad_ratio_eft[ivar]->SetGridy(1);
-            v_tpad_ratio_eft[ivar]->Draw();
-            v_tpad_ratio_eft[ivar]->cd(0);
-            // v_tpad_ratio_eft[ivar]->SetLogy();
-            if(rightmargin>0) {v_tpad_ratio_eft[ivar]->SetRightMargin(rightmargin);}
-            v_tpad_ratio_eft[ivar]->SetBottomMargin(0.10); //Decrease from default 0.13
-
-            //-- Debug printouts
-            // cout<<"v2_histo_ratio_eft[ivar][0]->GetBinContent(1) "<<v2_histo_ratio_eft[ivar][0]->GetBinContent(1)<<endl;
-            // cout<<"v_histo_ratio_sm[ivar]->GetBinContent(1) "<<v_histo_ratio_sm[ivar]->GetBinContent(1)<<endl;
-
-            v2_histo_ratio_eft[ivar][0]->Divide(v_histo_ratio_sm[ivar]);
-            // v2_histo_ratio_eft[ivar][1]->Divide(v_histo_ratio_sm[ivar]);
-
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitle("#frac{SM+EFT}{SM}");
-
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.);
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleOffset(1.9); //1.8
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.05);
-            if(total_var_list[ivar].Contains("cpq3_SRtZq")) {v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(1.04);}
-            if(total_var_list[ivar].Contains("ttZ")) {v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleOffset(0.95);} //Takes more space
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelSize(0.04);
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelSize(0.07);
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelFont(42);
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetLabelFont(42);
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleFont(42);
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleFont(42);
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(505); //grid drawn on primary tick marks only
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(505);
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTitleSize(0.04);
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTickLength(0.01); //0.4
-            v2_histo_ratio_eft[ivar][0]->SetMarkerStyle(20);
-            v2_histo_ratio_eft[ivar][0]->SetMarkerSize(1.2); //changed from 1.4
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.05); //changed from 0.06
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->CenterTitle(true);
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitleSize(0.045); //changed from 0.06 //NB: when using 0.05, got extra space before tbar in cpq3_SRttZ, for no reason...
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetNdivisions(-v2_histo_ratio_eft[ivar][0]->GetNbinsX()); //'-' to force Ndivisions
-
-            v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetTickLength(0.1);
-            // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetNdivisions(503); //grid drawn on primary tick marks only
-
-            //-- SET X_AXIS TITLES
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetTitle(Get_Template_XaxisTitle(total_var_list[ivar], true, this->use_NN_cpq3_SRttZ));
-
-            //-- Arbitrary bin names
-            // v2_histo_ratio_eft[ivar][0]->GetYaxis()->SetMoreLogLabels();
-            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetLabelOffset(0.02); //Add some x-label offset
-            for(int i=1;i<v2_histo_ratio_eft[ivar][0]->GetNbinsX()+1;i++)
-            {
-                // TString label = "Bin " + Convert_Number_To_TString(i);
-                TString label = Convert_Number_To_TString(i);
-                v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetBinLabel(i, label);
-                // v2_histo_ratio_eft[ivar][0]->LabelsOption("v", "X"); //X labels vertical
-            }
-
-            v2_histo_ratio_eft[ivar][0]->SetMinimum(0.8); //Default
-            // v2_histo_ratio_eft[ivar][0]->SetMinimum(1.);
-            // v2_histo_ratio_eft[ivar][0]->SetMinimum(1.01);
-            v2_histo_ratio_eft[ivar][0]->SetMaximum(9.99); //Default
-
-            if(total_var_list[ivar].Contains("ctz_SRttZ"))
-            {
-                // v2_histo_ratio_eft[ivar][0]->SetMinimum(1.);
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(12.99);
-            }
-            else if(total_var_list[ivar].Contains("ctz_SRtZq"))
-            {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(4.99);
-            }
-            else if(total_var_list[ivar].Contains("ctw_SRtZq"))
-            {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(6.69);
-                // v2_histo_ratio_eft[ivar][0]->SetMaximum(11.99);
-            }
-            else if(total_var_list[ivar].Contains("ctw_SRttZ"))
-            {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(2.49);
-                // v2_histo_ratio_eft[ivar][0]->SetMaximum(3.99);
-            }
-            else if(total_var_list[ivar].Contains("cpq3_SRtZq"))
-            {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(5.99);
-            }
-            else if(total_var_list[ivar].Contains("cpq3_SRttZ"))
-            {
-                if(!this->use_NN_cpq3_SRttZ) {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.069);}
-                else {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.129);}
-
-                // v2_histo_ratio_eft[ivar][0]->SetMaximum(1.139);
-                v2_histo_ratio_eft[ivar][0]->SetMinimum(1.);
-            }
-            else if(total_var_list[ivar].Contains("5D_SRttZ"))
-            {
-                // v2_histo_ratio_eft[ivar][0]->SetMaximum(1.99);
-                if(!this->use_NN_cpq3_SRttZ) {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.79);}
-                else {v2_histo_ratio_eft[ivar][0]->SetMaximum(1.99);}
-                v2_histo_ratio_eft[ivar][0]->SetMinimum(0.95);
-            }
-            else if(total_var_list[ivar].Contains("5D_SRtZq"))
-            {
-                v2_histo_ratio_eft[ivar][0]->SetMaximum(9.99);
-            }
-            else if(total_var_list[ivar].Contains("SM"))
-            {
-                if(total_var_list[ivar].Contains("SRtZq"))
-                {
-                    v2_histo_ratio_eft[ivar][0]->SetMaximum(1.19);
-                }
-                else
-                {
-                    v2_histo_ratio_eft[ivar][0]->SetMinimum(0.4);
-                    v2_histo_ratio_eft[ivar][0]->SetMaximum(1.69);
-                }
-            }
-
-            v2_histo_ratio_eft[ivar][0]->SetLineWidth(3.);
-            // v2_histo_ratio_eft[ivar][1]->SetLineWidth(3.);
-
-            // v2_histo_ratio_eft[ivar][0]->SetLineColor(kRed);
-            // v2_histo_ratio_eft[ivar][1]->SetLineColor(kBlue);
-            // v2_histo_ratio_eft[ivar][0]->SetLineColor(v_custom_colors[10]->GetNumber());
-            // v2_histo_ratio_eft[ivar][1]->SetLineColor(v_custom_colors[15]->GetNumber());
-            // v2_histo_ratio_eft[ivar][0]->SetLineColor(v_custom_colors[12]->GetNumber());
-            // v2_histo_ratio_eft[ivar][0]->SetLineColor(v_custom_colors[4]->GetNumber());
-            // v2_histo_ratio_eft[ivar][0]->SetLineColor(v_custom_colors[8]->GetNumber());
-            v2_histo_ratio_eft[ivar][0]->SetLineColor(kMagenta+2);
-
-            v2_histo_ratio_eft[ivar][0]->Draw("hist");
-
-            TString EFTpointlabel1, EFTpointlabel2;
-            vector<pair<TString,float>> v = Parse_EFTreweight_ID(EFTpoint_name1);
-            for(int i=0; i<v.size(); i++)
-            {
-                if(v[i].second != 0)
-                {
-                    if(EFTpointlabel1 != "") {EFTpointlabel1+= ",";}
-                    if(total_var_list[ivar].Contains("5D")) {EFTpointlabel1+= Convert_Number_To_TString(v[i].second);}
-                    else {EFTpointlabel1+= Convert_Number_To_TString(v[i].second);}
-                    // else {EFTpointlabel1+= Get_EFToperator_label((TString) v[i].first) + "=" + Convert_Number_To_TString(v[i].second);}
-                }
-            }
-
-            TString proc_tmp = "";
-            if(total_var_list[ivar].Contains("SRtZq")) {proc_tmp = "tZq";}
-            if(total_var_list[ivar].Contains("SRttZ")) {proc_tmp = "t#bar{t}Z";}
-            // if(total_var_list[ivar].Contains("5D")) {header+= "("+Get_EFToperator_label("ctz")+","+Get_EFToperator_label("ctw")+","+Get_EFToperator_label("cpq3")+")";}
-
-            if(total_var_list[ivar].Contains("5D")) //5D: more text = more space
-            {
-                if(total_var_list[ivar].Contains("SRttZ") && !this->use_NN_cpq3_SRttZ)
-                {
-                    v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.16,0.80,0.27); //Smaller x
-                }
-                else
-                {
-                    v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.16,0.86,0.27);
-                }
-                // v_tlegend_ratio_eft[ivar]->SetTextSize(0.03);
-
-                // TString header = "("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+", "+Get_EFToperator_label("cpq3")+")";
-                // if(total_var_list[ivar].Contains("ttZ")) {header = "("+Get_EFToperator_label("ctz")+", "+Get_EFToperator_label("ctw")+")";}
-
-                TString header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2}, "+Get_EFToperator_label("cpq3")+" /#Lambda^{2})";
-                if(total_var_list[ivar].Contains("ttZ") && !this->use_NN_cpq3_SRttZ) {header = "("+Get_EFToperator_label("ctz")+" /#Lambda^{2}, "+Get_EFToperator_label("ctw")+" /#Lambda^{2})";}
-                header+= " [TeV^{-2}]";
-
-                v_tlegend_ratio_eft[ivar]->SetHeader(header);
-                v_tlegend_ratio_eft[ivar]->SetNColumns(4);
-                v_tlegend_ratio_eft[ivar]->SetTextSize(0.04);
-                // v_tlegend_ratio_eft[ivar]->SetTextSize(0.035);
-            }
-            else //Default
-            {
-                v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.80,0.27);
-                // v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.65,0.26);
-                v_tlegend_ratio_eft[ivar]->SetTextSize(0.04);
-                // v_tlegend_ratio_eft[ivar]->SetNColumns(2);
-                v_tlegend_ratio_eft[ivar]->SetNColumns(4);
-
-                TString header = Get_EFToperator_label("ctz")+" /#Lambda^{2}";
-                if(total_var_list[ivar].Contains("ctw")) {header = Get_EFToperator_label("ctw")+" /#Lambda^{2}";}
-                else if(total_var_list[ivar].Contains("cpq3")) {header = Get_EFToperator_label("cpq3")+" /#Lambda^{2}";}
-                header+= " [TeV^{-2}]";
-                v_tlegend_ratio_eft[ivar]->SetHeader(header);
-            }
-            // v_tlegend_ratio_eft[ivar]->SetTextSize(0.035);
-            // v_tlegend_ratio_eft[ivar]->SetMargin(0.2); //x-axis fractional size of legend entry symbol //Default 0.25
-            v_tlegend_ratio_eft[ivar]->SetBorderSize(0);
-            v_tlegend_ratio_eft[ivar]->SetFillStyle(0); //transparent
-            v_tlegend_ratio_eft[ivar]->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
-
-            //-- Dummy histograms to add 'solid/dashed lines' in legend
-            v_tlegend_dummy[ivar][0] = new TH1F("", "", 1, 0, 1);
-            v_tlegend_dummy[ivar][1] = new TH1F("", "", 1, 0, 1);
-            v_tlegend_dummy[ivar][0]->SetFillColor(kBlack);
-            v_tlegend_dummy[ivar][1]->SetFillColor(kBlack);
-            v_tlegend_dummy[ivar][1]->SetLineStyle(2.);
-            v_tlegend_dummy[ivar][0]->SetLineWidth(2);
-            v_tlegend_dummy[ivar][1]->SetLineWidth(2);
-
-            v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][0], EFTpointlabel1, "L");
-            // v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][1], EFTpointlabel2, "L");
-            // v_tlegend_ratio_eft[ivar]->AddEntry((TObject*)0, "", "");
-
-            v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][0], proc_tmp, "L");
-            // v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][0], proc_tmp+" only", "L");
-            if(total_var_list[ivar].Contains("5D")) {v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][1], "Total pred.", "L");}
-            else {v_tlegend_ratio_eft[ivar]->AddEntry(v_tlegend_dummy[ivar][1], "Total prediction", "L");}
-
-            v_tlegend_ratio_eft[ivar]->Draw("same");
-
-            //-- Obsolete
-            // if(total_var_list[ivar].Contains("SM") || total_var_list[ivar].Contains("cpq3_SRttZ"))
-            // {
-            //     v_tlatex_legend_eft[ivar] = new TLatex();
-            //     v_tlatex_legend_eft[ivar]->SetNDC();
-            //     v_tlatex_legend_eft[ivar]->SetTextFont(42);
-            //     v_tlatex_legend_eft[ivar]->SetTextAlign(31);
-            //     v_tlatex_legend_eft[ivar]->SetTextSize(0.04);
-            //     v_tlatex_legend_eft[ivar]->DrawLatex(0.24, 0.16, header);
-            // }
-
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineColor(kMagenta+2);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetLineColor(kPink+1);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetLineColor(v_custom_colors[11]->GetNumber());
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineColor(v_custom_colors[8]->GetNumber());
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetLineColor(v_custom_colors[11]->GetNumber());
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineStyle(2);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetLineStyle(2);
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineWidth(3.);
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->SetLineWidth(3.);
-            v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->Draw("hist same");
-            // v2_histo_ratio_eft_totalProcs_smeft[ivar][1]->Draw("hist same");
+            // TString label = "Bin " + Convert_Number_To_TString(i);
+            TString label = Convert_Number_To_TString(i);
+            v2_histo_ratio_eft[ivar][0]->GetXaxis()->SetBinLabel(i, label);
+            // v2_histo_ratio_eft[ivar][0]->LabelsOption("v", "X"); //X labels vertical
         }
+
+        v2_histo_ratio_eft[ivar][0]->SetMinimum(0.8); //Default
+        v2_histo_ratio_eft[ivar][0]->SetMaximum(12.99); //Default
+        if(!ratio_signal_only) v2_histo_ratio_eft[ivar][0]->SetMaximum(3.99);
+
+        // v2_histo_ratio_eft[ivar][0]->SetLineWidth(3.);
+        v2_histo_ratio_eft[ivar][0]->SetLineWidth(linewidth_signal);
+        if(ratio_signal_only) {v2_histo_ratio_eft[ivar][0]->SetLineColor(color_list[3]);}
+        v2_histo_ratio_eft[ivar][0]->SetLineStyle(linestyle_signal);
+        v2_histo_ratio_eft[ivar][0]->SetFillColor(color_fill_signal);
+
+        // v2_histo_ratio_eft[ivar][0]->SetFillColor(color_list[3]);
+
+        v2_histo_ratio_eft[ivar][0]->Draw("hist");
+
+        TString EFTpointlabel1, EFTpointlabel2;
+        vector<pair<TString,float>> v = Parse_EFTreweight_ID(EFTpoint_name1);
+        for(int i=0; i<v.size(); i++)
+        {
+            if(v[i].second != 0)
+            {
+                if(EFTpointlabel1 != "") {EFTpointlabel1+= ",";}
+                EFTpointlabel1+= Convert_Number_To_TString(v[i].second);
+            }
+        }
+
+        // if(EFTpointlabel1[EFTpointlabel1.Length()-1] != 0) {EFTpointlabel1+= "0";} //Force add 0
+        if(EFTpointlabel1.Length()==0) {EFTpointlabel1 = "0";}
+
+        if(EFTpointlabel1.Length()==1) {EFTpointlabel1+= ".00";}
+        else if(EFTpointlabel1.Length()==2) {EFTpointlabel1+= "00";}
+        else if(EFTpointlabel1.Length()==3) {EFTpointlabel1+= "0";}
+
+        TString proc_tmp = "";
+        if(total_var_list[ivar].Contains("SRtZq")) {proc_tmp = "tZq";}
+        if(total_var_list[ivar].Contains("SRttZ")) {proc_tmp = "t#bar{t}Z";}
+        // if(total_var_list[ivar].Contains("5D")) {header+= "("+Get_EFToperator_label("ctz")+","+Get_EFToperator_label("ctw")+","+Get_EFToperator_label("cpq3")+")";}
+
+        v_tlegend_ratio_eft[ivar] = new TLegend(0.20,0.17,0.60,0.27);
+        // v_tlegend_ratio_eft[ivar] = new TLegend(0.18,0.17,0.80,0.27);
+        v_tlegend_ratio_eft[ivar]->SetTextSize(0.04);
+        // v_tlegend_ratio_eft[ivar]->SetNColumns(2);
+        // v_tlegend_ratio_eft[ivar]->SetNColumns(4);
+
+        TString header = Get_EFToperator_label("ctz")+" /#Lambda^{2}";
+        if(total_var_list[ivar].Contains("ctw")) {header = Get_EFToperator_label("ctw")+" /#Lambda^{2}";}
+        else if(total_var_list[ivar].Contains("cpq3")) {header = Get_EFToperator_label("cpq3")+" /#Lambda^{2}";}
+        header+= " [TeV^{-2}]";
+        if(ratio_signal_only)
+        {
+            EFTpointlabel1 = Get_EFToperator_label("ctz")+" /#Lambda^{2} = " + EFTpointlabel1 + " TeV^{-2}";
+
+            header = proc_tmp;
+        }
+        v_tlegend_ratio_eft[ivar]->SetHeader(header);
+
+        v_tlegend_ratio_eft[ivar]->SetBorderSize(0);
+        v_tlegend_ratio_eft[ivar]->SetFillStyle(0); //transparent
+        v_tlegend_ratio_eft[ivar]->SetTextAlign(12); //align = 10*HorizontalAlign + VerticalAlign //Horiz: 1=left adjusted, 2=centered, 3=right adjusted //Vert: 1=bottom adjusted, 2=centered, 3=top adjusted
+
+        //-- Dummy histograms to add 'solid/dashed lines' in legend
+        v_tlegend_dummy[ivar][0] = new TH1F("", "", 1, 0, 1);
+        v_tlegend_dummy[ivar][1] = new TH1F("", "", 1, 0, 1);
+        v_tlegend_dummy[ivar][0]->SetFillColor(kBlack);
+        v_tlegend_dummy[ivar][1]->SetFillColor(kBlack);
+        v_tlegend_dummy[ivar][1]->SetLineStyle(2.);
+        v_tlegend_dummy[ivar][0]->SetLineWidth(2);
+        v_tlegend_dummy[ivar][1]->SetLineWidth(2);
+
+        v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][0], EFTpointlabel1, "F");
+        // v_tlegend_ratio_eft[ivar]->AddEntry(v2_histo_ratio_eft[0][0], EFTpointlabel1, "L");
+
+        v_tlegend_ratio_eft[ivar]->Draw("same");
+
+        // v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineColor(kMagenta+2);
+        // v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineStyle(2);
+        // v2_histo_ratio_eft_totalProcs_smeft[ivar][0]->SetLineWidth(3.);
 
 
 //  ####   ####   ####  #    # ###### ##### #  ####   ####
@@ -10026,6 +9973,7 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
 // #    # #    # #    # #    # #        #   # #    # #    #
 //  ####   ####   ####  #    # ######   #   #  ####   ####
 
+/*
     	//-- Draw ratio y-lines manually
         v_tpad_ratio[ivar]->cd();
     	v_hlines1[ivar] = new TH1F("","",this->nbins, xmin_tmp, xmax_tmp);
@@ -10045,6 +9993,7 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
     	}
     	v_hlines1[ivar]->SetLineStyle(6); v_hlines2[ivar]->SetLineStyle(6);
     	// v_hlines1[ivar]->Draw("hist same"); v_hlines2[ivar]->Draw("hist same"); //Removed extra lines
+*/
 
         TString Y_label = "Events / bin";
         if(v_stack[ivar]) //Must be drawn first
@@ -10089,14 +10038,11 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
     	latex.SetTextSize(0.04);
         latex.DrawLatex(0.96, 0.94,lumi_ts);
 
-        TString extraText = "Preliminary";
-        if(!use_paperStyle) //Default is without (for paper)
-        {
-            latex.SetTextFont(52);
-            latex.SetTextSize(0.05);
-            if(total_var_list[ivar].Contains("NN_SM") && total_var_list[ivar] != "NN_SM_SRother") {latex.DrawLatex(l + 0.38, 0.94, extraText);} //Hardcoded: due to different pad size (?), need to add a bit of extra space for this one
-            else {latex.DrawLatex(l + 0.39, 0.94, extraText);} //Postfit plots
-        }
+        TString extraText = "Supplementary";
+        // TString extraText = "Preliminary";
+        latex.SetTextFont(52);
+        latex.SetTextSize(0.05);
+        latex.DrawLatex(l + 0.45, 0.94, extraText);
 
         TString info_data = Get_Region_Label(region, total_var_list[ivar]);
         TLatex text2;
@@ -10203,6 +10149,8 @@ void TopEFT_analysis::Make_Animation_PhysicsBriefing(TString eft_point_name)
         // if(v2_histo_ratio_eft[ivar][1]) {delete v2_histo_ratio_eft[ivar][1]; v2_histo_ratio_eft[ivar][1] = NULL;}
         if(v_tlegend_dummy[ivar][0]) {delete v_tlegend_dummy[ivar][0]; v_tlegend_dummy[ivar][0] = NULL;}
         if(v_tlegend_dummy[ivar][1]) {delete v_tlegend_dummy[ivar][1]; v_tlegend_dummy[ivar][1] = NULL;}
+
+        if(v2_th1eft[ivar]) {delete v2_th1eft[ivar];}
     }
 
     return;

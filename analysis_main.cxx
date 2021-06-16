@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 //  #######  ##           ##    ####  #######  ##    ##  ######
 //---------------------------------------------------------------------------
 
-    //-- M A I N    A N A L Y S I S    O P T I O N S --
+    //-- M A I N    A N A L  S I S    O P T I O N S --
     TString signal_process = "tZq"; //'tZq', 'ttZ', 'tWZ'
     TString region = ""; //Select a specific event category : '' (all preselected events) / 'tZq' / 'ttZ' / 'signal'
     bool use_systematics = true; //true <-> will compute/store systematics selected below
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     bool plot_onlyMVACutEvents = false; //For binary MVA-SM templates plots only: true <-> only include events which pass the specified tZq or ttZ cut values
     bool plot_EFTscan_eachPoint = true; //true <-> if making template plots for a parameterized NN, will make 1 plot per considered EFT point (if histograms are found)
     TString nominal_tree_name = "result"; //Name of the nominal tree to read in rootfiles
-    bool use_paperStyle = false; //true <-> Add 'preliminary' label on plots
+    bool use_paperStyle = true; //true <-> Add 'preliminary' label on plots
 
 
 //-----------------------------------------------------------------------------------------
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
     bool make_paperPlot_signalRegions = false;
     bool make_paperPlot_controlPlots = false;
 
-    bool make_animation = true;
+    bool make_animation = false;
 
 //-----------------    OTHER
 
@@ -572,7 +572,7 @@ int main(int argc, char **argv)
         system(cmd.Data());
 
         vector<TString> v_eftpoints;
-        for(float ipt=0; ipt<4; ipt+=0.5)
+        for(float ipt=0; ipt<3; ipt+=0.10)
         {
             TString pt = "rwgt_ctz_" + Convert_Number_To_TString(ipt);
             v_eftpoints.push_back(pt);
@@ -581,18 +581,24 @@ int main(int argc, char **argv)
         // v_eftpoints.push_back("rwgt_ctz_1");
         // v_eftpoints.push_back("rwgt_ctz_2");
         // v_eftpoints.push_back("rwgt_ctz_3");
-        // v_eftpoints.push_back("rwgt_ctz_4");
 
         for(int ipt=0; ipt<v_eftpoints.size(); ipt++)
         {
             theAnalysis->Make_Animation_PhysicsBriefing(v_eftpoints[ipt]);
         }
 
-        cmd = "convert -delay 100 -loop 0 "; //delay in 1/100th of seconds
+        float delay = 20; //delay in 1/100th of seconds //Not below 20
+        cmd = "convert -delay "+Convert_Number_To_TString(delay)+" -loop 0 ";
         for(int ipt=0; ipt<v_eftpoints.size(); ipt++)
         {
             cmd+= "./plots/animations/" + v_eftpoints[ipt] + ".png ";
         }
+        int nrepeats = 300 / delay; //Number of times we want to repeat the last image (to stay longer on last frame)
+        for(int i=0; i<nrepeats; i++)
+        {
+            cmd+= "./plots/animations/" + v_eftpoints[v_eftpoints.size()-1] + ".png "; //Repeat last frame
+        }
+
         cmd+= outdir + "test.gif";
         cout<<"cmd = "<<cmd<<endl;
         system(cmd.Data());

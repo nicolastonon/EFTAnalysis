@@ -1,8 +1,13 @@
+#RPH
 imax	1	number of categories
 jmax	*	number of backgrounds
 kmax	*	number of nuisance parameters (sources of systematic uncertainties)
 ---------------------------------------------------
-shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC
+[SR]shapes * [VAR]_[CHAN]_[YEAR] workspacetoread w:rdh_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC
+[SR]shapes PrivMC_tZq [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC
+[SR]shapes PrivMC_ttZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC
+[SR]shapes PrivMC_tWZ [VAR]_[CHAN]_[YEAR] workspacetoread w:rph_$CHANNEL__$PROCESS w:rdh_$CHANNEL__$PROCESS__$SYSTEMATIC
+[CR]shapes * [VAR]_[CHAN]_[YEAR] filetoread $CHANNEL__$PROCESS $CHANNEL__$PROCESS__$SYSTEMATIC
 ---------------------------------------------------
 bin        	[VAR]_[CHAN]_[YEAR]
 observation	-1
@@ -10,7 +15,7 @@ observation	-1
 bin    	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]	[VAR]_[CHAN]_[YEAR]
 process	PrivMC_tZq	PrivMC_ttZ	PrivMC_tWZ	tX	WZ	VVV	XG	NPL
 process	0	-1	-2	3	4	5	6	7
-rate 	-1	-1	-1	-1	-1	-1	-1	-1
+rate 	[RATE_SIG]	[RATE_SIG]	[RATE_SIG]	-1	-1	-1	-1	-1
 ---------------------------------------------------
 [2016]Lumi16	lnN	1.01	1.01	1.01	1.01	1.01	1.01	1.01	-
 [2017]Lumi17	lnN	1.02	1.02	1.02	1.02	1.02	1.02	1.02	-
@@ -90,10 +95,83 @@ NPL_rate	lnN	-	-	-	-	-	-	-	1.3
 [SHAPE]PileUpPtEC1	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]PileUpPtEC2	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
 [SHAPE]PileUpPtHF	shape	[PrivMC_CR]	[PrivMC_CR]	[PrivMC_CR]	1	1	1	1	-
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_tX	shape	-	-	-	1	-	-	-	-
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_WZ	shape	-	-	-	-	1	-	-	-
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_VVV	shape	-	-	-	-	-	1	-	-
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_XG	shape	-	-	-	-	-	-	1	-
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_NPL	shape	-	-	-	-	-	-	-	1
 ---------------------------------------------------
 ---------------------------------------------------
-[STAT]	*	autoMCStats	10
+[CR][STAT]	*	autoMCStats	10
 ---------------------------------------------------
+[SHAPE]PU	param	0	1
+[SHAPE][201617]prefire	param	0	1
+[SHAPE]BtagHF	param	0	1
+[SHAPE]BtagLF	param	0	1
+[SHAPE]BtagHFstats1[YEAR]	param	0	1
+[SHAPE]BtagHFstats2[YEAR]	param	0	1
+[SHAPE]BtagLFstats1[YEAR]	param	0	1
+[SHAPE]BtagLFstats2[YEAR]	param	0	1
+[SHAPE]BtagCFerr1	param	0	1
+[SHAPE]BtagCFerr2	param	0	1
+[SHAPE]FRm_norm	param	0	1
+[SHAPE]FRm_pt	param	0	1
+[SHAPE]FRm_be	param	0	1
+[SHAPE]FRe_norm	param	0	1
+[SHAPE]FRe_pt	param	0	1
+[SHAPE]FRe_be	param	0	1
+[SHAPE]LepEff_muLoose	param	0	1
+[SHAPE]LepEff_muTight	param	0	1
+[SHAPE]LepEff_elLoose	param	0	1
+[SHAPE]LepEff_elTight	param	0	1
+[SHAPE]njets_tZq	param	0	1
+[SHAPE]PDF	param	0	1
+[SHAPE]alphas	param	0	1
+[SHAPE]MEtZq	param	0	1
+[SHAPE]MEttZ	param	0	1
+[SHAPE]MEtWZ	param	0	1
+[SHAPE]ISRtZq	param	0	1
+[SHAPE]ISRttZ	param	0	1
+[SHAPE]ISRtWZ	param	0	1
+[SHAPE]FSR	param	0	1
+[SHAPE]JER[YEAR]	param	0	1
+[SHAPE]MET[YEAR]	param	0	1
+[SHAPE]AbsoluteStat[YEAR]	param	0	1
+[SHAPE]AbsoluteScale	param	0	1
+[SHAPE]AbsoluteMPFBias	param	0	1
+[SHAPE]Fragmentation	param	0	1
+[SHAPE]SinglePionECAL	param	0	1
+[SHAPE]SinglePionHCAL	param	0	1
+[SHAPE]FlavorQCD	param	0	1
+[SHAPE]TimePtEta[YEAR]	param	0	1
+[SHAPE]RelativeJEREC1[YEAR]	param	0	1
+[SHAPE]RelativeJEREC2[YEAR]	param	0	1
+[SHAPE]RelativeJERHF	param	0	1
+[SHAPE]RelativePtBB	param	0	1
+[SHAPE]RelativePtEC1[YEAR]	param	0	1
+[SHAPE]RelativePtEC2[YEAR]	param	0	1
+[SHAPE]RelativePtHF	param	0	1
+[SHAPE]RelativeBal	param	0	1
+[SHAPE]RelativeSample[YEAR]	param	0	1
+[SHAPE]RelativeFSR	param	0	1
+[SHAPE]RelativeStatFSR[YEAR]	param	0	1
+[SHAPE]RelativeStatEC[YEAR]	param	0	1
+[SHAPE]RelativeStatHF[YEAR]	param	0	1
+[SHAPE]PileUpDataMC	param	0	1
+[SHAPE]PileUpPtRef	param	0	1
+[SHAPE]PileUpPtBB	param	0	1
+[SHAPE]PileUpPtEC1	param	0	1
+[SHAPE]PileUpPtEC2	param	0	1
+[SHAPE]PileUpPtHF	param	0	1
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_PrivMC_tZq	param	0	1
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_PrivMC_ttZ	param	0	1
+[STAT]#MCstat_[BIN]_[VAR]_[YEAR]_PrivMC_tWZ	param	0	1
+---------------------------------------------------
+ctz	flatParam
+ctw	flatParam
+cpqm	flatParam
+cpq3	flatParam
+cpt	flatParam
 ---------------------------------------------------
 tzq_rate group = PrivMC_tZq_rate
 ttz_rate group = PrivMC_ttZ_rate
