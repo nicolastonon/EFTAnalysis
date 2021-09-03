@@ -1961,7 +1961,7 @@ void Fill_Variables_List(vector<TString>& variable_list, bool use_predefined_EFT
     variable_list.push_back(template_name);
 
     //-- If using predefined SM vs SM categ. strategy, consider the variable in 3 hard-coded regions
-    if(use_predefined_EFT_strategy)
+    if(use_predefined_EFT_strategy || template_name == "NN_SM")
     {
         vector<TString> var_list_tmp(variable_list); //Tmp copy of variable list
         variable_list.clear();
@@ -2207,7 +2207,7 @@ TString Get_Unit_Variable(TString var)
 {
     TString unit = " units"; //Default //Must include space
 
-    //-- Dimensionless x-axis
+    //GeV
     if(var.Contains("pt", TString::kIgnoreCase)
     || var.Contains("metEt", TString::kIgnoreCase)
     || var.Contains("mTW", TString::kIgnoreCase)
@@ -2215,6 +2215,9 @@ TString Get_Unit_Variable(TString var)
     || var.Contains("mass", TString::kIgnoreCase)
     ) {unit = " GeV";} //Must include space
 
+    else if(var.Contains("dphi", TString::kIgnoreCase))  {unit = " radians";}
+
+    //-- Dimensionless x-axis
     return unit;
 }
 

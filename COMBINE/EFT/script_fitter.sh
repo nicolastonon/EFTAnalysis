@@ -7,10 +7,6 @@
 #    exit
 #fi
 
-#-- CREATE WORKSPACE
-#python EFTFitter.py -d ../datacards/COMBINED_Datacard_TemplateFit_Run2.txt --onlyworkspace
-
-
 # //--------------------------------------------
 # TMP CMD
 
@@ -59,7 +55,7 @@
 # //--------------------------------------------
 # 2D SCANS (obs. only)
 
-#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --batch #FIXME need to freeze jes group ?
+#python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --batch #NB: need to freeze jes group ?
 #python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P cpqm cpt -m scan -n cpqmcptObs --batch
 
 #python EFTFitter.py -d ./EFTWorkspace_5D.root --freeze -P ctz ctw -m scan -n ctzctwObs --collect
@@ -98,3 +94,22 @@
 #python EFTFitter.py -d ./EFTWorkspace_Zpt.root --exp -P ctz ctw cpq3 cpqm cpt -m bestfit
 #python EFTFitter.py -d ./EFTWorkspace_Zpt.root -P ctz ctw cpq3 cpqm cpt -m bestfit
 # //--------------------------------------------
+
+# //--------------------------------------------
+# BESTFITS (LINEAR-ONLY)
+
+#python EFTFitter.py -d ./EFTWorkspace_ctz_linear.root --freeze --exp -P ctz -m bestfit -n ctzExpLinear --onlylinear
+#python EFTFitter.py -d ./EFTWorkspace_ctz_linear.root --freeze -P ctz -m bestfit -n ctzObsLinear --onlylinear
+
+#python EFTFitter.py -d ./EFTWorkspace_ctw_linear.root --freeze --exp -P ctw -m bestfit -n ctwExpLinear --onlylinear
+#python EFTFitter.py -d ./EFTWorkspace_ctw_linear.root --freeze -P ctw -m bestfit -n ctwObsLinear --onlylinear
+
+#python EFTFitter.py -d ./EFTWorkspace_cpq3_linear.root --freeze --exp -P cpq3 -m bestfit -n cpq3ExpLinear --onlylinear
+#python EFTFitter.py -d ./EFTWorkspace_cpq3_linear.root --freeze -P cpq3 -m bestfit -n cpq3ObsLinear --onlylinear
+
+#python EFTFitter.py -d ./EFTWorkspace_SM_linear.root --freeze --exp -P cpqm -m bestfit -n cpqmExpLinear --onlylinear
+#python EFTFitter.py -d ./EFTWorkspace_SM_linear.root --freeze -P cpqm -m bestfit -n cpqmObsLinear --onlylinear
+
+#python EFTFitter.py -d ./EFTWorkspace_SM_linear.root --freeze --exp -P cpt -m bestfit -n cptExpLinear --onlylinear
+#python EFTFitter.py -d ./EFTWorkspace_SM_linear.root --freeze -P cpt -m bestfit -n cptObsLinear --onlylinear
+#//--------------------------------------------

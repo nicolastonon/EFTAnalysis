@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     bool use_specificMVA_eachYear = false; //true <-> look for year-specific MVA weight files
 
     bool make_SMvsEFT_templates_plots = true; //false <-> templates & plots are produced for SM scenario only (separate SM processes); true <-> consider SM vs EFT scenario (and apply beforehand the chosen categorization strategy)
-        int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers (events passing the cut fall into SRtZq/SRttZ, others into SRother); 2 <-> apply multi-classifier in merged SR (events fall into SRtZq/SRttZ/CR based on max node); 0 <-> testing: read tmp MVA, no categ. (retain all events, can't use multiple nodes simultaneously)
+        int categorization_strategy = 2; //1 <-> define SRtZq/SRttZ with different jet multiplicities, apply dedicated binary classifiers (events passing the cut fall into SRtZq/SRttZ, others into SRother); 2 <-> apply multi-classifier in merged SR (events fall into SRtZq/SRttZ/CR based on max node); 0 <-> testing: read tmp MVA (=> first copy relevant NN files to e.g. 'weightsMVA/NN/Run2/tmp' !), no categorization (=> retain all events, can't use multiple nodes simultaneously in fit)
         float cut_value_tZq = 0.5, cut_value_ttZ = 0.3; //Hard-coded cut values to apply -- for templates (automatic) and plots (user-option)
         bool keep_aboveCut = true; //true <-> only keep events satisfying x>=cut
         bool also_applyCut_onMaxNodeValue = false; //true <-> for SM vs EFT strategy 2, don't only look for the max node, but also apply a cut on the corresponding node value (cut set here)
@@ -425,7 +425,7 @@ int main(int argc, char **argv)
 
     bool make_paperPlot_commonRegions = false;
     bool make_paperPlot_signalRegions = false;
-    bool make_paperPlot_controlPlots = false;
+    bool make_paperPlot_controlPlots = true;
 
     bool make_animation = false;
 

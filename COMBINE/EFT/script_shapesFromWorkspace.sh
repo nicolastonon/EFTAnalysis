@@ -29,9 +29,9 @@ fi
 
 #-- Options
 # //--------------------------------------------
-nsamples=100 #Can reduce to speed up ?
+nsamples=500 #Can reduce to speed up ?
 
-#-- Must freeze WCs to 0 to ignore their uncertainties #Will crash if trying to freeze missing variable (then should double-check)
+#-- Must freeze WCs to 0 to ignore their uncertainties #NB: will crash if trying to freeze missing variable (then should double-check)
 #-- Must dump/read relevant EFTparam file, see comment above (hardcoded filepaths)
 freeze="" #Default, do not freeze WCs (not needed e.g. for NN_SM prefit, etc.)
 postfit=""
@@ -43,7 +43,7 @@ if [[ ${fitresult} == *"multidimfit"* ]]; then #If a fit result is provided, wil
     fit_type="postfit"
 fi
 
-if [[ ${filter} != *"CR"* ]]; then #No EFT in CRs
+if [[ ${filter} != *"CR"* ]]; then #No EFT in CRs <-> don't freeze WCs
     if [[ ${fitresult} == *"ctz"* ]]; then
         freeze="--freeze ctz=0"
         python DumpEFTParameterization.py ../templates/Templates_NN_ctz_EFT2_Run2.root
@@ -76,15 +76,13 @@ if [[ ${postfit} == "" ]]; then #Use different 'card prefix' for NN_SM prefit sh
 fi
 
 
-#FIXME
-
-#-- Freeze WC + split JEC
+#-- Freeze WC + split JEC #==> To get postfit errors (don't include WC error, and split JEC causes some unphysical errors)
 freeze=$freeze",RelativeSample2018=0,RelativePtEC22018=0,RelativePtEC12018=0,FlavorQCD=0,RelativeSample2017=0,RelativeSample2016=0,RelativeFSR=0,RelativeStatHF2018=0,TimePtEta2018=0,RelativeStatHF2017=0,RelativeStatHF2016=0,PileUpDataMC=0,SinglePionHCAL=0,RelativeJEREC22016=0,RelativeJEREC22017=0,RelativeJEREC22018=0,SinglePionECAL=0,RelativeStatEC2018=0,RelativeStatFSR2018=0,PileUpPtHF=0,RelativeStatEC2017=0,RelativeStatFSR2016=0,PileUpPtRef=0,Fragmentation=0,RelativePtBB=0,RelativePtEC12017=0,RelativePtEC12016=0,TimePtEta2017=0,TimePtEta2016=0,RelativePtEC22016=0,RelativePtEC22017=0,AbsoluteMPFBias=0,PileUpPtEC2=0,RelativePtHF=0,PileUpPtEC1=0,RelativeJERHF=0,AbsoluteStat2016=0,AbsoluteStat2017=0,AbsoluteStat2018=0,RelativeJEREC12017=0,RelativeJEREC12016=0,RelativeStatFSR2017=0,AbsoluteScale=0,PileUpPtBB=0,RelativeBal=0,RelativeStatEC2016=0,RelativeJEREC12018=0"
 
-#-- Freeze only split JEC
+#-- Freeze only split JEC #Testing
 #freeze="--freeze RelativeSample2018=0,RelativePtEC22018=0,RelativePtEC12018=0,FlavorQCD=0,RelativeSample2017=0,RelativeSample2016=0,RelativeFSR=0,RelativeStatHF2018=0,TimePtEta2018=0,RelativeStatHF2017=0,RelativeStatHF2016=0,PileUpDataMC=0,SinglePionHCAL=0,RelativeJEREC22016=0,RelativeJEREC22017=0,RelativeJEREC22018=0,SinglePionECAL=0,RelativeStatEC2018=0,RelativeStatFSR2018=0,PileUpPtHF=0,RelativeStatEC2017=0,RelativeStatFSR2016=0,PileUpPtRef=0,Fragmentation=0,RelativePtBB=0,RelativePtEC12017=0,RelativePtEC12016=0,TimePtEta2017=0,TimePtEta2016=0,RelativePtEC22016=0,RelativePtEC22017=0,AbsoluteMPFBias=0,PileUpPtEC2=0,RelativePtHF=0,PileUpPtEC1=0,RelativeJERHF=0,AbsoluteStat2016=0,AbsoluteStat2017=0,AbsoluteStat2018=0,RelativeJEREC12017=0,RelativeJEREC12016=0,RelativeStatFSR2017=0,AbsoluteScale=0,PileUpPtBB=0,RelativeBal=0,RelativeStatEC2016=0,RelativeJEREC12018=0"
 
-#-- Don't freeze any parameter
+#-- Don't freeze any parameter #==> To get correct postfit central value (include postfit values for WCs and JEC)
 #freeze=""
 
 

@@ -27,6 +27,20 @@ if [[ $1 == "" || $1 == "ctz" ]] ; then
     python EFTFitter.py -d ./EFTWorkspace_ctz.root -P ctz --freeze -m bestfit --freezenuisancegroups fr 2>&1 | tee -a log_ctz.out
     python EFTFitter.py -d ./EFTWorkspace_ctz.root -P ctz --freeze -m bestfit --freezenuisancegroups lep_eff 2>&1 | tee -a log_ctz.out
     python EFTFitter.py -d ./EFTWorkspace_ctz.root -P ctz --freeze -m bestfit --freezenuisancegroups theory 2>&1 | tee -a log_ctz.out
+
+    #-- Test with snapshot
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups tzq_rate 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups ttz_rate 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups twz_rate 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups bkg_rate 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups jes 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups jer 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups met 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups btag 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups other_exp 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups fr 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups lep_eff 2>&1 | tee -a log_ctz_snapshot.out
+    #python EFTFitter.py -d ./snapshot_ctzObs.root -P ctz --freeze -m bestfit --freezenuisancegroups theory 2>&1 | tee -a log_ctz_snapshot.out
 fi
 
 # //--------------------------------------------

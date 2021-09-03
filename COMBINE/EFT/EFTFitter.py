@@ -173,7 +173,7 @@ class EFTFit(object):
  #    # #      #    #   #      #      #   #
  #####  ######  ####    #      #      #   #
 
-    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False, freezenuisancegroups=[]):
+    def bestFit(self, datacard='./EFTWorkspace.root', SM=False, name='.EFT', params_POI=[], freeze=False, startValues=[], autoBounds=True, other=[], exp=False, verbosity=0, fixedPointNLL=False, mask=[], antimask=[], ntoys=-1, trackNuisances=False, freezenuisancegroups=[], onlylinear=False):
         '''
         Perform a (multi-dim.) MLF to find the best fit value of the POI(s).
 
@@ -228,10 +228,13 @@ class EFTFit(object):
         check = True in (wc not in params_POI for wc in self.wcs_tracked)
         if check and not SM: args.extend(['--trackParameters',','.join(wc for wc in self.wcs_tracked if wc not in params_POI)]) #Save values of additional parameters (e.g. profiled nuisances)
         if SM: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(mu,self.SMmu_ranges[mu][0],self.SMmu_ranges[mu][1]) for mu in self.SM_mus)]) #in params_POI
-        else: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #in params_POI
+        else: 
+            if onlylinear==True: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0]*3,self.wc_ranges[wc][1]*3) for wc in self.wcs)]) #enlarge POI ranges by factor 3 (only consider linear terms, weaker constraints)
+            else: args.extend(['--setParameterRanges', ':'.join('{}={},{}'.format(wc,self.wc_ranges[wc][0],self.wc_ranges[wc][1]) for wc in self.wcs)]) #defined in params_POI
         if ntoys>0: args.extend(['-t',str(ntoys),'-s',str(-1)]) #ntoys, random seed
         if trackNuisances: args.extend(['--saveSpecifiedNuis=all'])
         if len(freezenuisancegroups)>0: args.extend(['--freezeNuisanceGroups',','.join('{}'.format(group) for group in freezenuisancegroups)]) #Freeze groups of nuisances (as defined in datacard)
+	if 'snapshot' in datacard.lower(): args.extend(['--snapshotName', 'MultiDimFit', '-w', 'w']) #Auto-detect that a snapshot is loaded (to fix frozen parameters to best-fit values)
 
         if debug: print('args --> ', args)
         logging.info(colors.fg.purple + " ".join(args) + colors.reset)
@@ -1367,7 +1370,7 @@ if __name__ == "__main__":
         if '.txt' in datacard_path: datacard_path = ws #If WS was created, make sure to update path
 
         #-- Maximum Likelihood Fit
-        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups)
+        if mode in ['','bestfit']: fitter.bestFit(datacard=datacard_path, SM=SM, params_POI=POI, exp=exp, verbosity=verb, name=name, startValues=startValues, fixedPointNLL=fixedPointNLL, freeze=freeze, mask=mask, antimask=antimask, ntoys=ntoys, trackNuisances=track, freezenuisancegroups=freezenuisancegroups, onlylinear=onlylinear)
         elif mode == 'printbestfit': #Only print best fit results
             fitter.printBestFit(name=name, params=POI, SM=SM)
 

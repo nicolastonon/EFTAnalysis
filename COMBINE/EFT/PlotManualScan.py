@@ -38,7 +38,7 @@ def test():
     l = c.GetLeftMargin()
 
     #-- Get x-y coordinates for TGraph representing NLL function
-    ientry = 1 #Which entry to read ? #FIXME
+    ientry = 1 #Which entry to read ?
     NLL_values = []
     for filepath in list_filepaths:
         print('filepath', filepath)

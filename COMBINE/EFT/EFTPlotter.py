@@ -93,14 +93,15 @@ def Get_Intersection_X(graph, y_line):
     return list_X_intersects
 
 
-def Get_Parameter_LegName(name):
+def Get_Parameter_LegName(name, fullname=True):
 
     # EFT operators
-    if name == 'ctz': return 'C_{tZ} / #Lambda^{2} [TeV^{-2}]'
-    elif name == 'ctw': return 'C_{tW} / #Lambda^{2} [TeV^{-2}]'
-    elif name == 'cpq3': return 'C^{3}_{#varphiQ} / #Lambda^{2} [TeV^{-2}]'
-    elif name == 'cpqm': return 'C^{-}_{#varphiQ} / #Lambda^{2} [TeV^{-2}]'
-    elif name == 'cpt': return 'C_{#varphit} / #Lambda^{2} [TeV^{-2}]'
+    suffix = '#scale[0.5]{ }/#Lambda^{2} [TeV^{-2}]' if fullname==True else '' #Adjust spacing
+    if name == 'ctz': return 'C_{tZ}' + suffix
+    elif name == 'ctw': return 'C_{tW}' + suffix
+    elif name == 'cpq3': return 'C^{3}_{#varphiQ}' + suffix
+    elif name == 'cpqm': return 'C^{#font[122]{\55}}_{#varphiQ}' + suffix
+    elif name == 'cpt': return 'C_{#varphit}' + suffix
 
     #if name == 'ctz': return 'C_{tZ} (#Lambda/TeV)^{2}'
     #elif name == 'ctw': return 'C_{tW} (#Lambda/TeV)^{2}'
@@ -242,8 +243,7 @@ def Eval(obj, x, params):
  #    #   #     #   #      # #   ## #    #
   ####    #     #   ###### # #    #  ####
 
-def Load_Canvas_Style():
-
+def Set_Custom_ColorGradient_Zaxis():
     #-- Trick to get smoother color palette on z-axis (rather than coarse steps)
     NRGBs = 6 #5
     NCont = 255
@@ -261,6 +261,11 @@ def Load_Canvas_Style():
     blueArray = array('d', blue)
     TColor.CreateGradientColorTable(NRGBs, stopsArray, redArray, greenArray, blueArray, NCont)
     gStyle.SetNumberContours(NCont)
+
+    return
+
+def Load_Canvas_Style():
+
 
     gStyle.SetCanvasBorderMode(0)
     gStyle.SetCanvasColor(0)
@@ -461,7 +466,7 @@ class EFTPlot(object):
 
         wc: parameter to plot
 
-        NB: 'NLL' = negative profiled log-likelihood function, as read in TFile.
+        NB: 'NLL' = negative profile log-likelihood function, as read in TFile.
         '''
 
         superimpose_second_scan = True #True <-> will look for second rootfile (hardcoded path) to overlay
@@ -507,7 +512,7 @@ class EFTPlot(object):
         #-- Use CombineTool utils (see: https://github.com/cms-analysis/CombineHarvester/blob/master/CombineTools/python/plotting.py)
         stitch_multiple_scans = False #True <-> input rootfile contains hadded results from multiple scans with different bestfit values #NB: make this the new default ? Should be always correct to sum (deltaNLL+nll+nll0)
 
-        #-- Stitched scans (may can help when combine is incorrectly interpolating linearly between 2 scans)
+        #-- Stitched scans (may help when combine is incorrectly interpolating linearly between 2 scans)
         if stitch_multiple_scans:
 
             if limitTree.GetListOfBranches().FindObject("quantileExpected"):
@@ -763,20 +768,18 @@ class EFTPlot(object):
         if superimpose_second_scan == True: graph2.Draw("L same") #Draw second graph last ('overlay')
 
         #-- Legend
-        toLeft = -0. #-0.06?
-        yleg = 0.75
-        # yleg = 0.71
-        #leg = ROOT.TLegend(0.37+toLeft,yleg,0.75,yleg+0.15)
-        leg = ROOT.TLegend(0.37+toLeft,yleg,0.75,yleg+0.15)
-        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28+toLeft,yleg-0.04,0.88,yleg+0.15) #More space
-        # leg.SetTextSize(0.04)
-        leg.SetTextSize(0.038)
+        yleg = 0.75 #0.75
+        leg = ROOT.TLegend(0.37,yleg,0.75,yleg+0.20) #Previous default
+        if superimpose_second_scan == True: leg = ROOT.TLegend(0.28,0.67,0.72,yleg+0.16) #More space
+        #if superimpose_second_scan == True: leg = ROOT.TLegend(0.28,yleg-0.04,0.88,yleg+0.15) #More space
+        leg.SetTextSize(0.05) #Default was: 0.038
+	if 'cptObs' in name: leg.SetTextSize(0.042) #Smaller size
         leg.SetBorderSize(0) #Remove legend border
 
         if superimpose_second_scan == True:
-            leg.AddEntry(graph, "Profiled log-likelihood (Observed)", "L")
-            leg.AddEntry(graph2, "Profiled log-likelihood (Expected)", "L")
-        else: leg.AddEntry(graph, "Profiled log-likelihood", "L")
+            leg.AddEntry(graph, "Profile log-likelihood (Observed)", "L")
+            leg.AddEntry(graph2, "Profile log-likelihood (Expected)", "L")
+        else: leg.AddEntry(graph, "Profile log-likelihood", "L")
 
         #-- 68% intersections
         legentry_68 = ''
@@ -785,6 +788,7 @@ class EFTPlot(object):
             crossings = main_scan['crossings'][yvals[0]][ig]
             if legentry_68 == '': legentry_68 = "68% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
             else: legentry_68+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+	legentry_68 = legentry_68.replace('-', '#font[122]{\55}') #Larger minus sign
         if legentry_68 != '': leg.AddEntry(v_graph68[0], legentry_68, "F")
 
         #-- 95% intersections
@@ -794,6 +798,7 @@ class EFTPlot(object):
             crossings = main_scan['crossings'][yvals[1]][ig]
             if legentry_95 == '': legentry_95 = "95% CL [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
             else: legentry_95+= " #cup [{:.2f}, {:.2f}]".format(crossings['lo'],crossings['hi'])
+	legentry_95 = legentry_95.replace('-', '#font[122]{\55}') #Larger minus sign
         if legentry_95 != '' and len(v_graph95)>0: leg.AddEntry(v_graph95[0], legentry_95, "F")
 
         leg.Draw("same")
@@ -814,6 +819,8 @@ class EFTPlot(object):
         self.CMS_text.Draw('same')
         if paper==False: self.extraText.Draw('same')
         self.lumiText.Draw('same')
+
+	ROOT.gPad.RedrawAxis() #Redraw axes (with tick marks) on top of colored-filled areas
 
         #-- Save
         outname = 'scan1D{}'.format(name.replace('.','_'))
@@ -944,7 +951,7 @@ class EFTPlot(object):
         #-- Legend
         leg = ROOT.TLegend(0.37,0.70,0.75,0.86)
         leg.SetTextSize(0.04)
-        leg.AddEntry(graph, "Profiled log-likelihood", "L")
+        leg.AddEntry(graph, "Profile log-likelihood", "L")
         if len(list_X_intersects68)>=2: leg.AddEntry(fgraph68, "68% CL [{:.2f}, {:.2f}]".format(list_X_intersects68[0],list_X_intersects68[1]), "F")
         if len(list_X_intersects95)>=2: leg.AddEntry(fgraph95, "95% CL [{:.2f}, {:.2f}]".format(list_X_intersects95[0],list_X_intersects95[1]), "F")
         leg.Draw("same")
@@ -1205,10 +1212,10 @@ class EFTPlot(object):
         c.Print(outname+'.eps')
 
         #-- Save to root file
-        if not log:
-            outfile = ROOT.TFile(self.histosFileName,'UPDATE')
-            hist.Write()
-            outfile.Close()
+        #if not log:
+        #    outfile = ROOT.TFile(self.histosFileName,'UPDATE')
+        #    hist.Write()
+        #    outfile.Close()
 
 
   ####  #    # ###### #####  #        ##   #   #    #####  #       ####  #####  ####
@@ -1332,7 +1339,7 @@ class EFTPlot(object):
 
         # Legend
         legend = ROOT.TLegend(0.1,0.85,0.45,0.945)
-        legend.AddEntry(graph1,"Others Profiled (2#sigma)",'p')
+        legend.AddEntry(graph1,"Others Profile (2#sigma)",'p')
         legend.AddEntry(graph2,"Others Fixed to SM (2#sigma)",'p')
         legend.SetTextSize(0.035)
         legend.SetNColumns(1)
@@ -2090,7 +2097,7 @@ if __name__ == "__main__":
     if name != '' and name[0] != '.': name = '.{}'.format(name) #Convention: add a '.' before custom name
 
     plotter = EFTPlot(opts, mode, paperStyle=paper)
-    Load_Canvas_Style()
+    Load_Canvas_Style(); Set_Custom_ColorGradient_Zaxis()
 
 
 # SM

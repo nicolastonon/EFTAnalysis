@@ -27,7 +27,8 @@
 #./script_shapesFromWorkspace.sh multidimfit.5DExp.root SRother
 
 #-----------------------
-#-- POSTFIT ==> Should run twice (and move output files in corresponding subdirs): once without freezing any parameter (to get correct central values), and once freezing WCs and split JEC (to get correct uncertainties)
+#-- POSTFIT 
+# /!\ /!\ Should run twice (and move output files in corresponding subdirs): once without freezing any parameter (to get correct central values), and once freezing WCs and split JEC (to get correct uncertainties) #NB: only for postfit /!\ /!\
 
 #SR OBS
 

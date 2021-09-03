@@ -17,6 +17,15 @@
 #python EFTPlotter.py -P cpt -n cptObs -m 1D --paper
 
 # //--------------------------------------------
+# SCANS 2D OBS
+
+#python EFTPlotter.py -P ctz ctw -n ctzctwObs -f scan_ctz_ctw.root
+#python EFTPlotter.py -P ctz ctw -n ctzctwObs -f scan_ctz_ctw.root --paper
+
+#python EFTPlotter.py -P cpqm cpt -n cpqmcptObs -f scan_cpqm_cpt.root
+#python EFTPlotter.py -P cpqm cpt -n cpqmcptObs -m 1D -f scan_cpqm_cpt.root --paper
+
+# //--------------------------------------------
 # SCANS 1D EXP
 
 #python EFTPlotter.py -P ctz -n ctzExp -m 1D
@@ -33,14 +42,5 @@
 
 #python EFTPlotter.py -P cpt -n cptExp -m 1D
 #python EFTPlotter.py -P cpt -n cptExp -m 1D --paper
-
-# //--------------------------------------------
-# SCANS 2D OBS
-
-python EFTPlotter.py -P ctz ctw -n ctzctwObs -f scan_ctz_ctw.root
-python EFTPlotter.py -P ctz ctw -n ctzctwObs -f scan_ctz_ctw.root --paper
-
-python EFTPlotter.py -P cpqm cpt -n cpqmcptObs -f scan_cpqm_cpt.root
-python EFTPlotter.py -P cpqm cpt -n cpqmcptObs -m 1D -f scan_cpqm_cpt.root --paper
 
 # //--------------------------------------------
